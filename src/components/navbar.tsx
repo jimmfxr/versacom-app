@@ -138,7 +138,7 @@ export function Navbar({
 
       <DisclosurePanel className="sm:hidden">
         {/* User info on top */}
-        <div className="border-b border-gray-700 px-4 py-3">
+        <div className="px-4 py-3">
           <div className="flex items-center">
             <div className="shrink-0">
               {user.imageUrl ? (
@@ -188,7 +188,7 @@ export function Navbar({
         </div>
 
         {/* Sign out */}
-        <div className="border-t border-gray-700 py-2">
+        <div className="py-2">
           {onSignOut && (
             <DisclosureButton
               as="button"
