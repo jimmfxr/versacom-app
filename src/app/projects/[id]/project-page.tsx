@@ -573,17 +573,11 @@ export function ProjectPage({
                       {isEditing ? (
                         <>
                           <Button size="sm" onClick={() => handleSaveEquipment(item)} disabled={isPending}>Save</Button>
+                          <Button size="sm" variant="danger" onClick={() => handleDeleteEquipment(item)} disabled={isPending}>Delete</Button>
                           <Button size="sm" variant="secondary" onClick={() => setEditingId(null)} disabled={isPending}>Cancel</Button>
                         </>
                       ) : (
-                        <>
-                          <IconButton onClick={() => startEdit(item)}>
-                            <EditIcon />
-                          </IconButton>
-                          <IconButton variant="danger" onClick={() => handleDeleteEquipment(item)} disabled={isPending}>
-                            <CloseIcon className="size-4" />
-                          </IconButton>
-                        </>
+                        <Button size="sm" onClick={() => startEdit(item)}>Edit</Button>
                       )}
                     </div>
                   </div>
