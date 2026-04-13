@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Nodal Control — ERD</title>
+<style>
+  body { background:#0f1115; margin:0; padding:20px; display:flex; flex-direction:column; align-items:center; }
+  h1 { color:#e2e8f0; font-family:'Roboto',sans-serif; font-size:1.4rem; margin-bottom:8px; }
+  p { color:#94a3b8; font-family:'Roboto',sans-serif; font-size:0.85rem; margin-bottom:20px; }
+  .mermaid { background:#1a1a2e; padding:30px; border-radius:12px; width:95%; overflow:auto; }
+  .mermaid svg { width:100%; height:auto; min-width:1400px; }
+  .nav { display:flex; gap:12px; margin-bottom:20px; }
+  .nav a { color:#0178a3; font-family:'Roboto',sans-serif; font-size:0.85rem; text-decoration:none; padding:6px 14px; border:1px solid #0178a3; border-radius:8px; }
+  .nav a:hover { background:rgba(1,120,163,0.15); }
+  .nav a.active { background:rgba(1,120,163,0.25); }
+</style>
+</head>
+<body>
+<div class="nav">
+  <a href="uml-use-case.html">Use Case</a>
+  <a href="uml-erd.html" class="active">ERD</a>
+  <a href="uml-state-diagrams.html">State Diagrams</a>
+  <a href="uml-sequence-diagrams.html">Sequence Diagrams</a>
+  <a href="user-flow.html">User Flow</a>
+</div>
+<h1>Entity Relationship Diagram</h1>
+<p>Phase 1: User through AccessRequest | Phase 2: Equipment | Phase 4: Asset, RackTemplate, RackSlot, NFGReport</p>
+<div class="mermaid">
+erDiagram
+    USER {
+        int id PK
+        string firstName
+        string lastName
+        string pin
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    PROJECT {
+        int id PK
+        string name
+        string status
+        int createdById FK
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    PROJECT_MEMBER {
+        int id PK
+        int userId FK
+        int projectId FK
+        string role
+        string position
+        string location
+        string hardwareType
+        string ipAddress
+        string headsetType
+        string deployStatus
+        int riedelId
+    }
+
+    PICK_LIST_ITEM {
+        int id PK
+        int projectId FK
+        string name
+        string type
+    }
+
+    PANEL_KEY {
+        int id PK
+        int projectMemberId FK
+        int keyIndex
+        string page
+        int expansion
+        int pickListItemId FK
+        string triggerMode
+    }
+
+    KEY_DRAFT {
+        int id PK
+        int panelKeyId FK
+        int editedById FK
+        int pickListItemId FK
+        string triggerMode
+        string status
+        datetime createdAt
+    }
+
+    CHANGE_REQUEST {
+        int id PK
+        int projectId FK
+        int submittedById FK
+        int targetMemberId FK
+        string status
+        string rejectionNote
+        datetime createdAt
+        datetime resolvedAt
+    }
+
+    CHANGE_REQUEST_ITEM {
+        int id PK
+        int changeRequestId FK
+        int panelKeyId FK
+        string fieldChanged
+        string previousValue
+        string newValue
+    }
+
+    ACCESS_REQUEST {
+        int id PK
+        int userId FK
+        int projectId FK
+        string status
+        datetime createdAt
+        datetime resolvedAt
+    }
+
+    EQUIPMENT {
+        int id PK
+        int projectId FK
+        int assignedToId FK
+        string category
+        string hardwareType
+        string position
+        string location
+        string ipAddress
+        string headsetType
+        string frequency
+        string bpNumber
+        string source
+        string deployStatus
+        string notes
+        int assetId FK
+    }
+
+    ASSET {
+        int id PK
+        string qrCode
+        string hardwareType
+        string serialNumber
+        string owner
+        string status
+        datetime createdAt
+    }
+
+    RACK_TEMPLATE {
+        int id PK
+        string name
+        string description
+        int totalRU
+        string type
+        int projectId FK
+    }
+
+    RACK_SLOT {
+        int id PK
+        int rackTemplateId FK
+        int ruPosition
+        int ruSize
+        string side
+        string deviceType
+        string label
+        string color
+    }
+
+    NFG_REPORT {
+        int id PK
+        int equipmentId FK
+        int assetId FK
+        int reportedById FK
+        string notes
+        string status
+        datetime createdAt
+        datetime resolvedAt
+    }
+
+    USER ||--o{ PROJECT : "creates"
+    USER ||--o{ PROJECT_MEMBER : "member of"
+    USER ||--o{ CHANGE_REQUEST : "submits"
+    USER ||--o{ ACCESS_REQUEST : "requests"
+    USER ||--o{ KEY_DRAFT : "edits"
+    USER ||--o{ NFG_REPORT : "reports"
+
+    PROJECT ||--o{ PROJECT_MEMBER : "has members"
+    PROJECT ||--o{ PICK_LIST_ITEM : "has functions"
+    PROJECT ||--o{ CHANGE_REQUEST : "has requests"
+    PROJECT ||--o{ ACCESS_REQUEST : "has access reqs"
+    PROJECT ||--o{ EQUIPMENT : "has equipment"
+    PROJECT ||--o{ RACK_TEMPLATE : "has racks"
+
+    PROJECT_MEMBER ||--o{ PANEL_KEY : "has keys"
+    PROJECT_MEMBER ||--o{ EQUIPMENT : "assigned to"
+
+    PICK_LIST_ITEM ||--o{ PANEL_KEY : "used by"
+    PICK_LIST_ITEM ||--o{ KEY_DRAFT : "draft uses"
+
+    PANEL_KEY ||--o{ KEY_DRAFT : "has drafts"
+    PANEL_KEY ||--o{ CHANGE_REQUEST_ITEM : "changed in"
+
+    CHANGE_REQUEST ||--o{ CHANGE_REQUEST_ITEM : "contains"
+
+    RACK_TEMPLATE ||--o{ RACK_SLOT : "contains slots"
+
+    ASSET ||--o{ EQUIPMENT : "tracked as"
+    ASSET ||--o{ NFG_REPORT : "reported on"
+
+    EQUIPMENT ||--o{ NFG_REPORT : "flagged in"
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    er: { layoutDirection: 'TB', minEntityWidth: 100, minEntityHeight: 75, fontSize: 12, useMaxWidth: false },
+    themeVariables: {
+      primaryColor: '#0178a3',
+      primaryTextColor: '#e2e8f0',
+      primaryBorderColor: '#334155',
+      lineColor: '#4a5568',
+      background: '#0f1115',
+      mainBkg: '#1e293b',
+      nodeBorder: '#334155',
+      tertiaryColor: '#1e293b',
+      edgeLabelBackground: '#1e293b'
+    }
+  });
+</script>
+</body>
+</html>

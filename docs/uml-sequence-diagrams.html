@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Nodal Control — Sequence Diagrams</title>
+<style>
+  body { background:#0f1115; margin:0; padding:20px; display:flex; flex-direction:column; align-items:center; }
+  h1 { color:#e2e8f0; font-family:'Roboto',sans-serif; font-size:1.4rem; margin-bottom:20px; }
+  h2 { color:#94a3b8; font-family:'Roboto',sans-serif; font-size:1.1rem; margin:30px 0 10px; }
+  .mermaid { background:#1a1a2e; padding:30px; border-radius:12px; width:95%; overflow:auto; margin-bottom:20px; }
+  .mermaid svg { width:100%; height:auto; min-width:900px; }
+  .nav { display:flex; gap:12px; margin-bottom:20px; }
+  .nav a { color:#0178a3; font-family:'Roboto',sans-serif; font-size:0.85rem; text-decoration:none; padding:6px 14px; border:1px solid #0178a3; border-radius:8px; }
+  .nav a:hover { background:rgba(1,120,163,0.15); }
+  .nav a.active { background:rgba(1,120,163,0.25); }
+</style>
+</head>
+<body>
+<div class="nav">
+  <a href="uml-use-case.html">Use Case</a>
+  <a href="uml-erd.html">ERD</a>
+  <a href="uml-state-diagrams.html">State Diagrams</a>
+  <a href="uml-sequence-diagrams.html" class="active">Sequence Diagrams</a>
+  <a href="user-flow.html">User Flow</a>
+</div>
+
+<h1>Sequence Diagrams</h1>
+
+<h2>1. Change Request Flow — Key Edit to Approval</h2>
+<div class="mermaid">
+sequenceDiagram
+    actor Crew
+    participant UI as Panel Studio
+    participant API as REST API
+    participant DB as Database
+    actor Manager
+    actor Admin
+
+    Note over Crew,UI: Key Editing
+    Crew->>UI: Tap Key and Assign Function
+    UI->>UI: Key turns YELLOW (Draft)
+    Crew->>UI: Edit more keys
+    UI->>UI: Each edited key turns YELLOW
+
+    Note over Crew,API: Submission
+    Crew->>UI: Tap Submit Changes
+    UI->>API: POST /change-requests
+    API->>DB: Create ChangeRequest
+    API->>DB: Create ChangeRequestItems per key
+    API->>DB: Create KeyDrafts status submitted
+    API-->>UI: 201 Created
+    UI->>UI: Keys turn GREEN (Submitted)
+
+    Note over Manager,DB: Tier 1 Approval
+    Manager->>API: GET /inbox/change-requests
+    API->>DB: Query pending requests
+    API-->>Manager: List of requests
+    Manager->>API: PATCH /change-requests/:id approve
+    API->>DB: Update CR status to mgr_approved
+    API-->>Manager: 200 OK
+
+    Note over Admin,DB: Final Approval
+    Admin->>API: GET /inbox/change-requests
+    API-->>Admin: List with mgr_approved status
+    Admin->>API: PATCH /change-requests/:id approve
+    API->>DB: Update CR status to approved
+    API->>DB: Write KeyDraft values to PanelKey live
+    API->>DB: Delete KeyDrafts
+    API-->>Admin: 200 OK
+
+    Note over UI: Next poll or refresh
+    UI->>API: GET /panels/:memberId/keys
+    API-->>UI: Updated live keys
+    UI->>UI: Keys turn CLEAR (Live)
+</div>
+
+<h2>2. Equipment Deployment Flow</h2>
+<div class="mermaid">
+sequenceDiagram
+    actor Admin
+    participant Dist as Distribution Page
+    participant API as REST API
+    participant DB as Database
+    actor Crew
+    actor Shop
+
+    Note over Admin,DB: Show Planning
+    Admin->>Dist: Add Equipment Entry
+    Dist->>API: POST /equipment
+    API->>DB: Create Equipment status planning
+    API-->>Dist: 201 Created
+
+    Admin->>Dist: Assign to Person and Location
+    Dist->>API: PATCH /equipment/:id
+    API->>DB: Update Equipment status holding
+    API-->>Dist: 200 OK
+
+    Admin->>Dist: Import CSV Batch
+    Dist->>API: POST /equipment/import
+    API->>DB: Bulk create Equipment entries
+    API-->>Dist: Import summary
+
+    Note over Crew,DB: On-Site Deployment
+    Crew->>Dist: Open Distribution Page
+    Dist->>API: GET /equipment?project=id
+    API-->>Dist: Equipment list with statuses
+
+    Crew->>Dist: Mark device as Deployed
+    Dist->>API: PATCH /equipment/:id/status
+    API->>DB: Update status to deployed
+    API-->>Dist: 200 OK
+
+    alt Device Works Fine
+        Note over Crew,DB: Show Wraps
+        Crew->>Dist: Mark as Done
+        Dist->>API: PATCH /equipment/:id/status
+        API->>DB: Status to done
+    else Device Fails
+        Crew->>Dist: Flag as NFG
+        Dist->>API: POST /equipment/:id/nfg
+        API->>DB: Status to nfg
+        API->>DB: Create NFGReport
+        API-->>Dist: NFG Report created
+
+        Note over Shop: Shop sees NFG reports
+        Shop->>API: GET /nfg-reports
+        API-->>Shop: List of flagged devices
+        Shop->>API: PATCH /nfg-reports/:id acknowledged
+    end
+
+    Note over Crew,DB: Gear Return
+    Crew->>Dist: Mark as Returned
+    Dist->>API: PATCH /equipment/:id/status
+    API->>DB: Status to returned
+</div>
+
+<h2>3. Join Project and Access Request Flow</h2>
+<div class="mermaid">
+sequenceDiagram
+    actor NewUser as New User
+    participant Login as Login Screen
+    participant API as REST API
+    participant DB as Database
+    actor Admin
+
+    NewUser->>Login: Tap Join Project
+    Login->>Login: Show Join Project Screen
+    NewUser->>Login: Enter Name and Project Code
+    Login->>API: POST /access-requests
+    API->>DB: Create AccessRequest status pending
+    API-->>Login: 201 Pending
+    Login->>Login: Show Request Pending Screen
+
+    Note over Admin,DB: Admin reviews
+    Admin->>API: GET /inbox/access-requests
+    API-->>Admin: List of pending requests
+
+    alt Approved
+        Admin->>API: PATCH /access-requests/:id approve
+        API->>DB: Update AccessRequest to approved
+        API->>DB: Create ProjectMember record
+        API->>DB: Generate PIN for user
+        API-->>Admin: 200 OK
+
+        Note over NewUser: User returns to login
+        NewUser->>Login: Enter PIN
+        Login->>API: POST /auth/login
+        API->>DB: Validate PIN
+        API-->>Login: Auth token and project data
+        Login->>Login: Navigate to Dashboard
+    else Rejected
+        Admin->>API: PATCH /access-requests/:id reject
+        API->>DB: Update AccessRequest to rejected
+    end
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    sequence: { mirrorActors: false, showSequenceNumbers: true, actorMargin: 80, messageFontSize: 13 },
+    themeVariables: {
+      primaryColor: '#0178a3',
+      primaryTextColor: '#fff',
+      primaryBorderColor: '#0178a3',
+      lineColor: '#4a5568',
+      secondaryColor: '#1a1a2e',
+      tertiaryColor: '#1a1a2e',
+      background: '#0f1115',
+      mainBkg: '#1e293b',
+      nodeBorder: '#334155',
+      actorBkg: '#1e293b',
+      actorBorder: '#0178a3',
+      actorTextColor: '#e2e8f0',
+      signalColor: '#94a3b8',
+      signalTextColor: '#e2e8f0',
+      labelBoxBkgColor: '#1e293b',
+      labelBoxBorderColor: '#334155',
+      labelTextColor: '#e2e8f0',
+      loopTextColor: '#94a3b8',
+      noteBkgColor: '#1e293b',
+      noteTextColor: '#94a3b8',
+      noteBorderColor: '#334155',
+      activationBkgColor: '#0178a3',
+      activationBorderColor: '#0178a3',
+      sequenceNumberColor: '#fff'
+    }
+  });
+</script>
+</body>
+</html>

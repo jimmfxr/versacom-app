@@ -1,0 +1,242 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// PHASE 1 — Pick List / Panels / Change Requests (9 Models)
+// ============================================================
+
+model User {
+  id        Int      @id @default(autoincrement())
+  firstName String
+  lastName  String
+  pin       String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  createdProjects  Project[]        @relation("ProjectCreator")
+  memberships      ProjectMember[]
+  changeRequests   ChangeRequest[]
+  accessRequests   AccessRequest[]
+  keyDrafts        KeyDraft[]
+  nfgReports       NfgReport[]
+}
+
+model Project {
+  id          Int      @id @default(autoincrement())
+  name        String
+  status      String   @default("active") // active, archived
+  createdById Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  createdBy      User             @relation("ProjectCreator", fields: [createdById], references: [id])
+  members        ProjectMember[]
+  pickListItems  PickListItem[]
+  changeRequests ChangeRequest[]
+  accessRequests AccessRequest[]
+  equipment      Equipment[]
+  rackTemplates  RackTemplate[]
+}
+
+model ProjectMember {
+  id           Int     @id @default(autoincrement())
+  userId       Int
+  projectId    Int
+  role         String  // admin, manager, crew, user
+  position     String? // e.g. PLHQ, A1, A2
+  location     String? // e.g. FOH, MON, STAGE
+  hardwareType String? // e.g. RSP-1232, Bolero
+  ipAddress    String?
+  headsetType  String? // e.g. 4 LWHS, DT290
+  deployStatus String  @default("na") // deployed, done, returned, not-needed, damaged, na
+  riedelId     Int?
+
+  // Relations
+  user            User              @relation(fields: [userId], references: [id])
+  project         Project           @relation(fields: [projectId], references: [id])
+  panelKeys       PanelKey[]
+  equipment       Equipment[]
+  changeRequests  ChangeRequest[]   @relation("ChangeRequestTarget")
+
+  @@unique([userId, projectId])
+}
+
+model PickListItem {
+  id        Int    @id @default(autoincrement())
+  projectId Int
+  name      String // Function name
+  type      String // PTP, CONF, IFB, Audio_IO
+
+  // Relations
+  project   Project    @relation(fields: [projectId], references: [id])
+  panelKeys PanelKey[]
+  keyDrafts KeyDraft[]
+}
+
+model PanelKey {
+  id              Int    @id @default(autoincrement())
+  projectMemberId Int
+  keyIndex        Int    // Physical key position
+  page            String @default("main") // main, shift
+  expansion       Int    @default(0) // 0 = main panel, 1-6 = expansion
+  pickListItemId  Int?
+  triggerMode     String @default("latch") // latch, momentary, auto
+
+  // Relations
+  projectMember      ProjectMember       @relation(fields: [projectMemberId], references: [id])
+  pickListItem       PickListItem?       @relation(fields: [pickListItemId], references: [id])
+  keyDrafts          KeyDraft[]
+  changeRequestItems ChangeRequestItem[]
+
+  @@unique([projectMemberId, keyIndex, page, expansion])
+}
+
+model KeyDraft {
+  id             Int      @id @default(autoincrement())
+  panelKeyId     Int
+  editedById     Int
+  pickListItemId Int?
+  triggerMode    String?
+  status         String   @default("draft") // draft, submitted
+  createdAt      DateTime @default(now())
+
+  // Relations
+  panelKey     PanelKey      @relation(fields: [panelKeyId], references: [id])
+  editedBy     User          @relation(fields: [editedById], references: [id])
+  pickListItem PickListItem? @relation(fields: [pickListItemId], references: [id])
+}
+
+model ChangeRequest {
+  id             Int       @id @default(autoincrement())
+  projectId      Int
+  submittedById  Int
+  targetMemberId Int
+  status         String    @default("draft") // draft, submitted, mgr_endorsed, approved, rejected, applied, discarded
+  rejectionNote  String?
+  createdAt      DateTime  @default(now())
+  resolvedAt     DateTime?
+
+  // Relations
+  project      Project             @relation(fields: [projectId], references: [id])
+  submittedBy  User                @relation(fields: [submittedById], references: [id])
+  targetMember ProjectMember       @relation("ChangeRequestTarget", fields: [targetMemberId], references: [id])
+  items        ChangeRequestItem[]
+}
+
+model ChangeRequestItem {
+  id              Int    @id @default(autoincrement())
+  changeRequestId Int
+  panelKeyId      Int
+  fieldChanged    String
+  previousValue   String?
+  newValue        String?
+
+  // Relations
+  changeRequest ChangeRequest @relation(fields: [changeRequestId], references: [id])
+  panelKey      PanelKey      @relation(fields: [panelKeyId], references: [id])
+}
+
+model AccessRequest {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  projectId  Int
+  status     String    @default("pending") // pending, approved, rejected
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  // Relations
+  user    User    @relation(fields: [userId], references: [id])
+  project Project @relation(fields: [projectId], references: [id])
+}
+
+// ============================================================
+// PHASE 2-4 — Equipment / Assets / Racks / NFG (5 Models)
+// ============================================================
+
+model Equipment {
+  id           Int     @id @default(autoincrement())
+  projectId    Int
+  assignedToId Int?
+  category     String  // panels, wireless_bp, hardwire_bp, switches, antennas
+  hardwareType String?
+  position     String?
+  location     String?
+  headsetType  String?
+  frequency    String? // 1.9 / 2.4 GHz bands
+  bpNumber     String?
+  source       String?
+  deployStatus String  @default("planning") // planning, holding, deployed, done, returned, not-needed, nfg, damaged, na
+  notes        String?
+  assetId      Int?
+
+  // Relations
+  project    Project        @relation(fields: [projectId], references: [id])
+  assignedTo ProjectMember? @relation(fields: [assignedToId], references: [id])
+  asset      Asset?         @relation(fields: [assetId], references: [id])
+  nfgReports NfgReport[]
+}
+
+model Asset {
+  id           Int      @id @default(autoincrement())
+  qrCode       String   @unique
+  hardwareType String
+  serialNumber String
+  owner        String   // e.g. Clair Global
+  status       String   @default("active") // active, retired, repair
+  createdAt    DateTime @default(now())
+
+  // Relations
+  equipment  Equipment[]
+  nfgReports NfgReport[]
+}
+
+model RackTemplate {
+  id          Int     @id @default(autoincrement())
+  name        String  // e.g. FS11, Bolero, Bolero to Helixnet
+  description String?
+  totalRU     Int
+  type        String  // standard, custom
+  projectId   Int?
+
+  // Relations
+  project Project?   @relation(fields: [projectId], references: [id])
+  slots   RackSlot[]
+}
+
+model RackSlot {
+  id             Int    @id @default(autoincrement())
+  rackTemplateId Int
+  ruPosition     Int    // Starting RU position (top = 1)
+  ruSize         Int    // Height in RU
+  side           String // front, rear
+  deviceType     String // e.g. Artist-64 Frame, Antaira Switch
+  label          String
+  color          String?
+
+  // Relations
+  rackTemplate RackTemplate @relation(fields: [rackTemplateId], references: [id])
+}
+
+model NfgReport {
+  id           Int       @id @default(autoincrement())
+  equipmentId  Int
+  assetId      Int?
+  reportedById Int
+  notes        String
+  status       String    @default("open") // open, acknowledged, resolved
+  createdAt    DateTime  @default(now())
+  resolvedAt   DateTime?
+
+  // Relations
+  equipment  Equipment @relation(fields: [equipmentId], references: [id])
+  asset      Asset?    @relation(fields: [assetId], references: [id])
+  reportedBy User      @relation(fields: [reportedById], references: [id])
+}

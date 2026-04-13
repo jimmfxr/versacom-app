@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Nodal Control — UML Diagrams</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:#0f1115; padding:20px; font-family:'Roboto',sans-serif; color:#e2e8f0; }
+  h1 { text-align:center; font-size:1.4rem; margin-bottom:24px; }
+  .tabs { display:flex; justify-content:center; gap:8px; margin-bottom:24px; flex-wrap:wrap; }
+  .tabs button { background:transparent; color:#0178a3; border:1px solid #0178a3; border-radius:8px; padding:6px 14px; font-size:0.8rem; cursor:pointer; font-family:inherit; }
+  .tabs button:hover { background:rgba(1,120,163,0.15); }
+  .tabs button.active { background:rgba(1,120,163,0.3); color:#fff; }
+  .section { } /* all visible for mermaid render */
+  .section.hidden { display:none; }
+  .diagram-card { background:#1a1a2e; border-radius:12px; padding:20px; margin-bottom:20px; overflow-x:auto; }
+  .diagram-card h3 { color:#e2e8f0; font-size:0.9rem; margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid #334155; }
+  .mermaid { font-size:14px; }
+</style>
+</head>
+<body>
+
+<h1>Nodal Control — UML Diagrams</h1>
+
+<div class="tabs">
+  <button class="active" onclick="showSection('usecase',this)">Use Case</button>
+  <button onclick="showSection('erd',this)">ERD</button>
+  <button onclick="showSection('state',this)">State Diagrams</button>
+  <button onclick="showSection('sequence',this)">Sequence Diagrams</button>
+</div>
+
+<!-- ==================== USE CASE ==================== -->
+<div id="usecase" class="section">
+
+  <div class="diagram-card">
+    <h3>Distribution Page — Who Can Do What</h3>
+    <div class="mermaid">
+flowchart LR
+    ADMIN(["Admin"]):::adminStyle --> D1["Create / Edit Equipment"]
+    ADMIN --> D2["Assign to Person"]
+    ADMIN --> D3["Import / Export CSV"]
+    ADMIN --> D4["Manage Rack Templates"]
+    ADMIN --> D5["Update Deploy Status"]
+    CREW(["Crew"]):::crewStyle --> D5
+    ADMIN --> D6["View Distribution"]
+    MGR(["Manager"]):::mgrStyle --> D6
+    CREW --> D6
+    SHOP(["Shop"]):::shopStyle --> D6
+    CREW --> D7["Flag Device as NFG"]
+    SHOP --> D8["View NFG Reports"]
+    classDef adminStyle fill:#0178a3,stroke:#0178a3,color:#fff
+    classDef mgrStyle fill:#3b82f6,stroke:#3b82f6,color:#fff
+    classDef crewStyle fill:#10b981,stroke:#10b981,color:#fff
+    classDef shopStyle fill:#a855f7,stroke:#a855f7,color:#fff
+    </div>
+  </div>
+
+  <div class="diagram-card">
+    <h3>Panel Studio — Who Can Do What</h3>
+    <div class="mermaid">
+flowchart LR
+    ADMIN(["Admin"]):::adminStyle --> P1["Edit Any User Panel"]
+    ADMIN --> P2["Approve Changes Final"]
+    MGR(["Manager"]):::mgrStyle --> P3["Edit Assigned Panels"]
+    MGR --> P4["Approve Changes Tier 1"]
+    CREW(["Crew"]):::crewStyle --> P5["Edit Own Panel"]
+    CREW --> P6["Submit Change Request"]
+    USR(["User"]):::usrStyle --> P7["View Own Panel"]
+    USR --> P6
+    classDef adminStyle fill:#0178a3,stroke:#0178a3,color:#fff
+    classDef mgrStyle fill:#3b82f6,stroke:#3b82f6,color:#fff
+    classDef crewStyle fill:#10b981,stroke:#10b981,color:#fff
+    classDef usrStyle fill:#f59e0b,stroke:#f59e0b,color:#000
+    </div>
+  </div>
+
+  <div class="diagram-card">
+    <h3>Inbox — Who Can Do What</h3>
+    <div class="mermaid">
+flowchart LR
+    ADMIN(["Admin"]):::adminStyle --> I1["Approve All Requests"]
+    ADMIN --> I2["Manage Access Requests"]
+    MGR(["Manager"]):::mgrStyle --> I3["Approve Assigned Requests"]
+    CREW(["Crew"]):::crewStyle --> I4["View Own Requests"]
+    USR(["User"]):::usrStyle --> I4
+    classDef adminStyle fill:#0178a3,stroke:#0178a3,color:#fff
+    classDef mgrStyle fill:#3b82f6,stroke:#3b82f6,color:#fff
+    classDef crewStyle fill:#10b981,stroke:#10b981,color:#fff
+    classDef usrStyle fill:#f59e0b,stroke:#f59e0b,color:#000
+    </div>
+  </div>
+
+  <div class="diagram-card">
+    <h3>Monitoring — Who Can Do What</h3>
+    <div class="mermaid">
+flowchart LR
+    ADMIN(["Admin"]):::adminStyle --> M1["Full Dashboard Access"]
+    MGR(["Manager"]):::mgrStyle --> M2["View Assigned Devices"]
+    CREW(["Crew"]):::crewStyle --> M2
+    SHOP(["Shop"]):::shopStyle --> M3["View Device Health"]
+    classDef adminStyle fill:#0178a3,stroke:#0178a3,color:#fff
+    classDef mgrStyle fill:#3b82f6,stroke:#3b82f6,color:#fff
+    classDef crewStyle fill:#10b981,stroke:#10b981,color:#fff
+    classDef shopStyle fill:#a855f7,stroke:#a855f7,color:#fff
+    </div>
+  </div>
+
+</div>
+
+<!-- ==================== ERD ==================== -->
+<div id="erd" class="section">
+
+  <div class="diagram-card">
+    <h3>Phase 1 — Pick List / Panel / Change Requests</h3>
+    <div class="mermaid">
+erDiagram
+    USER ||--o{ PROJECT_MEMBER : "member of"
+    USER ||--o{ PROJECT : "creates"
+    USER ||--o{ CHANGE_REQUEST : "submits"
+    USER ||--o{ KEY_DRAFT : "edits"
+    USER ||--o{ ACCESS_REQUEST : "requests"
+    PROJECT ||--o{ PROJECT_MEMBER : "has"
+    PROJECT ||--o{ PICK_LIST_ITEM : "has"
+    PROJECT ||--o{ CHANGE_REQUEST : "has"
+    PROJECT ||--o{ ACCESS_REQUEST : "has"
+    PROJECT_MEMBER ||--o{ PANEL_KEY : "has"
+    PICK_LIST_ITEM ||--o{ PANEL_KEY : "assigned to"
+    PICK_LIST_ITEM ||--o{ KEY_DRAFT : "draft uses"
+    PANEL_KEY ||--o{ KEY_DRAFT : "has drafts"
+    PANEL_KEY ||--o{ CHANGE_REQUEST_ITEM : "changed in"
+    CHANGE_REQUEST ||--o{ CHANGE_REQUEST_ITEM : "contains"
+
+    USER {
+        int id PK
+        string firstName
+        string lastName
+        string pin
+    }
+    PROJECT {
+        int id PK
+        string name
+        string status
+        int createdById FK
+    }
+    PROJECT_MEMBER {
+        int id PK
+        int userId FK
+        int projectId FK
+        string role
+        string position
+        string location
+        string hardwareType
+        string ipAddress
+        string headsetType
+        string deployStatus
+        int riedelId
+    }
+    PICK_LIST_ITEM {
+        int id PK
+        int projectId FK
+        string name
+        string type
+    }
+    PANEL_KEY {
+        int id PK
+        int projectMemberId FK
+        int keyIndex
+        string page
+        int expansion
+        int pickListItemId FK
+        string triggerMode
+    }
+    KEY_DRAFT {
+        int id PK
+        int panelKeyId FK
+        int editedById FK
+        int pickListItemId FK
+        string triggerMode
+        string status
+    }
+    CHANGE_REQUEST {
+        int id PK
+        int projectId FK
+        int submittedById FK
+        string status
+        string rejectionNote
+    }
+    CHANGE_REQUEST_ITEM {
+        int id PK
+        int changeRequestId FK
+        int panelKeyId FK
+        string previousValue
+        string newValue
+    }
+    ACCESS_REQUEST {
+        int id PK
+        int userId FK
+        int projectId FK
+        string status
+    }
+    </div>
+  </div>
+
+  <div class="diagram-card">
+    <h3>Phase 2-4 — Equipment / Assets / Racks / NFG</h3>
+    <div class="mermaid">
+erDiagram
+    PROJECT ||--o{ EQUIPMENT : "has"
+    PROJECT ||--o{ RACK_TEMPLATE : "has"
+    PROJECT_MEMBER ||--o{ EQUIPMENT : "assigned"
+    EQUIPMENT }o--|| ASSET : "tracks"
+    EQUIPMENT ||--o{ NFG_REPORT : "flagged in"
+    ASSET ||--o{ NFG_REPORT : "reported on"
+    RACK_TEMPLATE ||--o{ RACK_SLOT : "contains"
+    USER ||--o{ NFG_REPORT : "reports"
+
+    EQUIPMENT {
+        int id PK
+        int projectId FK
+        int assignedToId FK
+        string category
+        string hardwareType
+        string position
+        string location
+        string headsetType
+        string frequency
+        string bpNumber
+        string source
+        string deployStatus
+        string notes
+        int assetId FK
+    }
+    ASSET {
+        int id PK
+        string qrCode
+        string hardwareType
+        string serialNumber
+        string status
+    }
+    RACK_TEMPLATE {
+        int id PK
+        string name
+        int totalRU
+        string type
+        int projectId FK
+    }
+    RACK_SLOT {
+        int id PK
+        int rackTemplateId FK
+        int ruPosition
+        int ruSize
+        string side
+        string deviceType
+        string label
+    }
+    NFG_REPORT {
+        int id PK
+        int equipmentId FK
+        int assetId FK
+        int reportedById FK
+        string notes
+        string status
+    }
+    </div>
+  </div>
+
+</div>
+
+<!-- ==================== STATE DIAGRAMS ==================== -->
+<div id="state" class="section">
+
+  <div class="diagram-card">
+    <h3>1. Panel Key State — Yellow / Green / Clear</h3>
+    <div class="mermaid">
+stateDiagram-v2
+    direction LR
+    [*] --> Clear
+    Clear --> Yellow : User Edits Key
+    Yellow --> Yellow : More Edits
+    Yellow --> Clear : Discard
+    Yellow --> Green : Submit CR
+    Green --> Clear : Approved
+    Green --> Yellow : Rejected
+    </div>
+  </div>
+
+  <div class="diagram-card">
+    <h3>2. Change Request Lifecycle</h3>
+    <div class="mermaid">
+stateDiagram-v2
+    direction LR
+    [*] --> Draft
+    Draft --> Submitted : Submit
+    Draft --> Discarded : Cancel
+    Submitted --> MgrEndorsed : Manager Endorses (Soft)
+    Submitted --> AdminReview : Skips to Admin
+    MgrEndorsed --> Applied : Admin Approves
+    MgrEndorsed --> Rejected : Admin Rejects
+    AdminReview --> Applied : Admin Approves
+    AdminReview --> Rejected : Admin Rejects
+    Applied --> [*]
+    Rejected --> [*]
+    Discarded --> [*]
+    </div>
+  </div>
+
+  <div class="diagram-card">
+    <h3>3. Equipment Deploy Status</h3>
+    <div class="mermaid">
+stateDiagram-v2
+    direction LR
+    [*] --> Planning
+    Planning --> Holding : Assigned
+    Planning --> NotNeeded : Cut
+    Holding --> Deployed : Crew Installs
+    Holding --> NotNeeded : Cut
+    Deployed --> Done : Show Complete
+    Deployed --> Returned : Pulled Early
+    Deployed --> NFG : Device Fails
+    NFG --> Returned : Repaired
+    Done --> Returned : Gear Back
+    Returned --> [*]
+    NotNeeded --> [*]
+    </div>
+  </div>
+
+</div>
+
+<!-- ==================== SEQUENCE DIAGRAMS ==================== -->
+<div id="sequence" class="section">
+
+  <div class="diagram-card">
+    <h3>1. Change Request — Key Edit to Approval</h3>
+    <div class="mermaid">
+sequenceDiagram
+    actor C as Crew
+    participant UI as Panel Studio
+    participant API as REST API
+    participant DB as Database
+    actor M as Manager
+    actor A as Admin
+    C->>UI: Tap Key Assign Function
+    UI->>UI: Key turns YELLOW
+    C->>UI: Submit Changes
+    UI->>API: POST /change-requests
+    API->>DB: Create CR + Items + KeyDrafts
+    API-->>UI: 201 Created
+    UI->>UI: Keys turn GREEN
+    M->>API: GET /inbox
+    API-->>M: Pending requests
+    M->>API: PATCH /cr/:id endorse
+    API->>DB: Status mgr_endorsed (soft)
+    A->>API: GET /inbox
+    API-->>A: All submitted requests
+    A->>API: PATCH /cr/:id approve
+    API->>DB: Write drafts to live PanelKeys
+    UI->>API: GET /panels/:id/keys
+    API-->>UI: Updated keys
+    UI->>UI: Keys turn CLEAR
+    </div>
+  </div>
+
+  <div class="diagram-card">
+    <h3>2. Equipment Deployment Flow</h3>
+    <div class="mermaid">
+sequenceDiagram
+    actor A as Admin
+    participant D as Distribution
+    participant API as REST API
+    participant DB as Database
+    actor C as Crew
+    actor S as Shop
+    A->>D: Add Equipment
+    D->>API: POST /equipment
+    API->>DB: Create (planning)
+    A->>D: Assign Person + Location
+    D->>API: PATCH /equipment/:id
+    API->>DB: Status holding
+    C->>D: Mark Deployed
+    D->>API: PATCH /equipment/:id/status
+    API->>DB: Status deployed
+    alt Show Wraps
+        C->>D: Mark Done
+        API->>DB: Status done
+    else Device Fails
+        C->>D: Flag NFG
+        API->>DB: Status nfg + Create NFGReport
+        S->>API: GET /nfg-reports
+        API-->>S: Flagged devices
+    end
+    C->>D: Mark Returned
+    API->>DB: Status returned
+    </div>
+  </div>
+
+  <div class="diagram-card">
+    <h3>3. Join Project — Access Request</h3>
+    <div class="mermaid">
+sequenceDiagram
+    actor N as New User
+    participant L as Login Screen
+    participant API as REST API
+    participant DB as Database
+    actor A as Admin
+    N->>L: Tap Join Project
+    N->>L: Enter Name + Project Code
+    L->>API: POST /access-requests
+    API->>DB: Create (pending)
+    API-->>L: 201 Pending
+    L->>L: Show Pending Screen
+    A->>API: GET /inbox/access-requests
+    API-->>A: Pending list
+    alt Approved
+        A->>API: PATCH /access-requests/:id approve
+        API->>DB: Create ProjectMember + Generate PIN
+        N->>L: Enter PIN
+        L->>API: POST /auth/login
+        API-->>L: Auth token
+        L->>L: Navigate to Dashboard
+    else Rejected
+        A->>API: PATCH /access-requests/:id reject
+    end
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  // Render all sections first (all visible), then hide non-active after render
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    flowchart: { curve: 'basis', padding: 12, htmlLabels: true, useMaxWidth: true },
+    sequence: { mirrorActors: false, showSequenceNumbers: true, useMaxWidth: true, actorMargin: 50, messageFontSize: 12 },
+    er: { useMaxWidth: true, fontSize: 11 },
+    themeVariables: {
+      primaryColor: '#0178a3',
+      primaryTextColor: '#fff',
+      primaryBorderColor: '#0178a3',
+      lineColor: '#4a5568',
+      secondaryColor: '#1a1a2e',
+      tertiaryColor: '#1a1a2e',
+      background: '#0f1115',
+      mainBkg: '#1e293b',
+      nodeBorder: '#334155',
+      clusterBkg: '#0f1115',
+      clusterBorder: '#334155',
+      titleColor: '#e2e8f0',
+      edgeLabelBackground: '#1e293b',
+      actorBkg: '#1e293b',
+      actorBorder: '#0178a3',
+      actorTextColor: '#e2e8f0',
+      noteBkgColor: '#1e293b',
+      noteTextColor: '#94a3b8',
+      noteBorderColor: '#334155'
+    }
+  });
+
+  // After mermaid renders, hide non-active sections
+  mermaid.run().then(function() {
+    document.querySelectorAll('.section').forEach(function(s) {
+      if (s.id !== 'usecase') s.classList.add('hidden');
+    });
+  });
+
+  function showSection(id, btn) {
+    document.querySelectorAll('.section').forEach(function(s) { s.classList.add('hidden'); });
+    document.querySelectorAll('.tabs button').forEach(function(b) { b.classList.remove('active'); });
+    document.getElementById(id).classList.remove('hidden');
+    btn.classList.add('active');
+    window.scrollTo(0, 0);
+  }
+</script>
+</body>
+</html>

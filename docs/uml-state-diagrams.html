@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Nodal Control — State Diagrams</title>
+<style>
+  body { background:#0f1115; margin:0; padding:20px; display:flex; flex-direction:column; align-items:center; }
+  h1 { color:#e2e8f0; font-family:'Roboto',sans-serif; font-size:1.4rem; margin-bottom:20px; }
+  h2 { color:#94a3b8; font-family:'Roboto',sans-serif; font-size:1.1rem; margin:30px 0 10px; }
+  .mermaid { background:#1a1a2e; padding:30px; border-radius:12px; width:95%; overflow:auto; margin-bottom:20px; }
+  .mermaid svg { width:100%; height:auto; min-width:800px; }
+  .nav { display:flex; gap:12px; margin-bottom:20px; }
+  .nav a { color:#0178a3; font-family:'Roboto',sans-serif; font-size:0.85rem; text-decoration:none; padding:6px 14px; border:1px solid #0178a3; border-radius:8px; }
+  .nav a:hover { background:rgba(1,120,163,0.15); }
+  .nav a.active { background:rgba(1,120,163,0.25); }
+</style>
+</head>
+<body>
+<div class="nav">
+  <a href="uml-use-case.html">Use Case</a>
+  <a href="uml-erd.html">ERD</a>
+  <a href="uml-state-diagrams.html" class="active">State Diagrams</a>
+  <a href="uml-sequence-diagrams.html">Sequence Diagrams</a>
+  <a href="user-flow.html">User Flow</a>
+</div>
+
+<h1>State Diagrams</h1>
+
+<h2>1. Panel Key State Lifecycle</h2>
+<div class="mermaid">
+stateDiagram-v2
+    direction LR
+
+    [*] --> Clear : Key Created
+
+    Clear --> Yellow : User Edits Key
+    Yellow --> Yellow : Additional Edits
+    Yellow --> Clear : Discard Changes
+    Yellow --> Green : Submit Change Request
+
+    Green --> Clear : Approved and Applied to Live
+    Green --> Yellow : Rejected and Reverted
+
+    note right of Clear : Color CLEAR — Live on hardware
+    note right of Yellow : Color YELLOW — Local draft only
+    note right of Green : Color GREEN — Awaiting approval
+</div>
+
+<h2>2. Change Request Lifecycle</h2>
+<div class="mermaid">
+stateDiagram-v2
+    direction TB
+
+    [*] --> Draft : User Edits Keys
+
+    Draft --> Submitted : Submit for Review
+    Draft --> Discarded : User Cancels
+
+    Submitted --> MgrApproved : Manager Approves
+    Submitted --> Rejected : Manager Rejects
+
+    MgrApproved --> AdminApproved : Admin Approves
+    MgrApproved --> Rejected : Admin Rejects
+
+    AdminApproved --> Applied : Changes Written to Live Keys
+
+    Applied --> [*]
+    Rejected --> [*]
+    Discarded --> [*]
+
+    note right of Submitted : Awaiting Manager review
+    note right of MgrApproved : Awaiting Admin final review
+    note right of Rejected : Submitter notified with reason
+    note right of Applied : PanelKey records updated
+</div>
+
+<h2>3. Equipment Deploy Status Lifecycle</h2>
+<div class="mermaid">
+stateDiagram-v2
+    direction TB
+
+    [*] --> Planning : Equipment Added to Show
+
+    Planning --> Holding : Assigned to Person and Location
+    Planning --> NotNeeded : Cut Before Deploy
+
+    Holding --> Deployed : Crew Installs On Site
+    Holding --> NotNeeded : Cut from Show
+
+    Deployed --> Done : Show Complete
+    Deployed --> Returned : Pulled Early
+    Deployed --> NFG : Device Fails
+
+    NFG --> Returned : After Repair or Replace
+
+    Done --> Returned : Gear Checked Back In
+
+    Returned --> [*]
+    NotNeeded --> [*]
+
+    note right of Planning : Admin plans show design
+    note right of Holding : Assigned but not yet installed
+    note right of Deployed : Physically on site and working
+    note right of NFG : Flagged with notes for Shop team
+    note right of Done : Show wrapped successfully
+    note right of Returned : Back in warehouse inventory
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      primaryColor: '#0178a3',
+      primaryTextColor: '#fff',
+      primaryBorderColor: '#0178a3',
+      lineColor: '#4a5568',
+      secondaryColor: '#1a1a2e',
+      tertiaryColor: '#1a1a2e',
+      background: '#0f1115',
+      mainBkg: '#1e293b',
+      nodeBorder: '#334155',
+      clusterBkg: '#0f1115',
+      clusterBorder: '#334155',
+      titleColor: '#e2e8f0',
+      edgeLabelBackground: '#1e293b',
+      labelBoxBorderColor: '#334155',
+      labelBoxBkgColor: '#1e293b',
+      noteBkgColor: '#1e293b',
+      noteTextColor: '#94a3b8',
+      noteBorderColor: '#334155'
+    }
+  });
+</script>
+</body>
+</html>
