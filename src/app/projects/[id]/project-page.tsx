@@ -425,10 +425,15 @@ export function ProjectPage({
                 <FormInput
                   label="Quantity"
                   type="number"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   min={1}
                   max={200}
                   value={addQuantity}
-                  onChange={(e) => setAddQuantity(parseInt(e.target.value) || 1)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '')
+                    setAddQuantity(val ? parseInt(val) : 1)
+                  }}
                 />
                 <div className="flex items-end">
                   <Button onClick={handleBulkAdd} disabled={isPending} className="w-full">
