@@ -7,11 +7,16 @@ import { showToast } from '@/components/toast'
 import { AppShell } from '@/components/app-shell'
 import { PageLayout } from '@/components/page-layout'
 import { Card } from '@/components/card'
+import { Avatar } from '@/components/avatar'
 import { EmptyState } from '@/components/empty-state'
 import { StatusBadge } from '@/components/status-badge'
 import { IconButton } from '@/components/icon-button'
+import { Modal } from '@/components/modal'
 import { FormInput, FormSelect } from '@/components/form-field'
-import { bulkCreateEquipment, updateEquipment, deleteEquipment } from './actions'
+import { updateProject, removeMember, deleteProject } from './actions'
+import { bulkCreateEquipment, updateEquipment, deleteEquipment } from './distribution/actions'
+
+/* ─── Constants ─── */
 
 const CATEGORIES = [
   { value: 'panels', label: 'Panels', prefix: 'PNL', assignable: true },
@@ -49,6 +54,28 @@ const STATUS_COLORS: Record<string, string> = {
   damaged: 'red',
 }
 
+/* ─── Types ─── */
+
+type Member = {
+  id: number
+  role: string
+  position: string | null
+  location: string | null
+  userId: number
+  firstName: string
+  lastName: string
+}
+
+type Project = {
+  id: number
+  name: string
+  pin: string
+  status: string
+  createdAt: string
+  createdBy: { id: number; firstName: string; lastName: string }
+  members: Member[]
+}
+
 type EquipmentItem = {
   id: number
   name: string
@@ -64,7 +91,9 @@ type EquipmentItem = {
   assignedMemberId: number | null
 }
 
-type Member = { id: number; name: string }
+type AssignableMember = { id: number; name: string }
+
+/* ─── Helpers ─── */
 
 function isAssignable(category: string) {
   return ['panels', 'wireless_bp', 'hardwire_bp'].includes(category)
@@ -81,6 +110,8 @@ function hasField(category: string, field: string) {
   if (['switches', 'antennas'].includes(category)) return infraFields.includes(field)
   return false
 }
+
+/* ─── Icons ─── */
 
 function EditIcon() {
   return (
@@ -106,18 +137,42 @@ function WrenchIcon() {
   )
 }
 
-export function DistributionContent({
+function GearIcon() {
+  return (
+    <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+    </svg>
+  )
+}
+
+/* ─── Main Component ─── */
+
+export function ProjectPage({
   project,
   equipment,
-  members,
+  assignableMembers,
 }: {
-  project: { id: number; name: string; status: string }
+  project: Project
   equipment: EquipmentItem[]
-  members: Member[]
+  assignableMembers: AssignableMember[]
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
+  // Edit panel toggle
+  const [showSettings, setShowSettings] = useState(false)
+
+  // Project edit state
+  const [name, setName] = useState(project.name)
+  const [status, setStatus] = useState(project.status)
+  const [managerId, setManagerId] = useState(
+    () => project.members.find((m) => m.role === 'manager')?.userId.toString() || ''
+  )
+  const [editError, setEditError] = useState('')
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  // Equipment state
   const [search, setSearch] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [addCategory, setAddCategory] = useState('panels')
@@ -126,6 +181,54 @@ export function DistributionContent({
   const [addError, setAddError] = useState('')
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editData, setEditData] = useState<Partial<EquipmentItem>>({})
+
+  /* ─── Project actions ─── */
+
+  function handleSaveProject() {
+    if (!name.trim()) {
+      setEditError('Project name is required')
+      return
+    }
+    setEditError('')
+    startTransition(async () => {
+      const formData = new FormData()
+      formData.set('name', name.trim())
+      formData.set('status', status)
+      formData.set('managerId', managerId)
+      const result = await updateProject(project.id, formData)
+      if (result.error) {
+        setEditError(result.error)
+        return
+      }
+      showToast('success', 'Project updated')
+      router.refresh()
+    })
+  }
+
+  function handleRemoveMember(member: Member) {
+    startTransition(async () => {
+      const result = await removeMember(project.id, member.id)
+      if (result.error) {
+        showToast('error', result.error)
+        return
+      }
+      showToast('success', `${member.firstName} ${member.lastName} removed`)
+      router.refresh()
+    })
+  }
+
+  function handleDeleteProject() {
+    startTransition(async () => {
+      const result = await deleteProject(project.id)
+      if (result.error) {
+        showToast('error', result.error)
+        return
+      }
+      router.push('/projects')
+    })
+  }
+
+  /* ─── Equipment actions ─── */
 
   function handleBulkAdd() {
     if (addQuantity < 1) {
@@ -161,7 +264,7 @@ export function DistributionContent({
     })
   }
 
-  function handleSaveEdit(item: EquipmentItem) {
+  function handleSaveEquipment(item: EquipmentItem) {
     startTransition(async () => {
       const result = await updateEquipment(project.id, item.id, {
         name: editData.name || item.name,
@@ -182,7 +285,7 @@ export function DistributionContent({
     })
   }
 
-  function handleDelete(item: EquipmentItem) {
+  function handleDeleteEquipment(item: EquipmentItem) {
     startTransition(async () => {
       const result = await deleteEquipment(project.id, item.id)
       if (result.error) {
@@ -213,14 +316,134 @@ export function DistributionContent({
   return (
     <AppShell>
       <PageLayout
-        title={`${project.name} — Distribution`}
+        title={project.name}
         action={
-          <Button variant="secondary" onClick={() => router.push(`/projects/${project.id}`)}>
-            Back to Project
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setShowSettings(!showSettings)}
+            >
+              <span className="flex items-center gap-1.5">
+                <GearIcon />
+                {showSettings ? 'Close Settings' : 'Edit'}
+              </span>
+            </Button>
+            <Button variant="secondary" onClick={() => router.push('/projects')}>
+              Back to Projects
+            </Button>
+          </div>
         }
       >
         <div className="space-y-4">
+          {/* ─── Settings Panel (toggled by Edit button) ─── */}
+          {showSettings && (
+            <div className="space-y-4">
+              {/* Project PIN Card */}
+              <Card>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">Project PIN</h3>
+                    <p className="mt-1 text-xs text-gray-500">Share this PIN with your crew so they can join the project.</p>
+                  </div>
+                  <div className="flex gap-2">
+                    {project.pin.split('').map((digit, i) => (
+                      <span
+                        key={i}
+                        className="flex size-10 items-center justify-center rounded-lg bg-[#202020] text-lg font-bold text-[#0178a3]"
+                      >
+                        {digit}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </Card>
+
+              {/* Project Details Card */}
+              <Card>
+                <h3 className="text-sm font-semibold text-white">Project Details</h3>
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <FormInput
+                    label="Project name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => { setName(e.target.value); setEditError('') }}
+                    maxLength={100}
+                  />
+                  <FormSelect label="Manager" value={managerId} onChange={(e) => setManagerId(e.target.value)}>
+                    <option value="">None</option>
+                    {project.members.map((m) => (
+                      <option key={m.userId} value={m.userId}>
+                        {m.firstName} {m.lastName}
+                      </option>
+                    ))}
+                  </FormSelect>
+                  <FormSelect label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
+                    <option value="active">Active</option>
+                    <option value="archived">Archived</option>
+                  </FormSelect>
+                </div>
+                {editError && <p className="mt-3 text-sm text-red-400">{editError}</p>}
+                <div className="mt-4 flex items-center justify-between">
+                  <Button variant="danger" size="sm" onClick={() => setShowDeleteConfirm(true)} disabled={isPending}>
+                    Delete Project
+                  </Button>
+                  <Button size="sm" onClick={handleSaveProject} disabled={isPending}>
+                    {isPending ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </div>
+              </Card>
+
+              {/* Members Card */}
+              <Card>
+                <h3 className="text-sm font-semibold text-white">Members ({project.members.length})</h3>
+                <p className="mt-1 text-xs text-gray-500">
+                  Team members join by entering the project PIN on the login page.
+                </p>
+                <div className="mt-4 space-y-2">
+                  {project.members.length === 0 ? (
+                    <p className="text-sm text-gray-500">No members yet. Share the project PIN to get started.</p>
+                  ) : (
+                    project.members.map((member) => (
+                      <div key={member.id} className="flex items-center gap-3 rounded-xl bg-[#202020] px-4 py-3">
+                        <Avatar name={`${member.firstName} ${member.lastName}`} />
+                        <div className="min-w-0 flex-1">
+                          <span className="text-sm font-medium text-white">
+                            {member.firstName} {member.lastName}
+                          </span>
+                          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                            <span className="capitalize">{member.role}</span>
+                            {member.position && (
+                              <>
+                                <span>·</span>
+                                <span>{member.position}</span>
+                              </>
+                            )}
+                            {member.location && (
+                              <>
+                                <span>·</span>
+                                <span>{member.location}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        {member.userId !== project.createdBy.id && (
+                          <IconButton variant="danger" onClick={() => handleRemoveMember(member)} disabled={isPending}>
+                            <CloseIcon className="size-4" />
+                          </IconButton>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </Card>
+
+              {/* Divider */}
+              <div className="border-t border-white/10" />
+            </div>
+          )}
+
+          {/* ─── Equipment Distribution (always visible) ─── */}
+
           {/* Search + Add bar */}
           <div className="flex items-center gap-3">
             <div className="flex-1">
@@ -344,7 +567,7 @@ export function DistributionContent({
                           {isAssignable(item.category) && (
                             <FormSelect compact label="Assigned to" value={(editData.assignedToId as number) || ''} onChange={(e) => setEditData({ ...editData, assignedToId: e.target.value ? parseInt(e.target.value) : null })}>
                               <option value="">Unassigned</option>
-                              {members.map((m) => (
+                              {assignableMembers.map((m) => (
                                 <option key={m.id} value={m.id}>{m.name}</option>
                               ))}
                             </FormSelect>
@@ -378,7 +601,7 @@ export function DistributionContent({
                     <div className="flex shrink-0 items-center gap-1">
                       {isEditing ? (
                         <>
-                          <Button size="sm" onClick={() => handleSaveEdit(item)} disabled={isPending}>Save</Button>
+                          <Button size="sm" onClick={() => handleSaveEquipment(item)} disabled={isPending}>Save</Button>
                           <Button size="sm" variant="secondary" onClick={() => setEditingId(null)} disabled={isPending}>Cancel</Button>
                         </>
                       ) : (
@@ -386,7 +609,7 @@ export function DistributionContent({
                           <IconButton onClick={() => startEdit(item)}>
                             <EditIcon />
                           </IconButton>
-                          <IconButton variant="danger" onClick={() => handleDelete(item)} disabled={isPending}>
+                          <IconButton variant="danger" onClick={() => handleDeleteEquipment(item)} disabled={isPending}>
                             <CloseIcon className="size-4" />
                           </IconButton>
                         </>
@@ -399,6 +622,23 @@ export function DistributionContent({
           )}
         </div>
       </PageLayout>
+
+      <Modal
+        open={showDeleteConfirm}
+        title="Delete Project"
+        actions={
+          <>
+            <Button variant="secondary" onClick={() => setShowDeleteConfirm(false)} disabled={isPending}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDeleteProject} disabled={isPending}>
+              {isPending ? 'Deleting...' : 'Delete'}
+            </Button>
+          </>
+        }
+      >
+        Are you sure you want to delete <span className="text-white font-medium">{project.name}</span>? This will remove all members and cannot be undone.
+      </Modal>
     </AppShell>
   )
 }

@@ -17,23 +17,10 @@ const userNavigation: ReadonlyArray<Pick<NavItem, 'name' | 'href'>> = [
 ]
 
 function getNavigation(pathname: string): NavItem[] {
-  // Extract project ID from path like /projects/123/...
-  const projectMatch = pathname.match(/^\/projects\/(\d+)/)
-  const projectId = projectMatch ? projectMatch[1] : null
-
   return [
     { name: 'Dashboard', href: '/', current: pathname === '/' },
     { name: 'Tasks', href: '/admin', current: pathname.startsWith('/admin') },
-    {
-      name: 'Distribution',
-      href: projectId ? `/projects/${projectId}/distribution` : '/distribution',
-      current: pathname.includes('/distribution'),
-    },
-    {
-      name: 'Projects',
-      href: '/projects',
-      current: pathname.startsWith('/projects') && !pathname.includes('/distribution'),
-    },
+    { name: 'Projects', href: '/projects', current: pathname.startsWith('/projects') },
   ]
 }
 

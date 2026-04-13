@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
-import { ProjectDetail } from './project-detail'
+import { ProjectPage } from './project-page'
 
 export default async function ProjectDetailPage({
   params,
@@ -11,32 +11,64 @@ export default async function ProjectDetailPage({
   const projectId = parseInt(id, 10)
   if (isNaN(projectId)) notFound()
 
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    select: {
-      id: true,
-      name: true,
-      pin: true,
-      status: true,
-      createdAt: true,
-      createdBy: { select: { id: true, firstName: true, lastName: true } },
-      members: {
-        select: {
-          id: true,
-          role: true,
-          position: true,
-          location: true,
-          user: { select: { id: true, firstName: true, lastName: true } },
+  const [project, equipment, memberRows] = await Promise.all([
+    prisma.project.findUnique({
+      where: { id: projectId },
+      select: {
+        id: true,
+        name: true,
+        pin: true,
+        status: true,
+        createdAt: true,
+        createdBy: { select: { id: true, firstName: true, lastName: true } },
+        members: {
+          select: {
+            id: true,
+            role: true,
+            position: true,
+            location: true,
+            user: { select: { id: true, firstName: true, lastName: true } },
+          },
+          orderBy: { id: 'asc' },
         },
-        orderBy: { id: 'asc' },
       },
-    },
-  })
+    }),
+    prisma.equipment.findMany({
+      where: { projectId },
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        hardwareType: true,
+        position: true,
+        location: true,
+        headsetType: true,
+        ipAddress: true,
+        deployStatus: true,
+        assignedToId: true,
+        assignedTo: {
+          select: {
+            id: true,
+            user: { select: { firstName: true, lastName: true } },
+          },
+        },
+      },
+      orderBy: [{ category: 'asc' }, { id: 'asc' }],
+    }),
+    prisma.projectMember.findMany({
+      where: { projectId },
+      select: {
+        id: true,
+        user: { select: { firstName: true, lastName: true } },
+      },
+      orderBy: { id: 'asc' },
+    }),
+  ])
 
   if (!project) notFound()
 
   return (
-    <ProjectDetail
+    <ProjectPage
       project={{
         id: project.id,
         name: project.name,
@@ -54,6 +86,26 @@ export default async function ProjectDetailPage({
           lastName: m.user.lastName,
         })),
       }}
+      equipment={equipment.map((e) => ({
+        id: e.id,
+        name: e.name,
+        category: e.category,
+        hardwareType: e.hardwareType,
+        position: e.position,
+        location: e.location,
+        headsetType: e.headsetType,
+        ipAddress: e.ipAddress,
+        deployStatus: e.deployStatus,
+        assignedToId: e.assignedToId,
+        assignedToName: e.assignedTo
+          ? `${e.assignedTo.user.firstName} ${e.assignedTo.user.lastName}`
+          : null,
+        assignedMemberId: e.assignedTo?.id ?? null,
+      }))}
+      assignableMembers={memberRows.map((m) => ({
+        id: m.id,
+        name: `${m.user.firstName} ${m.user.lastName}`,
+      }))}
     />
   )
 }
