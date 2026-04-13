@@ -510,40 +510,47 @@ export function ProjectPage({
                     {/* Content */}
                     <div className="min-w-0 flex-1">
                       {isEditing ? (
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                          <FormInput compact label="Name" type="text" value={(editData.name as string) || ''} onChange={(e) => setEditData({ ...editData, name: e.target.value })} />
-                          <FormSelect compact label="Hardware" value={(editData.hardwareType as string) || ''} onChange={(e) => setEditData({ ...editData, hardwareType: e.target.value })}>
-                            <option value="">None</option>
-                            {(HARDWARE_TYPES[item.category] || []).map((ht) => (
-                              <option key={ht} value={ht}>{ht}</option>
-                            ))}
-                          </FormSelect>
-                          {hasField(item.category, 'position') && (
-                            <FormInput compact label="Position" type="text" value={(editData.position as string) || ''} onChange={(e) => setEditData({ ...editData, position: e.target.value })} />
-                          )}
-                          {hasField(item.category, 'location') && (
-                            <FormInput compact label="Location" type="text" value={(editData.location as string) || ''} onChange={(e) => setEditData({ ...editData, location: e.target.value })} />
-                          )}
-                          {hasField(item.category, 'headsetType') && (
-                            <FormSelect compact label="Headset" value={(editData.headsetType as string) || ''} onChange={(e) => setEditData({ ...editData, headsetType: e.target.value })}>
+                        <>
+                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                            <FormInput compact label="Name" type="text" value={(editData.name as string) || ''} onChange={(e) => setEditData({ ...editData, name: e.target.value })} />
+                            <FormSelect compact label="Hardware" value={(editData.hardwareType as string) || ''} onChange={(e) => setEditData({ ...editData, hardwareType: e.target.value })}>
                               <option value="">None</option>
-                              {HEADSET_TYPES.map((ht) => (
+                              {(HARDWARE_TYPES[item.category] || []).map((ht) => (
                                 <option key={ht} value={ht}>{ht}</option>
                               ))}
                             </FormSelect>
-                          )}
-                          {hasField(item.category, 'ipAddress') && (
-                            <FormInput compact label="IP Address" type="text" value={(editData.ipAddress as string) || ''} onChange={(e) => setEditData({ ...editData, ipAddress: e.target.value })} />
-                          )}
-                          {isAssignable(item.category) && (
-                            <FormSelect compact label="Assigned to" value={(editData.assignedToId as number) || ''} onChange={(e) => setEditData({ ...editData, assignedToId: e.target.value ? parseInt(e.target.value) : null })}>
-                              <option value="">Unassigned</option>
-                              {assignableMembers.map((m) => (
-                                <option key={m.id} value={m.id}>{m.name}</option>
-                              ))}
-                            </FormSelect>
-                          )}
-                        </div>
+                            {hasField(item.category, 'position') && (
+                              <FormInput compact label="Position" type="text" value={(editData.position as string) || ''} onChange={(e) => setEditData({ ...editData, position: e.target.value })} />
+                            )}
+                            {hasField(item.category, 'location') && (
+                              <FormInput compact label="Location" type="text" value={(editData.location as string) || ''} onChange={(e) => setEditData({ ...editData, location: e.target.value })} />
+                            )}
+                            {hasField(item.category, 'headsetType') && (
+                              <FormSelect compact label="Headset" value={(editData.headsetType as string) || ''} onChange={(e) => setEditData({ ...editData, headsetType: e.target.value })}>
+                                <option value="">None</option>
+                                {HEADSET_TYPES.map((ht) => (
+                                  <option key={ht} value={ht}>{ht}</option>
+                                ))}
+                              </FormSelect>
+                            )}
+                            {hasField(item.category, 'ipAddress') && (
+                              <FormInput compact label="IP Address" type="text" value={(editData.ipAddress as string) || ''} onChange={(e) => setEditData({ ...editData, ipAddress: e.target.value })} />
+                            )}
+                            {isAssignable(item.category) && (
+                              <FormSelect compact label="Assigned to" value={(editData.assignedToId as number) || ''} onChange={(e) => setEditData({ ...editData, assignedToId: e.target.value ? parseInt(e.target.value) : null })}>
+                                <option value="">Unassigned</option>
+                                {assignableMembers.map((m) => (
+                                  <option key={m.id} value={m.id}>{m.name}</option>
+                                ))}
+                              </FormSelect>
+                            )}
+                          </div>
+                          <div className="mt-3 flex items-center gap-1">
+                            <Button size="sm" onClick={() => handleSaveEquipment(item)} disabled={isPending}>Save</Button>
+                            <Button size="sm" variant="danger" onClick={() => handleDeleteEquipment(item)} disabled={isPending}>Delete</Button>
+                            <Button size="sm" variant="secondary" onClick={() => setEditingId(null)} disabled={isPending}>Cancel</Button>
+                          </div>
+                        </>
                       ) : (
                         <>
                           <div className="flex items-center gap-2">
@@ -568,18 +575,12 @@ export function ProjectPage({
                       )}
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex shrink-0 items-center gap-1">
-                      {isEditing ? (
-                        <>
-                          <Button size="sm" onClick={() => handleSaveEquipment(item)} disabled={isPending}>Save</Button>
-                          <Button size="sm" variant="danger" onClick={() => handleDeleteEquipment(item)} disabled={isPending}>Delete</Button>
-                          <Button size="sm" variant="secondary" onClick={() => setEditingId(null)} disabled={isPending}>Cancel</Button>
-                        </>
-                      ) : (
+                    {/* Edit button (non-editing only) */}
+                    {!isEditing && (
+                      <div className="flex shrink-0 items-center">
                         <Button size="sm" onClick={() => startEdit(item)}>Edit</Button>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 )
               })}
