@@ -137,6 +137,37 @@ export function Navbar({
       </div>
 
       <DisclosurePanel className="sm:hidden">
+        {/* User info on top */}
+        <div className="border-b border-gray-700 px-4 py-3">
+          <div className="flex items-center">
+            <div className="shrink-0">
+              {user.imageUrl ? (
+                <img
+                  alt=""
+                  src={user.imageUrl}
+                  className="size-10 rounded-full outline -outline-offset-1 outline-white/10"
+                />
+              ) : (
+                <span className="flex size-10 items-center justify-center rounded-full bg-[#0178a3] text-sm font-medium text-white outline -outline-offset-1 outline-white/10">
+                  {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                </span>
+              )}
+            </div>
+            <div className="ml-3">
+              <div className="text-base font-medium text-white">{user.name}</div>
+            </div>
+            <button
+              type="button"
+              className="relative ml-auto shrink-0 rounded-full p-1 text-gray-400 hover:text-white focus:outline-2 focus:outline-offset-2 focus:outline-[#0178a3]"
+            >
+              <span className="absolute -inset-1.5" />
+              <span className="sr-only">View notifications</span>
+              <BellIcon aria-hidden="true" className="size-6" />
+            </button>
+          </div>
+        </div>
+
+        {/* Nav tabs */}
         <div className="space-y-1 pt-2 pb-3">
           {navigation.map((item) => (
             <DisclosureButton
@@ -155,57 +186,18 @@ export function Navbar({
             </DisclosureButton>
           ))}
         </div>
-        <div className="border-t border-gray-700 pt-4 pb-3">
-          <div className="flex items-center px-4">
-            <div className="shrink-0">
-              {user.imageUrl ? (
-                <img
-                  alt=""
-                  src={user.imageUrl}
-                  className="size-10 rounded-full outline -outline-offset-1 outline-white/10"
-                />
-              ) : (
-                <span className="flex size-10 items-center justify-center rounded-full bg-[#0178a3] text-sm font-medium text-white outline -outline-offset-1 outline-white/10">
-                  {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                </span>
-              )}
-            </div>
-            <div className="ml-3">
-              <div className="text-base font-medium text-white">{user.name}</div>
-              <div className="text-sm font-medium text-gray-400">{user.email}</div>
-            </div>
-            <button
-              type="button"
-              className="relative ml-auto shrink-0 rounded-full p-1 text-gray-400 hover:text-white focus:outline-2 focus:outline-offset-2 focus:outline-[#0178a3]"
+
+        {/* Sign out */}
+        <div className="border-t border-gray-700 py-2">
+          {onSignOut && (
+            <DisclosureButton
+              as="button"
+              onClick={onSignOut}
+              className="block w-full text-left px-4 py-2 text-base font-medium text-gray-400 hover:bg-white/5 hover:text-gray-200"
             >
-              <span className="absolute -inset-1.5" />
-              <span className="sr-only">View notifications</span>
-              <BellIcon aria-hidden="true" className="size-6" />
-            </button>
-          </div>
-          <div className="mt-3 space-y-1">
-            {userNavigation.map((item) =>
-              item.name === 'Sign out' && onSignOut ? (
-                <DisclosureButton
-                  key={item.name}
-                  as="button"
-                  onClick={onSignOut}
-                  className="block w-full text-left px-4 py-2 text-base font-medium text-gray-400 hover:bg-white/5 hover:text-gray-200"
-                >
-                  {item.name}
-                </DisclosureButton>
-              ) : (
-                <DisclosureButton
-                  key={item.name}
-                  as="a"
-                  href={item.href}
-                  className="block px-4 py-2 text-base font-medium text-gray-400 hover:bg-white/5 hover:text-gray-200"
-                >
-                  {item.name}
-                </DisclosureButton>
-              )
-            )}
-          </div>
+              Sign out
+            </DisclosureButton>
+          )}
         </div>
       </DisclosurePanel>
     </Disclosure>

@@ -11,8 +11,6 @@ const navUser: NavUser = {
 }
 
 const userNavigation: ReadonlyArray<Pick<NavItem, 'name' | 'href'>> = [
-  { name: 'Your profile', href: '#' },
-  { name: 'Settings', href: '#' },
   { name: 'Sign out', href: '#' },
 ]
 
