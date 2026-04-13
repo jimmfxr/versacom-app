@@ -2,12 +2,12 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Nav */}
-      <nav className="flex items-center justify-between px-8 py-5 border-b border-zinc-200 dark:border-zinc-800">
+      <nav className="flex items-center justify-between px-8 py-5 border-b border-zinc-700">
         <span className="text-xl font-bold tracking-tight">Versacom</span>
         <div className="flex gap-6 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-          <a href="#features" className="hover:text-black dark:hover:text-white transition-colors">Features</a>
-          <a href="#about" className="hover:text-black dark:hover:text-white transition-colors">About</a>
-          <a href="#contact" className="hover:text-black dark:hover:text-white transition-colors">Contact</a>
+          <a href="#features" className="hover:text-white transition-colors">Features</a>
+          <a href="#about" className="hover:text-white transition-colors">About</a>
+          <a href="#contact" className="hover:text-white transition-colors">Contact</a>
         </div>
       </nav>
 
@@ -29,7 +29,7 @@ export default function Home() {
           </a>
           <a
             href="#features"
-            className="px-6 py-3 rounded-full border border-zinc-300 dark:border-zinc-700 font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="px-6 py-3 rounded-full border border-zinc-600 font-medium hover:bg-zinc-800 transition-colors"
           >
             Learn More
           </a>
@@ -37,7 +37,7 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section id="features" className="px-8 py-24 bg-zinc-50 dark:bg-zinc-900">
+      <section id="features" className="px-8 py-24 bg-[#2a2a2a]">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-16">Why Versacom?</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-10">
@@ -97,7 +97,7 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="px-8 py-6 text-center text-sm text-zinc-500 dark:text-zinc-500 border-t border-zinc-200 dark:border-zinc-800">
+      <footer className="px-8 py-6 text-center text-sm text-zinc-500 border-t border-zinc-700">
         &copy; 2026 Versacom. All rights reserved.
       </footer>
     </div>
