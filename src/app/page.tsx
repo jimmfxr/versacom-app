@@ -15,7 +15,7 @@ export default function Home() {
       <section className="flex flex-col items-center justify-center text-center px-8 py-32 flex-1">
         <h1 className="text-5xl sm:text-6xl font-bold tracking-tight max-w-2xl leading-tight">
           Communication,{" "}
-          <span className="text-blue-600 dark:text-blue-400">simplified.</span>
+          <span className="text-blue-600 dark:text-blue-400">redefined.</span>
         </h1>
         <p className="mt-6 text-lg text-zinc-600 dark:text-zinc-400 max-w-xl leading-relaxed">
           Versacom brings your team together with powerful, flexible communication tools built for the way you work.
