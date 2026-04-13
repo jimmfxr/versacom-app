@@ -1,9 +1,11 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { PageHeader } from '@/components/page-header'
-import { ToastContainer, showToast } from '@/components/toast'
+import { showToast } from '@/components/toast'
 import { AppShell } from '@/components/app-shell'
+import { PageLayout } from '@/components/page-layout'
+import { Avatar } from '@/components/avatar'
+import { StatusBadge } from '@/components/status-badge'
 
 type User = {
   id: number
@@ -50,6 +52,12 @@ function formatDateTime(dateStr: string) {
   })
 }
 
+function getStatus(user: User) {
+  if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) return 'locked'
+  if (user.failedAttempts > 0) return 'warning'
+  return 'ok'
+}
+
 export default function LockoutsPage() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
@@ -86,147 +94,117 @@ export default function LockoutsPage() {
     setUnlocking(null)
   }
 
-  function getStatus(user: User) {
-    if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
-      return 'locked'
-    }
-    if (user.failedAttempts > 0) {
-      return 'warning'
-    }
-    return 'ok'
-  }
-
-  // Only show users that need attention (locked or warning)
   const actionableUsers = users.filter((u) => getStatus(u) !== 'ok')
   const activeUsers = users.filter((u) => getStatus(u) === 'ok')
 
   return (
     <AppShell>
-      <div className="py-10">
-        <PageHeader title="User Lockouts" />
-        <main>
-          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-            {loading ? (
-              <p className="text-gray-400">Loading users...</p>
-            ) : (
-              <div className="space-y-8">
-                {/* Needs attention */}
-                {actionableUsers.length > 0 && (
-                  <div>
-                    <h3 className="mb-4 text-sm font-medium uppercase tracking-wider text-gray-400">
-                      Needs Attention ({actionableUsers.length})
-                    </h3>
-                    <div className="space-y-3">
-                      {actionableUsers.map((user) => {
-                        const status = getStatus(user)
-                        return (
-                          <div
-                            key={user.id}
-                            className={`flex items-center justify-between rounded-xl border p-4 ${
-                              status === 'locked'
-                                ? 'border-red-500/20 bg-red-500/5'
-                                : 'border-amber-500/20 bg-amber-500/5'
-                            }`}
-                          >
-                            <div className="flex items-center gap-4">
-                              <span className="flex size-10 items-center justify-center rounded-full bg-[#0178a3] text-sm font-medium text-white">
-                                {user.firstName[0]}{user.lastName[0]}
-                              </span>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-semibold text-white">
-                                    {user.firstName} {user.lastName}
-                                  </span>
-                                  {status === 'locked' ? (
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-medium text-red-400">
-                                      <span className="size-1.5 rounded-full bg-red-400" />
-                                      Locked
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-400">
-                                      <span className="size-1.5 rounded-full bg-amber-400" />
-                                      {user.failedAttempts}/10 attempts
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="mt-0.5 flex items-center gap-3 text-xs text-gray-400">
-                                  {status === 'locked' && user.lockedUntil && (
-                                    <>
-                                      <span>Locked: {formatDateTime(user.lockedUntil)}</span>
-                                      <span className="text-gray-600">|</span>
-                                      <span>Remaining: <LockoutTimer lockedUntil={user.lockedUntil} /></span>
-                                    </>
-                                  )}
-                                  {status === 'warning' && user.lastFailedAt && (
-                                    <span>Last failed: {formatDateTime(user.lastFailedAt)}</span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => handleUnlock(user.id)}
-                              disabled={unlocking === user.id}
-                              className="rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:opacity-50"
-                            >
-                              {unlocking === user.id ? 'Unlocking...' : 'Unlock'}
-                            </button>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {actionableUsers.length === 0 && (
-                  <div className="rounded-xl border border-white/10 bg-[#2a2a2a] p-8 text-center">
-                    <svg className="mx-auto size-10 text-green-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                    </svg>
-                    <p className="mt-3 text-sm font-medium text-white">All clear</p>
-                    <p className="mt-1 text-xs text-gray-400">No locked or at-risk accounts right now.</p>
-                  </div>
-                )}
-
-                {/* Active users */}
-                {activeUsers.length > 0 && (
-                  <div>
-                    <h3 className="mb-4 text-sm font-medium uppercase tracking-wider text-gray-400">
-                      Active Users ({activeUsers.length})
-                    </h3>
-                    <div className="space-y-3">
-                      {activeUsers.map((user) => (
-                        <div
-                          key={user.id}
-                          className="flex items-center justify-between rounded-xl border border-white/10 bg-[#2a2a2a] p-4"
-                        >
-                          <div className="flex items-center gap-4">
-                            <span className="flex size-10 items-center justify-center rounded-full bg-[#0178a3] text-sm font-medium text-white">
-                              {user.firstName[0]}{user.lastName[0]}
-                            </span>
-                            <div>
+      <PageLayout title="User Lockouts">
+        {loading ? (
+          <p className="text-gray-400">Loading users...</p>
+        ) : (
+          <div className="space-y-8">
+            {/* Needs attention */}
+            {actionableUsers.length > 0 && (
+              <div>
+                <h3 className="mb-4 text-sm font-medium uppercase tracking-wider text-gray-400">
+                  Needs Attention ({actionableUsers.length})
+                </h3>
+                <div className="space-y-3">
+                  {actionableUsers.map((user) => {
+                    const status = getStatus(user)
+                    return (
+                      <div
+                        key={user.id}
+                        className={`flex items-center justify-between rounded-xl border p-4 ${
+                          status === 'locked'
+                            ? 'border-red-500/20 bg-red-500/5'
+                            : 'border-amber-500/20 bg-amber-500/5'
+                        }`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <Avatar name={`${user.firstName} ${user.lastName}`} size="md" />
+                          <div>
+                            <div className="flex items-center gap-2">
                               <span className="text-sm font-semibold text-white">
                                 {user.firstName} {user.lastName}
                               </span>
-                              <div className="mt-0.5 text-xs text-gray-500">
-                                {user.memberships[0]?.project.name ?? 'No project'} — {user.memberships[0]?.role ?? 'none'}
-                              </div>
+                              {status === 'locked' ? (
+                                <StatusBadge label="Locked" color="red" />
+                              ) : (
+                                <StatusBadge label={`${user.failedAttempts}/10 attempts`} color="amber" />
+                              )}
+                            </div>
+                            <div className="mt-0.5 flex items-center gap-3 text-xs text-gray-400">
+                              {status === 'locked' && user.lockedUntil && (
+                                <>
+                                  <span>Locked: {formatDateTime(user.lockedUntil)}</span>
+                                  <span className="text-gray-600">|</span>
+                                  <span>Remaining: <LockoutTimer lockedUntil={user.lockedUntil} /></span>
+                                </>
+                              )}
+                              {status === 'warning' && user.lastFailedAt && (
+                                <span>Last failed: {formatDateTime(user.lastFailedAt)}</span>
+                              )}
                             </div>
                           </div>
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-green-500/20 px-2.5 py-1 text-xs font-medium text-green-400">
-                            <span className="size-1.5 rounded-full bg-green-400" />
-                            Active
-                          </span>
                         </div>
-                      ))}
+                        <button
+                          onClick={() => handleUnlock(user.id)}
+                          disabled={unlocking === user.id}
+                          className="rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:opacity-50"
+                        >
+                          {unlocking === user.id ? 'Unlocking...' : 'Unlock'}
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {actionableUsers.length === 0 && (
+              <div className="rounded-xl border border-white/10 bg-[#2a2a2a] p-8 text-center">
+                <svg className="mx-auto size-10 text-green-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                <p className="mt-3 text-sm font-medium text-white">All clear</p>
+                <p className="mt-1 text-xs text-gray-400">No locked or at-risk accounts right now.</p>
+              </div>
+            )}
+
+            {/* Active users */}
+            {activeUsers.length > 0 && (
+              <div>
+                <h3 className="mb-4 text-sm font-medium uppercase tracking-wider text-gray-400">
+                  Active Users ({activeUsers.length})
+                </h3>
+                <div className="space-y-3">
+                  {activeUsers.map((user) => (
+                    <div
+                      key={user.id}
+                      className="flex items-center justify-between rounded-xl border border-white/10 bg-[#2a2a2a] p-4"
+                    >
+                      <div className="flex items-center gap-4">
+                        <Avatar name={`${user.firstName} ${user.lastName}`} size="md" />
+                        <div>
+                          <span className="text-sm font-semibold text-white">
+                            {user.firstName} {user.lastName}
+                          </span>
+                          <div className="mt-0.5 text-xs text-gray-500">
+                            {user.memberships[0]?.project.name ?? 'No project'} — {user.memberships[0]?.role ?? 'none'}
+                          </div>
+                        </div>
+                      </div>
+                      <StatusBadge label="Active" color="green" />
                     </div>
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
             )}
           </div>
-        </main>
-      </div>
-      <ToastContainer />
+        )}
+      </PageLayout>
     </AppShell>
   )
 }

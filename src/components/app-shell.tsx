@@ -2,6 +2,7 @@
 
 import { useRouter, usePathname } from 'next/navigation'
 import { Navbar, type NavItem, type NavUser } from '@/components/navbar'
+import { ToastContainer } from '@/components/toast'
 
 const navUser: NavUser = {
   name: 'Jimmy Xiloj',
@@ -54,6 +55,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         onSignOut={handleSignOut}
       />
       {children}
+      <ToastContainer />
     </div>
   )
 }
