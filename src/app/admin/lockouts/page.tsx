@@ -1,29 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
-import { Navbar, type NavItem, type NavUser } from '@/components/navbar'
 import { PageHeader } from '@/components/page-header'
 import { ToastContainer, showToast } from '@/components/toast'
-
-const navUser: NavUser = {
-  name: 'Jimmy Xiloj',
-  email: '',
-  imageUrl: '',
-}
-
-const navigation: ReadonlyArray<NavItem> = [
-  { name: 'Dashboard', href: '/', current: false },
-  { name: 'Tasks', href: '/admin', current: true },
-  { name: 'Team', href: '#', current: false },
-  { name: 'Projects', href: '#', current: false },
-]
-
-const userNavigation: ReadonlyArray<Pick<NavItem, 'name' | 'href'>> = [
-  { name: 'Your profile', href: '#' },
-  { name: 'Settings', href: '#' },
-  { name: 'Sign out', href: '#' },
-]
+import { AppShell } from '@/components/app-shell'
 
 type User = {
   id: number
@@ -74,7 +54,6 @@ export default function LockoutsPage() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [unlocking, setUnlocking] = useState<number | null>(null)
-  const router = useRouter()
 
   const fetchUsers = useCallback(async () => {
     const res = await fetch('/api/admin/users')
@@ -107,11 +86,6 @@ export default function LockoutsPage() {
     setUnlocking(null)
   }
 
-  async function handleSignOut() {
-    await fetch('/api/auth/logout', { method: 'POST' })
-    router.push('/login')
-  }
-
   function getStatus(user: User) {
     if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
       return 'locked'
@@ -127,14 +101,7 @@ export default function LockoutsPage() {
   const activeUsers = users.filter((u) => getStatus(u) === 'ok')
 
   return (
-    <div className="min-h-full bg-[#202020]">
-      <Navbar
-        navigation={navigation}
-        user={navUser}
-        userNavigation={userNavigation}
-        onSignOut={handleSignOut}
-      />
-
+    <AppShell>
       <div className="py-10">
         <PageHeader title="User Lockouts" />
         <main>
@@ -260,6 +227,6 @@ export default function LockoutsPage() {
         </main>
       </div>
       <ToastContainer />
-    </div>
+    </AppShell>
   )
 }

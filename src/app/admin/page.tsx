@@ -1,30 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
-import { Navbar, type NavItem, type NavUser } from '@/components/navbar'
 import { PageHeader } from '@/components/page-header'
 import { ToastContainer, showToast } from '@/components/toast'
 import { Button } from '@/components/button'
-
-const navUser: NavUser = {
-  name: 'Jimmy Xiloj',
-  email: '',
-  imageUrl: '',
-}
-
-const navigation: ReadonlyArray<NavItem> = [
-  { name: 'Dashboard', href: '/', current: false },
-  { name: 'Tasks', href: '/admin', current: true },
-  { name: 'Team', href: '#', current: false },
-  { name: 'Projects', href: '#', current: false },
-]
-
-const userNavigation: ReadonlyArray<Pick<NavItem, 'name' | 'href'>> = [
-  { name: 'Your profile', href: '#' },
-  { name: 'Settings', href: '#' },
-  { name: 'Sign out', href: '#' },
-]
+import { AppShell } from '@/components/app-shell'
 
 type User = {
   id: number
@@ -81,7 +61,6 @@ export default function TasksPage() {
   const [tasks, setTasks] = useState<TaskItem[]>([])
   const [loading, setLoading] = useState(true)
   const [unlocking, setUnlocking] = useState<string | null>(null)
-  const router = useRouter()
 
   const fetchTasks = useCallback(async () => {
     try {
@@ -140,20 +119,8 @@ export default function TasksPage() {
     setUnlocking(null)
   }
 
-  async function handleSignOut() {
-    await fetch('/api/auth/logout', { method: 'POST' })
-    router.push('/login')
-  }
-
   return (
-    <div className="min-h-full bg-[#202020]">
-      <Navbar
-        navigation={navigation}
-        user={navUser}
-        userNavigation={userNavigation}
-        onSignOut={handleSignOut}
-      />
-
+    <AppShell>
       <div className="py-10">
         <PageHeader title="Tasks" />
         <main>
@@ -233,6 +200,6 @@ export default function TasksPage() {
         </main>
       </div>
       <ToastContainer />
-    </div>
+    </AppShell>
   )
 }

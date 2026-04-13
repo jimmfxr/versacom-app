@@ -3,10 +3,10 @@
   "configurations": [
     {
       "name": "dev",
-      "runtimeExecutable": "/tmp/node-v22.15.0-darwin-x64/bin/node",
-      "runtimeArgs": ["/Users/jimmy/Desktop/Versacom App/node_modules/.bin/next", "dev", "--port", "3000"],
+      "runtimeExecutable": "/bin/bash",
+      "runtimeArgs": ["/tmp/start-next.sh"],
       "port": 3000,
-      "cwd": "/Users/jimmy/Desktop/Versacom App"
+      "autoPort": true
     }
   ]
 }

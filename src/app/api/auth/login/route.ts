@@ -102,11 +102,21 @@ export async function POST(request: NextRequest) {
     data: { failedAttempts: 0, lockedUntil: null, lastFailedAt: null },
   })
 
-  // Get project memberships
+  // Get active project memberships only
   const memberships = await prisma.projectMember.findMany({
-    where: { userId: matchedUser.id },
+    where: {
+      userId: matchedUser.id,
+      project: { status: 'active' },
+    },
     include: { project: true },
   })
+
+  if (memberships.length === 0) {
+    return NextResponse.json(
+      { error: 'You have no active projects. Join a project first.' },
+      { status: 401 }
+    )
+  }
 
   const sessionData = {
     user: {

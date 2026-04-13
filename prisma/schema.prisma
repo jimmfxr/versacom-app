@@ -34,6 +34,7 @@ model User {
 model Project {
   id          Int      @id @default(autoincrement())
   name        String
+  pin         String?  @unique // 4-digit join code, shared with crew
   status      String   @default("active") // active, archived
   createdById Int
   createdAt   DateTime @default(now())
@@ -168,15 +169,14 @@ model Equipment {
   id           Int     @id @default(autoincrement())
   projectId    Int
   assignedToId Int?
-  category     String  // panels, wireless_bp, hardwire_bp, switches, antennas
+  name         String  // Auto-generated identifier e.g. PNL 1, WLBP 1, SW 1
+  category     String  // panels, wireless_bp, hardwire_bp, switches, antennas, audio
   hardwareType String?
   position     String?
   location     String?
   headsetType  String?
-  frequency    String? // 1.9 / 2.4 GHz bands
-  bpNumber     String?
-  source       String?
-  deployStatus String  @default("planning") // planning, holding, deployed, done, returned, not-needed, nfg, damaged, na
+  ipAddress    String?
+  deployStatus String  @default("na") // deployed, done, returned, not-needed, damaged, na
   notes        String?
   assetId      Int?
 
