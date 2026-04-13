@@ -78,11 +78,11 @@ export async function updateEquipment(
   equipmentId: number,
   data: {
     name?: string
-    hardwareType?: string
-    position?: string
-    location?: string
-    headsetType?: string
-    ipAddress?: string
+    hardwareType?: string | null
+    position?: string | null
+    location?: string | null
+    headsetType?: string | null
+    ipAddress?: string | null
     deployStatus?: string
     assignedToId?: number | null
   }
