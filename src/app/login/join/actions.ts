@@ -38,7 +38,19 @@ export async function joinProject(firstName: string, lastName: string, projectPi
     const existingMembership = await prisma.projectMember.findUnique({
       where: { userId_projectId: { userId: existingUser.id, projectId: project.id } },
     })
+
     if (existingMembership) {
+      // If user has no PIN (forgot PIN flow), let them create a new one
+      if (!existingUser.pin) {
+        return {
+          success: true,
+          needsPin: true,
+          projectName: project.name,
+          firstName: existingUser.firstName,
+          lastName: existingUser.lastName,
+          projectId: project.id,
+        }
+      }
       return { error: 'You are already a member of this project. Go to login instead.' }
     }
 
@@ -46,6 +58,18 @@ export async function joinProject(firstName: string, lastName: string, projectPi
     await prisma.projectMember.create({
       data: { userId: existingUser.id, projectId: project.id, role: 'crew' },
     })
+
+    // If user has no PIN, send to create-PIN step
+    if (!existingUser.pin) {
+      return {
+        success: true,
+        needsPin: true,
+        projectName: project.name,
+        firstName: existingUser.firstName,
+        lastName: existingUser.lastName,
+        projectId: project.id,
+      }
+    }
 
     return {
       success: true,
@@ -76,19 +100,42 @@ export async function createPersonalPin(
     return { error: 'PIN must be 4 digits' }
   }
 
-  // Double-check user doesn't already exist
+  const hashedPin = await bcrypt.hash(pin, 10)
+
+  // Check if user already exists (forgot PIN flow — they exist but PIN is empty)
   const existingUser = await prisma.user.findFirst({
     where: {
       firstName: { equals: firstName, mode: 'insensitive' },
       lastName: { equals: lastName, mode: 'insensitive' },
     },
   })
+
   if (existingUser) {
-    return { error: 'An account with that name already exists.' }
+    // Update their PIN (forgot PIN recovery)
+    await prisma.user.update({
+      where: { id: existingUser.id },
+      data: {
+        pin: hashedPin,
+        failedAttempts: 0,
+        lockedUntil: null,
+        lastFailedAt: null,
+      },
+    })
+
+    // Ensure membership exists
+    const membership = await prisma.projectMember.findUnique({
+      where: { userId_projectId: { userId: existingUser.id, projectId } },
+    })
+    if (!membership) {
+      await prisma.projectMember.create({
+        data: { userId: existingUser.id, projectId, role: 'crew' },
+      })
+    }
+
+    return { success: true }
   }
 
-  const hashedPin = await bcrypt.hash(pin, 10)
-
+  // Brand-new user
   const user = await prisma.user.create({
     data: {
       firstName,

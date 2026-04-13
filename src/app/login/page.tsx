@@ -177,13 +177,17 @@ export default function LoginPage() {
         </p>
 
         {/* Links */}
-        <div className="mt-6 flex justify-between text-sm">
-          <a href="/login/join" className="text-[#0178a3] hover:text-[#019bc7] transition-colors">
-            Need to request access? <span className="font-semibold">Join Project</span>
-          </a>
-          <a href="/login/forgot-pin" className="text-[#0178a3] hover:text-[#019bc7] transition-colors">
-            Forgot PIN?
-          </a>
+        <div className="mt-6 space-y-3 text-center text-sm">
+          <div>
+            <a href="/login/forgot-pin" className="text-[#0178a3] hover:text-[#019bc7] transition-colors">
+              Forgot PIN?
+            </a>
+          </div>
+          <div>
+            <a href="/login/join" className="text-[#0178a3] hover:text-[#019bc7] transition-colors">
+              Need to request access? <span className="font-semibold">Join Project</span>
+            </a>
+          </div>
         </div>
       </div>
     </div>
