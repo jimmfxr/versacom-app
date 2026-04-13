@@ -69,7 +69,7 @@ export async function bulkCreateEquipment(
 
   await prisma.equipment.createMany({ data: records })
 
-  revalidatePath(`/projects/${projectId}/distribution`)
+  revalidatePath(`/projects/${projectId}`)
   return { success: true, count: quantity }
 }
 
@@ -95,7 +95,7 @@ export async function updateEquipment(
     data,
   })
 
-  revalidatePath(`/projects/${projectId}/distribution`)
+  revalidatePath(`/projects/${projectId}`)
   return { success: true }
 }
 
@@ -105,6 +105,6 @@ export async function deleteEquipment(projectId: number, equipmentId: number) {
 
   await prisma.equipment.delete({ where: { id: equipmentId } })
 
-  revalidatePath(`/projects/${projectId}/distribution`)
+  revalidatePath(`/projects/${projectId}`)
   return { success: true }
 }

@@ -53,6 +53,15 @@ const STATUS_COLORS: Record<string, string> = {
   damaged: 'red',
 }
 
+const STATUS_BADGE_STYLES: Record<string, string> = {
+  na: 'bg-gray-500/15 text-gray-400',
+  deployed: 'bg-green-500/15 text-green-400',
+  done: 'bg-blue-500/15 text-blue-400',
+  returned: 'bg-purple-500/15 text-purple-400',
+  'not-needed': 'bg-yellow-500/15 text-yellow-400',
+  damaged: 'bg-red-500/15 text-red-400',
+}
+
 /* ─── Types ─── */
 
 type Member = {
@@ -469,24 +478,27 @@ export function ProjectPage({
                     key={item.id}
                     className="flex items-start gap-4 rounded-2xl bg-[#2a2a2a] px-5 py-4 transition-colors hover:bg-[#313131]"
                   >
-                    {/* Status badge */}
+                    {/* Status badge — always changeable */}
                     <div className="shrink-0 pt-0.5">
-                      {isEditing ? (
-                        <select
-                          value={(editData.deployStatus as string) || 'na'}
-                          onChange={(e) => setEditData({ ...editData, deployStatus: e.target.value })}
-                          className="appearance-none rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-white outline-none"
-                        >
-                          {DEPLOY_STATUSES.map((s) => (
-                            <option key={s.value} value={s.value}>{s.label}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <StatusBadge
-                          label={DEPLOY_STATUSES.find((s) => s.value === item.deployStatus)?.label || 'N/A'}
-                          color={STATUS_COLORS[item.deployStatus] || 'gray'}
-                        />
-                      )}
+                      <select
+                        value={item.deployStatus}
+                        onChange={(e) => {
+                          const newStatus = e.target.value
+                          startTransition(async () => {
+                            const result = await updateEquipment(project.id, item.id, { deployStatus: newStatus })
+                            if (result.error) {
+                              showToast('error', result.error)
+                              return
+                            }
+                            router.refresh()
+                          })
+                        }}
+                        className={`appearance-none rounded-full px-2.5 py-1 text-xs font-medium outline-none cursor-pointer ${STATUS_BADGE_STYLES[item.deployStatus] || STATUS_BADGE_STYLES.na}`}
+                      >
+                        {DEPLOY_STATUSES.map((s) => (
+                          <option key={s.value} value={s.value}>{s.label}</option>
+                        ))}
+                      </select>
                     </div>
 
                     {/* Content */}
