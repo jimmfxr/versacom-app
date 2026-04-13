@@ -35,6 +35,12 @@ const HARDWARE_TYPES: Record<string, string[]> = {
   audio: ['NA2', 'A16r', 'Dark88'],
 }
 
+const HEADSET_TYPES = [
+  'LWHS 4', 'LWHS 5', 'PH 88', 'Shure Single', 'Shure Double',
+  'Pliant Single', 'Pliant Double', 'Max D2', 'DT 200', 'DT 280',
+  'DT 290', 'Dave Clark', 'Peltor', 'Dalcom',
+]
+
 const DEPLOY_STATUSES = [
   { value: 'na', label: 'N/A' },
   { value: 'deployed', label: 'Deployed' },
@@ -519,7 +525,12 @@ export function ProjectPage({
                             <FormInput compact label="Location" type="text" value={(editData.location as string) || ''} onChange={(e) => setEditData({ ...editData, location: e.target.value })} />
                           )}
                           {hasField(item.category, 'headsetType') && (
-                            <FormInput compact label="Headset" type="text" value={(editData.headsetType as string) || ''} onChange={(e) => setEditData({ ...editData, headsetType: e.target.value })} />
+                            <FormSelect compact label="Headset" value={(editData.headsetType as string) || ''} onChange={(e) => setEditData({ ...editData, headsetType: e.target.value })}>
+                              <option value="">None</option>
+                              {HEADSET_TYPES.map((ht) => (
+                                <option key={ht} value={ht}>{ht}</option>
+                              ))}
+                            </FormSelect>
                           )}
                           {hasField(item.category, 'ipAddress') && (
                             <FormInput compact label="IP Address" type="text" value={(editData.ipAddress as string) || ''} onChange={(e) => setEditData({ ...editData, ipAddress: e.target.value })} />
