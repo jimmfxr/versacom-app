@@ -7,13 +7,12 @@ import { showToast } from '@/components/toast'
 import { AppShell } from '@/components/app-shell'
 import { PageLayout } from '@/components/page-layout'
 import { Card } from '@/components/card'
-import { Avatar } from '@/components/avatar'
 import { EmptyState } from '@/components/empty-state'
 import { StatusBadge } from '@/components/status-badge'
 import { IconButton } from '@/components/icon-button'
 import { Modal } from '@/components/modal'
 import { FormInput, FormSelect } from '@/components/form-field'
-import { updateProject, removeMember, deleteProject } from './actions'
+import { updateProject, deleteProject } from './actions'
 import { bulkCreateEquipment, updateEquipment, deleteEquipment } from './distribution/actions'
 
 /* ─── Constants ─── */
@@ -205,18 +204,6 @@ export function ProjectPage({
     })
   }
 
-  function handleRemoveMember(member: Member) {
-    startTransition(async () => {
-      const result = await removeMember(project.id, member.id)
-      if (result.error) {
-        showToast('error', result.error)
-        return
-      }
-      showToast('success', `${member.firstName} ${member.lastName} removed`)
-      router.refresh()
-    })
-  }
-
   function handleDeleteProject() {
     startTransition(async () => {
       const result = await deleteProject(project.id)
@@ -390,50 +377,6 @@ export function ProjectPage({
                   <Button size="sm" onClick={handleSaveProject} disabled={isPending}>
                     {isPending ? 'Saving...' : 'Save Changes'}
                   </Button>
-                </div>
-              </Card>
-
-              {/* Members Card */}
-              <Card>
-                <h3 className="text-sm font-semibold text-white">Members ({project.members.length})</h3>
-                <p className="mt-1 text-xs text-gray-500">
-                  Team members join by entering the project PIN on the login page.
-                </p>
-                <div className="mt-4 space-y-2">
-                  {project.members.length === 0 ? (
-                    <p className="text-sm text-gray-500">No members yet. Share the project PIN to get started.</p>
-                  ) : (
-                    project.members.map((member) => (
-                      <div key={member.id} className="flex items-center gap-3 rounded-xl bg-[#202020] px-4 py-3">
-                        <Avatar name={`${member.firstName} ${member.lastName}`} />
-                        <div className="min-w-0 flex-1">
-                          <span className="text-sm font-medium text-white">
-                            {member.firstName} {member.lastName}
-                          </span>
-                          <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                            <span className="capitalize">{member.role}</span>
-                            {member.position && (
-                              <>
-                                <span>·</span>
-                                <span>{member.position}</span>
-                              </>
-                            )}
-                            {member.location && (
-                              <>
-                                <span>·</span>
-                                <span>{member.location}</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        {member.userId !== project.createdBy.id && (
-                          <IconButton variant="danger" onClick={() => handleRemoveMember(member)} disabled={isPending}>
-                            <CloseIcon className="size-4" />
-                          </IconButton>
-                        )}
-                      </div>
-                    ))
-                  )}
                 </div>
               </Card>
 
