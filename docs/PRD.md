@@ -454,14 +454,83 @@ PIN-based authentication. No emails or passwords — practical for production en
 | **authPending** | Access request awaiting admin approval |
 | **authPinPending** | PIN reset awaiting admin action |
 
-### 6.3 Auth Flow
+### 6.3 PIN Specification
+
+| Property | Value |
+|----------|-------|
+| **Format** | Numeric only (digits 0-9) |
+| **Length** | 4 digits |
+| **Generation** | System auto-generates; Admin can regenerate |
+| **Storage** | Hashed with bcrypt — never stored in plaintext |
+| **Delivery** | Admin communicates PIN verbally to user on-site |
+
+### 6.4 Auth Flow
 
 ```
 App Launch → Logout Modal → Login Screen
-Login → Enter PIN → Valid? → Login & Connect → Dashboard
+Login → Enter PIN → Valid? → Authenticate → Dashboard
+Login → Enter PIN → Invalid? → Increment fail counter → Show error
+Login → Enter PIN → Locked out? → Show lockout message + time remaining
 Login → Join Project → Submit Request → Pending → Admin Approves → Login
 Login → Forgot PIN → Submit → Pending → Admin Resets → Login
 ```
+
+### 6.5 Lockout System (Rate Limiting)
+
+**Purpose:** Prevent brute force PIN guessing. With 4-digit numeric PINs (10,000 combinations), rate limiting is the primary defense.
+
+#### Rules
+
+| Rule | Value |
+|------|-------|
+| **Max failed attempts** | 10 |
+| **Lockout duration** | 15 minutes (auto-unlock) |
+| **Counter reset** | On successful login |
+| **Admin notification** | Admin sees locked-out users in Inbox with unlock option |
+| **Admin override** | Admin can manually unlock a user before the 15 minutes expires |
+
+#### How It Works
+
+1. User enters wrong PIN → `failedAttempts` increments by 1
+2. UI shows generic error: *"Incorrect PIN. Please try again."* (no attempt count shown to prevent gaming)
+3. After 10 failed attempts → account locks, `lockedUntil` set to now + 15 minutes
+4. While locked, login screen shows the lockout message (see below)
+5. Admin receives a notification in their Inbox showing the locked-out user
+6. After 15 minutes, lockout expires automatically — user can try again
+7. Admin can also tap **Unlock** in Inbox to clear the lockout immediately
+8. Successful login resets `failedAttempts` to 0 and clears `lockedUntil`
+
+#### Lockout Screen Copy
+
+When a user is locked out, the login screen displays:
+
+> **Account temporarily locked**
+>
+> Too many incorrect attempts. Your account will automatically unlock in **[X] minutes**.
+>
+> Your manager has been notified and can unlock your account immediately.
+> If you've forgotten your PIN, tap **Forgot PIN** below.
+
+#### Admin Inbox Notification
+
+When a user gets locked out, a notification appears in the Admin's Inbox:
+
+> **[User Name]** has been locked out after 10 failed login attempts.
+> *[Timestamp]*
+>
+> **[Unlock]** · **[Reset PIN]**
+
+Admin actions:
+- **Unlock** — clears the lockout, user can try again immediately
+- **Reset PIN** — generates a new PIN for the user (Admin communicates it verbally)
+
+#### Data Fields (on User model)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `failedAttempts` | int | Number of consecutive failed login attempts (default: 0) |
+| `lockedUntil` | datetime? | Timestamp when lockout expires (null = not locked) |
+| `lastFailedAt` | datetime? | When the last failed attempt occurred |
 
 ---
 

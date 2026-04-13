@@ -12,12 +12,15 @@ datasource db {
 // ============================================================
 
 model User {
-  id        Int      @id @default(autoincrement())
-  firstName String
-  lastName  String
-  pin       String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             Int       @id @default(autoincrement())
+  firstName      String
+  lastName       String
+  pin            String    // bcrypt hashed, never plaintext
+  failedAttempts Int       @default(0)
+  lockedUntil    DateTime?
+  lastFailedAt   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   // Relations
   createdProjects  Project[]        @relation("ProjectCreator")

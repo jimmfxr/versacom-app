@@ -59,3 +59,19 @@ A living record of key product decisions and the reasoning behind them.
 **Decision:** When a change request is rejected, the rejection note displays directly in the user's Panel Studio UI. Keys revert to Yellow (draft) so the user can edit and resubmit.
 
 **How it works:** The UI polls the API for CR status. When the status comes back as `rejected`, the rejection note from the Admin renders inline on the page alongside the affected keys. No separate notification system — the user sees it next time they view their panel.
+
+---
+
+## PD-008: 4-digit numeric PIN
+
+**Decision:** PINs are 4-digit numeric only (0-9).
+
+**Why:** Letters and longer PINs add confusion for crew working live shows — typing on phones one-handed, wearing headsets, moving fast. 4 digits is easy to remember and quick to enter. The app doesn't protect sensitive data (no financials, no PII), so the security bar is low. Rate limiting handles brute force risk.
+
+---
+
+## PD-009: Login lockout — 10 attempts, 15-min auto-unlock + Admin notify
+
+**Decision:** 10 wrong PIN attempts locks the account for 15 minutes. Auto-unlocks after 15 minutes OR Admin can manually unlock immediately. Admin gets notified in Inbox.
+
+**Why:** Dual unlock (timed + manual) solves two scenarios. During a live show, if a crew member gets locked out and can't find Admin, they wait 15 minutes and try again — they're never fully stuck. But Admin still sees every lockout in their Inbox and can unlock early or reset the PIN if they're nearby. 10 attempts is generous enough for honest mistakes, and the 15-minute window limits brute force to ~650 attempts/day (would take 15 days to exhaust all 10,000 PINs).
