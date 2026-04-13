@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { NoZoom } from "@/components/no-zoom";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -34,7 +35,10 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
       </head>
-      <body className="h-full" suppressHydrationWarning>{children}</body>
+      <body className="h-full" suppressHydrationWarning>
+        <NoZoom />
+        {children}
+      </body>
     </html>
   );
 }

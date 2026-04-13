@@ -4,3 +4,9 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
+
+/* Prevent pinch zoom on mobile */
+html {
+  touch-action: manipulation;
+}
+
