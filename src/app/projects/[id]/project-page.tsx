@@ -27,11 +27,11 @@ const CATEGORIES = [
 ] as const
 
 const HARDWARE_TYPES: Record<string, string[]> = {
-  panels: ['RSP-1232', 'Bolero'],
-  wireless_bp: ['Bolero'],
-  hardwire_bp: ['Helixnet'],
+  panels: ['RSP-1232', 'RSP-1216', 'DSP-1216', 'KP-5032', 'KP32', 'RSP-2318', 'RSP-2312'],
+  wireless_bp: ['Bolero', 'Freespeak'],
+  hardwire_bp: ['Helixnet', 'DBP', 'ST-374', 'ST370', 'C3', 'BP325'],
   switches: ['26P+4F', '9P+1F', 'Intellanet Old', 'Intellanet New', 'Media', 'Antaira', 'TP Link'],
-  antennas: [],
+  antennas: ['Bolero 1.9', 'Bolero 2.4'],
   audio: ['NA2', 'A16r', 'Dark88'],
 }
 
