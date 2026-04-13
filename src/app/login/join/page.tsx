@@ -134,7 +134,7 @@ export default function JoinProjectPage() {
                     type="text"
                     value={firstName}
                     onChange={(e) => { setFirstName(e.target.value); setJoinError('') }}
-                    className="mt-1 w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-3 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
+                    className="mt-1 w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-3 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
                   />
                 </div>
                 <div>
@@ -146,7 +146,7 @@ export default function JoinProjectPage() {
                     type="text"
                     value={lastName}
                     onChange={(e) => { setLastName(e.target.value); setJoinError('') }}
-                    className="mt-1 w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-3 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
+                    className="mt-1 w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-3 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
                   />
                 </div>
               </div>

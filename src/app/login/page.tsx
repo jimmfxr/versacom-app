@@ -99,7 +99,7 @@ export default function LoginPage() {
                 value={firstName}
                 onChange={(e) => { setFirstName(e.target.value); setError(null) }}
                 disabled={loading}
-                className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-3 text-sm text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3] disabled:opacity-50"
+                className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-3 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3] disabled:opacity-50"
               />
             </div>
             <div>
@@ -113,7 +113,7 @@ export default function LoginPage() {
                 value={lastName}
                 onChange={(e) => { setLastName(e.target.value); setError(null) }}
                 disabled={loading}
-                className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-3 text-sm text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3] disabled:opacity-50"
+                className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-3 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3] disabled:opacity-50"
               />
             </div>
           </div>
