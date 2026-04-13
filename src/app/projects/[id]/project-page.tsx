@@ -312,11 +312,11 @@ export function ProjectPage({
             >
               <span className="flex items-center gap-1.5">
                 <GearIcon />
-                {showSettings ? 'Close Settings' : 'Edit'}
+                {showSettings ? 'Close' : 'Edit'}
               </span>
             </Button>
             <Button variant="secondary" onClick={() => router.push('/projects')}>
-              Back to Projects
+              Back
             </Button>
           </div>
         }

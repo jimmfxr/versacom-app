@@ -47,7 +47,7 @@ export function Navbar({
   onSignOut,
 }: NavbarProps) {
   return (
-    <Disclosure as="nav" className="bg-[#202020]">
+    <Disclosure as="nav" className="sticky top-0 z-40 bg-[#202020]">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 justify-between">
           <div className="flex">
