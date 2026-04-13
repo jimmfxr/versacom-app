@@ -545,7 +545,7 @@ export function ProjectPage({
                               </FormSelect>
                             )}
                           </div>
-                          <div className="mt-3 flex items-center justify-end gap-1">
+                          <div className="mt-3 flex items-center justify-end gap-3">
                             <Button size="sm" onClick={() => handleSaveEquipment(item)} disabled={isPending}>Save</Button>
                             <Button size="sm" variant="danger" onClick={() => handleDeleteEquipment(item)} disabled={isPending}>Delete</Button>
                             <Button size="sm" variant="secondary" onClick={() => setEditingId(null)} disabled={isPending}>Cancel</Button>
