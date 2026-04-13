@@ -1,19 +1,21 @@
+'use client'
+
+import { useRouter } from 'next/navigation'
 import { Navbar, type NavItem, type NavUser } from '@/components/navbar'
 import { PageHeader } from '@/components/page-header'
 import { PlaceholderPanel } from '@/components/placeholder-panel'
 
 const user: NavUser = {
-  name: 'Tom Cook',
-  email: 'tom@example.com',
-  imageUrl:
-    'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+  name: 'Jimmy Xiloj',
+  email: '',
+  imageUrl: '',
 }
 
 const navigation: ReadonlyArray<NavItem> = [
-  { name: 'Dashboard', href: '#', current: true },
+  { name: 'Dashboard', href: '/', current: true },
+  { name: 'Tasks', href: '/admin', current: false },
   { name: 'Team', href: '#', current: false },
   { name: 'Projects', href: '#', current: false },
-  { name: 'Calendar', href: '#', current: false },
 ]
 
 const userNavigation: ReadonlyArray<Pick<NavItem, 'name' | 'href'>> = [
@@ -23,9 +25,21 @@ const userNavigation: ReadonlyArray<Pick<NavItem, 'name' | 'href'>> = [
 ]
 
 export default function HomePage() {
+  const router = useRouter()
+
+  async function handleSignOut() {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    router.push('/login')
+  }
+
   return (
-    <div className="min-h-full">
-      <Navbar navigation={navigation} user={user} userNavigation={userNavigation} />
+    <div className="min-h-full bg-[#202020]">
+      <Navbar
+        navigation={navigation}
+        user={user}
+        userNavigation={userNavigation}
+        onSignOut={handleSignOut}
+      />
 
       <div className="py-10">
         <PageHeader title="Dashboard" />

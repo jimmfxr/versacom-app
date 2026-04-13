@@ -13,8 +13,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Versacom",
+  title: "Clair | Nodal Control",
   description: "Communication solutions for the modern world",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
@@ -25,9 +28,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full bg-gray-900 antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full bg-[#202020] antialiased`}
+      suppressHydrationWarning
     >
-      <body className="h-full">{children}</body>
+      <body className="h-full" suppressHydrationWarning>{children}</body>
     </html>
   );
 }
