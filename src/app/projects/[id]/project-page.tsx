@@ -553,24 +553,45 @@ export function ProjectPage({
                         </>
                       ) : (
                         <>
+                          {/* Row 1: ID + Category */}
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-semibold text-white">{item.name}</span>
                             <span className="text-xs text-gray-500">{categoryInfo?.label}</span>
-                            {item.hardwareType && (
-                              <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-gray-400">
-                                {item.hardwareType}
-                              </span>
-                            )}
                           </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-gray-500">
-                            {item.position && <span>Pos: {item.position}</span>}
-                            {item.location && <span>Loc: {item.location}</span>}
-                            {item.headsetType && <span>HS: {item.headsetType}</span>}
-                            {item.ipAddress && <span>IP: {item.ipAddress}</span>}
-                            {item.assignedToName && (
-                              <span className="text-[#0178a3]">{item.assignedToName}</span>
-                            )}
-                          </div>
+
+                          {/* Row 2: Hardware + Headset tags */}
+                          {(item.hardwareType || item.headsetType) && (
+                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                              {item.hardwareType && (
+                                <span className="rounded-md bg-white/5 px-2 py-0.5 text-[11px] font-medium text-gray-300">
+                                  {item.hardwareType}
+                                </span>
+                              )}
+                              {item.headsetType && (
+                                <span className="rounded-md bg-[#0178a3]/10 px-2 py-0.5 text-[11px] font-medium text-[#0178a3]/80">
+                                  {item.headsetType}
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Row 3: Position · Location · IP */}
+                          {(item.position || item.location || item.ipAddress) && (
+                            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 text-xs text-gray-500">
+                              {item.position && <span>{item.position}</span>}
+                              {item.position && item.location && <span>·</span>}
+                              {item.location && <span>{item.location}</span>}
+                              {(item.position || item.location) && item.ipAddress && <span>·</span>}
+                              {item.ipAddress && <span className="font-mono text-gray-500/80">{item.ipAddress}</span>}
+                            </div>
+                          )}
+
+                          {/* Row 4: Assigned to */}
+                          {item.assignedToName && (
+                            <div className="mt-1.5 text-xs font-medium text-[#0178a3]">
+                              {item.assignedToName}
+                            </div>
+                          )}
                         </>
                       )}
                     </div>
