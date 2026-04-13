@@ -112,15 +112,15 @@ export default function JoinProjectPage() {
     <div className="flex min-h-screen items-center justify-center bg-[#202020] px-4">
       <div className="w-full max-w-sm">
         {/* Logo */}
-        <div className="flex justify-center">
-          <img src="/clair_logo_white.png" alt="Clair" className="h-10" />
+        <div className="flex justify-center mb-10">
+          <img src="/clair_logo_white.png" alt="Clair" className="h-16 w-auto" />
         </div>
 
         {step === 'join' ? (
           <>
             <h2 className="mt-8 text-center text-xl font-semibold text-white">Join a Project</h2>
             <p className="mt-2 text-center text-sm text-gray-400">
-              Enter your name and the project PIN shared by your team lead.
+              Enter your name and the project PIN to join.
             </p>
 
             <div className="mt-8 space-y-4">

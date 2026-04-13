@@ -85,6 +85,8 @@ export default function LoginPage() {
           <img src="/clair_logo_white.png" alt="Clair" className="h-16 w-auto" />
         </div>
 
+        <h2 className="text-center text-xl font-semibold text-white mb-6">Login</h2>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* First Name + Last Name — same row */}
           <div className="grid grid-cols-2 gap-3">
