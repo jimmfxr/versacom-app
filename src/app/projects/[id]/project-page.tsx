@@ -72,7 +72,7 @@ const ROLE_LABELS: Record<string, string> = { admin: 'Admin', manager: 'Manager'
 
 /* ─── Types ─── */
 
-type Tab = 'equipment' | 'team' | 'picklist'
+type Tab = 'equipment' | 'team' | 'picklist' | 'my-equipment'
 
 type Member = {
   id: number
@@ -187,17 +187,38 @@ export function ProjectPage({
   equipment,
   assignableMembers,
   pickListItems,
+  userName,
+  isAdmin,
+  isUserOnly,
+  currentUserRole = 'user',
+  currentMemberId,
 }: {
   project: Project
   equipment: EquipmentItem[]
   assignableMembers: AssignableMember[]
   pickListItems: PickListItemType[]
+  userName?: string
+  isAdmin?: boolean
+  isUserOnly?: boolean
+  currentUserRole?: string
+  currentMemberId?: number | null
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
-  // Tab state
-  const [activeTab, setActiveTab] = useState<Tab>('equipment')
+  // Role permissions (based on role within this project)
+  const isProjectAdmin = currentUserRole === 'admin'
+  const isManager = currentUserRole === 'manager'
+  const isCrew = currentUserRole === 'crew'
+  const isUser = currentUserRole === 'user'
+  const canEditEquipment = isProjectAdmin
+  const canEditTeam = isProjectAdmin || isManager
+  const canEditPickList = isProjectAdmin
+  const canChangeStatus = isProjectAdmin || isManager || isCrew
+  const canSeeSettings = isProjectAdmin || isManager
+
+  // Tab state — user role only sees "My Equipment"
+  const [activeTab, setActiveTab] = useState<Tab>(isUser ? 'my-equipment' : 'equipment')
 
   // Settings panel
   const [showSettings, setShowSettings] = useState(false)
@@ -434,17 +455,19 @@ export function ProjectPage({
   )
 
   return (
-    <AppShell>
+    <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly}>
       <PageLayout
         title={project.name}
         action={
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={() => setShowSettings(!showSettings)}>
-              <span className="flex items-center gap-1.5">
-                <GearIcon />
-                {showSettings ? 'Close' : 'Edit'}
-              </span>
-            </Button>
+            {canSeeSettings && (
+              <Button variant="secondary" onClick={() => setShowSettings(!showSettings)}>
+                <span className="flex items-center gap-1.5">
+                  <GearIcon />
+                  {showSettings ? 'Close' : 'Edit'}
+                </span>
+              </Button>
+            )}
             <Button variant="secondary" onClick={() => router.push('/projects')}>Back</Button>
           </div>
         }
@@ -493,11 +516,16 @@ export function ProjectPage({
 
           {/* ─── Tab Switcher ─── */}
           <div className="flex w-full rounded-lg bg-[#2a2a2a] p-1">
-            {[
-              { key: 'equipment' as Tab, label: 'Equipment', count: equipment.length },
-              { key: 'team' as Tab, label: 'Team', count: project.members.length },
-              { key: 'picklist' as Tab, label: 'Pick List', count: pickListItems.length },
-            ].map((tab) => (
+            {(isUser
+              ? [
+                  { key: 'my-equipment' as Tab, label: 'My Equipment', count: equipment.filter((e) => e.assignedMemberId === currentMemberId).length },
+                ]
+              : [
+                  { key: 'equipment' as Tab, label: 'Equipment', count: equipment.length },
+                  { key: 'team' as Tab, label: 'Team', count: project.members.length },
+                  { key: 'picklist' as Tab, label: 'Pick List', count: pickListItems.length },
+                ]
+            ).map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
@@ -527,16 +555,17 @@ export function ProjectPage({
                     className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
                   />
                 </div>
-                {!showAdd && <Button onClick={() => setShowAdd(true)}>Add Equipment</Button>}
+                {canEditEquipment && !showAdd && <Button onClick={() => setShowAdd(true)}>Add Equipment</Button>}
               </div>
 
               {/* Bulk add form */}
-              {showAdd && (
+              {canEditEquipment && showAdd && (
                 <Card>
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-white">Add Equipment</h3>
                     <IconButton onClick={() => { setShowAdd(false); setAddError('') }}><CloseIcon /></IconButton>
                   </div>
+                  <p className="mt-2 text-xs text-gray-500">Add equipment in bulk by category and quantity. Each item can be edited individually to assign team members, locations, and hardware details.</p>
                   <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
                     <FormSelect label="Category" value={addCategory} onChange={(e) => setAddCategory(e.target.value)}>
                       {CATEGORIES.map((c) => (<option key={c.value} value={c.value}>{c.label}</option>))}
@@ -568,25 +597,6 @@ export function ProjectPage({
                     const isEditing = editingEqId === item.id
                     return (
                       <div key={item.id} className="flex items-start gap-4 rounded-2xl bg-[#2a2a2a] px-5 py-4 transition-colors hover:bg-[#313131]">
-                        {/* Status + ID column */}
-                        <div className="flex shrink-0 flex-col items-center gap-1.5 pt-0.5">
-                          <select
-                            value={item.deployStatus}
-                            onChange={(e) => {
-                              const newStatus = e.target.value
-                              startTransition(async () => {
-                                const result = await updateEquipment(project.id, item.id, { deployStatus: newStatus })
-                                if (result.error) { showToast('error', result.error); return }
-                                router.refresh()
-                              })
-                            }}
-                            className={`appearance-none rounded-full px-2.5 py-1 text-xs font-medium outline-none cursor-pointer ${STATUS_BADGE_STYLES[item.deployStatus] || STATUS_BADGE_STYLES.na}`}
-                          >
-                            {DEPLOY_STATUSES.map((s) => (<option key={s.value} value={s.value}>{s.label}</option>))}
-                          </select>
-                          <span className="text-[11px] font-semibold text-gray-500">{item.name}</span>
-                        </div>
-
                         {/* Content */}
                         <div className="min-w-0 flex-1">
                           {isEditing ? (
@@ -624,31 +634,62 @@ export function ProjectPage({
                             </>
                           ) : (
                             <>
-                              {/* Row 1: Assigned user · position */}
-                              {item.assignedToName ? (
-                                <div className="text-sm font-semibold text-[#0178a3]">
-                                  {item.assignedToName}
-                                  {item.assignedToPosition && <span className="text-[#0178a3]/70"> · {item.assignedToPosition}</span>}
-                                </div>
-                              ) : isAssignable(item.category) ? (
-                                <div className="text-sm italic text-gray-500">Unassigned</div>
-                              ) : null}
+                              {/* Row 1: User · Position + ID */}
+                              <div className="text-sm font-semibold">
+                                {item.assignedToName ? (
+                                  <span className="text-[#0178a3]">
+                                    <span className="hidden text-gray-500 font-normal sm:inline">User: </span>
+                                    {item.assignedToName}
+                                    {item.assignedToPosition && <span className="text-[#0178a3]/70"> · {item.assignedToPosition}</span>}
+                                  </span>
+                                ) : isAssignable(item.category) ? (
+                                  <span className="italic text-gray-500">
+                                    <span className="hidden font-normal sm:inline">User: </span>
+                                    Unassigned
+                                  </span>
+                                ) : null}
+                                {(item.assignedToName || isAssignable(item.category)) && <span className="text-gray-600"> · </span>}
+                                <span className="text-xs font-semibold text-gray-500">{item.name}</span>
+                              </div>
 
-                              {/* Row 2: Location · Hardware · Headset (or IP for infra) */}
+                              {/* Row 2: Location · Hardware · Headset · IP */}
                               <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-gray-500">
-                                {item.location && <><span>{item.location}</span><span>·</span></>}
-                                {item.hardwareType && <span>{item.hardwareType}</span>}
-                                {item.headsetType && <><span>·</span><span>{item.headsetType}</span></>}
-                                {item.ipAddress && <><span>·</span><span className="font-mono text-gray-500/80">{item.ipAddress}</span></>}
+                                {item.location && <><span className="hidden sm:inline">Location: </span><span>{item.location}</span><span>·</span></>}
+                                {item.hardwareType && <><span className="hidden sm:inline">Hardware: </span><span>{item.hardwareType}</span></>}
+                                {item.headsetType && <><span>·</span><span className="hidden sm:inline">Headset: </span><span>{item.headsetType}</span></>}
+                                {item.ipAddress && <><span>·</span><span className="hidden sm:inline">IP: </span><span className="font-mono text-gray-500/80">{item.ipAddress}</span></>}
                               </div>
                             </>
                           )}
                         </div>
 
-                        {/* Edit button */}
+                        {/* Status + Edit */}
                         {!isEditing && (
-                          <div className="flex shrink-0 items-center">
-                            <Button size="sm" onClick={() => startEqEdit(item)}>Edit</Button>
+                          <div className="flex shrink-0 items-center gap-2">
+                            {canChangeStatus ? (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-medium text-gray-500">Status</span>
+                                <select
+                                  value={item.deployStatus}
+                                  onChange={(e) => {
+                                    const newStatus = e.target.value
+                                    startTransition(async () => {
+                                      const result = await updateEquipment(project.id, item.id, { deployStatus: newStatus })
+                                      if (result.error) { showToast('error', result.error); return }
+                                      router.refresh()
+                                    })
+                                  }}
+                                  className={`appearance-none rounded-full px-2.5 py-1 text-xs font-medium outline-none cursor-pointer ${STATUS_BADGE_STYLES[item.deployStatus] || STATUS_BADGE_STYLES.na}`}
+                                >
+                                  {DEPLOY_STATUSES.map((s) => (<option key={s.value} value={s.value}>{s.label}</option>))}
+                                </select>
+                              </div>
+                            ) : (
+                              <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_BADGE_STYLES[item.deployStatus] || STATUS_BADGE_STYLES.na}`}>
+                                {DEPLOY_STATUSES.find((s) => s.value === item.deployStatus)?.label || 'N/A'}
+                              </span>
+                            )}
+                            {canEditEquipment && <Button size="sm" onClick={() => startEqEdit(item)}>Edit</Button>}
                           </div>
                         )}
                       </div>
@@ -672,16 +713,17 @@ export function ProjectPage({
                     className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
                   />
                 </div>
-                {!showAddMember && <Button onClick={() => setShowAddMember(true)}>Add Member</Button>}
+                {canEditTeam && !showAddMember && <Button onClick={() => setShowAddMember(true)}>Add Member</Button>}
               </div>
 
               {/* Add member form */}
-              {showAddMember && (
+              {canEditTeam && showAddMember && (
                 <Card>
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-white">Add Member</h3>
                     <IconButton onClick={() => setShowAddMember(false)}><CloseIcon /></IconButton>
                   </div>
+                  <p className="mt-2 text-xs text-gray-500">Members are added automatically when they join with the project PIN. You can also add members manually.</p>
                   <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
                     <FormInput label="First Name" type="text" value={addMemberData.firstName} onChange={(e) => setAddMemberData({ ...addMemberData, firstName: e.target.value })} />
                     <FormInput label="Last Name" type="text" value={addMemberData.lastName} onChange={(e) => setAddMemberData({ ...addMemberData, lastName: e.target.value })} />
@@ -744,7 +786,7 @@ export function ProjectPage({
                                 <div className="mt-1.5 text-xs italic text-gray-600">No equipment assigned</div>
                               )}
                             </div>
-                            <Button size="sm" onClick={() => startMemberEdit(m)}>Edit</Button>
+                            {canEditTeam && <Button size="sm" onClick={() => startMemberEdit(m)}>Edit</Button>}
                           </div>
                         )}
                       </div>
@@ -768,16 +810,17 @@ export function ProjectPage({
                     className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
                   />
                 </div>
-                {!showAddPl && <Button onClick={() => setShowAddPl(true)}>Add Function</Button>}
+                {canEditPickList && !showAddPl && <Button onClick={() => setShowAddPl(true)}>Add Function</Button>}
               </div>
 
               {/* Add function form */}
-              {showAddPl && (
+              {canEditPickList && showAddPl && (
                 <Card>
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-white">Add Function</h3>
                     <IconButton onClick={() => setShowAddPl(false)}><CloseIcon /></IconButton>
                   </div>
+                  <p className="mt-2 text-xs text-gray-500">Add communication functions like conferences, IFBs, and audio I/O channels. These will be available as key options on panels.</p>
                   <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
                     <FormInput label="Name" type="text" value={addPlData.name} onChange={(e) => setAddPlData({ ...addPlData, name: e.target.value })} />
                     <FormSelect label="Type" value={addPlData.type} onChange={(e) => setAddPlData({ ...addPlData, type: e.target.value })}>
@@ -827,7 +870,7 @@ export function ProjectPage({
                               <span className="text-sm font-semibold text-white">{item.name}</span>
                               <span className="rounded-md bg-white/5 px-2 py-0.5 text-[11px] font-medium text-gray-400">{FUNCTION_TYPE_LABELS[item.type] || item.type}</span>
                             </div>
-                            <Button size="sm" onClick={() => startPlEdit(item)}>Edit</Button>
+                            {canEditPickList && <Button size="sm" onClick={() => startPlEdit(item)}>Edit</Button>}
                           </div>
                         )}
                       </div>
@@ -837,6 +880,43 @@ export function ProjectPage({
               )}
             </>
           )}
+
+          {/* ═══════════════════════════════ MY EQUIPMENT TAB (User role) ═══════════════════════════════ */}
+          {activeTab === 'my-equipment' && (() => {
+            const myEquipment = equipment.filter((e) => e.assignedMemberId === currentMemberId)
+            return (
+              <>
+                <p className="text-xs text-gray-500">
+                  {myEquipment.length} item{myEquipment.length !== 1 ? 's' : ''} assigned to you
+                </p>
+
+                {myEquipment.length === 0 ? (
+                  <EmptyState icon={<WrenchIcon />} title="No equipment assigned" message="You don't have any equipment assigned to you yet." />
+                ) : (
+                  <div className="space-y-2">
+                    {myEquipment.map((item) => (
+                      <div key={item.id} className="flex items-start gap-4 rounded-2xl bg-[#2a2a2a] px-5 py-4 transition-colors hover:bg-[#313131]">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-semibold">
+                            <span className="text-xs font-semibold text-gray-500">{item.name}</span>
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-gray-500">
+                            {item.location && <><span className="hidden sm:inline">Location: </span><span>{item.location}</span><span>·</span></>}
+                            {item.hardwareType && <><span className="hidden sm:inline">Hardware: </span><span>{item.hardwareType}</span></>}
+                            {item.headsetType && <><span>·</span><span className="hidden sm:inline">Headset: </span><span>{item.headsetType}</span></>}
+                            {item.ipAddress && <><span>·</span><span className="hidden sm:inline">IP: </span><span className="font-mono text-gray-500/80">{item.ipAddress}</span></>}
+                          </div>
+                        </div>
+                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_BADGE_STYLES[item.deployStatus] || STATUS_BADGE_STYLES.na}`}>
+                          {DEPLOY_STATUSES.find((s) => s.value === item.deployStatus)?.label || 'N/A'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )
+          })()}
         </div>
       </PageLayout>
 

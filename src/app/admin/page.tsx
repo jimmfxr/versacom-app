@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db'
+import { getSession } from '@/lib/session'
 import { TasksClient } from './tasks-client'
 
 export default async function TasksPage() {
@@ -30,5 +31,10 @@ export default async function TasksPage() {
     }))
     .sort((a, b) => new Date(b.lockedUntil!).getTime() - new Date(a.lockedUntil!).getTime())
 
-  return <TasksClient tasks={tasks} />
+  const session = await getSession()
+  const userName = session ? `${session.user.firstName} ${session.user.lastName}` : undefined
+
+  const isAdmin = session?.memberships.some((m) => m.role === 'admin') ?? false
+
+  return <TasksClient tasks={tasks} userName={userName} isAdmin={isAdmin} />
 }

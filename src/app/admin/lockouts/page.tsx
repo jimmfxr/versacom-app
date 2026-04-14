@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db'
+import { getSession } from '@/lib/session'
 import { LockoutsClient } from './lockouts-client'
 
 export default async function LockoutsPage() {
@@ -32,5 +33,10 @@ export default async function LockoutsPage() {
     role: u.memberships[0]?.role ?? null,
   }))
 
-  return <LockoutsClient users={serialized} />
+  const session = await getSession()
+  const userName = session ? `${session.user.firstName} ${session.user.lastName}` : undefined
+
+  const isAdmin = session?.memberships.some((m) => m.role === 'admin') ?? false
+
+  return <LockoutsClient users={serialized} userName={userName} isAdmin={isAdmin} />
 }

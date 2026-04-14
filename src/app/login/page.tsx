@@ -68,7 +68,9 @@ export default function LoginPage() {
         return
       }
 
-      router.push('/')
+      // Redirect based on role — user role goes to My Equipment, everyone else to home
+      const isUserOnly = data.memberships?.every((m: { role: string }) => m.role === 'user')
+      router.push(isUserOnly ? '/my-equipment' : '/')
     } catch {
       setError({ type: 'invalid', message: 'Something went wrong. Please try again.' })
       setPinDigits(['', '', '', ''])

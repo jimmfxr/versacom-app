@@ -63,7 +63,7 @@ function CheckIcon() {
   )
 }
 
-export function TasksClient({ tasks }: { tasks: TaskItem[] }) {
+export function TasksClient({ tasks, userName, isAdmin }: { tasks: TaskItem[]; userName?: string; isAdmin?: boolean }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [unlockingId, setUnlockingId] = useState<string | null>(null)
@@ -83,7 +83,7 @@ export function TasksClient({ tasks }: { tasks: TaskItem[] }) {
   }
 
   return (
-    <AppShell>
+    <AppShell userName={userName} isAdmin={isAdmin}>
       <PageLayout title="Tasks">
         {tasks.length === 0 ? (
           <EmptyState icon={<CheckIcon />} title="Inbox zero" message="No pending tasks. All users are active and operational." />

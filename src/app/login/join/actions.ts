@@ -56,7 +56,7 @@ export async function joinProject(firstName: string, lastName: string, projectPi
 
     // Add existing user to project
     await prisma.projectMember.create({
-      data: { userId: existingUser.id, projectId: project.id, role: 'crew' },
+      data: { userId: existingUser.id, projectId: project.id, role: 'user' },
     })
 
     // If user has no PIN, send to create-PIN step
@@ -128,7 +128,7 @@ export async function createPersonalPin(
     })
     if (!membership) {
       await prisma.projectMember.create({
-        data: { userId: existingUser.id, projectId, role: 'crew' },
+        data: { userId: existingUser.id, projectId, role: 'user' },
       })
     }
 
@@ -145,7 +145,7 @@ export async function createPersonalPin(
   })
 
   await prisma.projectMember.create({
-    data: { userId: user.id, projectId, role: 'crew' },
+    data: { userId: user.id, projectId, role: 'user' },
   })
 
   return { success: true }

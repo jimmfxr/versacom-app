@@ -118,11 +118,15 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  function capitalize(s: string) {
+    return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
+  }
+
   const sessionData = {
     user: {
       id: matchedUser.id,
-      firstName: matchedUser.firstName,
-      lastName: matchedUser.lastName,
+      firstName: capitalize(matchedUser.firstName),
+      lastName: capitalize(matchedUser.lastName),
     },
     memberships: memberships.map((m) => ({
       id: m.id,

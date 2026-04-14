@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
+import { getSession } from '@/lib/session'
 import { ProjectPage } from './project-page'
 
 export default async function ProjectDetailPage({
@@ -82,8 +83,26 @@ export default async function ProjectDetailPage({
     }
   }
 
+  const session = await getSession()
+  const userName = session ? `${session.user.firstName} ${session.user.lastName}` : undefined
+
+  // Find the current user's role and member ID for this project
+  const currentMembership = session
+    ? project.members.find((m) => m.user.id === session.user.id)
+    : null
+  const currentUserRole = currentMembership?.role || 'user'
+  const currentMemberId = currentMembership?.id || null
+
+  const isAdmin = session?.memberships.some((m) => m.role === 'admin') ?? false
+  const isUserOnly = session ? session.memberships.every((m) => m.role === 'user') : false
+
   return (
     <ProjectPage
+      userName={userName}
+      isAdmin={isAdmin}
+      isUserOnly={isUserOnly}
+      currentUserRole={currentUserRole}
+      currentMemberId={currentMemberId}
       project={{
         id: project.id,
         name: project.name,

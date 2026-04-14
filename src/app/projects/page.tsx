@@ -1,7 +1,11 @@
 import { prisma } from '@/lib/db'
+import { getSession } from '@/lib/session'
 import { ProjectsContent } from './projects-content'
 
 export default async function ProjectsPage() {
+  const session = await getSession()
+  const userName = session ? `${session.user.firstName} ${session.user.lastName}` : undefined
+
   const projects = await prisma.project.findMany({
     where: { status: 'active' },
     select: {
@@ -19,8 +23,14 @@ export default async function ProjectsPage() {
     orderBy: { createdAt: 'desc' },
   })
 
+  const isAdmin = session?.memberships.some((m) => m.role === 'admin') ?? false
+  const isUserOnly = session ? session.memberships.every((m) => m.role === 'user') : false
+
   return (
     <ProjectsContent
+      userName={userName}
+      isAdmin={isAdmin}
+      isUserOnly={isUserOnly}
       projects={projects.map((p) => ({
         id: p.id,
         name: p.name,

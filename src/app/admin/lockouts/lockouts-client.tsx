@@ -60,7 +60,7 @@ function getStatus(user: User) {
   return 'ok'
 }
 
-export function LockoutsClient({ users }: { users: User[] }) {
+export function LockoutsClient({ users, userName, isAdmin }: { users: User[]; userName?: string; isAdmin?: boolean }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [unlockingId, setUnlockingId] = useState<number | null>(null)
@@ -83,7 +83,7 @@ export function LockoutsClient({ users }: { users: User[] }) {
   const activeUsers = users.filter((u) => getStatus(u) === 'ok')
 
   return (
-    <AppShell>
+    <AppShell userName={userName} isAdmin={isAdmin}>
       <PageLayout title="User Lockouts">
         <div className="space-y-8">
           {/* Needs attention */}
