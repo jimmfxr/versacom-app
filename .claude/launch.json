@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "dev",
-      "runtimeExecutable": "/bin/bash",
-      "runtimeArgs": ["/tmp/start-next.sh"],
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/.bin/next", "dev"],
       "port": 3000,
       "autoPort": true
     }

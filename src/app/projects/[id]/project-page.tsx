@@ -8,12 +8,13 @@ import { AppShell } from '@/components/app-shell'
 import { PageLayout } from '@/components/page-layout'
 import { Card } from '@/components/card'
 import { EmptyState } from '@/components/empty-state'
-import { StatusBadge } from '@/components/status-badge'
 import { IconButton } from '@/components/icon-button'
 import { Modal } from '@/components/modal'
 import { FormInput, FormSelect } from '@/components/form-field'
 import { updateProject, deleteProject } from './actions'
 import { bulkCreateEquipment, updateEquipment, deleteEquipment } from './distribution/actions'
+import { createMember, updateMember, deleteMember } from './team-actions'
+import { createPickListItem, updatePickListItem, deletePickListItem } from './picklist-actions'
 
 /* ─── Constants ─── */
 
@@ -50,15 +51,6 @@ const DEPLOY_STATUSES = [
   { value: 'damaged', label: 'Damaged' },
 ] as const
 
-const STATUS_COLORS: Record<string, string> = {
-  na: 'gray',
-  deployed: 'green',
-  done: 'blue',
-  returned: 'purple',
-  'not-needed': 'yellow',
-  damaged: 'red',
-}
-
 const STATUS_BADGE_STYLES: Record<string, string> = {
   na: 'bg-gray-500/15 text-gray-400',
   deployed: 'bg-green-500/15 text-green-400',
@@ -68,7 +60,19 @@ const STATUS_BADGE_STYLES: Record<string, string> = {
   damaged: 'bg-red-500/15 text-red-400',
 }
 
+const FUNCTION_TYPES = ['CONF', 'IFB', 'Audio_IO'] as const
+const FUNCTION_TYPE_LABELS: Record<string, string> = {
+  CONF: 'CONF',
+  IFB: 'IFB',
+  Audio_IO: 'Audio I/O',
+}
+
+const ROLES = ['admin', 'manager', 'crew', 'user'] as const
+const ROLE_LABELS: Record<string, string> = { admin: 'Admin', manager: 'Manager', crew: 'Crew', user: 'User' }
+
 /* ─── Types ─── */
+
+type Tab = 'equipment' | 'team' | 'picklist'
 
 type Member = {
   id: number
@@ -78,6 +82,7 @@ type Member = {
   userId: number
   firstName: string
   lastName: string
+  equipmentNames: string[]
 }
 
 type Project = {
@@ -102,10 +107,13 @@ type EquipmentItem = {
   deployStatus: string
   assignedToId: number | null
   assignedToName: string | null
+  assignedToPosition: string | null
   assignedMemberId: number | null
 }
 
 type AssignableMember = { id: number; name: string }
+
+type PickListItemType = { id: number; name: string; type: string }
 
 /* ─── Helpers ─── */
 
@@ -118,22 +126,18 @@ function getCategoryLabel(value: string) {
 }
 
 function hasField(category: string, field: string) {
-  const userFields = ['position', 'location', 'headsetType', 'ipAddress']
+  const panelFields = ['location', 'headsetType', 'ipAddress']
+  const wirelessFields = ['headsetType']
+  const hardwireFields = ['location', 'headsetType', 'ipAddress']
   const infraFields = ['location', 'ipAddress']
-  if (['panels', 'wireless_bp', 'hardwire_bp'].includes(category)) return userFields.includes(field)
+  if (category === 'panels') return panelFields.includes(field)
+  if (category === 'wireless_bp') return wirelessFields.includes(field)
+  if (category === 'hardwire_bp') return hardwireFields.includes(field)
   if (['switches', 'antennas'].includes(category)) return infraFields.includes(field)
   return false
 }
 
 /* ─── Icons ─── */
-
-function EditIcon() {
-  return (
-    <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
-    </svg>
-  )
-}
 
 function CloseIcon({ className = 'size-5' }: { className?: string }) {
   return (
@@ -160,24 +164,43 @@ function GearIcon() {
   )
 }
 
+function UsersIcon() {
+  return (
+    <svg className="mx-auto size-12 text-gray-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+    </svg>
+  )
+}
+
+function ListIcon() {
+  return (
+    <svg className="mx-auto size-12 text-gray-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+    </svg>
+  )
+}
+
 /* ─── Main Component ─── */
 
 export function ProjectPage({
   project,
   equipment,
   assignableMembers,
+  pickListItems,
 }: {
   project: Project
   equipment: EquipmentItem[]
   assignableMembers: AssignableMember[]
+  pickListItems: PickListItemType[]
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
-  // Edit panel toggle
-  const [showSettings, setShowSettings] = useState(false)
+  // Tab state
+  const [activeTab, setActiveTab] = useState<Tab>('equipment')
 
-  // Project edit state
+  // Settings panel
+  const [showSettings, setShowSettings] = useState(false)
   const [name, setName] = useState(project.name)
   const [status, setStatus] = useState(project.status)
   const [managerId, setManagerId] = useState(
@@ -187,22 +210,33 @@ export function ProjectPage({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   // Equipment state
-  const [search, setSearch] = useState('')
+  const [eqSearch, setEqSearch] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [addCategory, setAddCategory] = useState('panels')
   const [addHardwareType, setAddHardwareType] = useState('')
   const [addQuantity, setAddQuantity] = useState(1)
   const [addError, setAddError] = useState('')
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [editData, setEditData] = useState<Partial<EquipmentItem>>({})
+  const [editingEqId, setEditingEqId] = useState<number | null>(null)
+  const [editEqData, setEditEqData] = useState<Partial<EquipmentItem>>({})
+
+  // Team state
+  const [teamSearch, setTeamSearch] = useState('')
+  const [showAddMember, setShowAddMember] = useState(false)
+  const [addMemberData, setAddMemberData] = useState<{ firstName: string; lastName: string; position: string; role: string }>({ firstName: '', lastName: '', position: '', role: 'crew' })
+  const [editingMemberId, setEditingMemberId] = useState<number | null>(null)
+  const [editMemberData, setEditMemberData] = useState<{ firstName: string; lastName: string; position: string; role: string }>({ firstName: '', lastName: '', position: '', role: 'crew' })
+
+  // Pick list state
+  const [plSearch, setPlSearch] = useState('')
+  const [editingPlId, setEditingPlId] = useState<number | null>(null)
+  const [editPlData, setEditPlData] = useState<{ name: string; type: string }>({ name: '', type: 'CONF' })
+  const [showAddPl, setShowAddPl] = useState(false)
+  const [addPlData, setAddPlData] = useState<{ name: string; type: string }>({ name: '', type: 'CONF' })
 
   /* ─── Project actions ─── */
 
   function handleSaveProject() {
-    if (!name.trim()) {
-      setEditError('Project name is required')
-      return
-    }
+    if (!name.trim()) { setEditError('Project name is required'); return }
     setEditError('')
     startTransition(async () => {
       const formData = new FormData()
@@ -210,10 +244,7 @@ export function ProjectPage({
       formData.set('status', status)
       formData.set('managerId', managerId)
       const result = await updateProject(project.id, formData)
-      if (result.error) {
-        setEditError(result.error)
-        return
-      }
+      if (result.error) { setEditError(result.error); return }
       showToast('success', 'Project updated')
       router.refresh()
     })
@@ -222,10 +253,7 @@ export function ProjectPage({
   function handleDeleteProject() {
     startTransition(async () => {
       const result = await deleteProject(project.id)
-      if (result.error) {
-        showToast('error', result.error)
-        return
-      }
+      if (result.error) { showToast('error', result.error); return }
       router.push('/projects')
     })
   }
@@ -233,17 +261,11 @@ export function ProjectPage({
   /* ─── Equipment actions ─── */
 
   function handleBulkAdd() {
-    if (addQuantity < 1) {
-      setAddError('Quantity must be at least 1')
-      return
-    }
+    if (addQuantity < 1) { setAddError('Quantity must be at least 1'); return }
     setAddError('')
     startTransition(async () => {
       const result = await bulkCreateEquipment(project.id, addCategory, addHardwareType, addQuantity)
-      if (result.error) {
-        setAddError(result.error)
-        return
-      }
+      if (result.error) { setAddError(result.error); return }
       showToast('success', `Added ${result.count} ${getCategoryLabel(addCategory)}`)
       setShowAdd(false)
       setAddHardwareType('')
@@ -252,12 +274,11 @@ export function ProjectPage({
     })
   }
 
-  function startEdit(item: EquipmentItem) {
-    setEditingId(item.id)
-    setEditData({
+  function startEqEdit(item: EquipmentItem) {
+    setEditingEqId(item.id)
+    setEditEqData({
       name: item.name,
       hardwareType: item.hardwareType || '',
-      position: item.position || '',
       location: item.location || '',
       headsetType: item.headsetType || '',
       ipAddress: item.ipAddress || '',
@@ -269,20 +290,17 @@ export function ProjectPage({
   function handleSaveEquipment(item: EquipmentItem) {
     startTransition(async () => {
       const result = await updateEquipment(project.id, item.id, {
-        name: editData.name || item.name,
-        hardwareType: (editData.hardwareType as string) || null,
-        position: hasField(item.category, 'position') ? (editData.position as string) || null : null,
-        location: hasField(item.category, 'location') ? (editData.location as string) || null : null,
-        headsetType: hasField(item.category, 'headsetType') ? (editData.headsetType as string) || null : null,
-        ipAddress: hasField(item.category, 'ipAddress') ? (editData.ipAddress as string) || null : null,
-        deployStatus: (editData.deployStatus as string) || 'na',
-        assignedToId: isAssignable(item.category) ? (editData.assignedToId as number | null) : null,
+        name: editEqData.name || item.name,
+        hardwareType: (editEqData.hardwareType as string) || null,
+        position: null,
+        location: hasField(item.category, 'location') ? (editEqData.location as string) || null : null,
+        headsetType: hasField(item.category, 'headsetType') ? (editEqData.headsetType as string) || null : null,
+        ipAddress: hasField(item.category, 'ipAddress') ? (editEqData.ipAddress as string) || null : null,
+        deployStatus: (editEqData.deployStatus as string) || 'na',
+        assignedToId: isAssignable(item.category) ? (editEqData.assignedToId as number | null) : null,
       })
-      if (result.error) {
-        showToast('error', result.error)
-        return
-      }
-      setEditingId(null)
+      if (result.error) { showToast('error', result.error); return }
+      setEditingEqId(null)
       router.refresh()
     })
   }
@@ -290,30 +308,130 @@ export function ProjectPage({
   function handleDeleteEquipment(item: EquipmentItem) {
     startTransition(async () => {
       const result = await deleteEquipment(project.id, item.id)
-      if (result.error) {
-        showToast('error', result.error)
-        return
-      }
+      if (result.error) { showToast('error', result.error); return }
       showToast('success', `${item.name} removed`)
       router.refresh()
     })
   }
 
-  const filtered = equipment.filter((e) => {
-    if (!search) return true
-    const q = search.toLowerCase()
+  /* ─── Team actions ─── */
+
+  function startMemberEdit(m: Member) {
+    setEditingMemberId(m.id)
+    setEditMemberData({ firstName: m.firstName, lastName: m.lastName, position: m.position || '', role: m.role })
+  }
+
+  function handleSaveMember(m: Member) {
+    startTransition(async () => {
+      const result = await updateMember(project.id, m.id, editMemberData)
+      if (result.error) { showToast('error', result.error); return }
+      setEditingMemberId(null)
+      router.refresh()
+    })
+  }
+
+  function handleDeleteMember(m: Member) {
+    startTransition(async () => {
+      const result = await deleteMember(project.id, m.id)
+      if (result.error) { showToast('error', result.error); return }
+      showToast('success', `${m.firstName} ${m.lastName} removed`)
+      router.refresh()
+    })
+  }
+
+  function handleAddMember() {
+    if (!addMemberData.firstName.trim() || !addMemberData.lastName.trim()) return
+    startTransition(async () => {
+      const result = await createMember(project.id, addMemberData)
+      if (result.error) { showToast('error', result.error); return }
+      showToast('success', `${addMemberData.firstName.trim()} ${addMemberData.lastName.trim()} added`)
+      setShowAddMember(false)
+      setAddMemberData({ firstName: '', lastName: '', position: '', role: 'crew' })
+      router.refresh()
+    })
+  }
+
+  /* ─── Pick list actions ─── */
+
+  function startPlEdit(item: PickListItemType) {
+    setEditingPlId(item.id)
+    setEditPlData({ name: item.name, type: item.type })
+  }
+
+  function handleSavePl(item: PickListItemType) {
+    startTransition(async () => {
+      const result = await updatePickListItem(project.id, item.id, editPlData)
+      if (result.error) { showToast('error', result.error); return }
+      setEditingPlId(null)
+      router.refresh()
+    })
+  }
+
+  function handleDeletePl(item: PickListItemType) {
+    startTransition(async () => {
+      const result = await deletePickListItem(project.id, item.id)
+      if (result.error) { showToast('error', result.error); return }
+      showToast('success', `${item.name} removed`)
+      router.refresh()
+    })
+  }
+
+  function handleAddPl() {
+    if (!addPlData.name.trim()) return
+    startTransition(async () => {
+      const result = await createPickListItem(project.id, addPlData)
+      if (result.error) { showToast('error', result.error); return }
+      showToast('success', `${addPlData.name} added`)
+      setShowAddPl(false)
+      setAddPlData({ name: '', type: 'CONF' })
+      router.refresh()
+    })
+  }
+
+  /* ─── Filtered lists ─── */
+
+  const filteredEquipment = equipment.filter((e) => {
+    if (!eqSearch) return true
+    const q = eqSearch.toLowerCase()
     return (
       e.name.toLowerCase().includes(q) ||
       e.category.toLowerCase().includes(q) ||
       getCategoryLabel(e.category).toLowerCase().includes(q) ||
       (e.hardwareType?.toLowerCase().includes(q) ?? false) ||
-      (e.position?.toLowerCase().includes(q) ?? false) ||
       (e.location?.toLowerCase().includes(q) ?? false) ||
       (e.ipAddress?.toLowerCase().includes(q) ?? false) ||
       (e.assignedToName?.toLowerCase().includes(q) ?? false) ||
+      (e.assignedToPosition?.toLowerCase().includes(q) ?? false) ||
       e.deployStatus.toLowerCase().includes(q)
     )
   })
+
+  const filteredMembers = project.members.filter((m) => {
+    if (!teamSearch) return true
+    const q = teamSearch.toLowerCase()
+    return (
+      m.firstName.toLowerCase().includes(q) ||
+      m.lastName.toLowerCase().includes(q) ||
+      (m.position?.toLowerCase().includes(q) ?? false) ||
+      m.role.toLowerCase().includes(q)
+    )
+  })
+
+  const filteredPickList = pickListItems.filter((p) => {
+    if (!plSearch) return true
+    const q = plSearch.toLowerCase()
+    return p.name.toLowerCase().includes(q) || (FUNCTION_TYPE_LABELS[p.type] || p.type).toLowerCase().includes(q)
+  })
+
+  /* ─── Tab action buttons ─── */
+
+  const tabActionButton = activeTab === 'equipment' ? (
+    !showAdd && <Button onClick={() => setShowAdd(true)}>Add Equipment</Button>
+  ) : activeTab === 'team' ? (
+    !showAddMember && <Button onClick={() => setShowAddMember(true)}>Add Member</Button>
+  ) : (
+    !showAddPl && <Button onClick={() => setShowAddPl(true)}>Add Function</Button>
+  )
 
   return (
     <AppShell>
@@ -321,26 +439,20 @@ export function ProjectPage({
         title={project.name}
         action={
           <div className="flex items-center gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => setShowSettings(!showSettings)}
-            >
+            <Button variant="secondary" onClick={() => setShowSettings(!showSettings)}>
               <span className="flex items-center gap-1.5">
                 <GearIcon />
                 {showSettings ? 'Close' : 'Edit'}
               </span>
             </Button>
-            <Button variant="secondary" onClick={() => router.push('/projects')}>
-              Back
-            </Button>
+            <Button variant="secondary" onClick={() => router.push('/projects')}>Back</Button>
           </div>
         }
       >
         <div className="space-y-4">
-          {/* ─── Settings Panel (toggled by Edit button) ─── */}
+          {/* ─── Settings Panel ─── */}
           {showSettings && (
             <div className="space-y-4">
-              {/* Project PIN Card */}
               <Card>
                 <div className="flex items-center justify-between">
                   <div>
@@ -349,34 +461,19 @@ export function ProjectPage({
                   </div>
                   <div className="flex gap-2">
                     {project.pin.split('').map((digit, i) => (
-                      <span
-                        key={i}
-                        className="flex size-10 items-center justify-center rounded-lg bg-[#202020] text-lg font-bold text-[#0178a3]"
-                      >
-                        {digit}
-                      </span>
+                      <span key={i} className="flex size-10 items-center justify-center rounded-lg bg-[#202020] text-lg font-bold text-[#0178a3]">{digit}</span>
                     ))}
                   </div>
                 </div>
               </Card>
-
-              {/* Project Details Card */}
               <Card>
                 <h3 className="text-sm font-semibold text-white">Project Details</h3>
                 <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-                  <FormInput
-                    label="Project name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => { setName(e.target.value); setEditError('') }}
-                    maxLength={100}
-                  />
+                  <FormInput label="Project name" type="text" value={name} onChange={(e) => { setName(e.target.value); setEditError('') }} maxLength={100} />
                   <FormSelect label="Manager" value={managerId} onChange={(e) => setManagerId(e.target.value)}>
                     <option value="">None</option>
                     {project.members.map((m) => (
-                      <option key={m.userId} value={m.userId}>
-                        {m.firstName} {m.lastName}
-                      </option>
+                      <option key={m.userId} value={m.userId}>{m.firstName} {m.lastName}</option>
                     ))}
                   </FormSelect>
                   <FormSelect label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
@@ -386,226 +483,359 @@ export function ProjectPage({
                 </div>
                 {editError && <p className="mt-3 text-sm text-red-400">{editError}</p>}
                 <div className="mt-4 flex items-center justify-between">
-                  <Button variant="danger" size="sm" onClick={() => setShowDeleteConfirm(true)} disabled={isPending}>
-                    Delete Project
-                  </Button>
-                  <Button size="sm" onClick={handleSaveProject} disabled={isPending}>
-                    {isPending ? 'Saving...' : 'Save Changes'}
-                  </Button>
+                  <Button variant="danger" size="sm" onClick={() => setShowDeleteConfirm(true)} disabled={isPending}>Delete Project</Button>
+                  <Button size="sm" onClick={handleSaveProject} disabled={isPending}>{isPending ? 'Saving...' : 'Save Changes'}</Button>
                 </div>
               </Card>
-
-              {/* Divider */}
               <div className="border-t border-white/10" />
             </div>
           )}
 
-          {/* ─── Equipment Distribution (always visible) ─── */}
-
-          {/* Search + Add bar */}
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
-              <input
-                type="text"
-                placeholder="Search equipment..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
-              />
-            </div>
-            {!showAdd && <Button onClick={() => setShowAdd(true)}>Add Equipment</Button>}
+          {/* ─── Tab Switcher ─── */}
+          <div className="flex w-full rounded-lg bg-[#2a2a2a] p-1">
+            {[
+              { key: 'equipment' as Tab, label: 'Equipment', count: equipment.length },
+              { key: 'team' as Tab, label: 'Team', count: project.members.length },
+              { key: 'picklist' as Tab, label: 'Pick List', count: pickListItems.length },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex-1 rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
+                  activeTab === tab.key
+                    ? 'bg-[#0178a3] text-white'
+                    : 'text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                {tab.label}
+                <span className="ml-1.5 text-xs opacity-70">{tab.count}</span>
+              </button>
+            ))}
           </div>
 
-          {/* Bulk add form */}
-          {showAdd && (
-            <Card>
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-white">Add Equipment</h3>
-                <IconButton onClick={() => { setShowAdd(false); setAddError('') }}>
-                  <CloseIcon />
-                </IconButton>
-              </div>
-              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-4">
-                <FormSelect label="Category" value={addCategory} onChange={(e) => setAddCategory(e.target.value)}>
-                  {CATEGORIES.map((c) => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
-                  ))}
-                </FormSelect>
-                <FormSelect label="Hardware type" value={addHardwareType} onChange={(e) => setAddHardwareType(e.target.value)}>
-                  <option value="">None</option>
-                  {(HARDWARE_TYPES[addCategory] || []).map((ht) => (
-                    <option key={ht} value={ht}>{ht}</option>
-                  ))}
-                </FormSelect>
-                <FormInput
-                  label="Quantity"
-                  type="number"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  min={1}
-                  max={200}
-                  value={addQuantity}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, '')
-                    setAddQuantity(val ? parseInt(val) : 1)
-                  }}
-                />
-                <div className="flex items-end">
-                  <Button onClick={handleBulkAdd} disabled={isPending} className="w-full">
-                    {isPending ? 'Adding...' : 'Add'}
-                  </Button>
+          {/* ═══════════════════════════════ EQUIPMENT TAB ═══════════════════════════════ */}
+          {activeTab === 'equipment' && (
+            <>
+              {/* Search + Add bar */}
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    placeholder="Search equipment..."
+                    value={eqSearch}
+                    onChange={(e) => setEqSearch(e.target.value)}
+                    className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
+                  />
                 </div>
+                {!showAdd && <Button onClick={() => setShowAdd(true)}>Add Equipment</Button>}
               </div>
-              {addError && <p className="mt-3 text-sm text-red-400">{addError}</p>}
-            </Card>
+
+              {/* Bulk add form */}
+              {showAdd && (
+                <Card>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-white">Add Equipment</h3>
+                    <IconButton onClick={() => { setShowAdd(false); setAddError('') }}><CloseIcon /></IconButton>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    <FormSelect label="Category" value={addCategory} onChange={(e) => setAddCategory(e.target.value)}>
+                      {CATEGORIES.map((c) => (<option key={c.value} value={c.value}>{c.label}</option>))}
+                    </FormSelect>
+                    <FormSelect label="Hardware type" value={addHardwareType} onChange={(e) => setAddHardwareType(e.target.value)}>
+                      <option value="">None</option>
+                      {(HARDWARE_TYPES[addCategory] || []).map((ht) => (<option key={ht} value={ht}>{ht}</option>))}
+                    </FormSelect>
+                    <FormInput label="Quantity" type="number" inputMode="numeric" pattern="[0-9]*" min={1} max={200} value={addQuantity}
+                      onChange={(e) => { const val = e.target.value.replace(/\D/g, ''); setAddQuantity(val ? parseInt(val) : 1) }} />
+                  </div>
+                  <div className="mt-4 flex justify-end">
+                    <Button onClick={handleBulkAdd} disabled={isPending}>{isPending ? 'Adding...' : 'Add'}</Button>
+                  </div>
+                  {addError && <p className="mt-3 text-sm text-red-400">{addError}</p>}
+                </Card>
+              )}
+
+              <p className="text-xs text-gray-500">
+                {filteredEquipment.length} of {equipment.length} items
+                {eqSearch && ` matching "${eqSearch}"`}
+              </p>
+
+              {filteredEquipment.length === 0 ? (
+                <EmptyState icon={<WrenchIcon />} title={eqSearch ? 'No matches found' : 'No equipment yet'} message={eqSearch ? 'Try a different search term.' : 'Add equipment using the button above.'} />
+              ) : (
+                <div className="space-y-2">
+                  {filteredEquipment.map((item) => {
+                    const isEditing = editingEqId === item.id
+                    return (
+                      <div key={item.id} className="flex items-start gap-4 rounded-2xl bg-[#2a2a2a] px-5 py-4 transition-colors hover:bg-[#313131]">
+                        {/* Status + ID column */}
+                        <div className="flex shrink-0 flex-col items-center gap-1.5 pt-0.5">
+                          <select
+                            value={item.deployStatus}
+                            onChange={(e) => {
+                              const newStatus = e.target.value
+                              startTransition(async () => {
+                                const result = await updateEquipment(project.id, item.id, { deployStatus: newStatus })
+                                if (result.error) { showToast('error', result.error); return }
+                                router.refresh()
+                              })
+                            }}
+                            className={`appearance-none rounded-full px-2.5 py-1 text-xs font-medium outline-none cursor-pointer ${STATUS_BADGE_STYLES[item.deployStatus] || STATUS_BADGE_STYLES.na}`}
+                          >
+                            {DEPLOY_STATUSES.map((s) => (<option key={s.value} value={s.value}>{s.label}</option>))}
+                          </select>
+                          <span className="text-[11px] font-semibold text-gray-500">{item.name}</span>
+                        </div>
+
+                        {/* Content */}
+                        <div className="min-w-0 flex-1">
+                          {isEditing ? (
+                            <>
+                              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                <FormInput compact label="ID" type="text" value={(editEqData.name as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, name: e.target.value })} />
+                                <FormSelect compact label="Hardware" value={(editEqData.hardwareType as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, hardwareType: e.target.value })}>
+                                  <option value="">None</option>
+                                  {(HARDWARE_TYPES[item.category] || []).map((ht) => (<option key={ht} value={ht}>{ht}</option>))}
+                                </FormSelect>
+                                {hasField(item.category, 'headsetType') && (
+                                  <FormSelect compact label="Headset" value={(editEqData.headsetType as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, headsetType: e.target.value })}>
+                                    <option value="">None</option>
+                                    {HEADSET_TYPES.map((ht) => (<option key={ht} value={ht}>{ht}</option>))}
+                                  </FormSelect>
+                                )}
+                                {hasField(item.category, 'location') && (
+                                  <FormInput compact label="Location" type="text" value={(editEqData.location as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, location: e.target.value })} />
+                                )}
+                                {hasField(item.category, 'ipAddress') && (
+                                  <FormInput compact label="IP Address" type="text" value={(editEqData.ipAddress as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, ipAddress: e.target.value })} />
+                                )}
+                                {isAssignable(item.category) && (
+                                  <FormSelect compact label="Assigned to" value={(editEqData.assignedToId as number) || ''} onChange={(e) => setEditEqData({ ...editEqData, assignedToId: e.target.value ? parseInt(e.target.value) : null })}>
+                                    <option value="">Unassigned</option>
+                                    {assignableMembers.map((m) => (<option key={m.id} value={m.id}>{m.name}</option>))}
+                                  </FormSelect>
+                                )}
+                              </div>
+                              <div className="mt-3 flex items-center justify-end gap-3">
+                                <Button size="sm" onClick={() => handleSaveEquipment(item)} disabled={isPending}>Save</Button>
+                                <Button size="sm" variant="danger" onClick={() => handleDeleteEquipment(item)} disabled={isPending}>Delete</Button>
+                                <Button size="sm" variant="secondary" onClick={() => setEditingEqId(null)} disabled={isPending}>Cancel</Button>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              {/* Row 1: Assigned user · position */}
+                              {item.assignedToName ? (
+                                <div className="text-sm font-semibold text-[#0178a3]">
+                                  {item.assignedToName}
+                                  {item.assignedToPosition && <span className="text-[#0178a3]/70"> · {item.assignedToPosition}</span>}
+                                </div>
+                              ) : isAssignable(item.category) ? (
+                                <div className="text-sm italic text-gray-500">Unassigned</div>
+                              ) : null}
+
+                              {/* Row 2: Location · Hardware · Headset (or IP for infra) */}
+                              <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-gray-500">
+                                {item.location && <><span>{item.location}</span><span>·</span></>}
+                                {item.hardwareType && <span>{item.hardwareType}</span>}
+                                {item.headsetType && <><span>·</span><span>{item.headsetType}</span></>}
+                                {item.ipAddress && <><span>·</span><span className="font-mono text-gray-500/80">{item.ipAddress}</span></>}
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Edit button */}
+                        {!isEditing && (
+                          <div className="flex shrink-0 items-center">
+                            <Button size="sm" onClick={() => startEqEdit(item)}>Edit</Button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </>
           )}
 
-          {/* Equipment count */}
-          <p className="text-xs text-gray-500">
-            {filtered.length} of {equipment.length} items
-            {search && ` matching "${search}"`}
-          </p>
+          {/* ═══════════════════════════════ TEAM TAB ═══════════════════════════════ */}
+          {activeTab === 'team' && (
+            <>
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    placeholder="Search team members..."
+                    value={teamSearch}
+                    onChange={(e) => setTeamSearch(e.target.value)}
+                    className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
+                  />
+                </div>
+                {!showAddMember && <Button onClick={() => setShowAddMember(true)}>Add Member</Button>}
+              </div>
 
-          {/* Equipment list */}
-          {filtered.length === 0 ? (
-            <EmptyState
-              icon={<WrenchIcon />}
-              title={search ? 'No matches found' : 'No equipment yet'}
-              message={search ? 'Try a different search term.' : 'Add equipment using the button above.'}
-            />
-          ) : (
-            <div className="space-y-2">
-              {filtered.map((item) => {
-                const isEditing = editingId === item.id
-                const categoryInfo = CATEGORIES.find((c) => c.value === item.category)
-
-                return (
-                  <div
-                    key={item.id}
-                    className="flex items-start gap-4 rounded-2xl bg-[#2a2a2a] px-5 py-4 transition-colors hover:bg-[#313131]"
-                  >
-                    {/* Status badge — always changeable */}
-                    <div className="shrink-0 pt-0.5">
-                      <select
-                        value={item.deployStatus}
-                        onChange={(e) => {
-                          const newStatus = e.target.value
-                          startTransition(async () => {
-                            const result = await updateEquipment(project.id, item.id, { deployStatus: newStatus })
-                            if (result.error) {
-                              showToast('error', result.error)
-                              return
-                            }
-                            router.refresh()
-                          })
-                        }}
-                        className={`appearance-none rounded-full px-2.5 py-1 text-xs font-medium outline-none cursor-pointer ${STATUS_BADGE_STYLES[item.deployStatus] || STATUS_BADGE_STYLES.na}`}
-                      >
-                        {DEPLOY_STATUSES.map((s) => (
-                          <option key={s.value} value={s.value}>{s.label}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Content */}
-                    <div className="min-w-0 flex-1">
-                      {isEditing ? (
-                        <>
-                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                            <FormInput compact label="Name" type="text" value={(editData.name as string) || ''} onChange={(e) => setEditData({ ...editData, name: e.target.value })} />
-                            <FormSelect compact label="Hardware" value={(editData.hardwareType as string) || ''} onChange={(e) => setEditData({ ...editData, hardwareType: e.target.value })}>
-                              <option value="">None</option>
-                              {(HARDWARE_TYPES[item.category] || []).map((ht) => (
-                                <option key={ht} value={ht}>{ht}</option>
-                              ))}
-                            </FormSelect>
-                            {hasField(item.category, 'position') && (
-                              <FormInput compact label="Position" type="text" value={(editData.position as string) || ''} onChange={(e) => setEditData({ ...editData, position: e.target.value })} />
-                            )}
-                            {hasField(item.category, 'location') && (
-                              <FormInput compact label="Location" type="text" value={(editData.location as string) || ''} onChange={(e) => setEditData({ ...editData, location: e.target.value })} />
-                            )}
-                            {hasField(item.category, 'headsetType') && (
-                              <FormSelect compact label="Headset" value={(editData.headsetType as string) || ''} onChange={(e) => setEditData({ ...editData, headsetType: e.target.value })}>
-                                <option value="">None</option>
-                                {HEADSET_TYPES.map((ht) => (
-                                  <option key={ht} value={ht}>{ht}</option>
-                                ))}
-                              </FormSelect>
-                            )}
-                            {hasField(item.category, 'ipAddress') && (
-                              <FormInput compact label="IP Address" type="text" value={(editData.ipAddress as string) || ''} onChange={(e) => setEditData({ ...editData, ipAddress: e.target.value })} />
-                            )}
-                            {isAssignable(item.category) && (
-                              <FormSelect compact label="Assigned to" value={(editData.assignedToId as number) || ''} onChange={(e) => setEditData({ ...editData, assignedToId: e.target.value ? parseInt(e.target.value) : null })}>
-                                <option value="">Unassigned</option>
-                                {assignableMembers.map((m) => (
-                                  <option key={m.id} value={m.id}>{m.name}</option>
-                                ))}
-                              </FormSelect>
-                            )}
-                          </div>
-                          <div className="mt-3 flex items-center justify-end gap-3">
-                            <Button size="sm" onClick={() => handleSaveEquipment(item)} disabled={isPending}>Save</Button>
-                            <Button size="sm" variant="danger" onClick={() => handleDeleteEquipment(item)} disabled={isPending}>Delete</Button>
-                            <Button size="sm" variant="secondary" onClick={() => setEditingId(null)} disabled={isPending}>Cancel</Button>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          {/* Row 1: ID + Category */}
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-white">{item.name}</span>
-                            <span className="text-xs text-gray-500">{categoryInfo?.label}</span>
-                          </div>
-
-                          {/* Row 2: Hardware + Headset tags */}
-                          {(item.hardwareType || item.headsetType) && (
-                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                              {item.hardwareType && (
-                                <span className="rounded-md bg-white/5 px-2 py-0.5 text-[11px] font-medium text-gray-300">
-                                  {item.hardwareType}
-                                </span>
-                              )}
-                              {item.headsetType && (
-                                <span className="rounded-md bg-[#0178a3]/10 px-2 py-0.5 text-[11px] font-medium text-[#0178a3]/80">
-                                  {item.headsetType}
-                                </span>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Row 3: Position · Location · IP */}
-                          {(item.position || item.location || item.ipAddress) && (
-                            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 text-xs text-gray-500">
-                              {item.position && <span>{item.position}</span>}
-                              {item.position && item.location && <span>·</span>}
-                              {item.location && <span>{item.location}</span>}
-                              {(item.position || item.location) && item.ipAddress && <span>·</span>}
-                              {item.ipAddress && <span className="font-mono text-gray-500/80">{item.ipAddress}</span>}
-                            </div>
-                          )}
-
-                          {/* Row 4: Assigned to */}
-                          {item.assignedToName && (
-                            <div className="mt-1.5 text-xs font-medium text-[#0178a3]">
-                              {item.assignedToName}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    {/* Edit button (non-editing only) */}
-                    {!isEditing && (
-                      <div className="flex shrink-0 items-center">
-                        <Button size="sm" onClick={() => startEdit(item)}>Edit</Button>
-                      </div>
-                    )}
+              {/* Add member form */}
+              {showAddMember && (
+                <Card>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-white">Add Member</h3>
+                    <IconButton onClick={() => setShowAddMember(false)}><CloseIcon /></IconButton>
                   </div>
-                )
-              })}
-            </div>
+                  <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    <FormInput label="First Name" type="text" value={addMemberData.firstName} onChange={(e) => setAddMemberData({ ...addMemberData, firstName: e.target.value })} />
+                    <FormInput label="Last Name" type="text" value={addMemberData.lastName} onChange={(e) => setAddMemberData({ ...addMemberData, lastName: e.target.value })} />
+                    <FormInput label="Position" type="text" value={addMemberData.position} onChange={(e) => setAddMemberData({ ...addMemberData, position: e.target.value })} />
+                    <FormSelect label="Role" value={addMemberData.role} onChange={(e) => setAddMemberData({ ...addMemberData, role: e.target.value })}>
+                      {ROLES.map((r) => (<option key={r} value={r}>{ROLE_LABELS[r]}</option>))}
+                    </FormSelect>
+                  </div>
+                  <div className="mt-4 flex justify-end">
+                    <Button onClick={handleAddMember} disabled={isPending || !addMemberData.firstName.trim() || !addMemberData.lastName.trim()}>{isPending ? 'Adding...' : 'Add'}</Button>
+                  </div>
+                </Card>
+              )}
+
+              <p className="text-xs text-gray-500">
+                {filteredMembers.length} of {project.members.length} members
+                {teamSearch && ` matching "${teamSearch}"`}
+              </p>
+
+              {filteredMembers.length === 0 ? (
+                <EmptyState icon={<UsersIcon />} title={teamSearch ? 'No matches found' : 'No team members yet'} message={teamSearch ? 'Try a different search term.' : 'Members join via the project PIN.'} />
+              ) : (
+                <div className="space-y-2">
+                  {filteredMembers.map((m) => {
+                    const isEditing = editingMemberId === m.id
+                    return (
+                      <div key={m.id} className="rounded-2xl bg-[#2a2a2a] px-5 py-4 transition-colors hover:bg-[#313131]">
+                        {isEditing ? (
+                          <>
+                            <div className="text-sm font-semibold text-white">
+                              {m.firstName} {m.lastName}
+                              {m.position && <span className="text-gray-500"> · {m.position}</span>}
+                              <span className="text-gray-500"> · {ROLE_LABELS[m.role] || m.role}</span>
+                            </div>
+                            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                              <FormInput compact label="First Name" type="text" value={editMemberData.firstName} onChange={(e) => setEditMemberData({ ...editMemberData, firstName: e.target.value })} />
+                              <FormInput compact label="Last Name" type="text" value={editMemberData.lastName} onChange={(e) => setEditMemberData({ ...editMemberData, lastName: e.target.value })} />
+                              <FormInput compact label="Position" type="text" value={editMemberData.position} onChange={(e) => setEditMemberData({ ...editMemberData, position: e.target.value })} />
+                              <FormSelect compact label="Role" value={editMemberData.role} onChange={(e) => setEditMemberData({ ...editMemberData, role: e.target.value })}>
+                                {ROLES.map((r) => (<option key={r} value={r}>{ROLE_LABELS[r]}</option>))}
+                              </FormSelect>
+                            </div>
+                            <div className="mt-3 flex items-center justify-end gap-3">
+                              <Button size="sm" onClick={() => handleSaveMember(m)} disabled={isPending}>Save</Button>
+                              <Button size="sm" variant="danger" onClick={() => handleDeleteMember(m)} disabled={isPending}>Delete</Button>
+                              <Button size="sm" variant="secondary" onClick={() => setEditingMemberId(null)} disabled={isPending}>Cancel</Button>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <div className="text-sm font-semibold text-white">
+                                {m.firstName} {m.lastName}
+                                {m.position && <span className="text-gray-500"> · {m.position}</span>}
+                                <span className="text-gray-500"> · {ROLE_LABELS[m.role] || m.role}</span>
+                              </div>
+                              {m.equipmentNames.length > 0 ? (
+                                <div className="mt-1.5 text-xs font-medium text-[#0178a3]">{m.equipmentNames.join(', ')}</div>
+                              ) : (
+                                <div className="mt-1.5 text-xs italic text-gray-600">No equipment assigned</div>
+                              )}
+                            </div>
+                            <Button size="sm" onClick={() => startMemberEdit(m)}>Edit</Button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ═══════════════════════════════ PICK LIST TAB ═══════════════════════════════ */}
+          {activeTab === 'picklist' && (
+            <>
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    placeholder="Search functions..."
+                    value={plSearch}
+                    onChange={(e) => setPlSearch(e.target.value)}
+                    className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
+                  />
+                </div>
+                {!showAddPl && <Button onClick={() => setShowAddPl(true)}>Add Function</Button>}
+              </div>
+
+              {/* Add function form */}
+              {showAddPl && (
+                <Card>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-white">Add Function</h3>
+                    <IconButton onClick={() => setShowAddPl(false)}><CloseIcon /></IconButton>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    <FormInput label="Name" type="text" value={addPlData.name} onChange={(e) => setAddPlData({ ...addPlData, name: e.target.value })} />
+                    <FormSelect label="Type" value={addPlData.type} onChange={(e) => setAddPlData({ ...addPlData, type: e.target.value })}>
+                      {FUNCTION_TYPES.map((t) => (<option key={t} value={t}>{FUNCTION_TYPE_LABELS[t]}</option>))}
+                    </FormSelect>
+                  </div>
+                  <div className="mt-4 flex justify-end">
+                    <Button onClick={handleAddPl} disabled={isPending || !addPlData.name.trim()}>{isPending ? 'Adding...' : 'Add'}</Button>
+                  </div>
+                </Card>
+              )}
+
+              <p className="text-xs text-gray-500">
+                {filteredPickList.length} of {pickListItems.length} functions
+                {plSearch && ` matching "${plSearch}"`}
+              </p>
+
+              {filteredPickList.length === 0 ? (
+                <EmptyState icon={<ListIcon />} title={plSearch ? 'No matches found' : 'No functions yet'} message={plSearch ? 'Try a different search term.' : 'Add communication functions using the button above.'} />
+              ) : (
+                <div className="space-y-2">
+                  {filteredPickList.map((item) => {
+                    const isEditing = editingPlId === item.id
+                    return (
+                      <div key={item.id} className="rounded-2xl bg-[#2a2a2a] px-5 py-4 transition-colors hover:bg-[#313131]">
+                        {isEditing ? (
+                          <>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-white">{item.name}</span>
+                              <span className="rounded-md bg-white/5 px-2 py-0.5 text-[11px] font-medium text-gray-400">{FUNCTION_TYPE_LABELS[item.type] || item.type}</span>
+                            </div>
+                            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                              <FormInput compact label="Name" type="text" value={editPlData.name} onChange={(e) => setEditPlData({ ...editPlData, name: e.target.value })} />
+                              <FormSelect compact label="Type" value={editPlData.type} onChange={(e) => setEditPlData({ ...editPlData, type: e.target.value })}>
+                                {FUNCTION_TYPES.map((t) => (<option key={t} value={t}>{FUNCTION_TYPE_LABELS[t]}</option>))}
+                              </FormSelect>
+                            </div>
+                            <div className="mt-3 flex items-center justify-end gap-3">
+                              <Button size="sm" onClick={() => handleSavePl(item)} disabled={isPending}>Save</Button>
+                              <Button size="sm" variant="danger" onClick={() => handleDeletePl(item)} disabled={isPending}>Delete</Button>
+                              <Button size="sm" variant="secondary" onClick={() => setEditingPlId(null)} disabled={isPending}>Cancel</Button>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-white">{item.name}</span>
+                              <span className="rounded-md bg-white/5 px-2 py-0.5 text-[11px] font-medium text-gray-400">{FUNCTION_TYPE_LABELS[item.type] || item.type}</span>
+                            </div>
+                            <Button size="sm" onClick={() => startPlEdit(item)}>Edit</Button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </>
           )}
         </div>
       </PageLayout>
@@ -615,12 +845,8 @@ export function ProjectPage({
         title="Delete Project"
         actions={
           <>
-            <Button variant="secondary" onClick={() => setShowDeleteConfirm(false)} disabled={isPending}>
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={handleDeleteProject} disabled={isPending}>
-              {isPending ? 'Deleting...' : 'Delete'}
-            </Button>
+            <Button variant="secondary" onClick={() => setShowDeleteConfirm(false)} disabled={isPending}>Cancel</Button>
+            <Button variant="danger" onClick={handleDeleteProject} disabled={isPending}>{isPending ? 'Deleting...' : 'Delete'}</Button>
           </>
         }
       >

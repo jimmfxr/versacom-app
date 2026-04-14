@@ -11,7 +11,7 @@ export default async function ProjectDetailPage({
   const projectId = parseInt(id, 10)
   if (isNaN(projectId)) notFound()
 
-  const [project, equipment, memberRows] = await Promise.all([
+  const [project, equipment, memberRows, pickListItems] = await Promise.all([
     prisma.project.findUnique({
       where: { id: projectId },
       select: {
@@ -49,6 +49,7 @@ export default async function ProjectDetailPage({
         assignedTo: {
           select: {
             id: true,
+            position: true,
             user: { select: { firstName: true, lastName: true } },
           },
         },
@@ -63,9 +64,23 @@ export default async function ProjectDetailPage({
       },
       orderBy: { id: 'asc' },
     }),
+    prisma.pickListItem.findMany({
+      where: { projectId },
+      select: { id: true, name: true, type: true },
+      orderBy: [{ type: 'asc' }, { name: 'asc' }],
+    }),
   ])
 
   if (!project) notFound()
+
+  // Build equipment-per-member map
+  const memberEquipmentMap: Record<number, string[]> = {}
+  for (const e of equipment) {
+    if (e.assignedToId) {
+      if (!memberEquipmentMap[e.assignedToId]) memberEquipmentMap[e.assignedToId] = []
+      memberEquipmentMap[e.assignedToId].push(e.name)
+    }
+  }
 
   return (
     <ProjectPage
@@ -84,6 +99,7 @@ export default async function ProjectDetailPage({
           userId: m.user.id,
           firstName: m.user.firstName,
           lastName: m.user.lastName,
+          equipmentNames: memberEquipmentMap[m.id] || [],
         })),
       }}
       equipment={equipment.map((e) => ({
@@ -100,12 +116,14 @@ export default async function ProjectDetailPage({
         assignedToName: e.assignedTo
           ? `${e.assignedTo.user.firstName} ${e.assignedTo.user.lastName}`
           : null,
+        assignedToPosition: e.assignedTo?.position ?? null,
         assignedMemberId: e.assignedTo?.id ?? null,
       }))}
       assignableMembers={memberRows.map((m) => ({
         id: m.id,
         name: `${m.user.firstName} ${m.user.lastName}`,
       }))}
+      pickListItems={pickListItems}
     />
   )
 }
