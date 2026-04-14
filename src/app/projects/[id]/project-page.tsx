@@ -427,16 +427,18 @@ export function ProjectPage({
     )
   })
 
-  const filteredMembers = project.members.filter((m) => {
-    if (!teamSearch) return true
-    const q = teamSearch.toLowerCase()
-    return (
-      m.firstName.toLowerCase().includes(q) ||
-      m.lastName.toLowerCase().includes(q) ||
-      (m.position?.toLowerCase().includes(q) ?? false) ||
-      m.role.toLowerCase().includes(q)
-    )
-  })
+  const filteredMembers = project.members
+    .filter((m) => {
+      if (!teamSearch) return true
+      const q = teamSearch.toLowerCase()
+      return (
+        m.firstName.toLowerCase().includes(q) ||
+        m.lastName.toLowerCase().includes(q) ||
+        (m.position?.toLowerCase().includes(q) ?? false) ||
+        m.role.toLowerCase().includes(q)
+      )
+    })
+    .sort((a, b) => a.firstName.localeCompare(b.firstName, undefined, { sensitivity: 'base' }))
 
   const filteredPickList = pickListItems.filter((p) => {
     if (!plSearch) return true
@@ -724,17 +726,19 @@ export function ProjectPage({
                     <IconButton onClick={() => setShowAddMember(false)}><CloseIcon /></IconButton>
                   </div>
                   <p className="mt-2 text-xs text-gray-500">Members are added automatically when they join with the project PIN. You can also add members manually.</p>
-                  <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                    <FormInput label="First Name" type="text" value={addMemberData.firstName} onChange={(e) => setAddMemberData({ ...addMemberData, firstName: e.target.value })} />
-                    <FormInput label="Last Name" type="text" value={addMemberData.lastName} onChange={(e) => setAddMemberData({ ...addMemberData, lastName: e.target.value })} />
-                    <FormInput label="Position" type="text" value={addMemberData.position} onChange={(e) => setAddMemberData({ ...addMemberData, position: e.target.value })} />
-                    <FormSelect label="Role" value={addMemberData.role} onChange={(e) => setAddMemberData({ ...addMemberData, role: e.target.value })}>
-                      {ROLES.map((r) => (<option key={r} value={r}>{ROLE_LABELS[r]}</option>))}
-                    </FormSelect>
-                  </div>
-                  <div className="mt-4 flex justify-end">
-                    <Button onClick={handleAddMember} disabled={isPending || !addMemberData.firstName.trim() || !addMemberData.lastName.trim()}>{isPending ? 'Adding...' : 'Add'}</Button>
-                  </div>
+                  <form onSubmit={(e) => { e.preventDefault(); handleAddMember() }}>
+                    <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                      <FormInput label="First Name" type="text" value={addMemberData.firstName} onChange={(e) => setAddMemberData({ ...addMemberData, firstName: e.target.value })} />
+                      <FormInput label="Last Name" type="text" value={addMemberData.lastName} onChange={(e) => setAddMemberData({ ...addMemberData, lastName: e.target.value })} />
+                      <FormInput label="Position" type="text" value={addMemberData.position} onChange={(e) => setAddMemberData({ ...addMemberData, position: e.target.value })} />
+                      <FormSelect label="Role" value={addMemberData.role} onChange={(e) => setAddMemberData({ ...addMemberData, role: e.target.value })}>
+                        {ROLES.map((r) => (<option key={r} value={r}>{ROLE_LABELS[r]}</option>))}
+                      </FormSelect>
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                      <Button type="submit" disabled={isPending || !addMemberData.firstName.trim() || !addMemberData.lastName.trim()}>{isPending ? 'Adding...' : 'Add'}</Button>
+                    </div>
+                  </form>
                 </Card>
               )}
 
