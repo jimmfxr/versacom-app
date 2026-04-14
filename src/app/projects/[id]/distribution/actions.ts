@@ -57,6 +57,14 @@ export async function bulkCreateEquipment(
     }
   }
 
+  // Auto-assign default headset for panels, wireless BP, and hardwire BP
+  const LWHS_5_TYPES = ['KP-5032', 'KP32', 'ST-374', 'ST370']
+  const HEADSET_CATEGORIES = ['panels', 'wireless_bp', 'hardwire_bp']
+  let defaultHeadset: string | null = null
+  if (HEADSET_CATEGORIES.includes(category)) {
+    defaultHeadset = LWHS_5_TYPES.includes(hardwareType) ? 'LWHS 5' : 'LWHS 4'
+  }
+
   const records = []
   for (let i = 1; i <= quantity; i++) {
     records.push({
@@ -64,6 +72,7 @@ export async function bulkCreateEquipment(
       name: `${prefix} ${maxNum + i}`,
       category,
       hardwareType: hardwareType || null,
+      headsetType: defaultHeadset,
     })
   }
 

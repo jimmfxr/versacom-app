@@ -243,7 +243,7 @@ export function ProjectPage({
   // Team state
   const [teamSearch, setTeamSearch] = useState('')
   const [showAddMember, setShowAddMember] = useState(false)
-  const [addMemberData, setAddMemberData] = useState<{ firstName: string; lastName: string; position: string; role: string }>({ firstName: '', lastName: '', position: '', role: 'crew' })
+  const [addMemberData, setAddMemberData] = useState<{ firstName: string; lastName: string; position: string; role: string }>({ firstName: '', lastName: '', position: '', role: 'user' })
   const [editingMemberId, setEditingMemberId] = useState<number | null>(null)
   const [editMemberData, setEditMemberData] = useState<{ firstName: string; lastName: string; position: string; role: string }>({ firstName: '', lastName: '', position: '', role: 'crew' })
 
@@ -367,7 +367,7 @@ export function ProjectPage({
       if (result.error) { showToast('error', result.error); return }
       showToast('success', `${addMemberData.firstName.trim()} ${addMemberData.lastName.trim()} added`)
       setShowAddMember(false)
-      setAddMemberData({ firstName: '', lastName: '', position: '', role: 'crew' })
+      setAddMemberData({ firstName: '', lastName: '', position: '', role: 'user' })
       router.refresh()
     })
   }
