@@ -468,10 +468,7 @@ export function ProjectPage({
           <div className="flex items-center gap-2">
             {canSeeSettings && (
               <Button variant="secondary" onClick={() => setShowSettings(!showSettings)}>
-                <span className="flex items-center gap-1.5">
-                  <GearIcon />
-                  {showSettings ? 'Close' : 'Edit'}
-                </span>
+                {showSettings ? 'Close' : 'Edit'}
               </Button>
             )}
             <Button variant="secondary" onClick={() => router.push('/projects')}>Back</Button>
