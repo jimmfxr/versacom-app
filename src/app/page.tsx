@@ -1,11 +1,101 @@
+import { redirect } from 'next/navigation'
+import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
-import { HomeContent } from './home-content'
+import { AppShell } from '@/components/app-shell'
+import { PageLayout } from '@/components/page-layout'
+import { EmptyState } from '@/components/empty-state'
+import { ProjectDashboard } from './project-dashboard'
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ project?: string }>
+}) {
   const session = await getSession()
-  const userName = session ? `${session.user.firstName} ${session.user.lastName}` : undefined
-  const isAdmin = session?.memberships.some((m) => m.role === 'admin') ?? false
-  const isUserOnly = session ? session.memberships.every((m) => m.role === 'user') : false
+  if (!session) redirect('/login')
 
-  return <HomeContent userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} />
+  const userName = `${session.user.firstName} ${session.user.lastName}`
+  const isAdmin = session.memberships.some((m) => m.role === 'admin')
+  const isUserOnly = session.memberships.every((m) => m.role === 'user')
+
+  // Users (no admin/manager/crew) don't get a dashboard — bounce them to My Equipment.
+  if (isUserOnly) redirect('/my-equipment')
+
+  // Build the dedupe list of projects this user belongs to (for the switcher).
+  const userProjects = (() => {
+    const seen = new Map<number, { id: number; name: string }>()
+    for (const m of session.memberships) {
+      if (!seen.has(m.project.id)) seen.set(m.project.id, { id: m.project.id, name: m.project.name })
+    }
+    return Array.from(seen.values())
+  })()
+
+  // No projects to show — empty state.
+  if (userProjects.length === 0) {
+    return (
+      <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly}>
+        <PageLayout title="Dashboard">
+          <EmptyState
+            icon={null}
+            title="No projects yet"
+            message="You're not a member of any projects. Join one with a PIN to get started."
+          />
+        </PageLayout>
+      </AppShell>
+    )
+  }
+
+  // Resolve which project to show:
+  // 1. ?project=<id> if it's one the user belongs to
+  // 2. otherwise the first one in their membership list
+  const { project: projectParam } = await searchParams
+  const requestedId = projectParam ? parseInt(projectParam, 10) : NaN
+  const matchingProject = userProjects.find((p) => p.id === requestedId)
+  const selectedProjectId = matchingProject ? matchingProject.id : userProjects[0].id
+
+  // Fetch just the slice of data the dashboard needs.
+  const [project, equipment, memberCount] = await Promise.all([
+    prisma.project.findUnique({
+      where: { id: selectedProjectId },
+      select: { id: true, name: true },
+    }),
+    prisma.equipment.findMany({
+      where: { projectId: selectedProjectId },
+      select: {
+        category: true,
+        hardwareType: true,
+        headsetType: true,
+        location: true,
+        deployStatus: true,
+        assignedToId: true,
+      },
+    }),
+    prisma.projectMember.count({ where: { projectId: selectedProjectId } }),
+  ])
+
+  if (!project) {
+    // Shouldn't happen since selectedProjectId came from session, but bail safely.
+    return (
+      <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly}>
+        <PageLayout title="Dashboard">
+          <EmptyState icon={null} title="Project not found" message="That project may have been deleted." />
+        </PageLayout>
+      </AppShell>
+    )
+  }
+
+  return (
+    <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly}>
+      <PageLayout title="Dashboard">
+        <ProjectDashboard
+          projectId={project.id}
+          projectName={project.name}
+          memberCount={memberCount}
+          equipmentCount={equipment.length}
+          equipment={equipment}
+          userProjects={userProjects}
+        />
+      </PageLayout>
+    </AppShell>
+  )
 }

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup — Dashboard A · Stacked Bars + Donuts</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #202020; color: white; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+
+  /* Navbar */
+  .navbar { background: #202020; border-bottom: 1px solid rgba(255,255,255,0.08); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 40; }
+  .nav-left { display: flex; align-items: center; gap: 28px; }
+  .nav-logo { font-size: 14px; font-weight: 700; letter-spacing: 0.5px; }
+  .nav-tabs { display: flex; gap: 22px; }
+  .nav-tab { color: #9ca3af; font-size: 13px; text-decoration: none; padding: 4px 0; }
+  .nav-tab.active { color: white; border-bottom: 2px solid #0178a3; }
+  .nav-avatar { width: 32px; height: 32px; border-radius: 50%; background: #0178a3; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+
+  /* Page */
+  .page { max-width: 1280px; margin: 0 auto; padding: 24px 24px 48px; }
+  .page-header { display: flex; justify-content: space-between; align-items: end; margin-bottom: 8px; }
+  .page-title { font-size: 22px; font-weight: 700; }
+  .page-sub { font-size: 12px; color: #6b7280; margin-top: 2px; }
+  .header-meta { display: flex; gap: 18px; align-items: center; font-size: 12px; color: #9ca3af; }
+  .meta-badge { background: #2a2a2a; padding: 6px 10px; border-radius: 999px; }
+  .meta-badge .num { color: #22a7d3; font-weight: 600; }
+
+  /* Section header */
+  .section-header { margin-top: 28px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .section-title { font-size: 11px; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.6px; }
+
+  /* Grid */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+
+  /* Cards */
+  .card { background: #2a2a2a; border-radius: 16px; padding: 18px 20px; }
+  .card-h { display: flex; justify-content: space-between; align-items: start; margin-bottom: 14px; }
+  .card-title { font-size: 13px; font-weight: 600; color: #e5e7eb; }
+  .card-sub { font-size: 11px; color: #6b7280; margin-top: 2px; }
+  .card-meta { font-size: 11px; color: #9ca3af; }
+
+  /* Stat tiles (top row) */
+  .stat-tile { background: #2a2a2a; border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; }
+  .stat-label { font-size: 10px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  .stat-value { font-size: 26px; font-weight: 700; color: white; line-height: 1.1; margin-top: 4px; }
+  .stat-delta { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+  .stat-delta .pct { color: #22a7d3; font-weight: 600; }
+
+  /* Stacked horizontal bars */
+  .bar-row { display: grid; grid-template-columns: 110px 1fr 60px; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .bar-row:last-child { margin-bottom: 0; }
+  .bar-label { font-size: 12px; color: #d1d5db; font-weight: 500; }
+  .bar-track { height: 22px; background: rgba(255,255,255,0.05); border-radius: 6px; overflow: hidden; display: flex; }
+  .bar-fill-a { background: #22a7d3; height: 100%; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; font-size: 10px; font-weight: 600; color: #0a1f29; }
+  .bar-fill-b { background: rgba(255,255,255,0.12); height: 100%; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; font-size: 10px; font-weight: 600; color: #9ca3af; }
+  .bar-total { font-size: 12px; color: #9ca3af; text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* Legend */
+  .legend { display: flex; gap: 14px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.05); }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #9ca3af; }
+  .legend-dot { width: 9px; height: 9px; border-radius: 2px; }
+
+  /* Donut layout */
+  .donut-card { display: flex; gap: 18px; align-items: center; }
+  .donut-wrap { flex-shrink: 0; position: relative; width: 130px; height: 130px; }
+  .donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .donut-pct { font-size: 28px; font-weight: 700; color: white; line-height: 1; }
+  .donut-pct-sub { font-size: 10px; color: #6b7280; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .donut-info { flex: 1; min-width: 0; }
+  .donut-stats { display: flex; flex-direction: column; gap: 8px; }
+  .donut-stat { display: flex; justify-content: space-between; font-size: 12px; }
+  .donut-stat .lbl { color: #9ca3af; display: flex; align-items: center; gap: 6px; }
+  .donut-stat .val { color: white; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .dot { width: 9px; height: 9px; border-radius: 2px; }
+
+  /* Tag pills */
+  .tag { display: inline-block; background: rgba(34,167,211,0.15); color: #22a7d3; font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 999px; }
+</style>
+</head>
+<body>
+
+<div class="navbar">
+  <div class="nav-left">
+    <div class="nav-logo">NODAL CONTROL</div>
+    <div class="nav-tabs">
+      <a class="nav-tab active" href="#">Dashboard</a>
+      <a class="nav-tab" href="#">Tasks</a>
+      <a class="nav-tab" href="#">Projects</a>
+    </div>
+  </div>
+  <div class="nav-avatar">JX</div>
+</div>
+
+<div class="page">
+
+  <div class="page-header">
+    <div>
+      <div class="page-title">Project Dashboard</div>
+      <div class="page-sub">2026 BREAKTHRU PRIZE · 30 members · 84 equipment items</div>
+    </div>
+    <div class="header-meta">
+      <div class="meta-badge"><span class="num">42%</span> deployed</div>
+      <div class="meta-badge"><span class="num">8</span> returned</div>
+    </div>
+  </div>
+
+  <!-- ─── KPI tiles ─── -->
+  <div class="section-header"><div class="section-title">Overview</div></div>
+  <div class="grid-4">
+    <div class="stat-tile">
+      <div class="stat-label">Total hardware</div>
+      <div class="stat-value">84</div>
+      <div class="stat-delta">across 6 categories</div>
+    </div>
+    <div class="stat-tile">
+      <div class="stat-label">Assigned to user</div>
+      <div class="stat-value">54</div>
+      <div class="stat-delta"><span class="pct">64%</span> of assignable</div>
+    </div>
+    <div class="stat-tile">
+      <div class="stat-label">Done (excl. WLBP)</div>
+      <div class="stat-value">32</div>
+      <div class="stat-delta"><span class="pct">57%</span> complete</div>
+    </div>
+    <div class="stat-tile">
+      <div class="stat-label">Returned (excl. WLBP)</div>
+      <div class="stat-value">8</div>
+      <div class="stat-delta"><span class="pct">14%</span> back in case</div>
+    </div>
+  </div>
+
+  <!-- ─── Charts ─── -->
+  <div class="section-header"><div class="section-title">Distribution</div></div>
+
+  <div class="grid">
+
+    <!-- 1. Hardware assigned to user (panels, WLBP, HWBP) -->
+    <div class="card">
+      <div class="card-h">
+        <div>
+          <div class="card-title">Assignment by hardware</div>
+          <div class="card-sub">Panels · Wireless BP · Hardwire BP</div>
+        </div>
+        <span class="tag">54 / 84</span>
+      </div>
+
+      <div class="bar-row">
+        <div class="bar-label">Panels</div>
+        <div class="bar-track">
+          <div class="bar-fill-a" style="width: 80%">24</div>
+          <div class="bar-fill-b" style="width: 20%">6</div>
+        </div>
+        <div class="bar-total">30</div>
+      </div>
+
+      <div class="bar-row">
+        <div class="bar-label">Wireless BP</div>
+        <div class="bar-track">
+          <div class="bar-fill-a" style="width: 82%">18</div>
+          <div class="bar-fill-b" style="width: 18%">4</div>
+        </div>
+        <div class="bar-total">22</div>
+      </div>
+
+      <div class="bar-row">
+        <div class="bar-label">Hardwire BP</div>
+        <div class="bar-track">
+          <div class="bar-fill-a" style="width: 86%">12</div>
+          <div class="bar-fill-b" style="width: 14%">2</div>
+        </div>
+        <div class="bar-total">14</div>
+      </div>
+
+      <div class="legend">
+        <div class="legend-item"><span class="legend-dot" style="background:#22a7d3"></span>Assigned</div>
+        <div class="legend-item"><span class="legend-dot" style="background:rgba(255,255,255,0.18)"></span>Unassigned</div>
+      </div>
+    </div>
+
+    <!-- 2. Infrastructure with location (= in use) -->
+    <div class="card">
+      <div class="card-h">
+        <div>
+          <div class="card-title">Infrastructure utilization</div>
+          <div class="card-sub">Has a location = in use</div>
+        </div>
+        <span class="tag">18 / 24 placed</span>
+      </div>
+
+      <div class="bar-row">
+        <div class="bar-label">Switches</div>
+        <div class="bar-track">
+          <div class="bar-fill-a" style="width: 80%">8</div>
+          <div class="bar-fill-b" style="width: 20%">2</div>
+        </div>
+        <div class="bar-total">10</div>
+      </div>
+
+      <div class="bar-row">
+        <div class="bar-label">Audio I/O</div>
+        <div class="bar-track">
+          <div class="bar-fill-a" style="width: 67%">4</div>
+          <div class="bar-fill-b" style="width: 33%">2</div>
+        </div>
+        <div class="bar-total">6</div>
+      </div>
+
+      <div class="bar-row">
+        <div class="bar-label">Antennas</div>
+        <div class="bar-track">
+          <div class="bar-fill-a" style="width: 75%">6</div>
+          <div class="bar-fill-b" style="width: 25%">2</div>
+        </div>
+        <div class="bar-total">8</div>
+      </div>
+
+      <div class="legend">
+        <div class="legend-item"><span class="legend-dot" style="background:#22a7d3"></span>Placed (in use)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:rgba(255,255,255,0.18)"></span>No location</div>
+      </div>
+    </div>
+
+    <!-- 3. Done status -->
+    <div class="card">
+      <div class="card-h">
+        <div>
+          <div class="card-title">Status: Done</div>
+          <div class="card-sub">Overall hardware (excludes Wireless BP)</div>
+        </div>
+        <span class="tag">57%</span>
+      </div>
+
+      <div class="donut-card">
+        <div class="donut-wrap">
+          <svg width="130" height="130" viewBox="0 0 42 42">
+            <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="5"></circle>
+            <circle cx="21" cy="21" r="15.915" fill="none" stroke="#22a7d3" stroke-width="5"
+                    stroke-dasharray="57 43" stroke-dashoffset="25" stroke-linecap="round"></circle>
+          </svg>
+          <div class="donut-center">
+            <div class="donut-pct">57%</div>
+            <div class="donut-pct-sub">Done</div>
+          </div>
+        </div>
+        <div class="donut-info">
+          <div class="donut-stats">
+            <div class="donut-stat"><span class="lbl"><span class="dot" style="background:#22a7d3"></span>Done</span><span class="val">32</span></div>
+            <div class="donut-stat"><span class="lbl"><span class="dot" style="background:rgba(255,255,255,0.18)"></span>Other status</span><span class="val">24</span></div>
+            <div class="donut-stat"><span class="lbl">Tracked total</span><span class="val">56</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Returned status -->
+    <div class="card">
+      <div class="card-h">
+        <div>
+          <div class="card-title">Status: Returned</div>
+          <div class="card-sub">Overall hardware (excludes Wireless BP)</div>
+        </div>
+        <span class="tag">14%</span>
+      </div>
+
+      <div class="donut-card">
+        <div class="donut-wrap">
+          <svg width="130" height="130" viewBox="0 0 42 42">
+            <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="5"></circle>
+            <circle cx="21" cy="21" r="15.915" fill="none" stroke="#a855f7" stroke-width="5"
+                    stroke-dasharray="14 86" stroke-dashoffset="25" stroke-linecap="round"></circle>
+          </svg>
+          <div class="donut-center">
+            <div class="donut-pct">14%</div>
+            <div class="donut-pct-sub">Returned</div>
+          </div>
+        </div>
+        <div class="donut-info">
+          <div class="donut-stats">
+            <div class="donut-stat"><span class="lbl"><span class="dot" style="background:#a855f7"></span>Returned</span><span class="val">8</span></div>
+            <div class="donut-stat"><span class="lbl"><span class="dot" style="background:rgba(255,255,255,0.18)"></span>Other status</span><span class="val">48</span></div>
+            <div class="donut-stat"><span class="lbl">Tracked total</span><span class="val">56</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

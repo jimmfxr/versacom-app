@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup — Dashboard B · Compact Tiles + Wide Bars</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #202020; color: white; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+
+  /* Navbar */
+  .navbar { background: #202020; border-bottom: 1px solid rgba(255,255,255,0.08); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 40; }
+  .nav-left { display: flex; align-items: center; gap: 28px; }
+  .nav-logo { font-size: 14px; font-weight: 700; letter-spacing: 0.5px; }
+  .nav-tabs { display: flex; gap: 22px; }
+  .nav-tab { color: #9ca3af; font-size: 13px; text-decoration: none; padding: 4px 0; }
+  .nav-tab.active { color: white; border-bottom: 2px solid #0178a3; }
+  .nav-avatar { width: 32px; height: 32px; border-radius: 50%; background: #0178a3; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+
+  /* Page */
+  .page { max-width: 1280px; margin: 0 auto; padding: 24px 24px 48px; }
+  .page-eyebrow { font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 8px; }
+  .page-title { font-size: 22px; font-weight: 700; }
+  .page-sub { font-size: 12px; color: #6b7280; margin-top: 2px; margin-bottom: 24px; }
+
+  /* Project switcher (uses <details> for click-to-open with no JS) */
+  .proj-picker { position: relative; margin-bottom: 6px; display: inline-block; }
+  .proj-picker > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 280px; padding: 9px 12px 9px 14px; background: transparent; border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; transition: border-color 0.15s, background 0.15s; }
+  .proj-picker > summary::-webkit-details-marker { display: none; }
+  .proj-picker > summary:hover { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.24); }
+  .proj-picker[open] > summary { border-color: rgba(34,167,211,0.5); background: rgba(255,255,255,0.04); }
+  .proj-picker .proj-title { font-size: 14px; font-weight: 500; color: #e5e7eb; }
+  .proj-picker .proj-chevron { width: 14px; height: 14px; color: #9ca3af; transition: transform 0.15s; flex-shrink: 0; }
+  .proj-picker[open] .proj-chevron { transform: rotate(180deg); }
+  .proj-menu { position: absolute; top: calc(100% + 4px); left: 0; right: 0; min-width: 280px; background: #2a2a2a; border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.5); padding: 4px; z-index: 30; border: 1px solid rgba(255,255,255,0.1); }
+  .proj-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 8px; text-decoration: none; cursor: pointer; }
+  .proj-item:hover { background: rgba(255,255,255,0.06); }
+  .proj-item-name { font-size: 13px; color: #e5e7eb; font-weight: 500; }
+  .proj-item-meta { font-size: 10px; color: #6b7280; }
+  .proj-item.active { background: rgba(34,167,211,0.12); }
+  .proj-item.active .proj-item-name { color: #22a7d3; }
+  .proj-check { width: 14px; height: 14px; color: #22a7d3; }
+  .proj-menu-divider { height: 1px; background: rgba(255,255,255,0.06); margin: 4px 6px; }
+  .proj-menu-link { display: block; padding: 9px 12px; font-size: 12px; color: #9ca3af; text-decoration: none; border-radius: 8px; }
+  .proj-menu-link:hover { background: rgba(255,255,255,0.06); color: white; }
+
+  /* Card */
+  .card { background: #2a2a2a; border-radius: 16px; padding: 18px 20px; }
+  .card-h { display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px; }
+  .card-title { font-size: 13px; font-weight: 600; color: #e5e7eb; }
+  .card-sub { font-size: 11px; color: #6b7280; margin-top: 2px; }
+  .tag { display: inline-block; background: rgba(34,167,211,0.15); color: #22a7d3; font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 999px; }
+  .tag-purple { background: rgba(168,85,247,0.15); color: #c084fc; }
+
+  /* Done/Returned mini cards row */
+  .status-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .status-card { display: flex; gap: 18px; align-items: center; padding: 18px 22px; }
+  .status-num { font-size: 38px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+  .status-num.cyan { color: #22a7d3; }
+  .status-num.purple { color: #c084fc; }
+  .status-meta { font-size: 11px; color: #6b7280; line-height: 1.5; }
+  .status-bar { width: 100%; height: 6px; background: rgba(255,255,255,0.06); border-radius: 999px; overflow: hidden; margin-top: 8px; }
+  .status-bar-fill { height: 100%; border-radius: 999px; }
+  .status-info { flex: 1; min-width: 0; }
+  .status-label { font-size: 10px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-bottom: 6px; }
+  .status-line { font-size: 12px; color: #d1d5db; margin-top: 6px; }
+
+  /* Bar chart rows */
+  .bar-row { display: grid; grid-template-columns: 120px 1fr auto; align-items: center; gap: 14px; margin-bottom: 12px; }
+  .bar-row:last-child { margin-bottom: 0; }
+  .bar-label { font-size: 12px; color: #d1d5db; font-weight: 500; }
+  .bar-track { height: 18px; background: rgba(255,255,255,0.05); border-radius: 5px; overflow: hidden; display: flex; }
+  .bar-fill-a { background: #22a7d3; height: 100%; }
+  .bar-fill-b { background: rgba(255,255,255,0.12); height: 100%; }
+  .bar-counts { font-size: 11px; color: #9ca3af; font-variant-numeric: tabular-nums; min-width: 80px; text-align: right; }
+  .bar-counts strong { color: white; font-weight: 600; }
+
+  /* Section header */
+  .section-h { display: flex; justify-content: space-between; align-items: end; margin-bottom: 10px; }
+  .section-title { font-size: 11px; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.6px; }
+
+  /* Sub-group label inside a card (category header above its hardware types) */
+  .group-label { font-size: 9px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.7px; margin-top: 14px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .group-label:first-child { margin-top: 0; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+
+  /* Empty state inside a card */
+  .empty { font-size: 12px; color: #6b7280; padding: 20px 4px; text-align: center; }
+
+  /* ─── Mobile: stack everything to full width ─── */
+  @media (max-width: 720px) {
+    .navbar { padding: 10px 14px; }
+    .nav-left { gap: 16px; }
+    .nav-tabs { gap: 14px; }
+    .page { padding: 20px 14px 40px; }
+    .page-title { font-size: 19px; }
+    .status-row { grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; }
+    .grid-2 { grid-template-columns: 1fr; gap: 12px; }
+    .card { padding: 16px; }
+    .status-card { padding: 16px; gap: 14px; }
+    .status-num { font-size: 32px; }
+    .bar-row { grid-template-columns: 92px 1fr auto; gap: 10px; }
+    .bar-label { font-size: 11px; }
+    .bar-counts { min-width: 60px; font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="navbar">
+  <div class="nav-left">
+    <div class="nav-logo">NODAL CONTROL</div>
+    <div class="nav-tabs">
+      <a class="nav-tab active" href="#">Dashboard</a>
+      <a class="nav-tab" href="#">Tasks</a>
+      <a class="nav-tab" href="#">Projects</a>
+    </div>
+  </div>
+  <div class="nav-avatar">JX</div>
+</div>
+
+<div class="page">
+
+  <div class="page-title">Project Dashboard</div>
+
+  <details class="proj-picker" style="margin-top: 14px;">
+    <summary>
+      <span class="proj-title">2026 BREAKTHROUGH PRIZE</span>
+      <svg class="proj-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 8 10 13 15 8"></polyline></svg>
+    </summary>
+    <div class="proj-menu">
+      <a class="proj-item active" href="#">
+        <div>
+          <div class="proj-item-name">2026 BREAKTHROUGH PRIZE</div>
+          <div class="proj-item-meta">56 members · 88 items</div>
+        </div>
+        <svg class="proj-check" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 10 8 14 16 6"></polyline></svg>
+      </a>
+      <a class="proj-item" href="#">
+        <div>
+          <div class="proj-item-name">2026 Image Awards</div>
+          <div class="proj-item-meta">Active</div>
+        </div>
+      </a>
+      <a class="proj-item" href="#">
+        <div>
+          <div class="proj-item-name">2026 Grammys</div>
+          <div class="proj-item-meta">Active</div>
+        </div>
+      </a>
+      <a class="proj-item" href="#">
+        <div>
+          <div class="proj-item-name">Grammy Awards 2026</div>
+          <div class="proj-item-meta">Active</div>
+        </div>
+      </a>
+      <div class="proj-menu-divider"></div>
+      <a class="proj-menu-link" href="#">All projects →</a>
+    </div>
+  </details>
+
+  <div class="page-sub" style="margin-top: 8px;">56 members · 88 equipment items</div>
+
+  <!-- ─── Status hero row ─── -->
+  <div class="section-h"><div class="section-title">Deployment status</div></div>
+  <div class="status-row">
+
+    <div class="card status-card">
+      <div class="status-num cyan">0</div>
+      <div class="status-info">
+        <div class="status-label">Done</div>
+        <div class="status-line">of 50 hardware items <span style="color:#6b7280">(excl. WLBP)</span></div>
+        <div class="status-bar"><div class="status-bar-fill" style="background:#22a7d3; width:0%"></div></div>
+        <div class="status-meta">0% complete · 50 still N/A</div>
+      </div>
+    </div>
+
+    <div class="card status-card">
+      <div class="status-num purple">0</div>
+      <div class="status-info">
+        <div class="status-label">Returned</div>
+        <div class="status-line">of 88 hardware items</div>
+        <div class="status-bar"><div class="status-bar-fill" style="background:#c084fc; width:0%"></div></div>
+        <div class="status-meta">0% back in case</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ─── Distribution charts ─── -->
+  <div class="section-h"><div class="section-title">Distribution</div></div>
+  <div class="grid-2">
+
+    <!-- Hardware assignment by hardware type -->
+    <div class="card">
+      <div class="card-h">
+        <div>
+          <div class="card-title">Assigned to a user</div>
+          <div class="card-sub">Who has what, by model</div>
+        </div>
+        <span class="tag">55 / 73</span>
+      </div>
+
+      <div class="group-label">Panels</div>
+
+      <div class="bar-row">
+        <div class="bar-label">RSP-1216</div>
+        <div class="bar-track">
+          <div class="bar-fill-a" style="width: 70%"></div>
+          <div class="bar-fill-b" style="width: 30%"></div>
+        </div>
+        <div class="bar-counts"><strong>7</strong> / 10</div>
+      </div>
+
+      <div class="bar-row">
+        <div class="bar-label">RSP-1232</div>
+        <div class="bar-track">
+          <div class="bar-fill-a" style="width: 100%"></div>
+        </div>
+        <div class="bar-counts"><strong>1</strong> / 1</div>
+      </div>
+
+      <div class="group-label">Wireless beltpacks</div>
+
+      <div class="bar-row">
+        <div class="bar-label">Bolero</div>
+        <div class="bar-track">
+          <div class="bar-fill-a" style="width: 89.5%"></div>
+          <div class="bar-fill-b" style="width: 10.5%"></div>
+        </div>
+        <div class="bar-counts"><strong>34</strong> / 38</div>
+      </div>
+
+      <div class="group-label">Hardwire beltpacks</div>
+
+      <div class="bar-row">
+        <div class="bar-label">DBP</div>
+        <div class="bar-track">
+          <div class="bar-fill-a" style="width: 50%"></div>
+          <div class="bar-fill-b" style="width: 50%"></div>
+        </div>
+        <div class="bar-counts"><strong>10</strong> / 20</div>
+      </div>
+
+      <div class="bar-row">
+        <div class="bar-label">ST-374</div>
+        <div class="bar-track">
+          <div class="bar-fill-a" style="width: 75%"></div>
+          <div class="bar-fill-b" style="width: 25%"></div>
+        </div>
+        <div class="bar-counts"><strong>3</strong> / 4</div>
+      </div>
+
+    </div>
+
+    <!-- Infrastructure utilization by hardware type -->
+    <div class="card">
+      <div class="card-h">
+        <div>
+          <div class="card-title">In use on the show</div>
+          <div class="card-sub">Items with a location set, by model</div>
+        </div>
+        <span class="tag">12 / 15</span>
+      </div>
+
+      <div class="group-label">Switches</div>
+
+      <div class="bar-row">
+        <div class="bar-label">26P+4F</div>
+        <div class="bar-track">
+          <div class="bar-fill-a" style="width: 75%"></div>
+          <div class="bar-fill-b" style="width: 25%"></div>
+        </div>
+        <div class="bar-counts"><strong>3</strong> / 4</div>
+      </div>
+
+      <div class="bar-row">
+        <div class="bar-label">9P+1F</div>
+        <div class="bar-track">
+          <div class="bar-fill-a" style="width: 100%"></div>
+        </div>
+        <div class="bar-counts"><strong>2</strong> / 2</div>
+      </div>
+
+      <div class="group-label">Antennas</div>
+
+      <div class="bar-row">
+        <div class="bar-label">Bolero 1.9</div>
+        <div class="bar-track">
+          <div class="bar-fill-a" style="width: 78%"></div>
+          <div class="bar-fill-b" style="width: 22%"></div>
+        </div>
+        <div class="bar-counts"><strong>7</strong> / 9</div>
+      </div>
+
+      <div class="group-label">Audio I/O</div>
+
+      <div class="empty">No audio I/O equipment in this project</div>
+    </div>
+
+  </div>
+
+  <!-- ─── Headsets (separate, since headsetType is a field on beltpacks) ─── -->
+  <div class="section-h" style="margin-top: 24px;"><div class="section-title">Headsets</div></div>
+  <div class="card">
+    <div class="card-h">
+      <div>
+        <div class="card-title">Headsets assigned</div>
+        <div class="card-sub">Counted from the headset chosen on each beltpack</div>
+      </div>
+      <span class="tag">54 / 72</span>
+    </div>
+
+    <div class="bar-row">
+      <div class="bar-label">LWHS 4</div>
+      <div class="bar-track">
+        <div class="bar-fill-a" style="width: 75%"></div>
+        <div class="bar-fill-b" style="width: 25%"></div>
+      </div>
+      <div class="bar-counts"><strong>51</strong> / 68</div>
+    </div>
+
+    <div class="bar-row">
+      <div class="bar-label">LWHS 5</div>
+      <div class="bar-track">
+        <div class="bar-fill-a" style="width: 75%"></div>
+        <div class="bar-fill-b" style="width: 25%"></div>
+      </div>
+      <div class="bar-counts"><strong>3</strong> / 4</div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
