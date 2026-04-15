@@ -4,7 +4,7 @@ import { getSession } from '@/lib/session'
 import { AppShell } from '@/components/app-shell'
 import { PageLayout } from '@/components/page-layout'
 import { EmptyState } from '@/components/empty-state'
-import { ProjectDashboard } from './project-dashboard'
+import { ProjectDashboard, DashboardHeaderAction } from './project-dashboard'
 
 export default async function HomePage({
   searchParams,
@@ -86,15 +86,19 @@ export default async function HomePage({
 
   return (
     <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly}>
-      <PageLayout title="Dashboard">
-        <ProjectDashboard
-          projectId={project.id}
-          projectName={project.name}
-          memberCount={memberCount}
-          equipmentCount={equipment.length}
-          equipment={equipment}
-          userProjects={userProjects}
-        />
+      <PageLayout
+        title="Dashboard"
+        action={
+          <DashboardHeaderAction
+            projectId={project.id}
+            projectName={project.name}
+            memberCount={memberCount}
+            equipmentCount={equipment.length}
+            userProjects={userProjects}
+          />
+        }
+      >
+        <ProjectDashboard equipment={equipment} />
       </PageLayout>
     </AppShell>
   )

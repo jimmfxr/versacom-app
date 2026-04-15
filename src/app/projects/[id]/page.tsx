@@ -45,6 +45,7 @@ export default async function ProjectDetailPage({
         location: true,
         headsetType: true,
         ipAddress: true,
+        patch: true,
         deployStatus: true,
         assignedToId: true,
         assignedTo: {
@@ -130,6 +131,7 @@ export default async function ProjectDetailPage({
         location: e.location,
         headsetType: e.headsetType,
         ipAddress: e.ipAddress,
+        patch: e.patch,
         deployStatus: e.deployStatus,
         assignedToId: e.assignedToId,
         assignedToName: e.assignedTo

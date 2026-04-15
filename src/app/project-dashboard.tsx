@@ -17,12 +17,33 @@ type EquipmentForDashboard = {
 type UserProject = { id: number; name: string }
 
 type ProjectDashboardProps = {
+  equipment: EquipmentForDashboard[]
+}
+
+type DashboardHeaderActionProps = {
   projectId: number
   projectName: string
   memberCount: number
   equipmentCount: number
-  equipment: EquipmentForDashboard[]
   userProjects: UserProject[]
+}
+
+export function DashboardHeaderAction({
+  projectId,
+  projectName,
+  memberCount,
+  equipmentCount,
+  userProjects,
+}: DashboardHeaderActionProps) {
+  return (
+    <div className="flex w-full flex-col items-start sm:w-auto sm:items-end">
+      <ProjectSwitcher projectId={projectId} projectName={projectName} userProjects={userProjects} />
+      <div className="mt-2 text-xs text-gray-500">
+        {memberCount} {memberCount === 1 ? 'member' : 'members'} · {equipmentCount}{' '}
+        {equipmentCount === 1 ? 'equipment item' : 'equipment items'}
+      </div>
+    </div>
+  )
 }
 
 /* ─── Helpers ─── */
@@ -86,7 +107,7 @@ function CheckIcon() {
   )
 }
 
-function ProjectSwitcher({
+export function ProjectSwitcher({
   projectId,
   projectName,
   userProjects,
@@ -108,11 +129,11 @@ function ProjectSwitcher({
   }, [open])
 
   return (
-    <div ref={ref} className="relative inline-block">
+    <div ref={ref} className="relative w-full sm:inline-block sm:w-auto">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`flex min-w-[280px] items-center justify-between gap-2.5 rounded-lg border px-3.5 py-2 text-sm font-medium text-gray-200 transition-colors ${
+        className={`flex w-full items-center justify-between gap-2.5 rounded-lg border px-3.5 py-2 text-sm font-medium text-gray-200 transition-colors sm:min-w-[280px] ${
           open
             ? 'border-[#22a7d3]/50 bg-white/[0.04]'
             : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04]'
@@ -262,14 +283,7 @@ function StatusHero({
 
 /* ─── Main component ─── */
 
-export function ProjectDashboard({
-  projectId,
-  projectName,
-  memberCount,
-  equipmentCount,
-  equipment,
-  userProjects,
-}: ProjectDashboardProps) {
+export function ProjectDashboard({ equipment }: ProjectDashboardProps) {
   /* Status counts */
   const doneEligible = equipment.filter((e) => e.category !== 'wireless_bp')
   const doneTotal = doneEligible.length
@@ -328,15 +342,6 @@ export function ProjectDashboard({
 
   return (
     <div className="space-y-5">
-      {/* Project switcher + meta */}
-      <div>
-        <ProjectSwitcher projectId={projectId} projectName={projectName} userProjects={userProjects} />
-        <div className="mt-2 text-xs text-gray-500">
-          {memberCount} {memberCount === 1 ? 'member' : 'members'} · {equipmentCount}{' '}
-          {equipmentCount === 1 ? 'equipment item' : 'equipment items'}
-        </div>
-      </div>
-
       {/* Status hero row */}
       <div>
         <SectionHeader>Deployment status</SectionHeader>

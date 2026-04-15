@@ -92,6 +92,7 @@ export async function updateEquipment(
     location?: string | null
     headsetType?: string | null
     ipAddress?: string | null
+    patch?: string | null
     deployStatus?: string
     assignedToId?: number | null
   }

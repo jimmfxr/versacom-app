@@ -177,6 +177,7 @@ model Equipment {
   location     String?
   headsetType  String?
   ipAddress    String?
+  patch        String? // Patch label (switches only)
   deployStatus String  @default("na") // deployed, done, returned, not-needed, damaged, na
   notes        String?
   assetId      Int?

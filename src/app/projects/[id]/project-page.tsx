@@ -107,6 +107,7 @@ type EquipmentItem = {
   location: string | null
   headsetType: string | null
   ipAddress: string | null
+  patch: string | null
   deployStatus: string
   assignedToId: number | null
   assignedToName: string | null
@@ -132,11 +133,13 @@ function hasField(category: string, field: string) {
   const panelFields = ['location', 'headsetType', 'ipAddress']
   const wirelessFields = ['headsetType']
   const hardwireFields = ['location', 'headsetType', 'ipAddress']
-  const infraFields = ['location', 'ipAddress']
+  const switchFields = ['location', 'ipAddress', 'patch']
+  const antennaFields = ['location', 'ipAddress']
   if (category === 'panels') return panelFields.includes(field)
   if (category === 'wireless_bp') return wirelessFields.includes(field)
   if (category === 'hardwire_bp') return hardwireFields.includes(field)
-  if (['switches', 'antennas'].includes(category)) return infraFields.includes(field)
+  if (category === 'switches') return switchFields.includes(field)
+  if (category === 'antennas') return antennaFields.includes(field)
   return false
 }
 
@@ -309,6 +312,7 @@ export function ProjectPage({
       location: item.location || '',
       headsetType: item.headsetType || '',
       ipAddress: item.ipAddress || '',
+      patch: item.patch || '',
       deployStatus: item.deployStatus,
       assignedToId: item.assignedMemberId,
     })
@@ -332,6 +336,7 @@ export function ProjectPage({
         location: normalizedLocation,
         headsetType: hasField(item.category, 'headsetType') ? (editEqData.headsetType as string) || null : null,
         ipAddress: hasField(item.category, 'ipAddress') ? (editEqData.ipAddress as string) || null : null,
+        patch: hasField(item.category, 'patch') ? (editEqData.patch as string) || null : null,
         deployStatus: (editEqData.deployStatus as string) || 'na',
         assignedToId: isAssignable(item.category) ? (editEqData.assignedToId as number | null) : null,
       })
@@ -682,6 +687,9 @@ export function ProjectPage({
                                 {hasField(item.category, 'ipAddress') && (
                                   <FormInput compact label="IP Address" type="text" value={(editEqData.ipAddress as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, ipAddress: e.target.value })} />
                                 )}
+                                {hasField(item.category, 'patch') && (
+                                  <FormInput compact label="Patch" type="text" value={(editEqData.patch as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, patch: e.target.value })} />
+                                )}
                                 {isAssignable(item.category) && (
                                   <SearchableSelect
                                     compact
@@ -726,6 +734,7 @@ export function ProjectPage({
                                 {item.hardwareType && <><span className="hidden text-xs text-gray-500 sm:inline">Hardware: </span><span>{item.hardwareType}</span></>}
                                 {item.headsetType && <><span className="text-gray-500">·</span><span className="hidden text-xs text-gray-500 sm:inline">Headset: </span><span>{item.headsetType}</span></>}
                                 {item.ipAddress && <><span className="text-gray-500">·</span><span className="hidden text-xs text-gray-500 sm:inline">IP: </span><a href={`http://${item.ipAddress}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[#22a7d3] underline decoration-[#22a7d3]/30 hover:decoration-[#22a7d3]">{item.ipAddress}</a></>}
+                                {item.patch && <><span className="text-gray-500">·</span><span className="hidden text-xs text-gray-500 sm:inline">Patch: </span><span className="font-mono">{item.patch}</span></>}
                               </div>
                             </>
                           )}
