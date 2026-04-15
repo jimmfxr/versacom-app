@@ -3,6 +3,7 @@
 import { useRouter, usePathname } from 'next/navigation'
 import { Navbar, type NavItem, type NavUser } from '@/components/navbar'
 import { ToastContainer } from '@/components/toast'
+import { ScrollToTop } from '@/components/scroll-to-top'
 
 const userNavigation: ReadonlyArray<Pick<NavItem, 'name' | 'href'>> = [
   { name: 'Sign out', href: '#' },
@@ -47,6 +48,7 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
       />
       {children}
       <ToastContainer />
+      <ScrollToTop />
     </div>
   )
 }

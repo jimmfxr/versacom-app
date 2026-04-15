@@ -68,7 +68,7 @@ export default async function ProjectDetailPage({
     prisma.pickListItem.findMany({
       where: { projectId },
       select: { id: true, name: true, type: true },
-      orderBy: [{ type: 'asc' }, { name: 'asc' }],
+      orderBy: { id: 'asc' },
     }),
   ])
 

@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/empty-state'
 import { IconButton } from '@/components/icon-button'
 import { Modal } from '@/components/modal'
 import { FormInput, FormSelect } from '@/components/form-field'
+import { SearchableSelect } from '@/components/searchable-select'
 import { updateProject, deleteProject } from './actions'
 import { bulkCreateEquipment, updateEquipment, deleteEquipment } from './distribution/actions'
 import { createMember, updateMember, deleteMember } from './team-actions'
@@ -249,6 +250,7 @@ export function ProjectPage({
 
   // Pick list state
   const [plSearch, setPlSearch] = useState('')
+  const [plSortAbc, setPlSortAbc] = useState(false)
   const [editingPlId, setEditingPlId] = useState<number | null>(null)
   const [editPlData, setEditPlData] = useState<{ name: string; type: string }>({ name: '', type: 'CONF' })
   const [showAddPl, setShowAddPl] = useState(false)
@@ -440,11 +442,13 @@ export function ProjectPage({
     })
     .sort((a, b) => a.firstName.localeCompare(b.firstName, undefined, { sensitivity: 'base' }))
 
-  const filteredPickList = pickListItems.filter((p) => {
-    if (!plSearch) return true
-    const q = plSearch.toLowerCase()
-    return p.name.toLowerCase().includes(q) || (FUNCTION_TYPE_LABELS[p.type] || p.type).toLowerCase().includes(q)
-  })
+  const filteredPickList = pickListItems
+    .filter((p) => {
+      if (!plSearch) return true
+      const q = plSearch.toLowerCase()
+      return p.name.toLowerCase().includes(q) || (FUNCTION_TYPE_LABELS[p.type] || p.type).toLowerCase().includes(q)
+    })
+    .sort((a, b) => plSortAbc ? a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) : 0)
 
   /* ─── Tab action buttons ─── */
 
@@ -495,16 +499,20 @@ export function ProjectPage({
                 <h3 className="text-sm font-semibold text-white">Project Details</h3>
                 <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
                   <FormInput label="Project name" type="text" value={name} onChange={(e) => { setName(e.target.value); setEditError('') }} maxLength={100} />
-                  <FormSelect label="Manager" value={managerId} onChange={(e) => setManagerId(e.target.value)}>
-                    <option value="">None</option>
-                    {project.members.map((m) => (
-                      <option key={m.userId} value={m.userId}>{m.firstName} {m.lastName}</option>
-                    ))}
-                  </FormSelect>
-                  <FormSelect label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
-                    <option value="active">Active</option>
-                    <option value="archived">Archived</option>
-                  </FormSelect>
+                  <SearchableSelect
+                    label="Manager"
+                    value={managerId}
+                    placeholder="None"
+                    options={[{ value: '', label: 'None' }, ...project.members.map((m) => ({ value: String(m.userId), label: `${m.firstName} ${m.lastName}` }))]}
+                    onChange={(v) => setManagerId(v)}
+                  />
+                  <SearchableSelect
+                    label="Status"
+                    value={status}
+                    placeholder="Select..."
+                    options={[{ value: 'active', label: 'Active' }, { value: 'archived', label: 'Archived' }]}
+                    onChange={(v) => setStatus(v)}
+                  />
                 </div>
                 {editError && <p className="mt-3 text-sm text-red-400">{editError}</p>}
                 <div className="mt-4 flex items-center justify-between">
@@ -547,7 +555,7 @@ export function ProjectPage({
           {activeTab === 'equipment' && (
             <>
               {/* Search + Add bar */}
-              <div className="flex items-center gap-3">
+              <div className="sticky top-16 z-20 -mx-4 flex items-center gap-3 bg-[#202020] px-4 pb-3 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
                 <div className="flex-1">
                   <input
                     type="text"
@@ -569,13 +577,20 @@ export function ProjectPage({
                   </div>
                   <p className="mt-2 text-xs text-gray-500">Add equipment in bulk by category and quantity. Each item can be edited individually to assign team members, locations, and hardware details.</p>
                   <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                    <FormSelect label="Category" value={addCategory} onChange={(e) => setAddCategory(e.target.value)}>
-                      {CATEGORIES.map((c) => (<option key={c.value} value={c.value}>{c.label}</option>))}
-                    </FormSelect>
-                    <FormSelect label="Hardware type" value={addHardwareType} onChange={(e) => setAddHardwareType(e.target.value)}>
-                      <option value="">None</option>
-                      {(HARDWARE_TYPES[addCategory] || []).map((ht) => (<option key={ht} value={ht}>{ht}</option>))}
-                    </FormSelect>
+                    <SearchableSelect
+                      label="Category"
+                      value={addCategory}
+                      placeholder="Select..."
+                      options={CATEGORIES.map((c) => ({ value: c.value, label: c.label }))}
+                      onChange={(v) => setAddCategory(v)}
+                    />
+                    <SearchableSelect
+                      label="Hardware type"
+                      value={addHardwareType}
+                      placeholder="None"
+                      options={[{ value: '', label: 'None' }, ...(HARDWARE_TYPES[addCategory] || []).map((ht) => ({ value: ht, label: ht }))]}
+                      onChange={(v) => setAddHardwareType(v)}
+                    />
                     <FormInput label="Quantity" type="number" inputMode="numeric" pattern="[0-9]*" min={1} max={200} value={addQuantity}
                       onChange={(e) => { const val = e.target.value.replace(/\D/g, ''); setAddQuantity(val ? parseInt(val) : 1) }} />
                   </div>
@@ -605,15 +620,23 @@ export function ProjectPage({
                             <>
                               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                                 <FormInput compact label="ID" type="text" value={(editEqData.name as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, name: e.target.value })} />
-                                <FormSelect compact label="Hardware" value={(editEqData.hardwareType as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, hardwareType: e.target.value })}>
-                                  <option value="">None</option>
-                                  {(HARDWARE_TYPES[item.category] || []).map((ht) => (<option key={ht} value={ht}>{ht}</option>))}
-                                </FormSelect>
+                                <SearchableSelect
+                                  compact
+                                  label="Hardware"
+                                  value={(editEqData.hardwareType as string) || ''}
+                                  placeholder="None"
+                                  options={[{ value: '', label: 'None' }, ...(HARDWARE_TYPES[item.category] || []).map((ht) => ({ value: ht, label: ht }))]}
+                                  onChange={(v) => setEditEqData({ ...editEqData, hardwareType: v || null })}
+                                />
                                 {hasField(item.category, 'headsetType') && (
-                                  <FormSelect compact label="Headset" value={(editEqData.headsetType as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, headsetType: e.target.value })}>
-                                    <option value="">None</option>
-                                    {HEADSET_TYPES.map((ht) => (<option key={ht} value={ht}>{ht}</option>))}
-                                  </FormSelect>
+                                  <SearchableSelect
+                                    compact
+                                    label="Headset"
+                                    value={(editEqData.headsetType as string) || ''}
+                                    placeholder="None"
+                                    options={[{ value: '', label: 'None' }, ...HEADSET_TYPES.map((ht) => ({ value: ht, label: ht }))]}
+                                    onChange={(v) => setEditEqData({ ...editEqData, headsetType: v || null })}
+                                  />
                                 )}
                                 {hasField(item.category, 'location') && (
                                   <FormInput compact label="Location" type="text" value={(editEqData.location as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, location: e.target.value })} />
@@ -622,10 +645,14 @@ export function ProjectPage({
                                   <FormInput compact label="IP Address" type="text" value={(editEqData.ipAddress as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, ipAddress: e.target.value })} />
                                 )}
                                 {isAssignable(item.category) && (
-                                  <FormSelect compact label="Assigned to" value={(editEqData.assignedToId as number) || ''} onChange={(e) => setEditEqData({ ...editEqData, assignedToId: e.target.value ? parseInt(e.target.value) : null })}>
-                                    <option value="">Unassigned</option>
-                                    {assignableMembers.map((m) => (<option key={m.id} value={m.id}>{m.name}</option>))}
-                                  </FormSelect>
+                                  <SearchableSelect
+                                    compact
+                                    label="Assigned to"
+                                    value={String(editEqData.assignedToId || '')}
+                                    placeholder="Unassigned"
+                                    options={[{ value: '', label: 'Unassigned' }, ...assignableMembers.map((m) => ({ value: String(m.id), label: m.name }))]}
+                                    onChange={(v) => setEditEqData({ ...editEqData, assignedToId: v ? parseInt(v) : null })}
+                                  />
                                 )}
                               </div>
                               <div className="mt-3 flex items-center justify-end gap-3">
@@ -639,27 +666,25 @@ export function ProjectPage({
                               {/* Row 1: User · Position + ID */}
                               <div className="text-sm font-semibold">
                                 {item.assignedToName ? (
-                                  <span className="text-[#0178a3]">
-                                    <span className="hidden text-gray-500 font-normal sm:inline">User: </span>
+                                  <span className="text-[#22a7d3]">
                                     {item.assignedToName}
-                                    {item.assignedToPosition && <span className="text-[#0178a3]/70"> · {item.assignedToPosition}</span>}
+                                    {item.assignedToPosition && <span className="text-[#22a7d3]/70"> · {item.assignedToPosition}</span>}
                                   </span>
                                 ) : isAssignable(item.category) ? (
-                                  <span className="italic text-gray-500">
-                                    <span className="hidden font-normal sm:inline">User: </span>
+                                  <span className="italic text-gray-400">
                                     Unassigned
                                   </span>
                                 ) : null}
-                                {(item.assignedToName || isAssignable(item.category)) && <span className="text-gray-600"> · </span>}
-                                <span className="text-xs font-semibold text-gray-500">{item.name}</span>
+                                {(item.assignedToName || isAssignable(item.category)) && <span className="text-gray-500"> · </span>}
+                                <span className="text-sm font-semibold text-white">{item.name}</span>
                               </div>
 
                               {/* Row 2: Location · Hardware · Headset · IP */}
-                              <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-gray-500">
-                                {item.location && <><span className="hidden sm:inline">Location: </span><span>{item.location}</span><span>·</span></>}
-                                {item.hardwareType && <><span className="hidden sm:inline">Hardware: </span><span>{item.hardwareType}</span></>}
-                                {item.headsetType && <><span>·</span><span className="hidden sm:inline">Headset: </span><span>{item.headsetType}</span></>}
-                                {item.ipAddress && <><span>·</span><span className="hidden sm:inline">IP: </span><span className="font-mono text-gray-500/80">{item.ipAddress}</span></>}
+                              <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-sm text-gray-300">
+                                {item.location && <><span className="hidden text-xs text-gray-500 sm:inline">Location: </span><span>{item.location}</span><span className="text-gray-500">·</span></>}
+                                {item.hardwareType && <><span className="hidden text-xs text-gray-500 sm:inline">Hardware: </span><span>{item.hardwareType}</span></>}
+                                {item.headsetType && <><span className="text-gray-500">·</span><span className="hidden text-xs text-gray-500 sm:inline">Headset: </span><span>{item.headsetType}</span></>}
+                                {item.ipAddress && <><span className="text-gray-500">·</span><span className="hidden text-xs text-gray-500 sm:inline">IP: </span><span className="font-mono">{item.ipAddress}</span></>}
                               </div>
                             </>
                           )}
@@ -670,7 +695,7 @@ export function ProjectPage({
                           <div className="flex shrink-0 items-center gap-2">
                             {canChangeStatus ? (
                               <div className="flex items-center gap-1.5">
-                                <span className="text-[10px] font-medium text-gray-500">Status</span>
+                                <span className="text-[10px] font-medium text-gray-400">Status</span>
                                 <select
                                   value={item.deployStatus}
                                   onChange={(e) => {
@@ -705,7 +730,7 @@ export function ProjectPage({
           {/* ═══════════════════════════════ TEAM TAB ═══════════════════════════════ */}
           {activeTab === 'team' && (
             <>
-              <div className="flex items-center gap-3">
+              <div className="sticky top-16 z-20 -mx-4 flex items-center gap-3 bg-[#202020] px-4 pb-3 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
                 <div className="flex-1">
                   <input
                     type="text"
@@ -731,9 +756,13 @@ export function ProjectPage({
                       <FormInput label="First Name" type="text" value={addMemberData.firstName} onChange={(e) => setAddMemberData({ ...addMemberData, firstName: e.target.value })} />
                       <FormInput label="Last Name" type="text" value={addMemberData.lastName} onChange={(e) => setAddMemberData({ ...addMemberData, lastName: e.target.value })} />
                       <FormInput label="Position" type="text" value={addMemberData.position} onChange={(e) => setAddMemberData({ ...addMemberData, position: e.target.value })} />
-                      <FormSelect label="Role" value={addMemberData.role} onChange={(e) => setAddMemberData({ ...addMemberData, role: e.target.value })}>
-                        {ROLES.map((r) => (<option key={r} value={r}>{ROLE_LABELS[r]}</option>))}
-                      </FormSelect>
+                      <SearchableSelect
+                        label="Role"
+                        value={addMemberData.role}
+                        placeholder="Select..."
+                        options={ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r] }))}
+                        onChange={(v) => setAddMemberData({ ...addMemberData, role: v })}
+                      />
                     </div>
                     <div className="mt-4 flex justify-end">
                       <Button type="submit" disabled={isPending || !addMemberData.firstName.trim() || !addMemberData.lastName.trim()}>{isPending ? 'Adding...' : 'Add'}</Button>
@@ -766,9 +795,14 @@ export function ProjectPage({
                               <FormInput compact label="First Name" type="text" value={editMemberData.firstName} onChange={(e) => setEditMemberData({ ...editMemberData, firstName: e.target.value })} />
                               <FormInput compact label="Last Name" type="text" value={editMemberData.lastName} onChange={(e) => setEditMemberData({ ...editMemberData, lastName: e.target.value })} />
                               <FormInput compact label="Position" type="text" value={editMemberData.position} onChange={(e) => setEditMemberData({ ...editMemberData, position: e.target.value })} />
-                              <FormSelect compact label="Role" value={editMemberData.role} onChange={(e) => setEditMemberData({ ...editMemberData, role: e.target.value })}>
-                                {ROLES.map((r) => (<option key={r} value={r}>{ROLE_LABELS[r]}</option>))}
-                              </FormSelect>
+                              <SearchableSelect
+                                compact
+                                label="Role"
+                                value={editMemberData.role}
+                                placeholder="Select..."
+                                options={ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r] }))}
+                                onChange={(v) => setEditMemberData({ ...editMemberData, role: v })}
+                              />
                             </div>
                             <div className="mt-3 flex items-center justify-end gap-3">
                               <Button size="sm" onClick={() => handleSaveMember(m)} disabled={isPending}>Save</Button>
@@ -781,13 +815,13 @@ export function ProjectPage({
                             <div>
                               <div className="text-sm font-semibold text-white">
                                 {m.firstName} {m.lastName}
-                                {m.position && <span className="text-gray-500"> · {m.position}</span>}
-                                <span className="text-gray-500"> · {ROLE_LABELS[m.role] || m.role}</span>
+                                {m.position && <span className="text-gray-400"> · {m.position}</span>}
+                                <span className="text-gray-400"> · {ROLE_LABELS[m.role] || m.role}</span>
                               </div>
                               {m.equipmentNames.length > 0 ? (
-                                <div className="mt-1.5 text-xs font-medium text-[#0178a3]">{m.equipmentNames.join(', ')}</div>
+                                <div className="mt-1.5 text-xs font-medium text-[#22a7d3]">{m.equipmentNames.join(', ')}</div>
                               ) : (
-                                <div className="mt-1.5 text-xs italic text-gray-600">No equipment assigned</div>
+                                <div className="mt-1.5 text-xs italic text-gray-500">No equipment assigned</div>
                               )}
                             </div>
                             {canEditTeam && <Button size="sm" onClick={() => startMemberEdit(m)}>Edit</Button>}
@@ -804,7 +838,7 @@ export function ProjectPage({
           {/* ═══════════════════════════════ PICK LIST TAB ═══════════════════════════════ */}
           {activeTab === 'picklist' && (
             <>
-              <div className="flex items-center gap-3">
+              <div className="sticky top-16 z-20 -mx-4 flex items-center gap-3 bg-[#202020] px-4 pb-3 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
                 <div className="flex-1">
                   <input
                     type="text"
@@ -814,6 +848,7 @@ export function ProjectPage({
                     className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
                   />
                 </div>
+                <Button variant={plSortAbc ? 'primary' : 'secondary'} onClick={() => setPlSortAbc(!plSortAbc)}>A–Z</Button>
                 {canEditPickList && !showAddPl && <Button onClick={() => setShowAddPl(true)}>Add Function</Button>}
               </div>
 
@@ -827,9 +862,13 @@ export function ProjectPage({
                   <p className="mt-2 text-xs text-gray-500">Add communication functions like conferences, IFBs, and audio I/O channels. These will be available as key options on panels.</p>
                   <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
                     <FormInput label="Name" type="text" value={addPlData.name} onChange={(e) => setAddPlData({ ...addPlData, name: e.target.value })} />
-                    <FormSelect label="Type" value={addPlData.type} onChange={(e) => setAddPlData({ ...addPlData, type: e.target.value })}>
-                      {FUNCTION_TYPES.map((t) => (<option key={t} value={t}>{FUNCTION_TYPE_LABELS[t]}</option>))}
-                    </FormSelect>
+                    <SearchableSelect
+                      label="Type"
+                      value={addPlData.type}
+                      placeholder="Select..."
+                      options={FUNCTION_TYPES.map((t) => ({ value: t, label: FUNCTION_TYPE_LABELS[t] }))}
+                      onChange={(v) => setAddPlData({ ...addPlData, type: v })}
+                    />
                   </div>
                   <div className="mt-4 flex justify-end">
                     <Button onClick={handleAddPl} disabled={isPending || !addPlData.name.trim()}>{isPending ? 'Adding...' : 'Add'}</Button>
@@ -854,13 +893,18 @@ export function ProjectPage({
                           <>
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-semibold text-white">{item.name}</span>
-                              <span className="rounded-md bg-white/5 px-2 py-0.5 text-[11px] font-medium text-gray-400">{FUNCTION_TYPE_LABELS[item.type] || item.type}</span>
+                              <span className="rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-medium text-gray-300">{FUNCTION_TYPE_LABELS[item.type] || item.type}</span>
                             </div>
                             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
                               <FormInput compact label="Name" type="text" value={editPlData.name} onChange={(e) => setEditPlData({ ...editPlData, name: e.target.value })} />
-                              <FormSelect compact label="Type" value={editPlData.type} onChange={(e) => setEditPlData({ ...editPlData, type: e.target.value })}>
-                                {FUNCTION_TYPES.map((t) => (<option key={t} value={t}>{FUNCTION_TYPE_LABELS[t]}</option>))}
-                              </FormSelect>
+                              <SearchableSelect
+                                compact
+                                label="Type"
+                                value={editPlData.type}
+                                placeholder="Select..."
+                                options={FUNCTION_TYPES.map((t) => ({ value: t, label: FUNCTION_TYPE_LABELS[t] }))}
+                                onChange={(v) => setEditPlData({ ...editPlData, type: v })}
+                              />
                             </div>
                             <div className="mt-3 flex items-center justify-end gap-3">
                               <Button size="sm" onClick={() => handleSavePl(item)} disabled={isPending}>Save</Button>
@@ -872,7 +916,7 @@ export function ProjectPage({
                           <div className="flex items-start justify-between">
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-semibold text-white">{item.name}</span>
-                              <span className="rounded-md bg-white/5 px-2 py-0.5 text-[11px] font-medium text-gray-400">{FUNCTION_TYPE_LABELS[item.type] || item.type}</span>
+                              <span className="rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-medium text-gray-300">{FUNCTION_TYPE_LABELS[item.type] || item.type}</span>
                             </div>
                             {canEditPickList && <Button size="sm" onClick={() => startPlEdit(item)}>Edit</Button>}
                           </div>
@@ -902,13 +946,13 @@ export function ProjectPage({
                       <div key={item.id} className="flex items-start gap-4 rounded-2xl bg-[#2a2a2a] px-5 py-4 transition-colors hover:bg-[#313131]">
                         <div className="min-w-0 flex-1">
                           <div className="text-sm font-semibold">
-                            <span className="text-xs font-semibold text-gray-500">{item.name}</span>
+                            <span className="text-xs font-semibold text-gray-400">{item.name}</span>
                           </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-gray-500">
-                            {item.location && <><span className="hidden sm:inline">Location: </span><span>{item.location}</span><span>·</span></>}
-                            {item.hardwareType && <><span className="hidden sm:inline">Hardware: </span><span>{item.hardwareType}</span></>}
-                            {item.headsetType && <><span>·</span><span className="hidden sm:inline">Headset: </span><span>{item.headsetType}</span></>}
-                            {item.ipAddress && <><span>·</span><span className="hidden sm:inline">IP: </span><span className="font-mono text-gray-500/80">{item.ipAddress}</span></>}
+                          <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-gray-400">
+                            {item.location && <><span className="hidden sm:inline text-gray-500">Location: </span><span>{item.location}</span><span className="text-gray-500">·</span></>}
+                            {item.hardwareType && <><span className="hidden sm:inline text-gray-500">Hardware: </span><span>{item.hardwareType}</span></>}
+                            {item.headsetType && <><span className="text-gray-500">·</span><span className="hidden sm:inline text-gray-500">Headset: </span><span>{item.headsetType}</span></>}
+                            {item.ipAddress && <><span className="text-gray-500">·</span><span className="hidden sm:inline text-gray-500">IP: </span><span className="font-mono">{item.ipAddress}</span></>}
                           </div>
                         </div>
                         <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_BADGE_STYLES[item.deployStatus] || STATUS_BADGE_STYLES.na}`}>

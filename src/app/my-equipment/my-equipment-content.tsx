@@ -72,38 +72,38 @@ export function MyEquipmentContent({
                 <div className="min-w-0 flex-1">
                   {/* Row 1: ID and project */}
                   <div className="text-sm font-semibold">
-                    <span className="text-xs font-semibold text-gray-500">{item.name}</span>
-                    <span className="text-gray-600"> · </span>
+                    <span className="text-xs font-semibold text-gray-400">{item.name}</span>
+                    <span className="text-gray-500"> · </span>
                     <span className="text-xs text-[#0178a3]">{item.projectName}</span>
                   </div>
 
                   {/* Row 2: Details */}
-                  <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-gray-500">
+                  <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-gray-400">
                     {item.location && (
                       <>
-                        <span className="hidden sm:inline">Location: </span>
+                        <span className="hidden sm:inline text-gray-500">Location: </span>
                         <span>{item.location}</span>
-                        <span>·</span>
+                        <span className="text-gray-500">·</span>
                       </>
                     )}
                     {item.hardwareType && (
                       <>
-                        <span className="hidden sm:inline">Hardware: </span>
+                        <span className="hidden sm:inline text-gray-500">Hardware: </span>
                         <span>{item.hardwareType}</span>
                       </>
                     )}
                     {item.headsetType && (
                       <>
-                        <span>·</span>
-                        <span className="hidden sm:inline">Headset: </span>
+                        <span className="text-gray-500">·</span>
+                        <span className="hidden sm:inline text-gray-500">Headset: </span>
                         <span>{item.headsetType}</span>
                       </>
                     )}
                     {item.ipAddress && (
                       <>
-                        <span>·</span>
-                        <span className="hidden sm:inline">IP: </span>
-                        <span className="font-mono text-gray-500/80">{item.ipAddress}</span>
+                        <span className="text-gray-500">·</span>
+                        <span className="hidden sm:inline text-gray-500">IP: </span>
+                        <span className="font-mono">{item.ipAddress}</span>
                       </>
                     )}
                   </div>
