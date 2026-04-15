@@ -12,6 +12,7 @@ import { IconButton } from '@/components/icon-button'
 import { Modal } from '@/components/modal'
 import { FormInput, FormSelect } from '@/components/form-field'
 import { SearchableSelect } from '@/components/searchable-select'
+import { ComboboxInput } from '@/components/combobox-input'
 import { updateProject, deleteProject } from './actions'
 import { bulkCreateEquipment, updateEquipment, deleteEquipment } from './distribution/actions'
 import { createMember, updateMember, deleteMember } from './team-actions'
@@ -32,7 +33,7 @@ const HARDWARE_TYPES: Record<string, string[]> = {
   panels: ['RSP-1232', 'RSP-1216', 'DSP-1216', 'KP-5032', 'KP32', 'RSP-2318', 'RSP-2312'],
   wireless_bp: ['Bolero', 'Freespeak', 'Pliant'],
   hardwire_bp: ['Helixnet', 'DBP', 'ST-374', 'ST370', 'C3', 'BP325'],
-  switches: ['26P+4F', '9P+1F', 'Intellanet Old', 'Intellanet New', 'Media', 'Antaira', 'TP Link'],
+  switches: ['26P+4F', '40P+4F', '16F', '9P+1F', 'Intellanet Old', 'Intellanet New', 'Media', 'Antaira', 'TP Link'],
   antennas: ['Bolero 1.9', 'Bolero 2.4', 'Pliant', 'Freespeak 1.9', 'Freespeak 2.4'],
   audio: ['NA2', 'A16r', 'Dark88'],
 }
@@ -61,11 +62,12 @@ const STATUS_BADGE_STYLES: Record<string, string> = {
   damaged: 'bg-red-500/15 text-red-400',
 }
 
-const FUNCTION_TYPES = ['CONF', 'IFB', 'Audio_IO'] as const
+const FUNCTION_TYPES = ['CONF', 'IFB', 'Audio_IO', 'GRP'] as const
 const FUNCTION_TYPE_LABELS: Record<string, string> = {
   CONF: 'CONF',
   IFB: 'IFB',
   Audio_IO: 'Audio I/O',
+  GRP: 'GRP',
 }
 
 const ROLES = ['admin', 'manager', 'crew', 'user'] as const
@@ -236,7 +238,7 @@ export function ProjectPage({
   const [showAdd, setShowAdd] = useState(false)
   const [addCategory, setAddCategory] = useState('panels')
   const [addHardwareType, setAddHardwareType] = useState('')
-  const [addQuantity, setAddQuantity] = useState(1)
+  const [addQuantity, setAddQuantity] = useState('1')
   const [addError, setAddError] = useState('')
   const [editingEqId, setEditingEqId] = useState<number | null>(null)
   const [editEqData, setEditEqData] = useState<Partial<EquipmentItem>>({})
@@ -284,15 +286,17 @@ export function ProjectPage({
   /* ─── Equipment actions ─── */
 
   function handleBulkAdd() {
-    if (addQuantity < 1) { setAddError('Quantity must be at least 1'); return }
+    const qty = parseInt(addQuantity, 10)
+    if (!qty || qty < 1) { setAddError('Quantity must be at least 1'); return }
+    if (qty > 200) { setAddError('Quantity must be at most 200'); return }
     setAddError('')
     startTransition(async () => {
-      const result = await bulkCreateEquipment(project.id, addCategory, addHardwareType, addQuantity)
+      const result = await bulkCreateEquipment(project.id, addCategory, addHardwareType, qty)
       if (result.error) { setAddError(result.error); return }
       showToast('success', `Added ${result.count} ${getCategoryLabel(addCategory)}`)
       setShowAdd(false)
       setAddHardwareType('')
-      setAddQuantity(1)
+      setAddQuantity('1')
       router.refresh()
     })
   }
@@ -311,12 +315,21 @@ export function ProjectPage({
   }
 
   function handleSaveEquipment(item: EquipmentItem) {
+    // Normalize location to canonical casing if it matches an existing entry case-insensitively
+    let normalizedLocation: string | null = null
+    if (hasField(item.category, 'location')) {
+      const raw = ((editEqData.location as string) || '').trim()
+      if (raw) {
+        const canonical = allLocations.find((l) => l.toLowerCase() === raw.toLowerCase())
+        normalizedLocation = canonical || raw
+      }
+    }
     startTransition(async () => {
       const result = await updateEquipment(project.id, item.id, {
         name: editEqData.name || item.name,
         hardwareType: (editEqData.hardwareType as string) || null,
         position: null,
-        location: hasField(item.category, 'location') ? (editEqData.location as string) || null : null,
+        location: normalizedLocation,
         headsetType: hasField(item.category, 'headsetType') ? (editEqData.headsetType as string) || null : null,
         ipAddress: hasField(item.category, 'ipAddress') ? (editEqData.ipAddress as string) || null : null,
         deployStatus: (editEqData.deployStatus as string) || 'na',
@@ -411,6 +424,22 @@ export function ProjectPage({
     })
   }
 
+  /* ─── Derived data ─── */
+
+  // Unique locations seen across ALL equipment in this project.
+  // Case-insensitive dedupe — first-seen casing wins. Used as combobox suggestions.
+  const allLocations = (() => {
+    const seen = new Map<string, string>() // lowercase key → original casing
+    for (const e of equipment) {
+      if (!e.location) continue
+      const trimmed = e.location.trim()
+      if (!trimmed) continue
+      const key = trimmed.toLowerCase()
+      if (!seen.has(key)) seen.set(key, trimmed)
+    }
+    return Array.from(seen.values())
+  })()
+
   /* ─── Filtered lists ─── */
 
   const filteredEquipment = equipment.filter((e) => {
@@ -453,11 +482,11 @@ export function ProjectPage({
   /* ─── Tab action buttons ─── */
 
   const tabActionButton = activeTab === 'equipment' ? (
-    !showAdd && <Button onClick={() => setShowAdd(true)}>Add Equipment</Button>
+    !showAdd && <Button onClick={() => setShowAdd(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Equipment</span></Button>
   ) : activeTab === 'team' ? (
-    !showAddMember && <Button onClick={() => setShowAddMember(true)}>Add Member</Button>
+    !showAddMember && <Button onClick={() => setShowAddMember(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Member</span></Button>
   ) : (
-    !showAddPl && <Button onClick={() => setShowAddPl(true)}>Add Function</Button>
+    !showAddPl && <Button onClick={() => setShowAddPl(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Function</span></Button>
   )
 
   return (
@@ -562,7 +591,7 @@ export function ProjectPage({
                     className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
                   />
                 </div>
-                {canEditEquipment && !showAdd && <Button onClick={() => setShowAdd(true)}>Add Equipment</Button>}
+                {canEditEquipment && !showAdd && <Button onClick={() => setShowAdd(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Equipment</span></Button>}
               </div>
 
               {/* Bulk add form */}
@@ -573,28 +602,30 @@ export function ProjectPage({
                     <IconButton onClick={() => { setShowAdd(false); setAddError('') }}><CloseIcon /></IconButton>
                   </div>
                   <p className="mt-2 text-xs text-gray-500">Add equipment in bulk by category and quantity. Each item can be edited individually to assign team members, locations, and hardware details.</p>
-                  <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                    <SearchableSelect
-                      label="Category"
-                      value={addCategory}
-                      placeholder="Select..."
-                      options={CATEGORIES.map((c) => ({ value: c.value, label: c.label }))}
-                      onChange={(v) => setAddCategory(v)}
-                    />
-                    <SearchableSelect
-                      label="Hardware type"
-                      value={addHardwareType}
-                      placeholder="None"
-                      options={[{ value: '', label: 'None' }, ...(HARDWARE_TYPES[addCategory] || []).map((ht) => ({ value: ht, label: ht }))]}
-                      onChange={(v) => setAddHardwareType(v)}
-                    />
-                    <FormInput label="Quantity" type="number" inputMode="numeric" pattern="[0-9]*" min={1} max={200} value={addQuantity}
-                      onChange={(e) => { const val = e.target.value.replace(/\D/g, ''); setAddQuantity(val ? parseInt(val) : 1) }} />
-                  </div>
-                  <div className="mt-4 flex justify-end">
-                    <Button onClick={handleBulkAdd} disabled={isPending}>{isPending ? 'Adding...' : 'Add'}</Button>
-                  </div>
-                  {addError && <p className="mt-3 text-sm text-red-400">{addError}</p>}
+                  <form onSubmit={(e) => { e.preventDefault(); handleBulkAdd() }}>
+                    <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                      <SearchableSelect
+                        label="Category"
+                        value={addCategory}
+                        placeholder="Select..."
+                        options={CATEGORIES.map((c) => ({ value: c.value, label: c.label }))}
+                        onChange={(v) => setAddCategory(v)}
+                      />
+                      <SearchableSelect
+                        label="Hardware type"
+                        value={addHardwareType}
+                        placeholder="None"
+                        options={[{ value: '', label: 'None' }, ...(HARDWARE_TYPES[addCategory] || []).map((ht) => ({ value: ht, label: ht }))]}
+                        onChange={(v) => setAddHardwareType(v)}
+                      />
+                      <FormInput label="Quantity" type="text" inputMode="numeric" pattern="[0-9]*" value={addQuantity}
+                        onChange={(e) => { const val = e.target.value.replace(/\D/g, ''); setAddQuantity(val) }} />
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                      <Button type="submit" disabled={isPending}>{isPending ? 'Adding...' : 'Add'}</Button>
+                    </div>
+                    {addError && <p className="mt-3 text-sm text-red-400">{addError}</p>}
+                  </form>
                 </Card>
               )}
 
@@ -614,7 +645,7 @@ export function ProjectPage({
                         {/* Content */}
                         <div className="min-w-0 flex-1">
                           {isEditing ? (
-                            <>
+                            <form onSubmit={(e) => { e.preventDefault(); handleSaveEquipment(item) }}>
                               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                                 <FormInput compact label="ID" type="text" value={(editEqData.name as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, name: e.target.value })} />
                                 <SearchableSelect
@@ -636,7 +667,13 @@ export function ProjectPage({
                                   />
                                 )}
                                 {hasField(item.category, 'location') && (
-                                  <FormInput compact label="Location" type="text" value={(editEqData.location as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, location: e.target.value })} />
+                                  <ComboboxInput
+                                    compact
+                                    label="Location"
+                                    value={(editEqData.location as string) || ''}
+                                    options={allLocations}
+                                    onChange={(v) => setEditEqData({ ...editEqData, location: v })}
+                                  />
                                 )}
                                 {hasField(item.category, 'ipAddress') && (
                                   <FormInput compact label="IP Address" type="text" value={(editEqData.ipAddress as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, ipAddress: e.target.value })} />
@@ -653,27 +690,30 @@ export function ProjectPage({
                                 )}
                               </div>
                               <div className="mt-3 flex items-center justify-end gap-3">
-                                <Button size="sm" onClick={() => handleSaveEquipment(item)} disabled={isPending}>Save</Button>
-                                <Button size="sm" variant="danger" onClick={() => handleDeleteEquipment(item)} disabled={isPending}>Delete</Button>
-                                <Button size="sm" variant="secondary" onClick={() => setEditingEqId(null)} disabled={isPending}>Cancel</Button>
+                                <Button type="submit" size="sm" disabled={isPending}>Save</Button>
+                                <Button type="button" size="sm" variant="danger" onClick={() => handleDeleteEquipment(item)} disabled={isPending}>Delete</Button>
+                                <Button type="button" size="sm" variant="secondary" onClick={() => setEditingEqId(null)} disabled={isPending}>Cancel</Button>
                               </div>
-                            </>
+                            </form>
                           ) : (
                             <>
                               {/* Row 1: User · Position + ID */}
                               <div className="text-sm font-semibold">
+                                <span className="text-white">{item.name}</span>
                                 {item.assignedToName ? (
-                                  <span className="text-[#22a7d3]">
-                                    {item.assignedToName}
-                                    {item.assignedToPosition && <span className="text-[#22a7d3]/70"> · {item.assignedToPosition}</span>}
-                                  </span>
+                                  <>
+                                    <span className="text-gray-500"> · </span>
+                                    <span className="text-[#22a7d3]">
+                                      {item.assignedToName}
+                                      {item.assignedToPosition && <span className="text-[#22a7d3]/70"> · {item.assignedToPosition}</span>}
+                                    </span>
+                                  </>
                                 ) : isAssignable(item.category) ? (
-                                  <span className="italic text-gray-400">
-                                    Unassigned
-                                  </span>
+                                  <>
+                                    <span className="text-gray-500"> · </span>
+                                    <span className="italic text-gray-400">Unassigned</span>
+                                  </>
                                 ) : null}
-                                {(item.assignedToName || isAssignable(item.category)) && <span className="text-gray-500"> · </span>}
-                                <span className="text-sm font-semibold text-white">{item.name}</span>
                               </div>
 
                               {/* Row 2: Location · Hardware · Headset · IP */}
@@ -737,7 +777,7 @@ export function ProjectPage({
                     className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
                   />
                 </div>
-                {canEditTeam && !showAddMember && <Button onClick={() => setShowAddMember(true)}>Add Member</Button>}
+                {canEditTeam && !showAddMember && <Button onClick={() => setShowAddMember(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Member</span></Button>}
               </div>
 
               {/* Add member form */}
@@ -750,7 +790,7 @@ export function ProjectPage({
                   <p className="mt-2 text-xs text-gray-500">Members are added automatically when they join with the project PIN. You can also add members manually.</p>
                   <form onSubmit={(e) => { e.preventDefault(); handleAddMember() }}>
                     <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                      <FormInput label="First Name" type="text" value={addMemberData.firstName} onChange={(e) => setAddMemberData({ ...addMemberData, firstName: e.target.value })} />
+                      <FormInput autoFocus label="First Name" type="text" value={addMemberData.firstName} onChange={(e) => setAddMemberData({ ...addMemberData, firstName: e.target.value })} />
                       <FormInput label="Last Name" type="text" value={addMemberData.lastName} onChange={(e) => setAddMemberData({ ...addMemberData, lastName: e.target.value })} />
                       <FormInput label="Position" type="text" value={addMemberData.position} onChange={(e) => setAddMemberData({ ...addMemberData, position: e.target.value })} />
                       <SearchableSelect
@@ -782,7 +822,7 @@ export function ProjectPage({
                     return (
                       <div key={m.id} className="rounded-2xl bg-[#2a2a2a] px-5 py-4 transition-colors hover:bg-[#313131]">
                         {isEditing ? (
-                          <>
+                          <form onSubmit={(e) => { e.preventDefault(); handleSaveMember(m) }}>
                             <div className="text-sm font-semibold text-white">
                               {m.firstName} {m.lastName}
                               {m.position && <span className="text-gray-500"> · {m.position}</span>}
@@ -802,11 +842,11 @@ export function ProjectPage({
                               />
                             </div>
                             <div className="mt-3 flex items-center justify-end gap-3">
-                              <Button size="sm" onClick={() => handleSaveMember(m)} disabled={isPending}>Save</Button>
-                              <Button size="sm" variant="danger" onClick={() => handleDeleteMember(m)} disabled={isPending}>Delete</Button>
-                              <Button size="sm" variant="secondary" onClick={() => setEditingMemberId(null)} disabled={isPending}>Cancel</Button>
+                              <Button type="submit" size="sm" disabled={isPending}>Save</Button>
+                              <Button type="button" size="sm" variant="danger" onClick={() => handleDeleteMember(m)} disabled={isPending}>Delete</Button>
+                              <Button type="button" size="sm" variant="secondary" onClick={() => setEditingMemberId(null)} disabled={isPending}>Cancel</Button>
                             </div>
-                          </>
+                          </form>
                         ) : (
                           <div className="flex items-start justify-between">
                             <div>
@@ -846,7 +886,7 @@ export function ProjectPage({
                   />
                 </div>
                 <Button variant={plSortAbc ? 'primary' : 'secondary'} onClick={() => setPlSortAbc(!plSortAbc)}>A–Z</Button>
-                {canEditPickList && !showAddPl && <Button onClick={() => setShowAddPl(true)}>Add Function</Button>}
+                {canEditPickList && !showAddPl && <Button onClick={() => setShowAddPl(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Function</span></Button>}
               </div>
 
               {/* Add function form */}
@@ -857,19 +897,21 @@ export function ProjectPage({
                     <IconButton onClick={() => setShowAddPl(false)}><CloseIcon /></IconButton>
                   </div>
                   <p className="mt-2 text-xs text-gray-500">Add communication functions like conferences, IFBs, and audio I/O channels. These will be available as key options on panels.</p>
-                  <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                    <FormInput label="Name" type="text" value={addPlData.name} onChange={(e) => setAddPlData({ ...addPlData, name: e.target.value })} />
-                    <SearchableSelect
-                      label="Type"
-                      value={addPlData.type}
-                      placeholder="Select..."
-                      options={FUNCTION_TYPES.map((t) => ({ value: t, label: FUNCTION_TYPE_LABELS[t] }))}
-                      onChange={(v) => setAddPlData({ ...addPlData, type: v })}
-                    />
-                  </div>
-                  <div className="mt-4 flex justify-end">
-                    <Button onClick={handleAddPl} disabled={isPending || !addPlData.name.trim()}>{isPending ? 'Adding...' : 'Add'}</Button>
-                  </div>
+                  <form onSubmit={(e) => { e.preventDefault(); if (addPlData.name.trim()) handleAddPl() }}>
+                    <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                      <FormInput autoFocus label="Name" type="text" value={addPlData.name} onChange={(e) => setAddPlData({ ...addPlData, name: e.target.value })} />
+                      <SearchableSelect
+                        label="Type"
+                        value={addPlData.type}
+                        placeholder="Select..."
+                        options={FUNCTION_TYPES.map((t) => ({ value: t, label: FUNCTION_TYPE_LABELS[t] }))}
+                        onChange={(v) => setAddPlData({ ...addPlData, type: v })}
+                      />
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                      <Button type="submit" disabled={isPending || !addPlData.name.trim()}>{isPending ? 'Adding...' : 'Add'}</Button>
+                    </div>
+                  </form>
                 </Card>
               )}
 
@@ -887,7 +929,7 @@ export function ProjectPage({
                     return (
                       <div key={item.id} className="rounded-2xl bg-[#2a2a2a] px-5 py-4 transition-colors hover:bg-[#313131]">
                         {isEditing ? (
-                          <>
+                          <form onSubmit={(e) => { e.preventDefault(); handleSavePl(item) }}>
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-semibold text-white">{item.name}</span>
                               <span className="rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-medium text-gray-300">{FUNCTION_TYPE_LABELS[item.type] || item.type}</span>
@@ -904,11 +946,11 @@ export function ProjectPage({
                               />
                             </div>
                             <div className="mt-3 flex items-center justify-end gap-3">
-                              <Button size="sm" onClick={() => handleSavePl(item)} disabled={isPending}>Save</Button>
-                              <Button size="sm" variant="danger" onClick={() => handleDeletePl(item)} disabled={isPending}>Delete</Button>
-                              <Button size="sm" variant="secondary" onClick={() => setEditingPlId(null)} disabled={isPending}>Cancel</Button>
+                              <Button type="submit" size="sm" disabled={isPending}>Save</Button>
+                              <Button type="button" size="sm" variant="danger" onClick={() => handleDeletePl(item)} disabled={isPending}>Delete</Button>
+                              <Button type="button" size="sm" variant="secondary" onClick={() => setEditingPlId(null)} disabled={isPending}>Cancel</Button>
                             </div>
-                          </>
+                          </form>
                         ) : (
                           <div className="flex items-start justify-between">
                             <div className="flex items-center gap-2">
