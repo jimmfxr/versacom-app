@@ -116,7 +116,7 @@ type EquipmentItem = {
 
 type AssignableMember = { id: number; name: string }
 
-type PickListItemType = { id: number; name: string; type: string }
+type PickListItemType = { id: number; code: string | null; name: string; type: string }
 
 /* ─── Helpers ─── */
 
@@ -254,9 +254,9 @@ export function ProjectPage({
   const [plSearch, setPlSearch] = useState('')
   const [plSortAbc, setPlSortAbc] = useState(false)
   const [editingPlId, setEditingPlId] = useState<number | null>(null)
-  const [editPlData, setEditPlData] = useState<{ name: string; type: string }>({ name: '', type: 'CONF' })
+  const [editPlData, setEditPlData] = useState<{ code: string; name: string; type: string }>({ code: '', name: '', type: 'CONF' })
   const [showAddPl, setShowAddPl] = useState(false)
-  const [addPlData, setAddPlData] = useState<{ name: string; type: string }>({ name: '', type: 'CONF' })
+  const [addPlData, setAddPlData] = useState<{ code: string; name: string; type: string }>({ code: '', name: '', type: 'CONF' })
 
   /* ─── Project actions ─── */
 
@@ -391,7 +391,7 @@ export function ProjectPage({
 
   function startPlEdit(item: PickListItemType) {
     setEditingPlId(item.id)
-    setEditPlData({ name: item.name, type: item.type })
+    setEditPlData({ code: item.code || '', name: item.name, type: item.type })
   }
 
   function handleSavePl(item: PickListItemType) {
@@ -419,7 +419,7 @@ export function ProjectPage({
       if (result.error) { showToast('error', result.error); return }
       showToast('success', `${addPlData.name} added`)
       setShowAddPl(false)
-      setAddPlData({ name: '', type: 'CONF' })
+      setAddPlData({ code: '', name: '', type: 'CONF' })
       router.refresh()
     })
   }
@@ -475,7 +475,11 @@ export function ProjectPage({
     .filter((p) => {
       if (!plSearch) return true
       const q = plSearch.toLowerCase()
-      return p.name.toLowerCase().includes(q) || (FUNCTION_TYPE_LABELS[p.type] || p.type).toLowerCase().includes(q)
+      return (
+        p.name.toLowerCase().includes(q) ||
+        (p.code?.toLowerCase().includes(q) ?? false) ||
+        (FUNCTION_TYPE_LABELS[p.type] || p.type).toLowerCase().includes(q)
+      )
     })
     .sort((a, b) => plSortAbc ? a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) : 0)
 
@@ -899,6 +903,7 @@ export function ProjectPage({
                   <p className="mt-2 text-xs text-gray-500">Add communication functions like conferences, IFBs, and audio I/O channels. These will be available as key options on panels.</p>
                   <form onSubmit={(e) => { e.preventDefault(); if (addPlData.name.trim()) handleAddPl() }}>
                     <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                      <FormInput label="ID" type="text" placeholder="Auto" value={addPlData.code} onChange={(e) => setAddPlData({ ...addPlData, code: e.target.value })} />
                       <FormInput autoFocus label="Name" type="text" value={addPlData.name} onChange={(e) => setAddPlData({ ...addPlData, name: e.target.value })} />
                       <SearchableSelect
                         label="Type"
@@ -931,10 +936,12 @@ export function ProjectPage({
                         {isEditing ? (
                           <form onSubmit={(e) => { e.preventDefault(); handleSavePl(item) }}>
                             <div className="flex items-center gap-2">
+                              {item.code && <span className="text-sm font-semibold text-white">{item.code}</span>}
                               <span className="text-sm font-semibold text-white">{item.name}</span>
                               <span className="rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-medium text-gray-300">{FUNCTION_TYPE_LABELS[item.type] || item.type}</span>
                             </div>
                             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                              <FormInput compact label="ID" type="text" value={editPlData.code} onChange={(e) => setEditPlData({ ...editPlData, code: e.target.value })} />
                               <FormInput compact label="Name" type="text" value={editPlData.name} onChange={(e) => setEditPlData({ ...editPlData, name: e.target.value })} />
                               <SearchableSelect
                                 compact
@@ -954,6 +961,7 @@ export function ProjectPage({
                         ) : (
                           <div className="flex items-start justify-between">
                             <div className="flex items-center gap-2">
+                              {item.code && <span className="text-sm font-semibold text-white">{item.code}</span>}
                               <span className="text-sm font-semibold text-white">{item.name}</span>
                               <span className="rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-medium text-gray-300">{FUNCTION_TYPE_LABELS[item.type] || item.type}</span>
                             </div>
