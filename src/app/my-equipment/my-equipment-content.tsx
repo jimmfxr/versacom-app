@@ -103,7 +103,7 @@ export function MyEquipmentContent({
                       <>
                         <span className="text-gray-500">·</span>
                         <span className="hidden sm:inline text-gray-500">IP: </span>
-                        <span className="font-mono">{item.ipAddress}</span>
+                        <a href={`http://${item.ipAddress}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[#22a7d3] underline decoration-[#22a7d3]/30 hover:decoration-[#22a7d3]">{item.ipAddress}</a>
                       </>
                     )}
                   </div>

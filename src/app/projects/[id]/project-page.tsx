@@ -681,7 +681,7 @@ export function ProjectPage({
                                 {item.location && <><span className="hidden text-xs text-gray-500 sm:inline">Location: </span><span>{item.location}</span><span className="text-gray-500">·</span></>}
                                 {item.hardwareType && <><span className="hidden text-xs text-gray-500 sm:inline">Hardware: </span><span>{item.hardwareType}</span></>}
                                 {item.headsetType && <><span className="text-gray-500">·</span><span className="hidden text-xs text-gray-500 sm:inline">Headset: </span><span>{item.headsetType}</span></>}
-                                {item.ipAddress && <><span className="text-gray-500">·</span><span className="hidden text-xs text-gray-500 sm:inline">IP: </span><span className="font-mono">{item.ipAddress}</span></>}
+                                {item.ipAddress && <><span className="text-gray-500">·</span><span className="hidden text-xs text-gray-500 sm:inline">IP: </span><a href={`http://${item.ipAddress}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[#22a7d3] underline decoration-[#22a7d3]/30 hover:decoration-[#22a7d3]">{item.ipAddress}</a></>}
                               </div>
                             </>
                           )}
@@ -949,7 +949,7 @@ export function ProjectPage({
                             {item.location && <><span className="hidden sm:inline text-gray-500">Location: </span><span>{item.location}</span><span className="text-gray-500">·</span></>}
                             {item.hardwareType && <><span className="hidden sm:inline text-gray-500">Hardware: </span><span>{item.hardwareType}</span></>}
                             {item.headsetType && <><span className="text-gray-500">·</span><span className="hidden sm:inline text-gray-500">Headset: </span><span>{item.headsetType}</span></>}
-                            {item.ipAddress && <><span className="text-gray-500">·</span><span className="hidden sm:inline text-gray-500">IP: </span><span className="font-mono">{item.ipAddress}</span></>}
+                            {item.ipAddress && <><span className="text-gray-500">·</span><span className="hidden sm:inline text-gray-500">IP: </span><a href={`http://${item.ipAddress}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[#22a7d3] underline decoration-[#22a7d3]/30 hover:decoration-[#22a7d3]">{item.ipAddress}</a></>}
                           </div>
                         </div>
                         <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_BADGE_STYLES[item.deployStatus] || STATUS_BADGE_STYLES.na}`}>
