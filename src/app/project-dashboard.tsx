@@ -237,19 +237,24 @@ function StatusHero({
   const colorClass = color === 'cyan' ? 'text-[#22a7d3]' : 'text-[#c084fc]'
   const fillClass = color === 'cyan' ? 'bg-[#22a7d3]' : 'bg-[#c084fc]'
   return (
-    <div className="flex items-center gap-4 rounded-2xl bg-[#2a2a2a] p-5 sm:gap-5 sm:px-6">
-      <div className={`text-[38px] font-bold leading-none tabular-nums sm:text-[38px] ${colorClass}`}>
-        {count}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+    <div className="flex flex-col gap-3 rounded-2xl bg-[#2a2a2a] p-4 sm:flex-row sm:items-center sm:gap-5 sm:p-5 sm:px-6">
+      <div className="flex items-baseline gap-2 sm:block">
+        <div className={`text-[32px] font-bold leading-none tabular-nums sm:text-[38px] ${colorClass}`}>
+          {count}
+        </div>
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 sm:hidden">
           {label}
         </div>
-        <div className="text-xs text-gray-300">{sublabel}</div>
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="mb-1.5 hidden text-[10px] font-semibold uppercase tracking-wider text-gray-400 sm:block">
+          {label}
+        </div>
+        <div className="text-[11px] text-gray-300 sm:text-xs">{sublabel}</div>
         <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
           <div className={`h-full rounded-full ${fillClass}`} style={{ width: `${pct}%` }} />
         </div>
-        <div className="mt-1.5 text-[11px] text-gray-500">{pctLabel}</div>
+        <div className="mt-1.5 text-[10px] text-gray-500 sm:text-[11px]">{pctLabel}</div>
       </div>
     </div>
   )
@@ -335,7 +340,7 @@ export function ProjectDashboard({
       {/* Status hero row */}
       <div>
         <SectionHeader>Deployment status</SectionHeader>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4">
           <StatusHero
             count={doneCount}
             total={doneTotal}
