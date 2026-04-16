@@ -7,6 +7,13 @@ type LoginError =
   | { type: 'invalid'; message: string }
   | { type: 'locked'; message: string; minutesRemaining: number }
 
+type SetupInfo = {
+  firstName: string
+  lastName: string
+  projectId: number
+  projectName: string
+}
+
 export default function LoginPage() {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -15,7 +22,15 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
+  // Step 2: create personal PIN
+  const [setupInfo, setSetupInfo] = useState<SetupInfo | null>(null)
+  const [newPinDigits, setNewPinDigits] = useState(['', '', '', ''])
+  const [confirmPinDigits, setConfirmPinDigits] = useState(['', '', '', ''])
+  const [setupError, setSetupError] = useState<string | null>(null)
+
   const pin = pinDigits.join('')
+  const newPin = newPinDigits.join('')
+  const confirmPin = confirmPinDigits.join('')
 
   function handlePinChange(index: number, value: string) {
     if (!/^\d?$/.test(value)) return
@@ -23,17 +38,48 @@ export default function LoginPage() {
     next[index] = value
     setPinDigits(next)
     setError(null)
-    // Auto-focus next box
     if (value && index < 3) {
-      const nextInput = document.getElementById(`pin-${index + 1}`)
-      nextInput?.focus()
+      document.getElementById(`pin-${index + 1}`)?.focus()
     }
   }
 
   function handlePinKeyDown(index: number, e: React.KeyboardEvent) {
     if (e.key === 'Backspace' && !pinDigits[index] && index > 0) {
-      const prevInput = document.getElementById(`pin-${index - 1}`)
-      prevInput?.focus()
+      document.getElementById(`pin-${index - 1}`)?.focus()
+    }
+  }
+
+  function handleNewPinChange(index: number, value: string) {
+    if (!/^\d?$/.test(value)) return
+    const next = [...newPinDigits]
+    next[index] = value
+    setNewPinDigits(next)
+    setSetupError(null)
+    if (value && index < 3) {
+      document.getElementById(`new-pin-${index + 1}`)?.focus()
+    }
+  }
+
+  function handleNewPinKeyDown(index: number, e: React.KeyboardEvent) {
+    if (e.key === 'Backspace' && !newPinDigits[index] && index > 0) {
+      document.getElementById(`new-pin-${index - 1}`)?.focus()
+    }
+  }
+
+  function handleConfirmPinChange(index: number, value: string) {
+    if (!/^\d?$/.test(value)) return
+    const next = [...confirmPinDigits]
+    next[index] = value
+    setConfirmPinDigits(next)
+    setSetupError(null)
+    if (value && index < 3) {
+      document.getElementById(`confirm-pin-${index + 1}`)?.focus()
+    }
+  }
+
+  function handleConfirmPinKeyDown(index: number, e: React.KeyboardEvent) {
+    if (e.key === 'Backspace' && !confirmPinDigits[index] && index > 0) {
+      document.getElementById(`confirm-pin-${index - 1}`)?.focus()
     }
   }
 
@@ -54,11 +100,25 @@ export default function LoginPage() {
       const data = await res.json()
 
       if (res.status === 423) {
-        setError({
-          type: 'locked',
-          message: data.message,
-          minutesRemaining: data.minutesRemaining,
+        setError({ type: 'locked', message: data.message, minutesRemaining: data.minutesRemaining })
+        return
+      }
+
+      // User needs to create a personal PIN — show step 2
+      if (data.needsSetup) {
+        setSetupInfo({
+          firstName: data.firstName,
+          lastName: data.lastName,
+          projectId: data.projectId,
+          projectName: data.projectName,
         })
+        return
+      }
+
+      // Wrong project PIN for empty-PIN user
+      if (res.status === 403 && data.error === 'needsSetup') {
+        setError({ type: 'invalid', message: data.message })
+        setPinDigits(['', '', '', ''])
         return
       }
 
@@ -68,7 +128,7 @@ export default function LoginPage() {
         return
       }
 
-      // Redirect based on role — user role goes to My Equipment, everyone else to home
+      // Redirect based on role
       const isUserOnly = data.memberships?.every((m: { role: string }) => m.role === 'user')
       router.push(isUserOnly ? '/my-equipment' : '/')
     } catch {
@@ -79,6 +139,132 @@ export default function LoginPage() {
     }
   }
 
+  async function handleSetupPin(e: React.FormEvent) {
+    e.preventDefault()
+    if (!setupInfo || newPin.length !== 4 || confirmPin.length !== 4) return
+
+    if (newPin !== confirmPin) {
+      setSetupError('PINs do not match')
+      setConfirmPinDigits(['', '', '', ''])
+      return
+    }
+
+    setLoading(true)
+    setSetupError(null)
+
+    try {
+      const res = await fetch('/api/auth/setup-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: setupInfo.firstName,
+          lastName: setupInfo.lastName,
+          projectId: setupInfo.projectId,
+          pin: newPin,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setSetupError(data.error || 'Something went wrong')
+        return
+      }
+
+      // Auto-logged in — redirect based on role
+      const isUserOnly = data.memberships?.every((m: { role: string }) => m.role === 'user')
+      router.push(isUserOnly ? '/my-equipment' : '/')
+    } catch {
+      setSetupError('Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const pinBoxClass = 'h-14 flex-1 min-w-0 rounded-lg border-2 border-white/10 bg-[#2a2a2a] text-center text-xl text-white outline-none transition-colors focus:border-[#0178a3] disabled:opacity-50'
+
+  // ─── Step 2: Create Personal PIN ───
+  if (setupInfo) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#202020] px-4">
+        <div className="w-full max-w-sm">
+          <div className="flex justify-center mb-10">
+            <img src="/clair_logo_white.png" alt="Clair" className="h-16 w-auto" />
+          </div>
+
+          <div className="rounded-xl bg-[#0178a3]/10 px-4 py-3 mb-6 text-center">
+            <p className="text-sm text-[#22a7d3]">
+              Welcome to <span className="font-semibold">{setupInfo.projectName}</span>
+            </p>
+            <p className="text-xs text-gray-400 mt-1">Create a personal 4-digit PIN to log in</p>
+          </div>
+
+          <form onSubmit={handleSetupPin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">New PIN</label>
+              <div className="flex gap-3">
+                {newPinDigits.map((digit, i) => (
+                  <input
+                    key={i}
+                    id={`new-pin-${i}`}
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleNewPinChange(i, e.target.value)}
+                    onKeyDown={(e) => handleNewPinKeyDown(i, e)}
+                    disabled={loading}
+                    autoFocus={i === 0}
+                    className={pinBoxClass}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Confirm PIN</label>
+              <div className="flex gap-3">
+                {confirmPinDigits.map((digit, i) => (
+                  <input
+                    key={i}
+                    id={`confirm-pin-${i}`}
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleConfirmPinChange(i, e.target.value)}
+                    onKeyDown={(e) => handleConfirmPinKeyDown(i, e)}
+                    disabled={loading}
+                    className={pinBoxClass}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {setupError && (
+              <div className="rounded-xl bg-red-500/10 px-4 py-3 text-center">
+                <p className="text-sm text-red-400">{setupError}</p>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading || newPin.length !== 4 || confirmPin.length !== 4}
+              className="w-full rounded-lg bg-[#0178a3] py-3 text-sm font-semibold text-white transition-colors hover:bg-[#019bc7] disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Setting up...' : 'Create PIN & Login'}
+            </button>
+          </form>
+
+          <p className="mt-6 text-center text-xs text-gray-500">
+            Remember this PIN — you&apos;ll use it to log in next time.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // ─── Step 1: Login ───
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#202020] px-4">
       <div className="w-full max-w-sm">
@@ -137,7 +323,7 @@ export default function LoginPage() {
                   onChange={(e) => handlePinChange(i, e.target.value)}
                   onKeyDown={(e) => handlePinKeyDown(i, e)}
                   disabled={loading}
-                  className="h-14 flex-1 min-w-0 rounded-lg border-2 border-white/10 bg-[#2a2a2a] text-center text-xl text-white outline-none transition-colors focus:border-[#0178a3] disabled:opacity-50"
+                  className={pinBoxClass}
                 />
               ))}
             </div>
@@ -177,7 +363,7 @@ export default function LoginPage() {
 
         {/* Help text */}
         <p className="mt-6 text-center text-xs text-gray-500">
-          Your 4-digit PIN was provided in your project approval email. Contact your admin if you need a new one.
+          First time? Enter your name and the project PIN your admin gave you.
         </p>
 
         {/* Links */}

@@ -59,6 +59,34 @@ export async function POST(request: NextRequest) {
     user.failedAttempts = 0
   }
 
+  // User was created by admin but never set a personal PIN.
+  // Check if the entered PIN is a valid project PIN for one of their projects.
+  if (!user.pin) {
+    const membership = await prisma.projectMember.findFirst({
+      where: { userId: user.id, project: { pin, status: 'active' } },
+      include: { project: { select: { id: true, name: true } } },
+    })
+
+    if (!membership) {
+      return NextResponse.json(
+        { error: 'needsSetup', message: 'No matching project PIN. Enter the project PIN your admin gave you.' },
+        { status: 403 }
+      )
+    }
+
+    // Project PIN verified — let client show the create-PIN form
+    return NextResponse.json(
+      {
+        needsSetup: true,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        projectId: membership.project.id,
+        projectName: membership.project.name,
+      },
+      { status: 200 }
+    )
+  }
+
   // Verify PIN
   const pinMatch = await bcrypt.compare(pin, user.pin)
 

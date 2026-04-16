@@ -814,7 +814,19 @@ export function ProjectPage({
                         onChange={(v) => setAddMemberData({ ...addMemberData, role: v })}
                       />
                     </div>
-                    <div className="mt-4 flex justify-end">
+                    <div className="mt-4 flex items-center justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={!addMemberData.firstName.trim() || !addMemberData.lastName.trim()}
+                        onClick={() => {
+                          const name = `${addMemberData.firstName.trim()} ${addMemberData.lastName.trim()}`
+                          const text = `Hi ${name}, you've been accepted into ${project.name}! To get started, <a href="https://versacom-app.vercel.app/login">click here</a> and enter your name along with the project PIN: ${project.pin}`
+                          navigator.clipboard.writeText(text).then(() => showToast('success', 'Invite message copied to clipboard'))
+                        }}
+                      >
+                        Invite
+                      </Button>
                       <Button type="submit" disabled={isPending || !addMemberData.firstName.trim() || !addMemberData.lastName.trim()}>{isPending ? 'Adding...' : 'Add'}</Button>
                     </div>
                   </form>
