@@ -287,8 +287,14 @@ function StatusHero({
 /* ─── Main component ─── */
 
 export function ProjectDashboard({ equipment }: ProjectDashboardProps) {
-  /* Status counts */
-  const doneEligible = equipment.filter((e) => e.category !== 'wireless_bp')
+  /* Status counts — "Done" tracks actively deployed gear only */
+  const doneEligible = equipment.filter((e) => {
+    if (e.category === 'wireless_bp') return false // wireless excluded
+    if (e.deployStatus === 'not-needed') return false // inventory only, not deployment
+    if (ASSIGNABLE_CATEGORIES.includes(e.category) && !e.assignedToId) return false // unassigned panels/hardwire
+    if (INFRA_CATEGORIES.includes(e.category) && (!e.location || !e.location.trim())) return false // infra without a location
+    return true
+  })
   const doneTotal = doneEligible.length
   const doneCount = doneEligible.filter((e) => e.deployStatus === 'done').length
 
