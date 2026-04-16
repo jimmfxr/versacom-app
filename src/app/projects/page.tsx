@@ -6,8 +6,18 @@ export default async function ProjectsPage() {
   const session = await getSession()
   const userName = session ? `${session.user.firstName} ${session.user.lastName}` : undefined
 
+  const isAdmin = session?.memberships.some((m) => m.role === 'admin') ?? false
+  const isUserOnly = session ? session.memberships.every((m) => m.role === 'user') : false
+
+  // Admins see all active projects; managers/crew only see projects they belong to
+  const projectFilter: { status: string; id?: { in: number[] } } = { status: 'active' }
+  if (!isAdmin && session) {
+    const memberProjectIds = session.memberships.map((m) => m.project.id)
+    projectFilter.id = { in: memberProjectIds }
+  }
+
   const projects = await prisma.project.findMany({
-    where: { status: 'active' },
+    where: projectFilter,
     select: {
       id: true,
       name: true,
@@ -22,9 +32,6 @@ export default async function ProjectsPage() {
     },
     orderBy: { createdAt: 'desc' },
   })
-
-  const isAdmin = session?.memberships.some((m) => m.role === 'admin') ?? false
-  const isUserOnly = session ? session.memberships.every((m) => m.role === 'user') : false
 
   return (
     <ProjectsContent

@@ -16,8 +16,8 @@ function getNavigation(pathname: string, isAdmin: boolean, isUserOnly: boolean):
     ]
   }
   const items: NavItem[] = []
+  items.push({ name: 'Dashboard', href: '/', current: pathname === '/' })
   if (isAdmin) {
-    items.push({ name: 'Dashboard', href: '/', current: pathname === '/' })
     items.push({ name: 'Tasks', href: '/admin', current: pathname.startsWith('/admin') })
   }
   items.push({ name: 'Projects', href: '/projects', current: pathname.startsWith('/projects') })

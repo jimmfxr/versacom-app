@@ -153,7 +153,10 @@ export function ProjectSwitcher({
                 type="button"
                 onClick={() => {
                   setOpen(false)
-                  if (!isActive) router.push(`/?project=${p.id}`)
+                  if (!isActive) {
+                    document.cookie = `selectedProject=${p.id};path=/;max-age=${60 * 60 * 24 * 365}`
+                    router.push(`/?project=${p.id}`)
+                  }
                 }}
                 className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2.5 text-left transition-colors ${
                   isActive ? 'bg-[#22a7d3]/10' : 'hover:bg-white/[0.06]'

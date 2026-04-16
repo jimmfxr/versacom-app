@@ -97,6 +97,9 @@ export default async function ProjectDetailPage({
   const isAdmin = session?.memberships.some((m) => m.role === 'admin') ?? false
   const isUserOnly = session ? session.memberships.every((m) => m.role === 'user') : false
 
+  // Non-admins can only view projects they belong to
+  if (!isAdmin && !currentMembership) notFound()
+
   return (
     <ProjectPage
       userName={userName}

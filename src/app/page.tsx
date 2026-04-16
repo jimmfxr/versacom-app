@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { AppShell } from '@/components/app-shell'
@@ -47,11 +48,22 @@ export default async function HomePage({
 
   // Resolve which project to show:
   // 1. ?project=<id> if it's one the user belongs to
-  // 2. otherwise the first one in their membership list
+  // 2. cookie from last selection
+  // 3. otherwise the first one in their membership list
   const { project: projectParam } = await searchParams
   const requestedId = projectParam ? parseInt(projectParam, 10) : NaN
   const matchingProject = userProjects.find((p) => p.id === requestedId)
-  const selectedProjectId = matchingProject ? matchingProject.id : userProjects[0].id
+
+  let selectedProjectId: number
+  if (matchingProject) {
+    selectedProjectId = matchingProject.id
+  } else {
+    const cookieStore = await cookies()
+    const cookieVal = cookieStore.get('selectedProject')?.value
+    const cookieId = cookieVal ? parseInt(cookieVal, 10) : NaN
+    const cookieProject = userProjects.find((p) => p.id === cookieId)
+    selectedProjectId = cookieProject ? cookieProject.id : userProjects[0].id
+  }
 
   // Fetch just the slice of data the dashboard needs.
   const [project, equipment, memberCount] = await Promise.all([

@@ -217,10 +217,10 @@ export function ProjectPage({
   const isManager = currentUserRole === 'manager'
   const isCrew = currentUserRole === 'crew'
   const isUser = currentUserRole === 'user'
-  const canEditEquipment = isProjectAdmin
+  const canEditEquipment = isProjectAdmin || isCrew
   const canEditTeam = isProjectAdmin || isManager
-  const canEditPickList = isProjectAdmin
-  const canChangeStatus = isProjectAdmin || isManager || isCrew
+  const canEditPickList = isProjectAdmin || isManager
+  const canChangeStatus = isProjectAdmin || isCrew
   const canSeeSettings = isProjectAdmin || isManager
 
   // Tab state — user role only sees "My Equipment"
