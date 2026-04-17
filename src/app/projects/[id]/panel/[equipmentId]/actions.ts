@@ -78,8 +78,9 @@ export async function saveKeys(
     revalidatePath(`/projects`)
     return { success: true }
   } catch (e) {
-    console.error('saveKeys error:', e)
-    return { error: 'Failed to save keys' }
+    const msg = e instanceof Error ? e.message : String(e)
+    console.error('saveKeys error:', msg, e)
+    return { error: `Failed to save keys: ${msg}` }
   }
 }
 
@@ -153,8 +154,9 @@ export async function saveDraftKeys(
     revalidatePath(`/projects`)
     return { success: true }
   } catch (e) {
-    console.error('saveDraftKeys error:', e)
-    return { error: 'Failed to save draft keys' }
+    const msg = e instanceof Error ? e.message : String(e)
+    console.error('saveDraftKeys error:', msg, e)
+    return { error: `Failed to save draft keys: ${msg}` }
   }
 }
 
@@ -211,8 +213,9 @@ export async function submitChanges(
     revalidatePath(`/projects`)
     return { success: true, changeRequestId: changeRequest.id }
   } catch (e) {
-    console.error('submitChanges error:', e)
-    return { error: 'Failed to submit changes' }
+    const msg = e instanceof Error ? e.message : String(e)
+    console.error('submitChanges error:', msg, e)
+    return { error: `Failed to submit changes: ${msg}` }
   }
 }
 
@@ -268,8 +271,9 @@ export async function addExpansion(
     revalidatePath(`/projects`)
     return { success: true, expansion: nextExpansion }
   } catch (e) {
-    console.error('addExpansion error:', e)
-    return { error: 'Failed to add expansion' }
+    const msg = e instanceof Error ? e.message : String(e)
+    console.error('addExpansion error:', msg, e)
+    return { error: `Failed to add expansion: ${msg}` }
   }
 }
 
@@ -310,7 +314,8 @@ export async function removeExpansion(
     revalidatePath(`/projects`)
     return { success: true }
   } catch (e) {
-    console.error('removeExpansion error:', e)
-    return { error: 'Failed to remove expansion' }
+    const msg = e instanceof Error ? e.message : String(e)
+    console.error('removeExpansion error:', msg, e)
+    return { error: `Failed to remove expansion: ${msg}` }
   }
 }
