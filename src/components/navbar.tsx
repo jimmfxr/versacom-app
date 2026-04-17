@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Disclosure,
   DisclosureButton,
@@ -71,13 +71,17 @@ function MobileNavPanel({
   const [dragY, setDragY] = useState(0)
   const [dragging, setDragging] = useState(false)
 
-  // Whenever the panel closes, reset our local state so the next opening
-  // starts at translateY(0) without a flash from a leftover drag value.
+  // Reset state only on a fresh open (closed → open transition). Resetting
+  // on close would cause a 1-frame flash where the panel snaps back to its
+  // open position before Headless UI's leave animation runs — looks like
+  // the panel briefly "comes back down" right at the end of a dismiss.
+  const wasOpenRef = useRef(false)
   useEffect(() => {
-    if (!open) {
+    if (open && !wasOpenRef.current) {
       setDragY(0)
       setDragging(false)
     }
+    wasOpenRef.current = open
   }, [open])
 
   const bind = useDrag(
@@ -111,11 +115,13 @@ function MobileNavPanel({
     { axis: 'y', filterTaps: true, pointer: { touch: true } },
   )
 
-  // Only override Headless UI's transition while the user is interacting or
-  // the panel is sitting at a non-zero drag offset. When dragY === 0 and
-  // dragging === false, fall back to the panel's own data-closed:* CSS so
-  // open/close animations still play normally for X-button dismisses.
-  const useInlineTransform = open && (dragging || dragY !== 0)
+  // Override Headless UI's transition whenever we're holding a non-zero
+  // offset — including AFTER close() has been called. This keeps the panel
+  // pinned off-screen while Headless UI runs its leave animation in the
+  // background, preventing the 1-frame "snap back down" flash. When the
+  // panel reopens, the state reset above clears dragY and the regular
+  // data-closed:* CSS handles the open animation.
+  const useInlineTransform = dragging || dragY !== 0
 
   return (
     <DisclosurePanel
