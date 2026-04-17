@@ -40,7 +40,7 @@ function FolderIcon() {
   )
 }
 
-export function ProjectsContent({ projects, userName, isAdmin, isUserOnly }: { projects: Project[]; userName?: string; isAdmin?: boolean; isUserOnly?: boolean }) {
+export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showMyEquipment }: { projects: Project[]; userName?: string; isAdmin?: boolean; isUserOnly?: boolean; showMyEquipment?: boolean }) {
   const [showForm, setShowForm] = useState(false)
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
@@ -83,7 +83,7 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly }: { p
   }
 
   return (
-    <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly}>
+    <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={showMyEquipment}>
       <PageLayout
         title="Projects"
         action={!showForm ? <Button onClick={() => setShowForm(true)}>New Project</Button> : undefined}

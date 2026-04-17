@@ -8,6 +8,7 @@ export default async function ProjectsPage() {
 
   const isAdmin = session?.memberships.some((m) => m.role === 'admin') ?? false
   const isUserOnly = session ? session.memberships.every((m) => m.role === 'user') : false
+  const showMyEquipment = session?.memberships.some((m) => m.role === 'crew') ?? false
 
   // Admins see all active projects; managers/crew only see projects they belong to
   const projectFilter: { status: string; id?: { in: number[] } } = { status: 'active' }
@@ -38,6 +39,7 @@ export default async function ProjectsPage() {
       userName={userName}
       isAdmin={isAdmin}
       isUserOnly={isUserOnly}
+      showMyEquipment={showMyEquipment}
       projects={projects.map((p) => ({
         id: p.id,
         name: p.name,

@@ -8,12 +8,15 @@ export default async function MyEquipmentPage() {
   if (!session) redirect('/login')
 
   const userName = `${session.user.firstName} ${session.user.lastName}`
+  const isUserOnly = session.memberships.every((m) => m.role === 'user')
+  const isAdmin = session.memberships.some((m) => m.role === 'admin')
 
   // Get all project memberships for this user
   const memberships = await prisma.projectMember.findMany({
     where: { userId: session.user.id },
     select: {
       id: true,
+      role: true,
       position: true,
       project: { select: { id: true, name: true } },
     },
@@ -40,8 +43,10 @@ export default async function MyEquipmentPage() {
 
   // Map projectId to project name
   const projectMap: Record<number, string> = {}
+  const roleMap: Record<number, string> = {}
   for (const m of memberships) {
     projectMap[m.project.id] = m.project.name
+    roleMap[m.project.id] = m.role
   }
 
   const items = equipment.map((e) => ({
@@ -53,8 +58,10 @@ export default async function MyEquipmentPage() {
     headsetType: e.headsetType,
     ipAddress: e.ipAddress,
     deployStatus: e.deployStatus,
+    projectId: e.projectId,
     projectName: projectMap[e.projectId] || '',
+    userRole: roleMap[e.projectId] || 'user',
   }))
 
-  return <MyEquipmentContent userName={userName} equipment={items} />
+  return <MyEquipmentContent userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} equipment={items} />
 }

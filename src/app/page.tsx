@@ -18,6 +18,7 @@ export default async function HomePage({
   const userName = `${session.user.firstName} ${session.user.lastName}`
   const isAdmin = session.memberships.some((m) => m.role === 'admin')
   const isUserOnly = session.memberships.every((m) => m.role === 'user')
+  const showMyEquipment = session.memberships.some((m) => m.role === 'crew')
 
   // Users (no admin/manager/crew) don't get a dashboard — bounce them to My Equipment.
   if (isUserOnly) redirect('/my-equipment')
@@ -34,7 +35,7 @@ export default async function HomePage({
   // No projects to show — empty state.
   if (userProjects.length === 0) {
     return (
-      <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly}>
+      <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={showMyEquipment}>
         <PageLayout title="Dashboard">
           <EmptyState
             icon={null}
@@ -88,7 +89,7 @@ export default async function HomePage({
   if (!project) {
     // Shouldn't happen since selectedProjectId came from session, but bail safely.
     return (
-      <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly}>
+      <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={showMyEquipment}>
         <PageLayout title="Dashboard">
           <EmptyState icon={null} title="Project not found" message="That project may have been deleted." />
         </PageLayout>
@@ -97,7 +98,7 @@ export default async function HomePage({
   }
 
   return (
-    <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly}>
+    <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={showMyEquipment}>
       <PageLayout
         title="Dashboard"
         action={

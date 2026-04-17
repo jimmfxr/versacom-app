@@ -37,6 +37,7 @@ export default async function PanelStudioPage({
   // Get the assigned ProjectMember
   let member: {
     id: number
+    userId: number
     firstName: string
     lastName: string
     position: string | null
@@ -48,6 +49,7 @@ export default async function PanelStudioPage({
       where: { id: equipment.assignedToId },
       select: {
         id: true,
+        userId: true,
         position: true,
         location: true,
         user: { select: { firstName: true, lastName: true } },
@@ -56,6 +58,7 @@ export default async function PanelStudioPage({
     if (pm) {
       member = {
         id: pm.id,
+        userId: pm.userId,
         firstName: pm.user.firstName,
         lastName: pm.user.lastName,
         position: pm.position,
@@ -139,10 +142,15 @@ export default async function PanelStudioPage({
   const isCrew = currentUserRole === 'crew'
 
   // canEditKeys: admin=always, crew=own panel only, manager=any panel (request mode)
+  // Check both membership ID match AND userId match as fallback for robustness
+  const isOwnPanel = member !== null && (
+    currentMembership?.id === member.id ||
+    member.userId === session.user.id
+  )
   const canEditKeys =
     isAdmin ||
     isManager ||
-    (isCrew && member !== null && currentMembership?.id === member.id)
+    (isCrew && isOwnPanel)
 
   // canManageExpansions: admin only
   const canManageExpansions = isAdmin

@@ -141,7 +141,7 @@ export function PanelStudio({
   currentUserId,
   currentMemberId: _currentMemberId,
 }: PanelStudioProps) {
-  void _currentUserRole
+  const isCrew = _currentUserRole === 'crew'
   void _currentMemberId
   const router = useRouter()
   const keyCount = getKeyCount(equipment.hardwareType)
@@ -812,7 +812,7 @@ export function PanelStudio({
   const memberMeta = [member?.position, member?.location].filter(Boolean).join(' \u00B7 ')
 
   return (
-    <AppShell userName={userName} isAdmin={isAdminGlobal} isUserOnly={isUserOnly}>
+    <AppShell userName={userName} isAdmin={isAdminGlobal} isUserOnly={isUserOnly} showMyEquipment={isCrew}>
       <div className="flex flex-col" style={{ height: 'calc(100dvh - 56px)' }}>
         <div className="flex flex-1 overflow-hidden relative min-h-0">
 

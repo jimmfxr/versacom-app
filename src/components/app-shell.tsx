@@ -10,7 +10,7 @@ const userNavigation: ReadonlyArray<Pick<NavItem, 'name' | 'href'>> = [
   { name: 'Sign out', href: '#' },
 ]
 
-function getNavigation(pathname: string, isAdmin: boolean, isUserOnly: boolean, lastProjectId: string | null): NavItem[] {
+function getNavigation(pathname: string, isAdmin: boolean, isUserOnly: boolean, showMyEquipment: boolean, lastProjectId: string | null): NavItem[] {
   if (isUserOnly) {
     return [
       { name: 'My Equipment', href: '/my-equipment', current: pathname.startsWith('/my-equipment') },
@@ -23,10 +23,13 @@ function getNavigation(pathname: string, isAdmin: boolean, isUserOnly: boolean, 
   }
   const projectsHref = lastProjectId ? `/projects/${lastProjectId}` : '/projects'
   items.push({ name: 'Projects', href: projectsHref, current: pathname.startsWith('/projects') })
+  if (showMyEquipment) {
+    items.push({ name: 'My Equipment', href: '/my-equipment', current: pathname.startsWith('/my-equipment') })
+  }
   return items
 }
 
-export function AppShell({ children, userName, isAdmin = false, isUserOnly = false }: { children: React.ReactNode; userName?: string; isAdmin?: boolean; isUserOnly?: boolean }) {
+export function AppShell({ children, userName, isAdmin = false, isUserOnly = false, showMyEquipment = false }: { children: React.ReactNode; userName?: string; isAdmin?: boolean; isUserOnly?: boolean; showMyEquipment?: boolean }) {
   const navUser: NavUser = {
     name: userName || 'User',
     email: '',
@@ -49,7 +52,7 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
   return (
     <div className="min-h-full bg-[#202020]">
       <Navbar
-        navigation={getNavigation(pathname, isAdmin, isUserOnly, lastProjectId)}
+        navigation={getNavigation(pathname, isAdmin, isUserOnly, showMyEquipment, lastProjectId)}
         user={navUser}
         userNavigation={userNavigation}
         onSignOut={handleSignOut}

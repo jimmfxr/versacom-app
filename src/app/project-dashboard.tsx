@@ -248,23 +248,23 @@ function StatusHero({
   label,
   sublabel,
   color,
-  pctLabel,
+  detail,
 }: {
   count: number
   total: number
   label: string
-  sublabel: React.ReactNode
+  sublabel: string
   color: 'cyan' | 'purple'
-  pctLabel: string
+  detail: string
 }) {
-  const pct = total > 0 ? (count / total) * 100 : 0
+  const pct = total > 0 ? Math.round((count / total) * 100) : 0
   const colorClass = color === 'cyan' ? 'text-[#22a7d3]' : 'text-[#c084fc]'
   const fillClass = color === 'cyan' ? 'bg-[#22a7d3]' : 'bg-[#c084fc]'
   return (
     <div className="flex flex-col gap-3 rounded-2xl bg-[#2a2a2a] p-4 sm:flex-row sm:items-center sm:gap-5 sm:p-5 sm:px-6">
       <div className="flex items-baseline gap-2 sm:block">
         <div className={`text-[32px] font-bold leading-none tabular-nums sm:text-[38px] ${colorClass}`}>
-          {count}
+          {pct}%
         </div>
         <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 sm:hidden">
           {label}
@@ -278,7 +278,7 @@ function StatusHero({
         <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
           <div className={`h-full rounded-full ${fillClass}`} style={{ width: `${pct}%` }} />
         </div>
-        <div className="mt-1.5 text-[10px] text-gray-500 sm:text-[11px]">{pctLabel}</div>
+        <div className="mt-1.5 text-[10px] text-gray-500 sm:text-[11px]">{detail}</div>
       </div>
     </div>
   )
@@ -292,7 +292,7 @@ export function ProjectDashboard({ equipment }: ProjectDashboardProps) {
     if (e.category === 'wireless_bp') return false // wireless excluded
     if (e.deployStatus === 'not-needed') return false // inventory only, not deployment
     if (ASSIGNABLE_CATEGORIES.includes(e.category) && !e.assignedToId) return false // unassigned panels/hardwire
-    if (INFRA_CATEGORIES.includes(e.category) && (!e.location || !e.location.trim())) return false // infra without a location
+    if (['switches', 'antennas'].includes(e.category) && (!e.location || !e.location.trim())) return false // switches/antennas without a location
     return true
   })
   const doneTotal = doneEligible.length
@@ -359,21 +359,17 @@ export function ProjectDashboard({ equipment }: ProjectDashboardProps) {
             count={doneCount}
             total={doneTotal}
             label="Done"
-            sublabel={
-              <>
-                of {doneTotal} hardware items <span className="text-gray-500">(excl. WLBP)</span>
-              </>
-            }
+            sublabel={`${doneTotal - doneCount} still to go`}
             color="cyan"
-            pctLabel={`${doneTotal > 0 ? Math.round((doneCount / doneTotal) * 100) : 0}% complete · ${doneTotal - doneCount} still to go`}
+            detail={`${doneCount} of ${doneTotal} items`}
           />
           <StatusHero
             count={returnedCount}
             total={returnedTotal}
             label="Returned"
-            sublabel={`of ${returnedTotal} hardware items`}
+            sublabel={`${returnedTotal - returnedCount} remaining`}
             color="purple"
-            pctLabel={`${returnedTotal > 0 ? Math.round((returnedCount / returnedTotal) * 100) : 0}% back in case`}
+            detail={`${returnedCount} of ${returnedTotal} items`}
           />
         </div>
       </div>

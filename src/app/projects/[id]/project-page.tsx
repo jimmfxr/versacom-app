@@ -512,7 +512,7 @@ export function ProjectPage({
   )
 
   return (
-    <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly}>
+    <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={isCrew}>
       <PageLayout
         title={project.name}
         action={
@@ -574,16 +574,21 @@ export function ProjectPage({
 
           {/* ─── Tab Switcher ─── */}
           <div className="flex w-full rounded-lg bg-[#2a2a2a] p-1">
-            {(isUser
-              ? [
-                  { key: 'my-equipment' as Tab, label: 'My Equipment', count: equipment.filter((e) => e.assignedMemberId === currentMemberId).length },
-                ]
-              : [
-                  { key: 'equipment' as Tab, label: 'Equipment', count: equipment.length },
-                  { key: 'team' as Tab, label: 'Team', count: project.members.length },
-                  { key: 'picklist' as Tab, label: 'Pick List', count: pickListItems.length },
-                ]
-            ).map((tab) => (
+            {(() => {
+              const myEqCount = equipment.filter((e) => e.assignedMemberId === currentMemberId).length
+              if (isUser) {
+                return [{ key: 'my-equipment' as Tab, label: 'My Equipment', count: myEqCount }]
+              }
+              const tabs: { key: Tab; label: string; count: number }[] = [
+                { key: 'equipment', label: 'Equipment', count: equipment.length },
+              ]
+              if (isCrew && myEqCount > 0) {
+                tabs.push({ key: 'my-equipment', label: 'My Equipment', count: myEqCount })
+              }
+              tabs.push({ key: 'team', label: 'Team', count: project.members.length })
+              tabs.push({ key: 'picklist', label: 'Pick List', count: pickListItems.length })
+              return tabs
+            })().map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
@@ -727,9 +732,17 @@ export function ProjectPage({
                                 {['panels', 'hardwire_bp', 'wireless_bp'].includes(item.category) ? (
                                   <button
                                     type="button"
-                                    onClick={() => router.push(`/projects/${project.id}/panel/${item.id}`)}
+                                    onClick={() => {
+                                      if (isCrew && item.assignedMemberId === currentMemberId) {
+                                        setActiveTab('my-equipment')
+                                      } else {
+                                        router.push(`/projects/${project.id}/panel/${item.id}`)
+                                      }
+                                    }}
                                     className={`transition-colors duration-500 hover:underline decoration-current/30 hover:decoration-current ${item.ipAddress && reachable[item.id] ? 'text-green-400' : 'text-white'}`}
-                                    title={item.ipAddress && reachable[item.id] ? `${item.ipAddress} — reachable · Click to open Panel Studio` : 'Click to open Panel Studio'}
+                                    title={isCrew && item.assignedMemberId === currentMemberId
+                                      ? 'Click to view in My Equipment'
+                                      : item.ipAddress && reachable[item.id] ? `${item.ipAddress} — reachable · Click to open Panel Studio` : 'Click to open Panel Studio'}
                                   >
                                     {item.name}
                                   </button>
@@ -1029,6 +1042,7 @@ export function ProjectPage({
           {/* ═══════════════════════════════ MY EQUIPMENT TAB (User role) ═══════════════════════════════ */}
           {activeTab === 'my-equipment' && (() => {
             const myEquipment = equipment.filter((e) => e.assignedMemberId === currentMemberId)
+            const isPanelType = (cat: string) => ['panels', 'hardwire_bp', 'wireless_bp'].includes(cat)
             return (
               <>
                 <p className="text-xs text-gray-500">
@@ -1040,21 +1054,28 @@ export function ProjectPage({
                 ) : (
                   <div className="space-y-2">
                     {myEquipment.map((item) => (
-                      <div key={item.id} className="flex items-start gap-4 rounded-2xl bg-[#2a2a2a] px-5 py-4 transition-colors hover:bg-[#313131]">
+                      <div
+                        key={item.id}
+                        className={`flex items-start gap-4 rounded-2xl bg-[#2a2a2a] px-5 py-4 transition-colors ${isPanelType(item.category) ? 'cursor-pointer hover:bg-[#313131]' : ''}`}
+                        onClick={isPanelType(item.category) ? () => router.push(`/projects/${project.id}/panel/${item.id}`) : undefined}
+                      >
                         <div className="min-w-0 flex-1">
-                          <div className="text-sm font-semibold">
+                          <div className="flex items-center gap-2 text-sm font-semibold">
                             <span
                               className={`text-xs font-semibold transition-colors duration-500 ${item.ipAddress && reachable[item.id] ? 'text-green-400' : 'text-gray-400'}`}
                               title={item.ipAddress && reachable[item.id] ? `${item.ipAddress} — reachable` : undefined}
                             >
                               {item.name}
                             </span>
+                            {isPanelType(item.category) && (
+                              <span className="rounded bg-[#0178a3]/15 px-1.5 py-0.5 text-[10px] font-medium text-[#22a7d3]">Edit Panel</span>
+                            )}
                           </div>
                           <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-gray-400">
                             {item.location && <><span className="hidden sm:inline text-gray-500">Location: </span><span>{item.location}</span><span className="text-gray-500">·</span></>}
                             {item.hardwareType && <><span className="hidden sm:inline text-gray-500">Hardware: </span><span>{item.hardwareType}</span></>}
                             {item.headsetType && <><span className="text-gray-500">·</span><span className="hidden sm:inline text-gray-500">Headset: </span><span>{item.headsetType}</span></>}
-                            {item.ipAddress && <><span className="text-gray-500">·</span><span className="hidden sm:inline text-gray-500">IP: </span><a href={`http://${item.ipAddress}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[#22a7d3] underline decoration-[#22a7d3]/30 hover:decoration-[#22a7d3]">{item.ipAddress}</a></>}
+                            {item.ipAddress && <><span className="text-gray-500">·</span><span className="hidden sm:inline text-gray-500">IP: </span><a href={`http://${item.ipAddress}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[#22a7d3] underline decoration-[#22a7d3]/30 hover:decoration-[#22a7d3]" onClick={(e) => e.stopPropagation()}>{item.ipAddress}</a></>}
                           </div>
                         </div>
                         <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_BADGE_STYLES[item.deployStatus] || STATUS_BADGE_STYLES.na}`}>
