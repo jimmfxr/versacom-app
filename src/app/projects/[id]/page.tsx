@@ -14,7 +14,7 @@ export default async function ProjectDetailPage({
   const projectId = parseInt(id, 10)
   if (isNaN(projectId)) notFound()
 
-  const [project, equipment, memberRows, pickListItems] = await Promise.all([
+  const [project, equipment, memberRows, pickListItems, panelKeyUsage, expansionRows] = await Promise.all([
     prisma.project.findUnique({
       where: { id: projectId },
       select: {
@@ -73,6 +73,32 @@ export default async function ProjectDetailPage({
       select: { id: true, code: true, name: true, type: true },
       orderBy: { id: 'asc' },
     }),
+    // Pick list usage: which user has each pick list item assigned to a panel
+    // key (across main + shift + any expansion). Used to render "X, Y, Z" in
+    // cyan beneath each pick list card on the project's Pick List tab.
+    prisma.panelKey.findMany({
+      where: {
+        pickListItemId: { not: null },
+        projectMember: { projectId },
+      },
+      select: {
+        pickListItemId: true,
+        projectMember: {
+          select: { user: { select: { firstName: true, lastName: true } } },
+        },
+      },
+    }),
+    // Expansion modules per member: a row exists for every (member, expansion)
+    // combo that has at least one key. Counted client-side to render "exp: N"
+    // next to each member's equipment on the Team tab.
+    prisma.panelKey.findMany({
+      where: {
+        projectMember: { projectId },
+        expansion: { gt: 0 },
+      },
+      select: { projectMemberId: true, expansion: true },
+      distinct: ['projectMemberId', 'expansion'],
+    }),
   ])
 
   if (!project) notFound()
@@ -84,6 +110,21 @@ export default async function ProjectDetailPage({
       if (!memberEquipmentMap[e.assignedToId]) memberEquipmentMap[e.assignedToId] = []
       memberEquipmentMap[e.assignedToId].push(e.name)
     }
+  }
+
+  // Build pick-list usage map: pickListItemId → sorted, deduped user names
+  const pickListUsageMap = new Map<number, Set<string>>()
+  for (const k of panelKeyUsage) {
+    if (k.pickListItemId == null) continue
+    const name = `${k.projectMember.user.firstName} ${k.projectMember.user.lastName}`
+    if (!pickListUsageMap.has(k.pickListItemId)) pickListUsageMap.set(k.pickListItemId, new Set())
+    pickListUsageMap.get(k.pickListItemId)!.add(name)
+  }
+
+  // Build expansion-count map: projectMemberId → number of expansion modules
+  const expansionCountMap = new Map<number, number>()
+  for (const e of expansionRows) {
+    expansionCountMap.set(e.projectMemberId, (expansionCountMap.get(e.projectMemberId) ?? 0) + 1)
   }
 
   const session = await getSession()
@@ -125,6 +166,7 @@ export default async function ProjectDetailPage({
           firstName: m.user.firstName,
           lastName: m.user.lastName,
           equipmentNames: memberEquipmentMap[m.id] || [],
+          expansionCount: expansionCountMap.get(m.id) ?? 0,
         })),
       }}
       equipment={equipment.map((e) => ({
@@ -149,7 +191,12 @@ export default async function ProjectDetailPage({
         id: m.id,
         name: `${m.user.firstName} ${m.user.lastName}`,
       }))}
-      pickListItems={pickListItems}
+      pickListItems={pickListItems.map((p) => ({
+        ...p,
+        users: Array.from(pickListUsageMap.get(p.id) ?? []).sort((a, b) =>
+          a.localeCompare(b),
+        ),
+      }))}
     />
   )
 }

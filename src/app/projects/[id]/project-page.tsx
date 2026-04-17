@@ -87,6 +87,7 @@ type Member = {
   firstName: string
   lastName: string
   equipmentNames: string[]
+  expansionCount: number
 }
 
 type Project = {
@@ -118,7 +119,7 @@ type EquipmentItem = {
 
 type AssignableMember = { id: number; name: string }
 
-type PickListItemType = { id: number; code: string | null; name: string; type: string }
+type PickListItemType = { id: number; code: string | null; name: string; type: string; users: string[] }
 
 /* ─── Helpers ─── */
 
@@ -490,6 +491,9 @@ export function ProjectPage({
     .sort((a, b) => a.firstName.localeCompare(b.firstName, undefined, { sensitivity: 'base' }))
 
   const filteredPickList = pickListItems
+    // PTP items are auto-managed (one per user) and aren't user-editable, so
+    // they shouldn't clutter the pick list tab.
+    .filter((p) => p.type !== 'PTP')
     .filter((p) => {
       if (!plSearch) return true
       const q = plSearch.toLowerCase()
@@ -923,7 +927,15 @@ export function ProjectPage({
                                 <span className="text-gray-400"> · {ROLE_LABELS[m.role] || m.role}</span>
                               </div>
                               {m.equipmentNames.length > 0 ? (
-                                <div className="mt-1.5 text-xs font-medium text-[#22a7d3]">{m.equipmentNames.join(', ')}</div>
+                                <div className="mt-1.5 flex items-center justify-between gap-3 text-xs font-medium">
+                                  <span className="truncate text-[#22a7d3]">{m.equipmentNames.join(', ')}</span>
+                                  {m.expansionCount > 0 && (
+                                    <span className="shrink-0">
+                                      <span className="text-gray-500">Exp: </span>
+                                      <span className="text-[#22a7d3]">{m.expansionCount}</span>
+                                    </span>
+                                  )}
+                                </div>
                               ) : (
                                 <div className="mt-1.5 text-xs italic text-gray-500">No equipment assigned</div>
                               )}
@@ -984,7 +996,7 @@ export function ProjectPage({
               )}
 
               <p className="text-xs text-gray-500">
-                {filteredPickList.length} of {pickListItems.length} functions
+                {filteredPickList.length} of {pickListItems.filter((p) => p.type !== 'PTP').length} functions
                 {plSearch && ` matching "${plSearch}"`}
               </p>
 
@@ -1022,11 +1034,23 @@ export function ProjectPage({
                             </div>
                           </form>
                         ) : (
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-2">
-                              {item.code && <span className="text-sm font-semibold text-white">{item.code}</span>}
-                              <span className="text-sm font-semibold text-white">{item.name}</span>
-                              <span className="rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-medium text-gray-300">{FUNCTION_TYPE_LABELS[item.type] || item.type}</span>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                {item.code && <span className="text-sm font-semibold text-white">{item.code}</span>}
+                                <span className="text-sm font-semibold text-white">{item.name}</span>
+                                <span className="rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-medium text-gray-300">{FUNCTION_TYPE_LABELS[item.type] || item.type}</span>
+                              </div>
+                              {item.users.length > 0 ? (
+                                <div className="mt-1.5 text-xs">
+                                  <span className="text-[#22a7d3]">{item.users.slice(0, 3).join(', ')}</span>
+                                  {item.users.length > 3 && (
+                                    <span className="text-gray-500"> +{item.users.length - 3} more</span>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="mt-1.5 text-xs italic text-gray-500">Unused</div>
+                              )}
                             </div>
                             {canEditPickList && <Button size="sm" onClick={() => startPlEdit(item)}>Edit</Button>}
                           </div>
