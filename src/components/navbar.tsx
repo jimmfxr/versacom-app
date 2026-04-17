@@ -17,6 +17,8 @@ export type NavItem = {
   readonly name: string
   readonly href: string
   readonly current?: boolean
+  /** Optional count rendered as a small pill next to the item name. */
+  readonly badge?: number
 }
 
 export type NavUser = {
@@ -190,10 +192,15 @@ function MobileNavPanel({
                 : 'bg-[#2a2a2a] text-gray-300 hover:text-white',
               // Press feedback: scale + cyan flash so the tap is visibly
               // acknowledged before navigation completes.
-              'block rounded-2xl px-5 py-4 text-base font-medium transition-all duration-100 active:scale-[0.97] active:bg-[#0178a3]/20 active:text-white',
+              'flex items-center justify-between gap-2 rounded-2xl px-5 py-4 text-base font-medium transition-all duration-100 active:scale-[0.97] active:bg-[#0178a3]/20 active:text-white',
             )}
           >
-            {item.name}
+            <span>{item.name}</span>
+            {item.badge !== undefined && item.badge > 0 && (
+              <span className="inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-[#0178a3] px-2 py-0.5 text-xs font-semibold text-white">
+                {item.badge > 99 ? '99+' : item.badge}
+              </span>
+            )}
           </DisclosureButton>
         ))}
       </div>
@@ -242,10 +249,15 @@ export function Navbar({
                         item.current
                           ? 'border-[#0178a3] text-white'
                           : 'border-transparent text-gray-400 hover:border-white/20 hover:text-gray-200',
-                        'inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium',
+                        'inline-flex items-center gap-1.5 border-b-2 px-1 pt-1 text-sm font-medium',
                       )}
                     >
                       {item.name}
+                      {item.badge !== undefined && item.badge > 0 && (
+                        <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-[#0178a3] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                          {item.badge > 99 ? '99+' : item.badge}
+                        </span>
+                      )}
                     </a>
                   ))}
                 </div>

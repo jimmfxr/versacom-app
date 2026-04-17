@@ -10,7 +10,7 @@ const userNavigation: ReadonlyArray<Pick<NavItem, 'name' | 'href'>> = [
   { name: 'Sign out', href: '#' },
 ]
 
-function getNavigation(pathname: string, isAdmin: boolean, isUserOnly: boolean, showMyEquipment: boolean, lastProjectId: string | null): NavItem[] {
+function getNavigation(pathname: string, isAdmin: boolean, isUserOnly: boolean, showMyEquipment: boolean, lastProjectId: string | null, taskCount: number): NavItem[] {
   if (isUserOnly) {
     return [
       { name: 'My Equipment', href: '/my-equipment', current: pathname.startsWith('/my-equipment') },
@@ -19,7 +19,7 @@ function getNavigation(pathname: string, isAdmin: boolean, isUserOnly: boolean, 
   const items: NavItem[] = []
   items.push({ name: 'Dashboard', href: '/', current: pathname === '/' })
   if (isAdmin) {
-    items.push({ name: 'Tasks', href: '/admin', current: pathname.startsWith('/admin') })
+    items.push({ name: 'Tasks', href: '/admin', current: pathname.startsWith('/admin'), badge: taskCount })
   }
   const projectsHref = lastProjectId ? `/projects/${lastProjectId}` : '/projects'
   items.push({ name: 'Projects', href: projectsHref, current: pathname.startsWith('/projects') })
@@ -44,6 +44,58 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
     setLastProjectId(match ? match[1] : null)
   }, [pathname])
 
+  // Poll the admin task count so the Tasks badge stays fresh on every page,
+  // not just /admin. Only runs for admins — non-admins skip the network.
+  //
+  // The count is mirrored to sessionStorage so the badge keeps its last
+  // known value across page navigations instead of flashing back to 0
+  // while the first fetch of the new page is in flight. We can't read
+  // sessionStorage during initial render (server has no DOM, would cause
+  // a hydration mismatch), so we hydrate inside a useEffect that fires
+  // synchronously after mount — typically same frame as the first paint.
+  const [taskCount, setTaskCount] = useState(0)
+
+  // Hydrate from sessionStorage immediately after mount.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const cached = sessionStorage.getItem('task-count-cache')
+      if (cached) {
+        const n = Number(cached)
+        if (!Number.isNaN(n)) setTaskCount(n)
+      }
+    } catch {
+      // sessionStorage may be unavailable; ignore.
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isAdmin) return
+    let cancelled = false
+    async function fetchCount() {
+      try {
+        const res = await fetch('/api/admin/task-count', { cache: 'no-store' })
+        if (!res.ok) return
+        const data = (await res.json()) as { count: number }
+        if (cancelled) return
+        setTaskCount(data.count)
+        try {
+          sessionStorage.setItem('task-count-cache', String(data.count))
+        } catch {
+          // sessionStorage may be unavailable; ignore.
+        }
+      } catch {
+        // Silent — badge just won't update this cycle.
+      }
+    }
+    fetchCount()
+    const timer = setInterval(fetchCount, 5000)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [isAdmin])
+
   async function handleSignOut() {
     await fetch('/api/auth/logout', { method: 'POST' })
     router.push('/login')
@@ -52,7 +104,7 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
   return (
     <div className="min-h-full bg-[#202020]">
       <Navbar
-        navigation={getNavigation(pathname, isAdmin, isUserOnly, showMyEquipment, lastProjectId)}
+        navigation={getNavigation(pathname, isAdmin, isUserOnly, showMyEquipment, lastProjectId, taskCount)}
         user={navUser}
         userNavigation={userNavigation}
         onSignOut={handleSignOut}
