@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef, useTransition } from 'react'
+import { useState, useEffect, useCallback, useRef, useTransition, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
 import { Button } from '@/components/button'
@@ -229,6 +229,43 @@ export function PanelStudio({
     const maxExp = initialPanelKeys.reduce((max, k) => Math.max(max, k.expansion), 0)
     return maxExp
   })
+
+  // Fingerprint the server data to detect real changes (not just reference changes)
+  const serverFingerprint = useMemo(
+    () => initialPanelKeys.map((k) => `${k.keyIndex}:${k.page}:${k.expansion}:${k.pickListItemId}`).join('|'),
+    [initialPanelKeys]
+  )
+  const prevFingerprintRef = useRef(serverFingerprint)
+  const hasSubmittedKeysRef = useRef(false)
+
+  // Track whether we have submitted keys
+  const hasSubmittedKeys = keys.some((k) => k.status === 'submitted')
+  useEffect(() => {
+    hasSubmittedKeysRef.current = hasSubmittedKeys
+  }, [hasSubmittedKeys])
+
+  // Sync keys from server when data actually changes (e.g. admin approves)
+  useEffect(() => {
+    if (prevFingerprintRef.current !== serverFingerprint) {
+      const hadSubmitted = hasSubmittedKeysRef.current
+      prevFingerprintRef.current = serverFingerprint
+      setKeys(initializeKeys(initialPanelKeys, keyCount))
+
+      if (hadSubmitted) {
+        showToast('success', 'Your request has been approved')
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverFingerprint])
+
+  // Poll for updates when there are submitted keys awaiting approval
+  useEffect(() => {
+    if (!hasSubmittedKeys) return
+    const interval = setInterval(() => {
+      router.refresh()
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [hasSubmittedKeys, router])
 
   const isReviewMode = pendingChangeRequests.length > 0
   const [reviewProcessing, setReviewProcessing] = useState(false)
