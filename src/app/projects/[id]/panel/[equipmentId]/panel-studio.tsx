@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
 import { Button } from '@/components/button'
@@ -597,43 +597,46 @@ export function PanelStudio({
   }
 
   /* ─── Review handlers ─── */
-  async function handleResolve() {
+  const [, startReviewTransition] = useTransition()
+
+  function handleResolve() {
     setReviewProcessing(true)
-    try {
-      // Split items into approved and denied based on rejected keys
-      const approvedItemIds: number[] = []
-      const deniedItemIds: number[] = []
-      for (const [kId, change] of reviewChangesMap) {
-        if (rejectedKeyIds.has(kId)) {
-          deniedItemIds.push(change.itemId)
-        } else {
-          approvedItemIds.push(change.itemId)
+    startReviewTransition(async () => {
+      try {
+        // Split items into approved and denied based on rejected keys
+        const approvedItemIds: number[] = []
+        const deniedItemIds: number[] = []
+        for (const [kId, change] of reviewChangesMap) {
+          if (rejectedKeyIds.has(kId)) {
+            deniedItemIds.push(change.itemId)
+          } else {
+            approvedItemIds.push(change.itemId)
+          }
         }
-      }
 
-      const result = await resolveChangeRequests(pendingCrIds, approvedItemIds, deniedItemIds)
-      if (result.error) {
-        showToast('error', result.error)
-        setReviewProcessing(false)
-        return
-      }
+        const result = await resolveChangeRequests(pendingCrIds, approvedItemIds, deniedItemIds)
+        if (result.error) {
+          showToast('error', result.error)
+          setReviewProcessing(false)
+          return
+        }
 
-      if (deniedItemIds.length === 0) {
-        showToast('success', `${approvedItemIds.length} key${approvedItemIds.length !== 1 ? 's' : ''} approved`)
-      } else if (approvedItemIds.length === 0) {
-        showToast('success', `${deniedItemIds.length} key${deniedItemIds.length !== 1 ? 's' : ''} denied`)
-      } else {
-        showToast('success', `${approvedItemIds.length} approved, ${deniedItemIds.length} denied`)
+        if (deniedItemIds.length === 0) {
+          showToast('success', `${approvedItemIds.length} key${approvedItemIds.length !== 1 ? 's' : ''} approved`)
+        } else if (approvedItemIds.length === 0) {
+          showToast('success', `${deniedItemIds.length} key${deniedItemIds.length !== 1 ? 's' : ''} denied`)
+        } else {
+          showToast('success', `${approvedItemIds.length} approved, ${deniedItemIds.length} denied`)
+        }
+        router.replace('/admin')
+      } catch {
+        showToast('error', 'Failed to resolve')
       }
-      router.refresh()
-      router.replace('/admin')
-    } catch {
-      showToast('error', 'Failed to resolve')
-    }
-    setReviewProcessing(false)
+      setReviewProcessing(false)
+    })
   }
 
-  async function handleDenyAll() {
+  function handleDenyAll() {
     // Mark all keys as rejected then resolve
     const allKeys = new Set<string>()
     for (const kId of reviewChangesMap.keys()) {
@@ -642,21 +645,22 @@ export function PanelStudio({
     setRejectedKeyIds(allKeys)
 
     setReviewProcessing(true)
-    try {
-      const allItemIds = [...reviewChangesMap.values()].map((c) => c.itemId)
-      const result = await resolveChangeRequests(pendingCrIds, [], allItemIds)
-      if (result.error) {
-        showToast('error', result.error)
-        setReviewProcessing(false)
-        return
+    startReviewTransition(async () => {
+      try {
+        const allItemIds = [...reviewChangesMap.values()].map((c) => c.itemId)
+        const result = await resolveChangeRequests(pendingCrIds, [], allItemIds)
+        if (result.error) {
+          showToast('error', result.error)
+          setReviewProcessing(false)
+          return
+        }
+        showToast('success', `${allItemIds.length} key${allItemIds.length !== 1 ? 's' : ''} denied`)
+        router.replace('/admin')
+      } catch {
+        showToast('error', 'Failed to deny')
       }
-      showToast('success', `${allItemIds.length} key${allItemIds.length !== 1 ? 's' : ''} denied`)
-      router.refresh()
-      router.replace('/admin')
-    } catch {
-      showToast('error', 'Failed to deny')
-    }
-    setReviewProcessing(false)
+      setReviewProcessing(false)
+    })
   }
 
   /* ─── Expansion handlers ─── */

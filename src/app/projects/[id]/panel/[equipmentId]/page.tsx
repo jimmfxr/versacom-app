@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { PanelStudio } from './panel-studio'
 
+export const dynamic = 'force-dynamic'
+
 const PANEL_CATEGORIES = ['panels', 'hardwire_bp', 'wireless_bp']
 
 export default async function PanelStudioPage({

@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
+
+export const dynamic = 'force-dynamic'
 import { AppShell } from '@/components/app-shell'
 import { PageLayout } from '@/components/page-layout'
 import { EmptyState } from '@/components/empty-state'

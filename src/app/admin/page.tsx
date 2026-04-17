@@ -2,6 +2,8 @@ import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { TasksClient } from './tasks-client'
 
+export const dynamic = 'force-dynamic'
+
 export default async function TasksPage() {
   const [users, changeRequests] = await Promise.all([
     prisma.user.findMany({

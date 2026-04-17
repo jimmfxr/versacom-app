@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { ProjectPage } from './project-page'
 
+export const dynamic = 'force-dynamic'
+
 export default async function ProjectDetailPage({
   params,
 }: {

@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { MyEquipmentContent } from './my-equipment-content'
 
+export const dynamic = 'force-dynamic'
+
 export default async function MyEquipmentPage() {
   const session = await getSession()
   if (!session) redirect('/login')

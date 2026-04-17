@@ -2,6 +2,8 @@ import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { ProjectsContent } from './projects-content'
 
+export const dynamic = 'force-dynamic'
+
 export default async function ProjectsPage() {
   const session = await getSession()
   const userName = session ? `${session.user.firstName} ${session.user.lastName}` : undefined
