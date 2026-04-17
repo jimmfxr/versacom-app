@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
 import { Button } from '@/components/button'
 import { showToast } from '@/components/toast'
-import { saveKeys, saveDraftKeys, submitChanges, addExpansion, removeExpansion } from './actions'
+import { saveKeys, saveDraftKeys, submitChanges, addExpansion, removeExpansion, resolveChangeRequests } from './actions'
 
 /* ═══════════════════════════════════════════════════════════════
    Types
@@ -63,6 +63,25 @@ interface PanelStudioProps {
   isRequestMode: boolean
   currentUserId: number
   currentMemberId: number | null
+  pendingChangeRequests?: Array<{
+    id: number
+    status: string
+    submitterName: string
+    submitterRole: string
+    createdAt: string
+    items: Array<{
+      id: number
+      panelKeyId: number
+      fieldChanged: string
+      previousValue: string | null
+      previousValueName: string | null
+      newValue: string | null
+      newValueName: string | null
+      keyIndex: number
+      page: string
+      expansion: number
+    }>
+  }>
 }
 
 type KeyState = {
@@ -91,33 +110,74 @@ type PickerItem = {
 const HARDWARE_KEY_COUNTS: Record<string, number> = {
   'RSP-1232': 32, 'RSP-1216': 16, 'DSP-1216': 16,
   'KP-5032': 32, 'KP32': 32, 'RSP-2318': 18, 'RSP-2312': 12,
-  'Helixnet': 2, 'DBP': 4, 'ST-374': 4, 'ST370': 2,
-  'C3': 2, 'BP325': 2, 'Bolero': 6, 'Freespeak': 5, 'Pliant': 4,
+  'Helixnet': 4, 'DBP': 4, 'ST-374': 4, 'ST370': 2,
+  'C3': 2, 'BP325': 2, 'Bolero': 6, 'Freespeak': 4, 'Pliant': 4,
 }
 
-/* Get the block layout for a hardware type.
-   `rows` = how many rows the MAIN panel occupies.
-   Expansions always use 1 row (same keysPerBlock × blocksPerRow). */
-function getBlockLayout(hardwareType: string | null): { keysPerBlock: number; blocksPerRow: number; rows: number } {
-  const keyCount = hardwareType ? (HARDWARE_KEY_COUNTS[hardwareType] ?? 16) : 16
-  if (keyCount <= 2) return { keysPerBlock: keyCount, blocksPerRow: 1, rows: 1 }
-  if (keyCount <= 6) return { keysPerBlock: keyCount, blocksPerRow: 1, rows: 1 }
-  if (keyCount === 12) return { keysPerBlock: 6, blocksPerRow: 2, rows: 1 }
-  if (keyCount === 18) return { keysPerBlock: 9, blocksPerRow: 2, rows: 1 }
-  if (keyCount === 16) return { keysPerBlock: 8, blocksPerRow: 2, rows: 1 }
-  if (keyCount === 32) return { keysPerBlock: 8, blocksPerRow: 2, rows: 2 }
-  return { keysPerBlock: 8, blocksPerRow: 2, rows: 1 }
+/* ─── Block layout per hardware type ───
+   colsPerBlock / rowsPerBlock = the grid within each block
+   blockCount = how many blocks in the main panel
+   For horizontal panels: blocks sit in panel-level rows (panelRows × blocksPerPanelRow)
+   For vertical-block panels (2318, 2312, Bolero, DBP): all blocks side by side */
+type BlockLayout = {
+  colsPerBlock: number
+  rowsPerBlock: number
+  blockCount: number
+  panelRows: number
+  blocksPerPanelRow: number
 }
 
-/* Expansion key count: always 1 row of keys (e.g. RSP-1232 expansion = 16 keys, not 32) */
+const BLOCK_LAYOUTS: Record<string, BlockLayout> = {
+  'RSP-1232':  { colsPerBlock: 8, rowsPerBlock: 1, blockCount: 4, panelRows: 2, blocksPerPanelRow: 2 },
+  'RSP-1216':  { colsPerBlock: 8, rowsPerBlock: 1, blockCount: 2, panelRows: 1, blocksPerPanelRow: 2 },
+  'DSP-1216':  { colsPerBlock: 8, rowsPerBlock: 1, blockCount: 2, panelRows: 1, blocksPerPanelRow: 2 },
+  'KP-5032':   { colsPerBlock: 8, rowsPerBlock: 1, blockCount: 4, panelRows: 2, blocksPerPanelRow: 2 },
+  'KP32':      { colsPerBlock: 8, rowsPerBlock: 1, blockCount: 4, panelRows: 2, blocksPerPanelRow: 2 },
+  'RSP-2318':  { colsPerBlock: 2, rowsPerBlock: 3, blockCount: 3, panelRows: 1, blocksPerPanelRow: 3 },
+  'RSP-2312':  { colsPerBlock: 2, rowsPerBlock: 3, blockCount: 2, panelRows: 1, blocksPerPanelRow: 2 },
+  'Bolero':    { colsPerBlock: 2, rowsPerBlock: 3, blockCount: 1, panelRows: 1, blocksPerPanelRow: 1 },
+  'Freespeak': { colsPerBlock: 4, rowsPerBlock: 1, blockCount: 1, panelRows: 1, blocksPerPanelRow: 1 },
+  'Pliant':    { colsPerBlock: 4, rowsPerBlock: 1, blockCount: 1, panelRows: 1, blocksPerPanelRow: 1 },
+  'DBP':       { colsPerBlock: 2, rowsPerBlock: 2, blockCount: 1, panelRows: 1, blocksPerPanelRow: 1 },
+  'ST-374':    { colsPerBlock: 4, rowsPerBlock: 1, blockCount: 1, panelRows: 1, blocksPerPanelRow: 1 },
+  'Helixnet':  { colsPerBlock: 4, rowsPerBlock: 1, blockCount: 1, panelRows: 1, blocksPerPanelRow: 1 },
+  'ST370':     { colsPerBlock: 2, rowsPerBlock: 1, blockCount: 1, panelRows: 1, blocksPerPanelRow: 1 },
+  'C3':        { colsPerBlock: 2, rowsPerBlock: 1, blockCount: 1, panelRows: 1, blocksPerPanelRow: 1 },
+  'BP325':     { colsPerBlock: 2, rowsPerBlock: 1, blockCount: 1, panelRows: 1, blocksPerPanelRow: 1 },
+}
+
+const DEFAULT_LAYOUT: BlockLayout = { colsPerBlock: 8, rowsPerBlock: 1, blockCount: 2, panelRows: 1, blocksPerPanelRow: 2 }
+
+function getBlockLayout(hardwareType: string | null): BlockLayout {
+  return (hardwareType ? BLOCK_LAYOUTS[hardwareType] : null) ?? DEFAULT_LAYOUT
+}
+
+/* ─── Expansion config ─── */
+const EXPANSION_LAYOUTS: Record<string, BlockLayout> = {
+  'RSP-1232':  { colsPerBlock: 8, rowsPerBlock: 1, blockCount: 2, panelRows: 1, blocksPerPanelRow: 2 },
+  'RSP-1216':  { colsPerBlock: 8, rowsPerBlock: 1, blockCount: 2, panelRows: 1, blocksPerPanelRow: 2 },
+  'KP-5032':   { colsPerBlock: 8, rowsPerBlock: 1, blockCount: 4, panelRows: 2, blocksPerPanelRow: 2 },
+  'KP32':      { colsPerBlock: 8, rowsPerBlock: 1, blockCount: 4, panelRows: 2, blocksPerPanelRow: 2 },
+  'RSP-2318':  { colsPerBlock: 2, rowsPerBlock: 3, blockCount: 4, panelRows: 1, blocksPerPanelRow: 4 },
+}
+
+function getExpansionLayout(hardwareType: string | null): BlockLayout | null {
+  return hardwareType ? (EXPANSION_LAYOUTS[hardwareType] ?? null) : null
+}
+
 function getExpansionKeyCount(hardwareType: string | null): number {
-  const l = getBlockLayout(hardwareType)
-  return l.keysPerBlock * l.blocksPerRow // 1 row worth of keys
+  const layout = getExpansionLayout(hardwareType)
+  if (!layout) return 0
+  return layout.colsPerBlock * layout.rowsPerBlock * layout.blockCount
 }
 
 function getKeyCount(hardwareType: string | null): number {
   return hardwareType ? (HARDWARE_KEY_COUNTS[hardwareType] ?? 16) : 16
 }
+
+/* ─── Shift page & expansion eligibility ─── */
+const SHIFT_PAGE_CATEGORIES = new Set(['panels'])
+const EXPANDABLE_DEVICES = new Set(['RSP-1232', 'RSP-1216', 'KP-5032', 'KP32', 'RSP-2318'])
 
 /* ═══════════════════════════════════════════════════════════════
    Component
@@ -140,12 +200,15 @@ export function PanelStudio({
   isRequestMode,
   currentUserId,
   currentMemberId: _currentMemberId,
+  pendingChangeRequests = [],
 }: PanelStudioProps) {
   const isCrew = _currentUserRole === 'crew'
   void _currentMemberId
   const router = useRouter()
   const keyCount = getKeyCount(equipment.hardwareType)
   const layout = getBlockLayout(equipment.hardwareType)
+  const hasShiftPage = SHIFT_PAGE_CATEGORIES.has(equipment.category)
+  const isExpandable = EXPANDABLE_DEVICES.has(equipment.hardwareType ?? '')
 
   /* ─── State ─── */
   const [activePage, setActivePage] = useState<'main' | 'shift'>('main')
@@ -167,6 +230,56 @@ export function PanelStudio({
     return maxExp
   })
 
+  const isReviewMode = pendingChangeRequests.length > 0
+  const [reviewProcessing, setReviewProcessing] = useState(false)
+  const [rejectedKeyIds, setRejectedKeyIds] = useState<Set<string>>(new Set())
+
+  // Build a map of key positions → requested changes for overlay rendering
+  const reviewChangesMap = new Map<string, {
+    crId: number
+    itemId: number
+    fromName: string | null
+    toName: string | null
+    submitterName: string
+    submitterRole: string
+    status: string
+  }>()
+  for (const cr of pendingChangeRequests) {
+    for (const item of cr.items) {
+      const id = keyId(item.keyIndex, item.page, item.expansion)
+      reviewChangesMap.set(id, {
+        crId: cr.id,
+        itemId: item.id,
+        fromName: item.previousValueName,
+        toName: item.newValueName,
+        submitterName: cr.submitterName,
+        submitterRole: cr.submitterRole,
+        status: cr.status,
+      })
+    }
+  }
+
+  // Collect unique CR ids for resolve
+  const pendingCrIds = [...new Set(pendingChangeRequests.map((cr) => cr.id))]
+
+  // Toggle a review key between approved (yellow) and rejected (red)
+  function toggleRejectKey(keyIdStr: string) {
+    setRejectedKeyIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(keyIdStr)) {
+        next.delete(keyIdStr)
+      } else {
+        next.add(keyIdStr)
+      }
+      return next
+    })
+  }
+
+  // Count approved vs rejected
+  const totalReviewKeys = reviewChangesMap.size
+  const rejectedCount = rejectedKeyIds.size
+  const approvedCount = totalReviewKeys - rejectedCount
+
   const inspectorRef = useRef<HTMLElement>(null)
   const chassisRef = useRef<HTMLDivElement>(null)
 
@@ -180,10 +293,10 @@ export function PanelStudio({
     const result: KeyState[] = []
     const maxExpansion = serverKeys.reduce((max, k) => Math.max(max, k.expansion), 0)
 
+    const pages = hasShiftPage ? ['main', 'shift'] as const : ['main'] as const
     for (let exp = 0; exp <= maxExpansion; exp++) {
-      // Main panel uses full key count; expansions use 1 row (e.g. 16 for RSP-1232)
       const count = exp === 0 ? mainKeys : expKeyCount
-      for (const page of ['main', 'shift'] as const) {
+      for (const page of pages) {
         for (let i = 0; i < count; i++) {
           const serverKey = serverKeys.find(
             (k) => k.keyIndex === i && k.page === page && k.expansion === exp
@@ -483,6 +596,67 @@ export function PanelStudio({
     setSaving(false)
   }
 
+  /* ─── Review handlers ─── */
+  async function handleResolve() {
+    setReviewProcessing(true)
+    try {
+      // Split items into approved and denied based on rejected keys
+      const approvedItemIds: number[] = []
+      const deniedItemIds: number[] = []
+      for (const [kId, change] of reviewChangesMap) {
+        if (rejectedKeyIds.has(kId)) {
+          deniedItemIds.push(change.itemId)
+        } else {
+          approvedItemIds.push(change.itemId)
+        }
+      }
+
+      const result = await resolveChangeRequests(pendingCrIds, approvedItemIds, deniedItemIds)
+      if (result.error) {
+        showToast('error', result.error)
+        setReviewProcessing(false)
+        return
+      }
+
+      if (deniedItemIds.length === 0) {
+        showToast('success', `${approvedItemIds.length} key${approvedItemIds.length !== 1 ? 's' : ''} approved`)
+      } else if (approvedItemIds.length === 0) {
+        showToast('success', `${deniedItemIds.length} key${deniedItemIds.length !== 1 ? 's' : ''} denied`)
+      } else {
+        showToast('success', `${approvedItemIds.length} approved, ${deniedItemIds.length} denied`)
+      }
+      router.push('/admin')
+    } catch {
+      showToast('error', 'Failed to resolve')
+    }
+    setReviewProcessing(false)
+  }
+
+  async function handleDenyAll() {
+    // Mark all keys as rejected then resolve
+    const allKeys = new Set<string>()
+    for (const kId of reviewChangesMap.keys()) {
+      allKeys.add(kId)
+    }
+    setRejectedKeyIds(allKeys)
+
+    setReviewProcessing(true)
+    try {
+      const allItemIds = [...reviewChangesMap.values()].map((c) => c.itemId)
+      const result = await resolveChangeRequests(pendingCrIds, [], allItemIds)
+      if (result.error) {
+        showToast('error', result.error)
+        setReviewProcessing(false)
+        return
+      }
+      showToast('success', `${allItemIds.length} key${allItemIds.length !== 1 ? 's' : ''} denied`)
+      router.push('/admin')
+    } catch {
+      showToast('error', 'Failed to deny')
+    }
+    setReviewProcessing(false)
+  }
+
   /* ─── Expansion handlers ─── */
   async function handleAddExpansion() {
     if (!member || !equipment.hardwareType) return
@@ -496,7 +670,8 @@ export function PanelStudio({
         setExpansionCount(newExp)
         // Add empty keys for the new expansion
         const newKeys: KeyState[] = []
-        for (const page of ['main', 'shift'] as const) {
+        const expPages = hasShiftPage ? ['main', 'shift'] as const : ['main'] as const
+        for (const page of expPages) {
           for (let i = 0; i < expKeyCount; i++) {
             newKeys.push({
               keyIndex: i,
@@ -684,12 +859,21 @@ export function PanelStudio({
       const isChanged = keyState.status === 'changed'
       const isSubmitted = keyState.status === 'submitted'
 
+      // Review mode: check if this key has a pending change
+      const reviewChange = reviewChangesMap.get(id)
+      const hasReviewChange = !!reviewChange
+      const isRejected = hasReviewChange && rejectedKeyIds.has(id)
+
       let keyClasses = 'group relative flex flex-col cursor-pointer transition-all duration-[180ms]'
       keyClasses += ' w-16 h-16 rounded-md border-2'
       keyClasses += ' bg-[#202020] shadow-[0_4px_6px_rgba(0,0,0,0.3)]'
 
       // State classes
-      if (isAssigned) keyClasses += ' border-[#3a3a3a]'
+      if (isRejected) {
+        keyClasses += ' border-red-500 shadow-[0_0_12px_rgba(239,68,68,0.5)] bg-[rgba(239,68,68,0.08)]'
+      } else if (hasReviewChange) {
+        keyClasses += ' border-[#f59e0b] shadow-[0_0_12px_rgba(245,158,11,0.5)] bg-[rgba(245,158,11,0.06)]'
+      } else if (isAssigned) keyClasses += ' border-[#3a3a3a]'
       else if (isChanged) keyClasses += ' border-[#f59e0b] shadow-[0_0_12px_rgba(245,158,11,0.4)]'
       else if (isSubmitted) keyClasses += ' border-[#10b981] shadow-[0_0_12px_rgba(16,185,129,0.4)]'
       else keyClasses += ' border-[#3a3a3a]'
@@ -697,7 +881,8 @@ export function PanelStudio({
       if (isSelected) keyClasses += ' !border-[#22a7d3] !shadow-[0_0_16px_rgba(34,167,211,0.5)] -translate-y-1'
       if (isDragging) keyClasses += ' opacity-30 scale-[0.92]'
       if (isDragOver) keyClasses += ' !border-[#22a7d3] !shadow-[0_0_20px_rgba(34,167,211,0.6)] -translate-y-[3px] !bg-[rgba(34,167,211,0.08)]'
-      if (!isSelected && !isDragging && !isDragOver) keyClasses += ' hover:-translate-y-[2px] hover:border-[#4a4a4a]'
+      if (!isSelected && !isDragging && !isDragOver && !hasReviewChange) keyClasses += ' hover:-translate-y-[2px] hover:border-[#4a4a4a]'
+      if (hasReviewChange) keyClasses += ' hover:scale-[0.96] active:scale-[0.92]'
 
       const flashStyle = isFlashing ? { boxShadow: `0 0 20px ${flashingKey.color}80` } : undefined
 
@@ -706,8 +891,14 @@ export function PanelStudio({
           key={id}
           className={keyClasses}
           style={flashStyle}
-          draggable={!isEmpty && canEditKeys}
-          onClick={() => selectKey(id)}
+          draggable={!isReviewMode && !isEmpty && canEditKeys}
+          onClick={() => {
+            if (isReviewMode && hasReviewChange) {
+              toggleRejectKey(id)
+            } else if (!isReviewMode) {
+              selectKey(id)
+            }
+          }}
           onDragStart={() => handleKeyDragStart(id)}
           onDragOver={(e) => handleDragOver(e, id)}
           onDragLeave={() => handleDragLeave(id)}
@@ -717,12 +908,20 @@ export function PanelStudio({
           {/* Tally */}
           <div className="mx-auto mt-1.5 h-1 w-[60%] rounded-sm"
             style={{
-              background: isAssigned || isSubmitted
+              background: isRejected
+                ? '#ef4444'
+                : hasReviewChange
+                ? '#f59e0b'
+                : isAssigned || isSubmitted
                 ? '#10b981'
                 : isChanged
                 ? '#f59e0b'
                 : '#333',
-              boxShadow: isAssigned || isSubmitted
+              boxShadow: isRejected
+                ? '0 0 8px rgba(239,68,68,0.7)'
+                : hasReviewChange
+                ? '0 0 8px rgba(245,158,11,0.7)'
+                : isAssigned || isSubmitted
                 ? '0 0 8px rgba(16,185,129,0.7)'
                 : isChanged
                 ? '0 0 8px rgba(245,158,11,0.7)'
@@ -731,7 +930,26 @@ export function PanelStudio({
           />
           {/* Display */}
           <div className="flex flex-1 items-center justify-center p-1 relative">
-            {isEmpty ? (
+            {hasReviewChange ? (
+              <div className="flex flex-col items-center gap-0.5 max-w-full overflow-hidden">
+                {isRejected ? (
+                  <span className="text-[9px] font-bold text-red-400 text-center whitespace-nowrap overflow-hidden max-w-full line-through">
+                    {reviewChange.toName ?? 'Empty'}
+                  </span>
+                ) : (
+                  <>
+                    {reviewChange.fromName && (
+                      <span className="text-[8px] text-red-400 line-through whitespace-nowrap overflow-hidden max-w-full opacity-70">
+                        {reviewChange.fromName}
+                      </span>
+                    )}
+                    <span className="text-[9px] font-bold text-[#f59e0b] text-center whitespace-nowrap overflow-hidden max-w-full">
+                      {reviewChange.toName ?? 'Empty'}
+                    </span>
+                  </>
+                )}
+              </div>
+            ) : isEmpty ? (
               <span className="text-2xl font-light leading-none text-[#3b4352]">+</span>
             ) : (
               <span className="text-[9px] font-bold text-white text-center whitespace-nowrap overflow-hidden max-w-full">
@@ -739,13 +957,13 @@ export function PanelStudio({
               </span>
             )}
           </div>
-          {/* Trigger mode indicator */}
-          {!isEmpty && keyState.triggerMode !== 'latch' && (
+          {/* Trigger mode indicator (hide in review mode) */}
+          {!isReviewMode && !isEmpty && keyState.triggerMode !== 'latch' && (
             <div className="absolute bottom-1 right-1.5 text-[9px] font-extrabold text-[#f59e0b] opacity-85 uppercase">
               {triggerLabel(keyState.triggerMode)}
             </div>
           )}
-          {!isEmpty && keyState.triggerMode === 'latch' && (
+          {!isReviewMode && !isEmpty && keyState.triggerMode === 'latch' && (
             <div className="absolute bottom-1 right-1.5 text-[9px] font-extrabold text-[#f59e0b] opacity-85 uppercase">
               L
             </div>
@@ -754,49 +972,56 @@ export function PanelStudio({
       )
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedKeyId, dragSourceId, dragOverId, flashingKey, canEditKeys, isRequestMode, keys]
+    [selectedKeyId, dragSourceId, dragOverId, flashingKey, canEditKeys, isRequestMode, isReviewMode, reviewChangesMap, rejectedKeyIds, keys]
   )
 
-  /* ─── Render a panel block ─── */
-  function renderBlock(visibleKeys: KeyState[], startIdx: number, count: number) {
+  /* ─── Render a panel block (2D grid: cols × rows within one block) ─── */
+  function renderBlock(visibleKeys: KeyState[], startIdx: number, cols: number, rows: number) {
+    const count = cols * rows
     const blockKeys = visibleKeys.slice(startIdx, startIdx + count)
 
     return (
       <div className="p-3.5 rounded-lg">
-        <div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${Math.min(count, 9)}, 1fr)` }}>
+        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
           {blockKeys.map((k) => renderKey(k))}
         </div>
       </div>
     )
   }
 
-  /* ─── Render a full panel (all rows for one expansion) ─── */
+  /* ─── Render a full panel (all blocks for one expansion) ─── */
   function renderPanel(expansion: number) {
     const visibleKeys = getVisibleKeys(activePage, expansion)
-    const { keysPerBlock, blocksPerRow } = layout
-    // Main panel uses the full row count; expansions always have 1 row
-    const rowCount = expansion === 0 ? layout.rows : 1
-    const keysPerRow = keysPerBlock * blocksPerRow
+    const panelLayout = expansion === 0 ? layout : getExpansionLayout(equipment.hardwareType)!
+    const { colsPerBlock, rowsPerBlock, panelRows, blocksPerPanelRow } = panelLayout
+    const keysPerBlock = colsPerBlock * rowsPerBlock
 
-    const panelRows: React.ReactNode[] = []
-    for (let row = 0; row < rowCount; row++) {
-      const rowStart = row * keysPerRow
+    // For RSP-2318: main panel (3 blocks) should left-align under expansion (4 blocks)
+    const needsLeftAlign = expansion === 0
+      && expansionCount > 0
+      && getExpansionLayout(equipment.hardwareType) !== null
+      && layout.blocksPerPanelRow < (getExpansionLayout(equipment.hardwareType)?.blocksPerPanelRow ?? 0)
+
+    const panelRowElements: React.ReactNode[] = []
+    let blockIdx = 0
+    for (let row = 0; row < panelRows; row++) {
       const blocks: React.ReactNode[] = []
-      for (let b = 0; b < blocksPerRow; b++) {
-        const blockStart = rowStart + b * keysPerBlock
+      for (let b = 0; b < blocksPerPanelRow; b++) {
+        const startIdx = blockIdx * keysPerBlock
         blocks.push(
           <div key={b}>
-            {renderBlock(visibleKeys, blockStart, keysPerBlock)}
+            {renderBlock(visibleKeys, startIdx, colsPerBlock, rowsPerBlock)}
           </div>
         )
+        blockIdx++
       }
-      panelRows.push(
-        <div key={row} className="flex gap-3.5 flex-nowrap">
+      panelRowElements.push(
+        <div key={row} className={`flex gap-3.5 flex-nowrap ${needsLeftAlign ? 'justify-start' : ''}`}>
           {blocks}
         </div>
       )
     }
-    return panelRows
+    return panelRowElements
   }
 
   /* ═══════════════════════════════════════════════════════════════
@@ -820,10 +1045,10 @@ export function PanelStudio({
                 {/* Back link */}
                 <div className="mb-2">
                   <button
-                    onClick={() => router.push(`/projects/${project.id}`)}
+                    onClick={() => router.push(isReviewMode ? '/admin' : `/projects/${project.id}`)}
                     className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
                   >
-                    &larr; Back to {project.name}
+                    &larr; {isReviewMode ? 'Back to Tasks' : `Back to ${project.name}`}
                   </button>
                 </div>
 
@@ -848,6 +1073,16 @@ export function PanelStudio({
                   <span className="text-gray-500"> &middot; {keyCount}-Key</span>
                 </div>
 
+                {/* Review mode banner */}
+                {isReviewMode && (
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#f59e0b]/10 border border-[#f59e0b]/30 mb-2">
+                    <svg className="size-4 text-[#f59e0b]" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                    </svg>
+                    <span className="text-xs font-semibold text-[#f59e0b]">Reviewing change request</span>
+                  </div>
+                )}
+
                 {/* Legend + Expansion controls */}
                 <div className="flex gap-4 flex-wrap justify-center">
                   <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
@@ -871,7 +1106,7 @@ export function PanelStudio({
                     Unassigned
                   </div>
 
-                  {canManageExpansions && (
+                  {canManageExpansions && isExpandable && (
                     <div className="inline-flex items-center gap-2 px-3.5 py-1.5 text-xs text-gray-300">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Expansions</span>
                       <span className="font-semibold text-white">{expansionCount}</span>
@@ -930,31 +1165,75 @@ export function PanelStudio({
 
               {/* ─── Footer (pinned) ─── */}
               <div className="flex-shrink-0 px-4 pb-3 pt-2 flex flex-col items-center gap-3 w-full lg:px-5 lg:pb-5 lg:pt-3">
-                {/* Main/Shift toggle */}
-                <div className="inline-flex bg-[#2a2a2a] p-1 rounded-[10px] border border-white/[0.06]">
-                  <button
-                    onClick={() => { setActivePage('main'); deselectAll() }}
-                    className={`border-none text-[11px] font-bold py-2 px-[22px] rounded-[7px] tracking-wider uppercase cursor-pointer transition-colors ${activePage === 'main' ? 'bg-[#0178a3] text-white' : 'bg-transparent text-gray-400'}`}
-                  >
-                    Main
-                  </button>
-                  <button
-                    onClick={() => { setActivePage('shift'); deselectAll() }}
-                    className={`border-none text-[11px] font-bold py-2 px-[22px] rounded-[7px] tracking-wider uppercase cursor-pointer transition-colors ${activePage === 'shift' ? 'bg-[#0178a3] text-white' : 'bg-transparent text-gray-400'}`}
-                  >
-                    Shift
-                  </button>
-                </div>
-
-                {/* Save/Submit button */}
-                {canEditKeys && (
-                  <div className="flex gap-2">
-                    {!isRequestMode && (
-                      <Button onClick={handleSave} disabled={saving} size="sm">
-                        {saving ? 'Saving...' : 'Save'}
-                      </Button>
+                {isReviewMode ? (
+                  <>
+                    {/* Review mode summary */}
+                    <div className="text-[11px] text-gray-400 text-center">
+                      {rejectedCount > 0 ? (
+                        <>
+                          <strong className="text-[#10b981] font-bold">{approvedCount}</strong> to approve
+                          <span className="mx-1.5 text-gray-600">&middot;</span>
+                          <strong className="text-red-400 font-bold">{rejectedCount}</strong> to deny
+                        </>
+                      ) : (
+                        <>
+                          <strong className="text-[#f59e0b] font-bold">{totalReviewKeys} key{totalReviewKeys !== 1 ? 's' : ''}</strong> requested by{' '}
+                          <strong className="text-white">{pendingChangeRequests[0]?.submitterName}</strong>
+                        </>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-gray-500 -mt-1">
+                      Tap a key to reject it
+                    </div>
+                    {/* Deny All / Approve buttons */}
+                    <div className="flex gap-3">
+                      <button
+                        onClick={handleDenyAll}
+                        disabled={reviewProcessing}
+                        className="bg-red-500 text-white border-none py-2.5 px-6 rounded-[10px] font-bold text-xs cursor-pointer uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-600 transition-colors"
+                      >
+                        {reviewProcessing ? 'Processing...' : 'Deny'}
+                      </button>
+                      <button
+                        onClick={handleResolve}
+                        disabled={reviewProcessing || approvedCount === 0}
+                        className="bg-[#10b981] text-white border-none py-2.5 px-6 rounded-[10px] font-bold text-xs cursor-pointer uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#0ea472] transition-colors"
+                      >
+                        {reviewProcessing ? 'Processing...' : approvedCount === totalReviewKeys ? 'Approve' : `Approve ${approvedCount}`}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Main/Shift toggle (panels only) */}
+                    {hasShiftPage && (
+                      <div className="inline-flex bg-[#2a2a2a] p-1 rounded-[10px] border border-white/[0.06]">
+                        <button
+                          onClick={() => { setActivePage('main'); deselectAll() }}
+                          className={`border-none text-[11px] font-bold py-2 px-[22px] rounded-[7px] tracking-wider uppercase cursor-pointer transition-colors ${activePage === 'main' ? 'bg-[#0178a3] text-white' : 'bg-transparent text-gray-400'}`}
+                        >
+                          Main
+                        </button>
+                        <button
+                          onClick={() => { setActivePage('shift'); deselectAll() }}
+                          className={`border-none text-[11px] font-bold py-2 px-[22px] rounded-[7px] tracking-wider uppercase cursor-pointer transition-colors ${activePage === 'shift' ? 'bg-[#0178a3] text-white' : 'bg-transparent text-gray-400'}`}
+                        >
+                          Shift
+                        </button>
+                      </div>
                     )}
-                  </div>
+
+                    {/* Save/Submit button */}
+                    {canEditKeys && (
+                      <div className="flex gap-2">
+                        {!isRequestMode && (
+                          <Button onClick={handleSave} disabled={saving} size="sm">
+                            {saving ? 'Saving...' : 'Save'}
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>

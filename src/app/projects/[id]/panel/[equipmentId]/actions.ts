@@ -13,16 +13,30 @@ const HARDWARE_KEY_COUNTS: Record<string, number> = {
   'KP32': 32,
   'RSP-2318': 18,
   'RSP-2312': 12,
-  'Helixnet': 2,
+  'Helixnet': 4,
   'DBP': 4,
   'ST-374': 4,
   'ST370': 2,
   'C3': 2,
   'BP325': 2,
   'Bolero': 6,
-  'Freespeak': 5,
+  'Freespeak': 4,
   'Pliant': 4,
 }
+
+/* ─── Expansion key counts per device ─── */
+const EXPANSION_KEY_COUNTS: Record<string, number> = {
+  'RSP-1232': 16,
+  'RSP-1216': 16,
+  'KP-5032': 32,
+  'KP32': 32,
+  'RSP-2318': 24,
+}
+
+/* ─── Devices that support shift pages (panels only) ─── */
+const SHIFT_PAGE_DEVICES = new Set([
+  'RSP-1232', 'RSP-1216', 'DSP-1216', 'KP-5032', 'KP32', 'RSP-2318', 'RSP-2312',
+])
 
 async function getSession() {
   const cookieStore = await cookies()
@@ -227,6 +241,12 @@ export async function addExpansion(
   const session = await getSession()
   if (!session) return { error: 'Not authenticated' }
 
+  // Guard: only expandable devices
+  const expansionKeyCount = EXPANSION_KEY_COUNTS[hardwareType]
+  if (!expansionKeyCount) {
+    return { error: 'This device does not support expansions' }
+  }
+
   try {
     // Find the current highest expansion number
     const maxExpansion = await prisma.panelKey.findFirst({
@@ -240,12 +260,11 @@ export async function addExpansion(
       return { error: 'Maximum 6 expansions allowed' }
     }
 
-    // Expansions always have 1 row worth of keys (e.g. RSP-1232 expansion = 16, not 32)
-    const fullKeyCount = HARDWARE_KEY_COUNTS[hardwareType] || 16
-    const keysPerRow = fullKeyCount <= 8 ? fullKeyCount : (fullKeyCount <= 18 ? Math.ceil(fullKeyCount / 2) * 2 : 16)
-    const keyCount = keysPerRow
+    const keyCount = expansionKeyCount
+    const hasShift = SHIFT_PAGE_DEVICES.has(hardwareType)
+    const pages = hasShift ? ['main', 'shift'] : ['main']
 
-    // Create empty keys for the new expansion (both main and shift pages)
+    // Create empty keys for the new expansion
     const keysToCreate: Array<{
       projectMemberId: number
       keyIndex: number
@@ -254,7 +273,7 @@ export async function addExpansion(
       triggerMode: string
     }> = []
 
-    for (const page of ['main', 'shift']) {
+    for (const page of pages) {
       for (let i = 0; i < keyCount; i++) {
         keysToCreate.push({
           projectMemberId,
@@ -317,5 +336,69 @@ export async function removeExpansion(
     const msg = e instanceof Error ? e.message : String(e)
     console.error('removeExpansion error:', msg, e)
     return { error: `Failed to remove expansion: ${msg}` }
+  }
+}
+
+/* ─── Resolve change requests (admin — approve selected items, deny rejected ones) ─── */
+export async function resolveChangeRequests(
+  changeRequestIds: number[],
+  approvedItemIds: number[],
+  deniedItemIds: number[]
+) {
+  const session = await getSession()
+  if (!session) return { error: 'Not authenticated' }
+
+  try {
+    const approvedSet = new Set(approvedItemIds)
+
+    for (const crId of changeRequestIds) {
+      const cr = await prisma.changeRequest.findUnique({
+        where: { id: crId },
+        include: { items: true },
+      })
+
+      if (!cr) continue
+      if (cr.status !== 'submitted' && cr.status !== 'mgr_endorsed') continue
+
+      // Apply only approved items to the actual PanelKeys
+      for (const item of cr.items) {
+        if (approvedSet.has(item.id) && item.fieldChanged === 'pickListItemId') {
+          const newPickId = item.newValue ? parseInt(item.newValue) : null
+          await prisma.panelKey.update({
+            where: { id: item.panelKeyId },
+            data: { pickListItemId: newPickId },
+          })
+        }
+      }
+
+      // Determine final status: if all items denied → rejected, otherwise → applied
+      const crItemIds = cr.items.map((i) => i.id)
+      const allDenied = crItemIds.every((id) => !approvedSet.has(id))
+
+      await prisma.changeRequest.update({
+        where: { id: crId },
+        data: {
+          status: allDenied ? 'rejected' : 'applied',
+          resolvedAt: new Date(),
+        },
+      })
+
+      // Clean up associated drafts
+      const panelKeyIds = cr.items.map((i) => i.panelKeyId)
+      await prisma.keyDraft.deleteMany({
+        where: {
+          panelKeyId: { in: panelKeyIds },
+          status: 'submitted',
+        },
+      })
+    }
+
+    revalidatePath(`/projects`)
+    revalidatePath(`/admin`)
+    return { success: true }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    console.error('resolveChangeRequests error:', msg, e)
+    return { error: `Failed to resolve: ${msg}` }
   }
 }

@@ -29,6 +29,7 @@ type ChangeRequestTask = {
   projectId: number
   projectName: string
   submitterName: string
+  submitterRole: string
   targetName: string
   targetPosition: string | null
   targetMemberId: number
@@ -142,7 +143,7 @@ export function TasksClient({
                           {task.submitterName}
                         </span>
                         <StatusBadge
-                          label={task.status === 'mgr_endorsed' ? 'Manager approved' : 'Pending review'}
+                          label={task.status === 'mgr_endorsed' ? 'Manager approved' : task.submitterRole === 'manager' ? 'Manager pending review' : 'Pending review'}
                           color={task.status === 'mgr_endorsed' ? 'green' : 'amber'}
                         />
                       </div>
@@ -194,7 +195,7 @@ export function TasksClient({
                     {/* Review button */}
                     {task.equipmentId && (
                       <Button
-                        onClick={() => router.push(`/projects/${task.projectId}/panel/${task.equipmentId}`)}
+                        onClick={() => router.push(`/projects/${task.projectId}/panel/${task.equipmentId}?review=${task.targetMemberId}`)}
                         size="sm"
                       >
                         Review

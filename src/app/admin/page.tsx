@@ -23,6 +23,7 @@ export default async function TasksPage() {
         createdAt: true,
         project: { select: { id: true, name: true } },
         submittedById: true,
+        projectId: true,
         submittedBy: { select: { firstName: true, lastName: true } },
         targetMember: {
           select: {
@@ -51,6 +52,20 @@ export default async function TasksPage() {
       orderBy: { createdAt: 'desc' },
     }),
   ])
+
+  // Look up submitter roles (userId + projectId → role)
+  const submitterKeys = changeRequests.map((cr) => ({ userId: cr.submittedById, projectId: cr.projectId }))
+  const submitterMembers = submitterKeys.length > 0
+    ? await prisma.projectMember.findMany({
+        where: {
+          OR: submitterKeys.map((k) => ({ userId: k.userId, projectId: k.projectId })),
+        },
+        select: { userId: true, projectId: true, role: true },
+      })
+    : []
+  const submitterRoleMap = new Map(
+    submitterMembers.map((m) => [`${m.userId}-${m.projectId}`, m.role])
+  )
 
   // Collect all pickListItem IDs referenced in change request items
   const pickItemIds = new Set<number>()
@@ -90,6 +105,7 @@ export default async function TasksPage() {
     projectId: number
     projectName: string
     submitterName: string
+    submitterRole: string
     targetName: string
     targetPosition: string | null
     targetMemberId: number
@@ -134,6 +150,7 @@ export default async function TasksPage() {
         projectId: cr.project.id,
         projectName: cr.project.name,
         submitterName,
+        submitterRole: submitterRoleMap.get(`${cr.submittedById}-${cr.projectId}`) ?? 'crew',
         targetName,
         targetPosition: cr.targetMember.position,
         targetMemberId: cr.targetMember.id,
@@ -154,6 +171,7 @@ export default async function TasksPage() {
     projectId: group.projectId,
     projectName: group.projectName,
     submitterName: group.submitterName,
+    submitterRole: group.submitterRole,
     targetName: group.targetName,
     targetPosition: group.targetPosition,
     targetMemberId: group.targetMemberId,
