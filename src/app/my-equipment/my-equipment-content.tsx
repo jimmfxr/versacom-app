@@ -5,24 +5,7 @@ import { useRouter } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
 import { PageLayout } from '@/components/page-layout'
 import { EmptyState } from '@/components/empty-state'
-
-const DEPLOY_STATUSES = [
-  { value: 'na', label: 'N/A' },
-  { value: 'deployed', label: 'Deployed' },
-  { value: 'done', label: 'Done' },
-  { value: 'returned', label: 'Returned' },
-  { value: 'not-needed', label: 'Not Needed' },
-  { value: 'damaged', label: 'Damaged' },
-] as const
-
-const STATUS_BADGE_STYLES: Record<string, string> = {
-  na: 'bg-gray-500/15 text-gray-400',
-  deployed: 'bg-green-500/15 text-green-400',
-  done: 'bg-blue-500/15 text-blue-400',
-  returned: 'bg-purple-500/15 text-purple-400',
-  'not-needed': 'bg-yellow-500/15 text-yellow-400',
-  damaged: 'bg-red-500/15 text-red-400',
-}
+import { STATUS_BADGE_STYLES, getStatusLabel } from '@/lib/deploy-status'
 
 const PANEL_CATEGORIES = ['panels', 'hardwire_bp', 'wireless_bp']
 
@@ -144,7 +127,7 @@ export function MyEquipmentContent({
                   <span
                     className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_BADGE_STYLES[item.deployStatus] || STATUS_BADGE_STYLES.na}`}
                   >
-                    {DEPLOY_STATUSES.find((s) => s.value === item.deployStatus)?.label || 'N/A'}
+                    {getStatusLabel(item.deployStatus)}
                   </span>
                 </div>
               )

@@ -3,6 +3,8 @@
 import { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { PencilIcon, XMarkIcon, ChevronLeftIcon } from '@heroicons/react/24/outline'
+import { STATUS_BADGE_STYLES, getStatusLabel } from '@/lib/deploy-status'
+import { DeployStatusSelect } from '@/components/deploy-status-select'
 import { useDeviceReachability } from '@/hooks/use-device-reachability'
 import { Button } from '@/components/button'
 import { showToast } from '@/components/toast'
@@ -46,23 +48,7 @@ const HEADSET_TYPES = [
   'DT 290', 'Dave Clark', 'Peltor', 'Dalcom',
 ]
 
-const DEPLOY_STATUSES = [
-  { value: 'na', label: 'N/A' },
-  { value: 'deployed', label: 'Deployed' },
-  { value: 'done', label: 'Done' },
-  { value: 'returned', label: 'Returned' },
-  { value: 'not-needed', label: 'Not Needed' },
-  { value: 'damaged', label: 'Damaged' },
-] as const
-
-const STATUS_BADGE_STYLES: Record<string, string> = {
-  na: 'bg-gray-500/15 text-gray-400',
-  deployed: 'bg-green-500/15 text-green-400',
-  done: 'bg-blue-500/15 text-blue-400',
-  returned: 'bg-purple-500/15 text-purple-400',
-  'not-needed': 'bg-yellow-500/15 text-yellow-400',
-  damaged: 'bg-red-500/15 text-red-400',
-}
+// Deploy-status constants moved to '@/lib/deploy-status' (imported below).
 
 const FUNCTION_TYPES = ['CONF', 'IFB', 'Audio_IO', 'GRP'] as const
 const FUNCTION_TYPE_LABELS: Record<string, string> = {
@@ -814,24 +800,20 @@ export function ProjectPage({
                             {canChangeStatus ? (
                               <div className="flex items-center gap-1.5">
                                 <span className="text-[10px] font-medium text-gray-400">Status</span>
-                                <select
+                                <DeployStatusSelect
                                   value={item.deployStatus}
-                                  onChange={(e) => {
-                                    const newStatus = e.target.value
+                                  onChange={(newStatus) => {
                                     startTransition(async () => {
                                       const result = await updateEquipment(project.id, item.id, { deployStatus: newStatus })
                                       if (result.error) { showToast('error', result.error); return }
                                       router.refresh()
                                     })
                                   }}
-                                  className={`appearance-none rounded-full px-2.5 py-1 text-xs font-medium outline-none cursor-pointer ${STATUS_BADGE_STYLES[item.deployStatus] || STATUS_BADGE_STYLES.na}`}
-                                >
-                                  {DEPLOY_STATUSES.map((s) => (<option key={s.value} value={s.value}>{s.label}</option>))}
-                                </select>
+                                />
                               </div>
                             ) : (
                               <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_BADGE_STYLES[item.deployStatus] || STATUS_BADGE_STYLES.na}`}>
-                                {DEPLOY_STATUSES.find((s) => s.value === item.deployStatus)?.label || 'N/A'}
+                                {getStatusLabel(item.deployStatus)}
                               </span>
                             )}
                             {canEditEquipment && <Button size="sm" onClick={() => startEqEdit(item)}>Edit</Button>}
@@ -1125,7 +1107,7 @@ export function ProjectPage({
                           </div>
                         </div>
                         <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_BADGE_STYLES[item.deployStatus] || STATUS_BADGE_STYLES.na}`}>
-                          {DEPLOY_STATUSES.find((s) => s.value === item.deployStatus)?.label || 'N/A'}
+                          {getStatusLabel(item.deployStatus)}
                         </span>
                       </div>
                     ))}
