@@ -853,9 +853,11 @@ export function PanelStudio({
     const matchesFilter =
       pickerFilter === 'All' ||
       (pickerFilter === 'Audio' ? item.type === 'Audio_IO' : item.type === pickerFilter)
-    const searchLower = pickerSearch.toLowerCase()
+    // Trim and lowercase defensively — handles iOS keyboards that inject
+    // leading whitespace or auto-capitalized characters.
+    const searchLower = pickerSearch.trim().toLowerCase()
     const matchesSearch =
-      !pickerSearch ||
+      !searchLower ||
       item.name.toLowerCase().includes(searchLower) ||
       (item.code && item.code.toLowerCase().includes(searchLower)) ||
       (item.position && item.position.toLowerCase().includes(searchLower))
@@ -1424,6 +1426,10 @@ export function PanelStudio({
                     onChange={(e) => setPickerSearch(e.target.value)}
                     className="w-full bg-[#2a2a2a] text-white border-2 border-white/10 px-4 py-2.5 rounded-lg text-base outline-none transition-[border-color] placeholder:text-gray-500 focus:border-[#0178a3]"
                     autoFocus
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    autoComplete="off"
+                    spellCheck={false}
                   />
                   {/* Filter chips */}
                   <div className="flex w-full bg-[#2a2a2a] p-1 rounded-lg">
