@@ -44,7 +44,9 @@ export function MyEquipmentContent({
 }) {
   const router = useRouter()
   const isPanelType = (cat: string) => PANEL_CATEGORIES.includes(cat)
-  const canEditPanel = (role: string) => ['crew', 'manager', 'admin'].includes(role)
+  // All non-admin roles edit through the request/approval flow; admin can
+  // apply directly. Every role assigned a panel can open it for editing.
+  const canEditPanel = (role: string) => ['user', 'crew', 'manager', 'admin'].includes(role)
 
   // Auto-refresh to pick up approved changes
   useEffect(() => {

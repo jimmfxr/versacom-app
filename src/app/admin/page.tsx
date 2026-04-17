@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { TasksClient } from './tasks-client'
@@ -5,8 +6,23 @@ import { TasksClient } from './tasks-client'
 export const dynamic = 'force-dynamic'
 
 export default async function TasksPage() {
+  const session = await getSession()
+  if (!session) redirect('/login')
+
+  // Tasks are admin-only and scoped to projects the current user is admin
+  // on. Anyone hitting this page who isn't admin anywhere is bounced home.
+  const adminProjectIds = session.memberships
+    .filter((m) => m.role === 'admin')
+    .map((m) => m.project.id)
+
+  if (adminProjectIds.length === 0) redirect('/')
+
   const [users, changeRequests] = await Promise.all([
     prisma.user.findMany({
+      where: {
+        // Only show locked users who are members of a project this admin runs.
+        memberships: { some: { projectId: { in: adminProjectIds } } },
+      },
       select: {
         id: true,
         firstName: true,
@@ -18,7 +34,10 @@ export default async function TasksPage() {
       orderBy: { firstName: 'asc' },
     }),
     prisma.changeRequest.findMany({
-      where: { status: { in: ['submitted', 'mgr_endorsed'] } },
+      where: {
+        status: { in: ['submitted', 'mgr_endorsed'] },
+        projectId: { in: adminProjectIds },
+      },
       select: {
         id: true,
         status: true,
@@ -187,10 +206,8 @@ export default async function TasksPage() {
     createdAt: group.latestCreatedAt,
   }))
 
-  const session = await getSession()
-  const userName = session ? `${session.user.firstName} ${session.user.lastName}` : undefined
-
-  const isAdmin = session?.memberships.some((m) => m.role === 'admin') ?? false
+  const userName = `${session.user.firstName} ${session.user.lastName}`
+  const isAdmin = true // already gated above
 
   return (
     <TasksClient

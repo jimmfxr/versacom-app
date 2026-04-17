@@ -1082,14 +1082,25 @@ export function PanelStudio({
 
           {/* ─── Editor workspace ─── */}
           <div className={`flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden relative ${inspectorOpen ? 'lg:pr-0' : ''}`}>
-            {/* Back link — pinned to the very top of the workspace */}
+            {/* Back link — pinned to the very top of the workspace.
+                User-only accounts can't access the project page (proxy
+                blocks it), so route them back to My Equipment instead. */}
             <div className="flex-shrink-0 px-5 pt-3">
               <button
-                onClick={() => router.push(isReviewMode ? '/admin' : `/projects/${project.id}`)}
+                onClick={() => {
+                  const dest = isReviewMode
+                    ? '/admin'
+                    : isUserOnly
+                      ? '/my-equipment'
+                      : `/projects/${project.id}`
+                  router.push(dest)
+                }}
                 className="inline-flex items-center gap-1 text-sm text-gray-400 transition-colors hover:text-white"
               >
                 <ChevronLeftIcon className="size-4" />
-                <span>{isReviewMode ? 'Tasks' : 'Project'}</span>
+                <span>
+                  {isReviewMode ? 'Tasks' : isUserOnly ? 'My Equipment' : 'Project'}
+                </span>
               </button>
             </div>
 

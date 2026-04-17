@@ -162,9 +162,14 @@ export default async function PanelStudioPage({
   const isAdmin = currentUserRole === 'admin'
   const isManager = currentUserRole === 'manager'
   const isCrew = currentUserRole === 'crew'
+  const isUser = currentUserRole === 'user'
 
-  // canEditKeys: admin=always, crew=own panel only, manager=any panel (request mode)
-  // Check both membership ID match AND userId match as fallback for robustness
+  // canEditKeys:
+  //   admin   → always
+  //   manager → any panel (request mode)
+  //   crew    → own panel only (request mode)
+  //   user    → own panel only (request mode) — same as crew, can submit
+  //             change requests for the gear assigned to them
   const isOwnPanel = member !== null && (
     currentMembership?.id === member.id ||
     member.userId === session.user.id
@@ -172,7 +177,7 @@ export default async function PanelStudioPage({
   const canEditKeys =
     isAdmin ||
     isManager ||
-    (isCrew && isOwnPanel)
+    ((isCrew || isUser) && isOwnPanel)
 
   // canManageExpansions: admin only
   const canManageExpansions = isAdmin
@@ -180,8 +185,9 @@ export default async function PanelStudioPage({
   // showIpAddress: admin, manager, crew can see it; user cannot
   const showIpAddress = isAdmin || isManager || isCrew
 
-  // isRequestMode: true for crew and manager (changes go through approval); false for admin
-  const isRequestMode = !isAdmin && (isCrew || isManager)
+  // isRequestMode: true for everyone non-admin (their changes go through
+  // approval); false for admin who can apply changes directly.
+  const isRequestMode = !isAdmin && (isCrew || isManager || isUser)
 
   const isAdminGlobal = session.memberships.some((m) => m.role === 'admin')
   const isUserOnly = session.memberships.every((m) => m.role === 'user')

@@ -37,8 +37,11 @@ export function proxy(request: NextRequest) {
   const isUserOnly = session.memberships.length > 0 && session.memberships.every((m) => m.role === 'user')
 
   if (isUserOnly) {
-    // User role can ONLY access /my-equipment
-    if (!pathname.startsWith('/my-equipment')) {
+    // User role can access /my-equipment AND their own panel(s) via the
+    // /projects/{id}/panel/{equipmentId} route. The Panel Studio page does
+    // its own ownership check, so this just unlocks the URL.
+    const isPanelStudio = /^\/projects\/\d+\/panel\/\d+\/?$/.test(pathname)
+    if (!pathname.startsWith('/my-equipment') && !isPanelStudio) {
       return NextResponse.redirect(new URL('/my-equipment', request.url))
     }
   }
