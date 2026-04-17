@@ -512,30 +512,25 @@ export function ProjectPage({
           <button
             type="button"
             onClick={() => router.push('/projects')}
-            className="inline-flex items-center gap-1 text-sm text-gray-400 transition-colors hover:text-white sm:hidden"
+            className="inline-flex items-center gap-1 text-sm text-gray-400 transition-colors hover:text-white"
           >
             <ChevronLeftIcon className="size-4" />
             <span>Projects</span>
           </button>
         }
         action={
-          <div className="flex items-center gap-2">
-            {canSeeSettings && (
-              <Button
-                variant="secondary"
-                onClick={() => setShowSettings(!showSettings)}
-                aria-label={showSettings ? 'Close settings' : 'Edit project'}
-              >
-                <span className="sm:hidden inline-flex items-center">
-                  {showSettings ? <XMarkIcon className="size-5" /> : <PencilIcon className="size-5" />}
-                </span>
-                <span className="hidden sm:inline">{showSettings ? 'Close' : 'Edit'}</span>
-              </Button>
-            )}
-            <span className="hidden sm:inline-flex">
-              <Button variant="secondary" onClick={() => router.push('/projects')}>Back</Button>
-            </span>
-          </div>
+          canSeeSettings && (
+            <Button
+              variant="secondary"
+              onClick={() => setShowSettings(!showSettings)}
+              aria-label={showSettings ? 'Close settings' : 'Edit project'}
+            >
+              <span className="sm:hidden inline-flex items-center">
+                {showSettings ? <XMarkIcon className="size-5" /> : <PencilIcon className="size-5" />}
+              </span>
+              <span className="hidden sm:inline">{showSettings ? 'Close' : 'Edit'}</span>
+            </Button>
+          )
         }
       >
         <div className="space-y-4">

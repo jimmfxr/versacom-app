@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useTransition, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { ChevronLeftIcon } from '@heroicons/react/24/outline'
 import { AppShell } from '@/components/app-shell'
 import { Button } from '@/components/button'
 import { showToast } from '@/components/toast'
@@ -1081,20 +1082,21 @@ export function PanelStudio({
 
           {/* ─── Editor workspace ─── */}
           <div className={`flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden relative ${inspectorOpen ? 'lg:pr-0' : ''}`}>
+            {/* Back link — pinned to the very top of the workspace */}
+            <div className="flex-shrink-0 px-5 pt-3">
+              <button
+                onClick={() => router.push(isReviewMode ? '/admin' : `/projects/${project.id}`)}
+                className="inline-flex items-center gap-1 text-sm text-gray-400 transition-colors hover:text-white"
+              >
+                <ChevronLeftIcon className="size-4" />
+                <span>{isReviewMode ? 'Tasks' : 'Project'}</span>
+              </button>
+            </div>
+
             <div className="flex flex-col items-center justify-center flex-1 min-h-0">
 
               {/* ─── Header (pinned) ─── */}
-              <div className="flex-shrink-0 text-center w-full px-5 pt-4 pb-2 lg:pt-5 lg:pb-4">
-                {/* Back link */}
-                <div className="mb-2">
-                  <button
-                    onClick={() => router.push(isReviewMode ? '/admin' : `/projects/${project.id}`)}
-                    className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
-                  >
-                    &larr; {isReviewMode ? 'Back to Tasks' : `Back to ${project.name}`}
-                  </button>
-                </div>
-
+              <div className="flex-shrink-0 w-full px-5 pt-2 pb-2 text-center lg:pt-3 lg:pb-4">
                 <div className="flex items-baseline gap-3.5 flex-wrap justify-center mb-1">
                   <div className="text-[22px] font-bold text-white">{memberName}</div>
                   {memberMeta && <div className="text-[13px] text-gray-400">{memberMeta}</div>}
