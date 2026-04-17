@@ -616,22 +616,17 @@ export function PanelStudio({
   }
 
   /* ─── Build picker items (PickList + PTP) ─── */
-  const allPickerItems: PickerItem[] = [
-    ...ptpMembers.map((m) => ({
-      id: m.id * -1, // negative IDs for PTP to distinguish from PickListItems
-      code: null,
-      name: m.name,
-      type: 'PTP',
-      position: m.position,
-    })),
-    ...pickListItems.map((p) => ({
-      id: p.id,
-      code: p.code,
-      name: p.name,
-      type: p.type,
-      position: null,
-    })),
-  ]
+  // PTP items are now real PickListItems (auto-created on page load)
+  // Match PTP PickListItems to members by name for position display
+  const ptpPositionMap = new Map(ptpMembers.map((m) => [m.name, m.position]))
+
+  const allPickerItems: PickerItem[] = pickListItems.map((p) => ({
+    id: p.id,
+    code: p.code,
+    name: p.name,
+    type: p.type,
+    position: p.type === 'PTP' ? (ptpPositionMap.get(p.name) ?? null) : null,
+  }))
 
   const filterTypes = ['All', 'PTP', 'CONF', 'IFB', 'Audio', 'GRP']
 

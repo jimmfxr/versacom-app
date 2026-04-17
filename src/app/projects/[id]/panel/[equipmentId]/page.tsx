@@ -98,13 +98,6 @@ export default async function PanelStudioPage({
     pickListItemType: k.pickListItem?.type ?? null,
   }))
 
-  // Fetch PickListItem records for the project
-  const pickListItems = await prisma.pickListItem.findMany({
-    where: { projectId },
-    select: { id: true, code: true, name: true, type: true },
-    orderBy: [{ type: 'asc' }, { name: 'asc' }],
-  })
-
   // Fetch all ProjectMembers for PTP entries
   const ptpMembersRaw = await prisma.projectMember.findMany({
     where: { projectId },
@@ -114,6 +107,30 @@ export default async function PanelStudioPage({
       user: { select: { firstName: true, lastName: true } },
     },
     orderBy: { id: 'asc' },
+  })
+
+  // Auto-sync PTP PickListItems from project members
+  // Each member gets a PTP pick list entry so it has a real PickListItem ID
+  const existingPtp = await prisma.pickListItem.findMany({
+    where: { projectId, type: 'PTP' },
+    select: { id: true, name: true },
+  })
+  const existingPtpNames = new Set(existingPtp.map((p) => p.name))
+
+  for (const m of ptpMembersRaw) {
+    const ptpName = `${m.user.firstName} ${m.user.lastName}`
+    if (!existingPtpNames.has(ptpName)) {
+      await prisma.pickListItem.create({
+        data: { projectId, name: ptpName, type: 'PTP', code: m.position },
+      })
+    }
+  }
+
+  // Fetch PickListItem records for the project (including newly created PTP items)
+  const pickListItems = await prisma.pickListItem.findMany({
+    where: { projectId },
+    select: { id: true, code: true, name: true, type: true },
+    orderBy: [{ type: 'asc' }, { name: 'asc' }],
   })
 
   const ptpMembers = ptpMembersRaw.map((m) => ({
