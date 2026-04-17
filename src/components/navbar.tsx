@@ -136,7 +136,10 @@ export function Navbar({
         </div>
       </div>
 
-      <DisclosurePanel className="fixed inset-0 z-50 flex flex-col bg-[#181818] sm:hidden">
+      <DisclosurePanel
+        transition
+        className="fixed inset-0 z-50 flex origin-top flex-col bg-[#202020] transition duration-300 ease-out data-closed:-translate-y-full data-closed:opacity-0 sm:hidden"
+      >
         {/* Top bar with logo + close */}
         <div className="flex h-16 shrink-0 items-center justify-between px-4">
           <img alt={logoAlt} src={logoSrc} className="h-8 w-auto" />
@@ -147,34 +150,32 @@ export function Navbar({
           </DisclosureButton>
         </div>
 
-        {/* User info card */}
-        <div className="px-4 pt-2">
-          <div className="flex items-center gap-3 rounded-2xl bg-[#202020] px-5 py-4">
-            <div className="shrink-0">
-              {user.imageUrl ? (
-                <img
-                  alt=""
-                  src={user.imageUrl}
-                  className="size-10 rounded-full outline -outline-offset-1 outline-white/10"
-                />
-              ) : (
-                <span className="flex size-10 items-center justify-center rounded-full bg-[#0178a3] text-sm font-medium text-white outline -outline-offset-1 outline-white/10">
-                  {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                </span>
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-base font-medium text-white">{user.name}</div>
-            </div>
-            <button
-              type="button"
-              className="relative shrink-0 rounded-full p-1 text-gray-400 hover:text-white focus:outline-2 focus:outline-offset-2 focus:outline-[#0178a3]"
-            >
-              <span className="absolute -inset-1.5" />
-              <span className="sr-only">View notifications</span>
-              <BellIcon aria-hidden="true" className="size-6" />
-            </button>
+        {/* User info */}
+        <div className="flex items-center gap-3 px-5 pt-2 pb-4">
+          <div className="shrink-0">
+            {user.imageUrl ? (
+              <img
+                alt=""
+                src={user.imageUrl}
+                className="size-10 rounded-full outline -outline-offset-1 outline-white/10"
+              />
+            ) : (
+              <span className="flex size-10 items-center justify-center rounded-full bg-[#0178a3] text-sm font-medium text-white outline -outline-offset-1 outline-white/10">
+                {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+              </span>
+            )}
           </div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-base font-medium text-white">{user.name}</div>
+          </div>
+          <button
+            type="button"
+            className="relative shrink-0 rounded-full p-1 text-gray-400 hover:text-white focus:outline-2 focus:outline-offset-2 focus:outline-[#0178a3]"
+          >
+            <span className="absolute -inset-1.5" />
+            <span className="sr-only">View notifications</span>
+            <BellIcon aria-hidden="true" className="size-6" />
+          </button>
         </div>
 
         {/* Nav cards */}
@@ -187,8 +188,8 @@ export function Navbar({
               aria-current={item.current ? 'page' : undefined}
               className={classNames(
                 item.current
-                  ? 'bg-[#202020] text-[#0178a3] ring-1 ring-[#0178a3]'
-                  : 'bg-[#202020] text-gray-300 hover:text-white',
+                  ? 'bg-[#2a2a2a] text-[#0178a3] ring-1 ring-[#0178a3]'
+                  : 'bg-[#2a2a2a] text-gray-300 hover:text-white',
                 'block rounded-2xl px-5 py-4 text-base font-medium transition-colors',
               )}
             >
@@ -203,7 +204,7 @@ export function Navbar({
             <DisclosureButton
               as="button"
               onClick={onSignOut}
-              className="block w-full rounded-2xl bg-[#202020] px-5 py-4 text-left text-base font-medium text-gray-400 hover:text-white"
+              className="block w-full rounded-2xl bg-[#2a2a2a] px-5 py-4 text-left text-base font-medium text-gray-400 hover:text-white"
             >
               Sign out
             </DisclosureButton>
