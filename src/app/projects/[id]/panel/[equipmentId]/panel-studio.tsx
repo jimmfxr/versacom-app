@@ -253,7 +253,7 @@ export function PanelStudio({
       setKeys(initializeKeys(initialPanelKeys, keyCount))
 
       if (hadSubmitted) {
-        showToast('success', 'Your request has been approved')
+        showToast('success', 'Your panel changes are live')
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
