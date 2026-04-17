@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { Navbar, type NavItem, type NavUser } from '@/components/navbar'
 import { ToastContainer } from '@/components/toast'
@@ -9,7 +10,7 @@ const userNavigation: ReadonlyArray<Pick<NavItem, 'name' | 'href'>> = [
   { name: 'Sign out', href: '#' },
 ]
 
-function getNavigation(pathname: string, isAdmin: boolean, isUserOnly: boolean): NavItem[] {
+function getNavigation(pathname: string, isAdmin: boolean, isUserOnly: boolean, lastProjectId: string | null): NavItem[] {
   if (isUserOnly) {
     return [
       { name: 'My Equipment', href: '/my-equipment', current: pathname.startsWith('/my-equipment') },
@@ -20,7 +21,8 @@ function getNavigation(pathname: string, isAdmin: boolean, isUserOnly: boolean):
   if (isAdmin) {
     items.push({ name: 'Tasks', href: '/admin', current: pathname.startsWith('/admin') })
   }
-  items.push({ name: 'Projects', href: '/projects', current: pathname.startsWith('/projects') })
+  const projectsHref = lastProjectId ? `/projects/${lastProjectId}` : '/projects'
+  items.push({ name: 'Projects', href: projectsHref, current: pathname.startsWith('/projects') })
   return items
 }
 
@@ -33,6 +35,12 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
   const router = useRouter()
   const pathname = usePathname()
 
+  const [lastProjectId, setLastProjectId] = useState<string | null>(null)
+  useEffect(() => {
+    const match = document.cookie.match(/lastProject=(\d+)/)
+    setLastProjectId(match ? match[1] : null)
+  }, [pathname])
+
   async function handleSignOut() {
     await fetch('/api/auth/logout', { method: 'POST' })
     router.push('/login')
@@ -41,7 +49,7 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
   return (
     <div className="min-h-full bg-[#202020]">
       <Navbar
-        navigation={getNavigation(pathname, isAdmin, isUserOnly)}
+        navigation={getNavigation(pathname, isAdmin, isUserOnly, lastProjectId)}
         user={navUser}
         userNavigation={userNavigation}
         onSignOut={handleSignOut}

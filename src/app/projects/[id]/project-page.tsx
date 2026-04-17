@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { useDeviceReachability } from '@/hooks/use-device-reachability'
 import { Button } from '@/components/button'
 import { showToast } from '@/components/toast'
 import { AppShell } from '@/components/app-shell'
@@ -212,6 +213,11 @@ export function ProjectPage({
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
+  // Remember this project so the "Projects" nav link comes back here
+  useEffect(() => {
+    document.cookie = `lastProject=${project.id};path=/;max-age=${60 * 60 * 24 * 365}`
+  }, [project.id])
+
   // Role permissions (based on role within this project)
   const isProjectAdmin = currentUserRole === 'admin'
   const isManager = currentUserRole === 'manager'
@@ -260,6 +266,13 @@ export function ProjectPage({
   const [editPlData, setEditPlData] = useState<{ code: string; name: string; type: string }>({ code: '', name: '', type: 'CONF' })
   const [showAddPl, setShowAddPl] = useState(false)
   const [addPlData, setAddPlData] = useState<{ code: string; name: string; type: string }>({ code: '', name: '', type: 'CONF' })
+
+  // Device reachability — pings IPs from the browser every 30s (only works on same LAN)
+  // Skip hardwire_bp (often DHCP — IPs change too frequently to be reliable)
+  const reachableItems = equipment.filter((e) =>
+    ['panels', 'switches', 'antennas'].includes(e.category) && e.ipAddress,
+  )
+  const reachable = useDeviceReachability(reachableItems)
 
   /* ─── Project actions ─── */
 
@@ -711,7 +724,23 @@ export function ProjectPage({
                             <>
                               {/* Row 1: User · Position + ID */}
                               <div className="text-sm font-semibold">
-                                <span className="text-white">{item.name}</span>
+                                {['panels', 'hardwire_bp', 'wireless_bp'].includes(item.category) ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => router.push(`/projects/${project.id}/panel/${item.id}`)}
+                                    className={`transition-colors duration-500 hover:underline decoration-current/30 hover:decoration-current ${item.ipAddress && reachable[item.id] ? 'text-green-400' : 'text-white'}`}
+                                    title={item.ipAddress && reachable[item.id] ? `${item.ipAddress} — reachable · Click to open Panel Studio` : 'Click to open Panel Studio'}
+                                  >
+                                    {item.name}
+                                  </button>
+                                ) : (
+                                  <span
+                                    className={`transition-colors duration-500 ${item.ipAddress && reachable[item.id] ? 'text-green-400' : 'text-white'}`}
+                                    title={item.ipAddress && reachable[item.id] ? `${item.ipAddress} — reachable` : undefined}
+                                  >
+                                    {item.name}
+                                  </span>
+                                )}
                                 {item.assignedToName ? (
                                   <>
                                     <span className="text-gray-500"> · </span>
@@ -821,7 +850,7 @@ export function ProjectPage({
                         disabled={!addMemberData.firstName.trim() || !addMemberData.lastName.trim()}
                         onClick={() => {
                           const name = `${addMemberData.firstName.trim()} ${addMemberData.lastName.trim()}`
-                          const text = `Hi ${name}, you've been accepted into ${project.name}! To get started, <a href="https://versacom-app.vercel.app/login">click here</a> and enter your name along with the project PIN: ${project.pin}`
+                          const text = `Hi ${name}, you've been accepted into ${project.name}! To get started, click here: https://versacom-app.vercel.app/login and enter your name along with the project PIN: ${project.pin}`
                           navigator.clipboard.writeText(text).then(() => showToast('success', 'Invite message copied to clipboard'))
                         }}
                       >
@@ -1014,7 +1043,12 @@ export function ProjectPage({
                       <div key={item.id} className="flex items-start gap-4 rounded-2xl bg-[#2a2a2a] px-5 py-4 transition-colors hover:bg-[#313131]">
                         <div className="min-w-0 flex-1">
                           <div className="text-sm font-semibold">
-                            <span className="text-xs font-semibold text-gray-400">{item.name}</span>
+                            <span
+                              className={`text-xs font-semibold transition-colors duration-500 ${item.ipAddress && reachable[item.id] ? 'text-green-400' : 'text-gray-400'}`}
+                              title={item.ipAddress && reachable[item.id] ? `${item.ipAddress} — reachable` : undefined}
+                            >
+                              {item.name}
+                            </span>
                           </div>
                           <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-gray-400">
                             {item.location && <><span className="hidden sm:inline text-gray-500">Location: </span><span>{item.location}</span><span className="text-gray-500">·</span></>}

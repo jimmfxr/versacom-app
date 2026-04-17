@@ -42,9 +42,17 @@ function FolderIcon() {
 
 export function ProjectsContent({ projects, userName, isAdmin, isUserOnly }: { projects: Project[]; userName?: string; isAdmin?: boolean; isUserOnly?: boolean }) {
   const [showForm, setShowForm] = useState(false)
+  const [search, setSearch] = useState('')
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
+
+  const filteredProjects = projects.filter((p) => {
+    if (!search.trim()) return true
+    const q = search.toLowerCase()
+    const creatorName = `${p.createdBy.firstName} ${p.createdBy.lastName}`.toLowerCase()
+    return p.name.toLowerCase().includes(q) || creatorName.includes(q)
+  })
 
   function closeForm() {
     setShowForm(false)
@@ -117,6 +125,19 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly }: { p
           </Card>
         )}
 
+        {/* Search bar */}
+        {projects.length > 0 && (
+          <div className="sticky top-16 z-20 -mx-4 bg-[#202020] px-4 pb-3 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+            <input
+              type="text"
+              placeholder="Search projects..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
+            />
+          </div>
+        )}
+
         {/* Project list */}
         {projects.length === 0 && !showForm ? (
           <EmptyState
@@ -124,9 +145,15 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly }: { p
             title="No projects yet"
             message="Create your first project to get started."
           />
+        ) : filteredProjects.length === 0 ? (
+          <EmptyState
+            icon={<FolderIcon />}
+            title="No matches found"
+            message="Try a different search term."
+          />
         ) : (
           <div className="space-y-2">
-            {projects.map((project) => (
+            {filteredProjects.map((project) => (
               <RowCard key={project.id} onClick={() => router.push(`/projects/${project.id}`)}>
                 <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#0178a3]/15">
                   <svg className="size-5 text-[#0178a3]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">

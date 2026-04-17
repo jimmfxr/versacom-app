@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup — Panel Studio v2 (modal picker)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%; width: 100%; overflow: hidden;
+    background: #202020; color: white;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    touch-action: pan-x pan-y;
+  }
+
+  /* ─── Locked app shell: only the panel-editor-content scrolls ─── */
+  .app-layout {
+    display: flex; flex-direction: column;
+    height: 100vh; height: 100dvh;
+    width: 100%; overflow: hidden; position: relative;
+  }
+  .app-content { display: flex; flex: 1; overflow: hidden; position: relative; min-height: 0; }
+  .editor-workspace {
+    flex: 1; display: flex; flex-direction: column;
+    min-width: 0; min-height: 0; overflow: hidden; position: relative;
+  }
+
+  /* ─── Navbar ─── */
+  .navbar { background: #202020; border-bottom: 1px solid rgba(255,255,255,0.08); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; z-index: 40; }
+  .nav-left { display: flex; align-items: center; gap: 28px; }
+  .nav-logo { font-size: 14px; font-weight: 700; letter-spacing: 0.5px; }
+  .nav-tabs { display: flex; gap: 22px; }
+  .nav-tab { color: #9ca3af; font-size: 13px; text-decoration: none; padding: 4px 0; }
+  .nav-tab.active { color: white; border-bottom: 2px solid #0178a3; }
+  .nav-avatar { width: 32px; height: 32px; border-radius: 50%; background: #0178a3; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+
+  /* ─── Panel editor (3-layer: header / panel / footer)
+         Header and footer are FIXED (flex-shrink:0) — they sit outside the
+         scroll area. Only .panel-editor-content scrolls. Matches current-app. ─── */
+  .panel-editor {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center;
+    flex: 1; min-height: 0;
+  }
+  .panel-header {
+    flex-shrink: 0; text-align: center; width: 100%;
+    padding: 16px 20px 8px 20px;
+  }
+  .panel-editor-content {
+    flex: 0 1 auto; min-height: 0; width: 100%;
+    overflow: auto; -webkit-overflow-scrolling: touch;
+    padding: 16px;
+    display: flex;
+    transition: padding-right 0.3s ease;
+  }
+  /* margin:auto on flex child = centers both axes without clipping scroll */
+  .hw-panel { min-width: min-content; margin: auto; }
+  .panel-editor-footer {
+    flex-shrink: 0;
+    padding: 8px 16px 12px 16px;
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+    width: 100%;
+  }
+
+  /* Desktop: more breathing room */
+  @media (min-width: 1031px) {
+    .panel-header { padding: 20px 20px 16px 20px; }
+    .panel-editor-content { padding: 20px 40px; }
+    .panel-editor-footer { padding: 12px 20px 20px 20px; }
+
+    /* Shift content left when inspector is open so it doesn't overlap */
+    .editor-workspace.inspector-active .panel-editor-content { padding-right: 420px; }
+  }
+  @media (min-width: 2200px) {
+    .editor-workspace.inspector-active .panel-editor-content { padding-right: 40px; }
+  }
+
+
+  /* ─── Identity header (centered) ─── */
+  .id-header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 4px; justify-content: center; }
+  .id-name { font-size: 22px; font-weight: 700; color: white; }
+  .id-pos { font-size: 13px; color: #9ca3af; }
+  .id-ip { font-size: 13px; color: #22a7d3; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .id-meta { font-size: 12px; color: #6b7280; margin-bottom: 14px; text-align: center; }
+  .id-meta .sep { margin: 0 8px; color: #3a3a3a; }
+
+  /* ─── Hardware controls ─── */
+  .hw-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; justify-content: center; }
+  .hw-pill { display: inline-flex; align-items: center; gap: 8px; background: transparent; padding: 6px 14px; font-size: 12px; color: #d1d5db; }
+  .hw-pill .lbl { color: #6b7280; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .hw-pill .val { font-weight: 600; color: white; }
+  .exp-btns { display: inline-flex; gap: 6px; margin-left: 4px; }
+  .exp-btn { width: 28px; height: 28px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.14); background: transparent; color: #22a7d3; font-size: 18px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: inherit; line-height: 1; }
+  .exp-btn:hover { background: rgba(34,167,211,0.08); border-color: rgba(34,167,211,0.4); }
+  .exp-btn.danger { color: #ef4444; }
+  .exp-btn.danger:hover { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.4); }
+  .exp-btn:disabled, .exp-btn[hidden] { display: none; }
+
+  /* ─── State legend ─── */
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #9ca3af; }
+  .legend-dot { width: 9px; height: 9px; border-radius: 2px; }
+  .legend-dot.assigned { background: #10b981; box-shadow: 0 0 6px rgba(16,185,129,0.6); }
+  .legend-dot.changed { background: #f59e0b; box-shadow: 0 0 6px rgba(245,158,11,0.6); }
+  .legend-dot.submitted { background: #10b981; box-shadow: 0 0 6px rgba(16,185,129,0.4); border: 1px solid #10b981; }
+  .legend-dot.empty { background: transparent; border: 1px dashed #4b5563; }
+
+  /* ─── Hardware chassis ─── */
+  .chassis {
+    background: #2a2a2a; border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px; padding: 32px;
+    display: flex; flex-direction: column; gap: 16px; align-items: center;
+  }
+  .panel-row { display: flex; gap: 14px; flex-wrap: nowrap; }
+  .hw-block { background: transparent; padding: 14px; border-radius: 8px; }
+  .block-8x1 { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; }
+
+  /* Main / Shift page visibility — toggled by .shift-active on .chassis */
+  .chassis:not(.shift-active) .page-shift { display: none; }
+  .chassis.shift-active .page-main { display: none; }
+
+  /* ─── Panel keys ─── */
+  .key {
+    width: 64px; height: 64px;
+    background: #202020; border: 2px solid #3a3a3a; border-radius: 6px;
+    cursor: pointer; position: relative; display: flex; flex-direction: column;
+    transition: all 0.18s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+  }
+  .key:hover { transform: translateY(-2px); border-color: #4a4a4a; }
+  .key .tally { height: 4px; width: 60%; margin: 6px auto 0; border-radius: 2px; background: #333; }
+  .key .display { flex: 1; display: flex; align-items: center; justify-content: center; padding: 4px; position: relative; }
+  .key .label { font-size: 9px; font-weight: 700; color: white; text-align: center; white-space: nowrap; overflow: hidden; max-width: 100%; }
+  .key .trig { position: absolute; bottom: 4px; right: 6px; font-size: 9px; font-weight: 800; color: #f59e0b; opacity: 0.85; text-transform: uppercase; }
+  .key .empty-plus { font-size: 24px; color: #3b4352; font-weight: 300; line-height: 1; }
+  .key .type-stripe { display: none; }
+
+  /* States */
+  .key.assigned .tally { background: #10b981; box-shadow: 0 0 8px rgba(16,185,129,0.7); }
+  .key.selected { border-color: #22a7d3; box-shadow: 0 0 16px rgba(34,167,211,0.5); transform: translateY(-4px); }
+  .key.changed { border-color: #f59e0b; box-shadow: 0 0 12px rgba(245,158,11,0.4); }
+  .key.changed .tally { background: #f59e0b; box-shadow: 0 0 8px rgba(245,158,11,0.7); }
+  .key.submitted { border-color: #10b981; box-shadow: 0 0 12px rgba(16,185,129,0.4); }
+  .key.submitted .tally { background: #10b981; box-shadow: 0 0 8px rgba(16,185,129,0.7); }
+
+  /* Drag & drop states */
+  .key.dragging { opacity: 0.3; transform: scale(0.92) !important; }
+  .key.drag-over { border-color: #22a7d3 !important; box-shadow: 0 0 20px rgba(34,167,211,0.6) !important; transform: translateY(-3px); background: rgba(34,167,211,0.08); }
+  .key[draggable="true"] { cursor: grab; }
+  .key[draggable="true"]:active { cursor: grabbing; }
+  .pick-row { cursor: grab; user-select: none; }
+  .pick-row:active { cursor: grabbing; }
+
+  /* Shift toggle (panel footer content) */
+  .shift-toggle { display: inline-flex; gap: 0; background: #2a2a2a; padding: 4px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); }
+  .shift-btn { background: transparent; border: none; color: #9ca3af; font-size: 11px; font-weight: 700; padding: 8px 22px; border-radius: 7px; cursor: pointer; letter-spacing: 0.5px; text-transform: uppercase; font-family: inherit; }
+  .shift-btn.active { background: #0178a3; color: white; }
+
+  /* ─── Inspector — DESKTOP: absolute overlay inside workspace ─── */
+  .inspector {
+    width: 360px; background: #2a2a2a;
+    border: 1px solid rgba(255,255,255,0.06); border-radius: 14px;
+    display: none; flex-direction: column; overflow: hidden;
+    position: absolute; right: 24px; top: 24px; max-height: calc(100% - 48px);
+    z-index: 100; box-shadow: -15px 10px 40px rgba(0,0,0,0.6);
+  }
+  .inspector.open { display: flex; }
+
+  /* Drag handle — hidden on desktop, visible on mobile sheet */
+  .sheet-handle { display: none; }
+  .sheet-handle-bar { width: 40px; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.25); }
+
+  /* Scrim behind bottom sheet on mobile */
+  .inspector-scrim { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 199; opacity: 0; transition: opacity 0.3s ease; pointer-events: none; }
+  .inspector-scrim.show { opacity: 1; pointer-events: auto; }
+
+  .insp-header { padding: 16px 18px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-shrink: 0; }
+  .insp-header-titles { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
+  .detail-titles { min-width: 0; }
+  .picker-titles { display: none; align-items: center; gap: 10px; min-width: 0; }
+  .insp-back { background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #d1d5db; cursor: pointer; padding: 3px 10px; font-size: 14px; font-family: inherit; flex-shrink: 0; }
+  .insp-back:hover { background: rgba(255,255,255,0.06); }
+  .insp-title { font-size: 13px; font-weight: 600; color: white; }
+  .insp-sub { font-size: 10px; color: #6b7280; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  .insp-sub.cyan { color: #22a7d3; }
+  .insp-close { background: transparent; border: none; color: #9ca3af; font-size: 18px; cursor: pointer; padding: 4px 8px; border-radius: 6px; flex-shrink: 0; }
+  .insp-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; flex: 1; }
+
+  /* Picker view inside the inspector */
+  .insp-picker { display: none; flex-direction: column; flex: 1; min-height: 0; }
+  .picker-controls { padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
+  .picker-list { padding: 14px 18px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 18px; }
+  .inspector.picker-mode .insp-body { display: none; }
+  .inspector.picker-mode .insp-picker { display: flex; }
+  .inspector.picker-mode .insp-footer { display: none; }
+  .inspector.picker-mode .detail-titles { display: none; }
+  .inspector.picker-mode .picker-titles { display: flex; }
+
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-label { font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-select { background: #202020; color: white; border: 1px solid rgba(255,255,255,0.08); padding: 10px 12px; border-radius: 8px; font-size: 13px; outline: none; cursor: pointer; font-family: inherit; }
+
+  /* Destination card (shows current assignment, opens modal) */
+  .dest-card { background: #202020; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all 0.15s; }
+  .dest-card:hover { border-color: rgba(34,167,211,0.5); background: #262626; }
+  .dest-stripe { display: none; }
+  .dest-info { flex: 1; min-width: 0; }
+  .dest-name { font-size: 14px; font-weight: 600; color: white; }
+  .dest-meta { font-size: 10px; color: #6b7280; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
+  .dest-edit { color: #6b7280; font-size: 11px; font-weight: 600; }
+
+  .insp-footer { padding: 16px 18px; border-top: 1px solid rgba(255,255,255,0.06); display: flex; flex-direction: column; gap: 12px; background: #232323; }
+  .insp-staged { font-size: 11px; color: #9ca3af; text-align: center; }
+  .insp-staged strong { color: #f59e0b; font-weight: 700; }
+  .insp-submit { background: #22a7d3; color: white; border: none; padding: 12px 14px; border-radius: 10px; font-weight: 700; font-size: 12px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* ─── Modal pick list ─── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+    display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #202020; border-radius: 16px; border: 1px solid rgba(255,255,255,0.08);
+    width: 100%; max-width: 560px; max-height: 80vh; display: flex; flex-direction: column;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+  }
+  .modal-header { padding: 20px 22px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .modal-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .modal-title { font-size: 16px; font-weight: 700; color: white; }
+  .modal-title-sub { font-size: 11px; color: #22a7d3; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; margin-top: 2px; }
+  .modal-close { background: transparent; border: none; color: #9ca3af; font-size: 22px; cursor: pointer; padding: 4px 10px; border-radius: 6px; }
+  .modal-close:hover { color: white; background: rgba(255,255,255,0.06); }
+
+  .modal-search { width: 100%; background: #2a2a2a; color: white; border: 2px solid rgba(255,255,255,0.1); padding: 10px 16px; border-radius: 8px; font-size: 16px; outline: none; font-family: inherit; transition: border-color 0.15s; }
+  .modal-search::placeholder { color: #6b7280; }
+  .modal-search:focus { border-color: #0178a3; }
+
+  /* Filter chips — match the project page tab switcher (Equipment/Team/Pick List) */
+  .chips { display: flex; width: 100%; background: #2a2a2a; padding: 4px; border-radius: 8px; margin-top: 12px; }
+  .chip { flex: 1; min-width: 0; background: transparent; border: none; color: #6b7280; padding: 7px 6px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: color 0.15s, background-color 0.15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chip:hover { color: #d1d5db; }
+  .chip.active { background: #0178a3; color: white; }
+  .chip span { margin-left: 4px; font-size: 11px; opacity: 0.7; }
+  .chip-dot { display: none; }
+
+  /* Body / list */
+  .modal-body { padding: 14px 22px 18px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 18px; }
+  .group { display: flex; flex-direction: column; gap: 6px; }
+  .group-label { font-size: 10px; font-weight: 800; color: #6b7280; text-transform: uppercase; letter-spacing: 0.6px; padding: 0 4px; display: flex; align-items: center; gap: 8px; }
+  .group-label .dot { display: none; }
+
+  .pick-row { background: rgba(255,255,255,0.03); border: 1px solid transparent; border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; transition: all 0.15s; }
+  .pick-row:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); }
+  .pick-row.active { background: rgba(34,167,211,0.12); border-color: rgba(34,167,211,0.5); }
+  .pick-stripe { display: none; }
+  .pick-info { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; overflow: hidden; }
+  .pick-name { font-size: 12px; font-weight: 600; color: #e5e7eb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pick-row.active .pick-name { color: #22a7d3; }
+  .pick-sub { font-size: 11px; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pick-code { font-size: 10px; color: #6b7280; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .pick-type { font-size: 11px; font-weight: 500; color: #d1d5db; background: rgba(255,255,255,0.10); padding: 2px 8px; border-radius: 6px; flex-shrink: 0; }
+  .pick-row.active .pick-type { color: #22a7d3; background: rgba(34,167,211,0.18); }
+  .pick-check { color: #22a7d3; font-weight: 700; font-size: 14px; opacity: 0; margin-left: 4px; }
+  .pick-row.active .pick-check { opacity: 1; }
+
+  /* Recent badge */
+  .recent-badge { font-size: 9px; color: #f59e0b; background: rgba(245,158,11,0.12); padding: 2px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
+
+  .modal-footer { padding: 14px 22px; border-top: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .modal-hint { font-size: 11px; color: #6b7280; }
+  .modal-hint kbd { background: #1e222b; border: 1px solid rgba(255,255,255,0.08); border-bottom-width: 2px; padding: 1px 6px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; color: #d1d5db; margin: 0 2px; }
+
+  /* ─── Mobile / tablet: inspector becomes bottom sheet ─── */
+  @media (max-width: 1024px) {
+    .inspector {
+      position: fixed; left: 0; right: 0; bottom: 0; top: auto;
+      width: 100%; max-width: 100%; max-height: 65vh; max-height: 65dvh;
+      border-radius: 20px 20px 0 0;
+      border: none; border-top: 1px solid rgba(255,255,255,0.06);
+      box-shadow: 0 -10px 40px rgba(0,0,0,0.6);
+      z-index: 200;
+      transform: translateY(100%);
+      display: flex; /* always flex — visibility controlled by transform */
+      transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+    }
+    .inspector.open { transform: translateY(0); }
+
+    .sheet-handle { display: flex; justify-content: center; padding: 10px 0 2px 0; cursor: grab; flex-shrink: 0; }
+    .inspector-scrim { display: block; }
+
+    .insp-header { padding: 10px 18px 14px 18px; }
+
+    /* Cap picker list height so controls/back remain reachable on short screens */
+    .picker-list { max-height: calc(65dvh - 200px); }
+    /* Respect iOS home indicator */
+    .insp-footer { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+    .insp-picker { padding-bottom: env(safe-area-inset-bottom); }
+  }
+
+  /* ─── Narrow phones ─── */
+  @media (max-width: 640px) {
+    .chassis { padding: 20px; }
+    .panel-row { gap: 10px; }
+    .hw-block { padding: 10px; }
+    .id-name { font-size: 19px; }
+    .panel-header { padding: 12px 16px 6px 16px; }
+    .panel-editor-footer { padding: 10px 16px 12px 16px; }
+    /* Panel keys stay fixed at 64px — user pans horizontally if needed (matches physical hardware) */
+  }
+</style>
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- ─── Navbar ─── -->
+  <div class="navbar">
+    <div class="nav-left">
+      <div class="nav-logo">NODAL CONTROL</div>
+      <div class="nav-tabs">
+        <a class="nav-tab" href="#">Dashboard</a>
+        <a class="nav-tab active" href="#">My Panel</a>
+      </div>
+    </div>
+    <div class="nav-avatar">FR</div>
+  </div>
+
+  <div class="app-content">
+    <div class="editor-workspace" id="workspace">
+      <div class="panel-editor">
+
+        <!-- HEADER (stays pinned, never scrolls with panel) -->
+        <div class="panel-header">
+          <div class="id-header">
+            <div class="id-name">Fletch Romero</div>
+            <div class="id-pos">A1 · Front of House</div>
+            <div class="id-ip">10.0.1.42</div>
+          </div>
+          <div class="id-meta">
+            2026 BREAKTHROUGH PRIZE
+            <span class="sep">·</span>
+            RSP-1216HL
+            <span style="color:#6b7280">· 16-Key</span>
+          </div>
+          <div class="legend">
+            <div class="legend-item"><span class="legend-dot assigned"></span>Assigned</div>
+            <div class="legend-item"><span class="legend-dot changed"></span>Changed (draft)</div>
+            <div class="legend-item"><span class="legend-dot submitted"></span>Submitted (awaiting admin)</div>
+            <div class="legend-item"><span class="legend-dot empty"></span>Unassigned</div>
+            <div class="hw-pill">
+              <span class="lbl">Expansions</span>
+              <span class="val" id="exp-count">0</span>
+              <div class="exp-btns">
+                <button class="exp-btn danger" id="exp-remove" title="Remove last expansion" hidden>−</button>
+                <button class="exp-btn" id="exp-add" title="Add expansion panel">+</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SCROLLABLE CONTENT (the only scroller — panel centers via margin:auto) -->
+        <div class="panel-editor-content">
+          <div class="hw-panel">
+            <div class="chassis">
+        <div class="panel-row page-main">
+          <div class="hw-block block-8x1">
+            <div class="key assigned">
+              <div class="tally"></div>
+              <div class="display"><span class="label">CAMS</span></div>
+              <div class="trig">L</div>
+            </div>
+            <div class="key assigned">
+              <div class="tally"></div>
+              <div class="display"><span class="label">SM</span></div>
+              <div class="trig">L</div>
+            </div>
+            <div class="key assigned">
+              <div class="tally"></div>
+              <div class="display"><span class="label">AUDIO</span></div>
+              <div class="trig">L</div>
+            </div>
+            <div class="key assigned">
+              <div class="tally"></div>
+              <div class="display"><span class="label">LITE</span></div>
+              <div class="trig">L</div>
+            </div>
+            <div class="key assigned">
+              <div class="tally"></div>
+              <div class="display"><span class="label">TAPE</span></div>
+              <div class="trig">M</div>
+            </div>
+            <div class="key submitted">
+              <div class="tally"></div>
+              <div class="display"><span class="label">PRODUCER</span></div>
+              <div class="trig">L</div>
+            </div>
+            <div class="key changed">
+              <div class="tally"></div>
+              <div class="display"><span class="label">PYRO</span></div>
+              <div class="trig">M</div>
+            </div>
+            <div class="key">
+              <div class="tally"></div>
+              <div class="display"><span class="empty-plus">+</span></div>
+            </div>
+          </div>
+          <div class="hw-block block-8x1">
+            <div class="key assigned">
+              <div class="tally"></div>
+              <div class="display"><span class="label">SCREEN</span></div>
+              <div class="trig">L</div>
+            </div>
+            <div class="key assigned">
+              <div class="tally"></div>
+              <div class="display"><span class="label">PROMPTER</span></div>
+              <div class="trig">L</div>
+            </div>
+            <div class="key assigned">
+              <div class="tally"></div>
+              <div class="display"><span class="label">GRAPHICS</span></div>
+              <div class="trig">L</div>
+            </div>
+            <div class="key assigned">
+              <div class="tally"></div>
+              <div class="display"><span class="label">SPOTS</span></div>
+              <div class="trig">M</div>
+            </div>
+            <div class="key assigned">
+              <div class="tally"></div>
+              <div class="display"><span class="label">PROGRAM</span></div>
+              <div class="trig">L</div>
+            </div>
+            <div class="key">
+              <div class="tally"></div>
+              <div class="display"><span class="empty-plus">+</span></div>
+            </div>
+            <div class="key">
+              <div class="tally"></div>
+              <div class="display"><span class="empty-plus">+</span></div>
+            </div>
+            <div class="key">
+              <div class="tally"></div>
+              <div class="display"><span class="empty-plus">+</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── Shift page (hidden unless chassis has .shift-active) ─── -->
+        <div class="panel-row page-shift">
+          <div class="hw-block block-8x1">
+            <div class="key assigned"><div class="tally"></div><div class="display"><span class="label">IFB 1</span></div><div class="trig">M</div></div>
+            <div class="key assigned"><div class="tally"></div><div class="display"><span class="label">IFB 2</span></div><div class="trig">M</div></div>
+            <div class="key assigned"><div class="tally"></div><div class="display"><span class="label">IFB 3</span></div><div class="trig">M</div></div>
+            <div class="key assigned"><div class="tally"></div><div class="display"><span class="label">ALL CALL</span></div><div class="trig">M</div></div>
+            <div class="key assigned"><div class="tally"></div><div class="display"><span class="label">SM CALL</span></div><div class="trig">M</div></div>
+            <div class="key assigned"><div class="tally"></div><div class="display"><span class="label">DIR</span></div><div class="trig">L</div></div>
+            <div class="key assigned"><div class="tally"></div><div class="display"><span class="label">TD</span></div><div class="trig">L</div></div>
+            <div class="key"><div class="tally"></div><div class="display"><span class="empty-plus">+</span></div></div>
+          </div>
+          <div class="hw-block block-8x1">
+            <div class="key assigned"><div class="tally"></div><div class="display"><span class="label">VTR</span></div><div class="trig">L</div></div>
+            <div class="key assigned"><div class="tally"></div><div class="display"><span class="label">DDR</span></div><div class="trig">L</div></div>
+            <div class="key assigned"><div class="tally"></div><div class="display"><span class="label">Q1</span></div><div class="trig">M</div></div>
+            <div class="key assigned"><div class="tally"></div><div class="display"><span class="label">Q2</span></div><div class="trig">M</div></div>
+            <div class="key changed"><div class="tally"></div><div class="display"><span class="label">BACKUP</span></div><div class="trig">L</div></div>
+            <div class="key"><div class="tally"></div><div class="display"><span class="empty-plus">+</span></div></div>
+            <div class="key"><div class="tally"></div><div class="display"><span class="empty-plus">+</span></div></div>
+            <div class="key"><div class="tally"></div><div class="display"><span class="empty-plus">+</span></div></div>
+          </div>
+        </div>
+      </div><!-- /.chassis -->
+          </div><!-- /.hw-panel -->
+        </div><!-- /.panel-editor-content -->
+
+        <!-- FOOTER (stays pinned) -->
+        <div class="panel-editor-footer">
+          <div class="shift-toggle">
+            <button class="shift-btn active" id="page-main-btn">Main</button>
+            <button class="shift-btn" id="page-shift-btn">Shift</button>
+          </div>
+        </div>
+
+      </div><!-- /.panel-editor -->
+
+      <!-- Scrim (mobile bottom-sheet backdrop) -->
+      <div class="inspector-scrim" id="inspector-scrim"></div>
+
+      <!-- ─── Inspector (contains detail view AND picker view) ─── -->
+      <aside class="inspector" id="inspector">
+        <div class="sheet-handle"><div class="sheet-handle-bar"></div></div>
+      <div class="insp-header">
+        <div class="insp-header-titles">
+          <div class="detail-titles">
+            <div class="insp-title">CAMS</div>
+            <div class="insp-sub">Key 1 · Main</div>
+          </div>
+          <div class="picker-titles">
+            <button class="insp-back" id="picker-back" title="Back">←</button>
+            <div>
+              <div class="insp-title">Pick destination</div>
+              <div class="insp-sub cyan">Currently: CAMS · CONF</div>
+            </div>
+          </div>
+        </div>
+        <button class="insp-close" id="inspector-close">×</button>
+      </div>
+      <div class="insp-body">
+
+        <div class="form-group">
+          <div class="form-label">Destination</div>
+          <div class="dest-card" id="picker-open">
+            <div class="dest-info">
+              <div class="dest-name">CAMS</div>
+              <div class="dest-meta">Conference · C001</div>
+            </div>
+            <div class="dest-edit">CHANGE ›</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="form-label">Trigger Mode</div>
+          <select class="form-select">
+            <option>Auto</option>
+            <option selected>Latching</option>
+            <option>Momentary</option>
+          </select>
+        </div>
+
+      </div>
+
+      <!-- Picker view (shown when .picker-mode on inspector) -->
+      <div class="insp-picker">
+        <div class="picker-controls">
+          <input type="text" class="modal-search" placeholder="Search by name or code…">
+          <div class="chips">
+            <button class="chip active">All</button>
+            <button class="chip">PTP</button>
+            <button class="chip">CONF</button>
+            <button class="chip">IFB</button>
+            <button class="chip">Audio</button>
+            <button class="chip">GRP</button>
+          </div>
+        </div>
+        <div class="picker-list">
+
+          <div class="group">
+            <div class="group-label">Point to Point · 53 <span style="opacity:0.6;font-weight:600;text-transform:none">(panels &amp; beltpacks)</span></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Billy</div><div class="pick-sub">A-2 MON TECH</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Danny</div><div class="pick-sub">AGITO</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Brett</div><div class="pick-sub">AGITO TECH</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Alex</div><div class="pick-sub">AUD 01</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Alen</div><div class="pick-sub">AUD 02</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Henry</div><div class="pick-sub">AUD 03</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Aud 4</div><div class="pick-sub">AUD 04</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Aud 5</div><div class="pick-sub">AUD 05</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Craig Robertson</div><div class="pick-sub">AUD 06</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Ian</div><div class="pick-sub">AUD 08</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Armando Lopez</div><div class="pick-sub">Comms A2</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Jimmy Xiloj</div><div class="pick-sub">Comms Lead</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Drew</div><div class="pick-sub">CONTENT 1</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Dan</div><div class="pick-sub">CONTENT 2</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Fletch</div><div class="pick-sub">FOH</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Lbop</div><div class="pick-sub">LBOP 1</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Andy</div><div class="pick-sub">LBOP 2</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Will</div><div class="pick-sub">LD</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Led</div><div class="pick-sub">LED 1</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Led 2</div><div class="pick-sub">LED 2</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Flavio</div><div class="pick-sub">LTS-BB</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Matt B</div><div class="pick-sub">LTS-GAFFER</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Noah</div><div class="pick-sub">LTS-LD</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Jason</div><div class="pick-sub">LTS-PRG TECH</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Andres Arango</div><div class="pick-sub">Monitors</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Pixmob</div><div class="pick-sub">PIXMOB</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Pop Up</div><div class="pick-sub">POP UP</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Charlie</div><div class="pick-sub">PROD 1</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Prod 2</div><div class="pick-sub">PROD 2</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Prod 3</div><div class="pick-sub">PROD 3</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Jerry</div><div class="pick-sub">PROMPTER 01</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Pam</div><div class="pick-sub">PROMPTER 3</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Robo</div><div class="pick-sub">ROBO</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Adam</div><div class="pick-sub">S/FX PYRO</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Eddie</div><div class="pick-sub">S/FX PYRO</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Carlos</div><div class="pick-sub">S/FX PYRO</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Screen</div><div class="pick-sub">SCREEN 1</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Brian</div><div class="pick-sub">SCREENS</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Jessica</div><div class="pick-sub">SCRIPT</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Matt</div><div class="pick-sub">SERVER</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Drew</div><div class="pick-sub">SERVER 01</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Server 2</div><div class="pick-sub">SERVER 02</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Gary Natoli</div><div class="pick-sub">SM 01</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Chris</div><div class="pick-sub">SM 02</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Ron</div><div class="pick-sub">SM 03</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Jackie</div><div class="pick-sub">SM 04</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Sm 2</div><div class="pick-sub">SM 2</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Sm</div><div class="pick-sub">SM SPARE 1</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Sp</div><div class="pick-sub">SP</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Spot 1</div><div class="pick-sub">SPOT 1</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Spot 2</div><div class="pick-sub">SPOT 2</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Spot 3</div><div class="pick-sub">SPOT 3</div></div><div class="pick-type">PTP</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">Sean</div><div class="pick-sub">UTILITY LEAD</div></div><div class="pick-type">PTP</div></div>
+          </div>
+
+          <div class="group">
+            <div class="group-label">Conferences · 22</div>
+            <div class="pick-row active"><div class="pick-info"><div class="pick-name">CAMS</div></div><div class="pick-type">CONF</div><div class="pick-check">✓</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">SM</div></div><div class="pick-type">CONF</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">AUDIO</div></div><div class="pick-type">CONF</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">LITE</div></div><div class="pick-type">CONF</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">TAPE</div></div><div class="pick-type">CONF</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">TECH ISO</div></div><div class="pick-type">CONF</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">PRODUCER</div></div><div class="pick-type">CONF</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">SPOTS</div></div><div class="pick-type">CONF</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">PYRO</div></div><div class="pick-type">CONF</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">SCREEN</div></div><div class="pick-type">CONF</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">UPLINK</div></div><div class="pick-type">CONF</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">PROMPTER</div></div><div class="pick-type">CONF</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">MUSIC MIX</div></div><div class="pick-type">CONF</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">GRAPHICS</div></div><div class="pick-type">CONF</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">ANNOUNCER</div></div><div class="pick-type">CONF</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">SCRIPT</div></div><div class="pick-type">CONF</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">SM ISO</div></div><div class="pick-type">CONF</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">AUD ISO</div></div><div class="pick-type">CONF</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">LITE ISO</div></div><div class="pick-type">CONF</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">SPOT ISO</div></div><div class="pick-type">CONF</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">SM / A2</div></div><div class="pick-type">CONF</div></div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">SPOT ISO</div></div><div class="pick-type">CONF</div></div>
+          </div>
+
+          <div class="group">
+            <div class="group-label">Audio I/O · 1</div>
+            <div class="pick-row"><div class="pick-info"><div class="pick-name">PROGRAM</div></div><div class="pick-type">Audio I/O</div></div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="insp-footer">
+        <div class="insp-staged">
+          <strong>2 keys</strong> staged for change request
+        </div>
+        <button class="insp-submit">Submit changes</button>
+      </div>
+    </aside>
+
+    </div><!-- /.editor-workspace -->
+  </div><!-- /.app-content -->
+
+</div><!-- /.app-layout -->
+
+
+<script>
+  // ═══════════════════════════════════════════════════════════════
+  //  Expansion panel add/remove (max 6)
+  // ═══════════════════════════════════════════════════════════════
+  const MAX_EXPANSIONS = 6;
+  let expansionCount = 0;
+  const chassis = document.querySelector('.chassis');
+  const expAddBtn = document.getElementById('exp-add');
+  const expRemoveBtn = document.getElementById('exp-remove');
+  const expCountEl = document.getElementById('exp-count');
+
+  function buildExpansionRow() {
+    const unit = document.createElement('div');
+    unit.className = 'expansion-unit';
+    function buildRow(pageClass) {
+      const row = document.createElement('div');
+      row.className = 'panel-row ' + pageClass;
+      for (let b = 0; b < 2; b++) {
+        const block = document.createElement('div');
+        block.className = 'hw-block block-8x1';
+        for (let k = 0; k < 8; k++) {
+          block.insertAdjacentHTML('beforeend',
+            '<div class="key"><div class="tally"></div><div class="display"><span class="empty-plus">+</span></div></div>');
+        }
+        row.appendChild(block);
+      }
+      return row;
+    }
+    unit.appendChild(buildRow('page-main'));
+    unit.appendChild(buildRow('page-shift'));
+    return unit;
+  }
+
+  function updateExpansionButtons() {
+    expCountEl.textContent = String(expansionCount);
+    expAddBtn.hidden = expansionCount >= MAX_EXPANSIONS;
+    expRemoveBtn.hidden = expansionCount <= 0;
+  }
+
+  expAddBtn.addEventListener('click', () => {
+    if (expansionCount >= MAX_EXPANSIONS) return;
+    chassis.insertBefore(buildExpansionRow(), chassis.firstChild);
+    expansionCount++;
+    updateExpansionButtons();
+    initDraggableKeys();
+  });
+
+  expRemoveBtn.addEventListener('click', () => {
+    if (expansionCount <= 0) return;
+    const exp = chassis.querySelector('.expansion-unit');
+    if (exp) exp.remove();
+    expansionCount--;
+    updateExpansionButtons();
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  //  Main / Shift page toggle
+  // ═══════════════════════════════════════════════════════════════
+  const pageMainBtn = document.getElementById('page-main-btn');
+  const pageShiftBtn = document.getElementById('page-shift-btn');
+
+  function setPage(page) {
+    if (page === 'shift') {
+      chassis.classList.add('shift-active');
+      pageShiftBtn.classList.add('active');
+      pageMainBtn.classList.remove('active');
+    } else {
+      chassis.classList.remove('shift-active');
+      pageMainBtn.classList.add('active');
+      pageShiftBtn.classList.remove('active');
+    }
+    deselectAll();
+  }
+
+  pageMainBtn.addEventListener('click', () => setPage('main'));
+  pageShiftBtn.addEventListener('click', () => setPage('shift'));
+
+  // ═══════════════════════════════════════════════════════════════
+  //  Inspector
+  // ═══════════════════════════════════════════════════════════════
+  const workspace = document.getElementById('workspace');
+  const inspector = document.getElementById('inspector');
+  const inspectorClose = document.getElementById('inspector-close');
+  const inspectorScrim = document.getElementById('inspector-scrim');
+  const pickerOpen = document.getElementById('picker-open');
+  const pickerBack = document.getElementById('picker-back');
+  const inspTitle = inspector.querySelector('.detail-titles .insp-title');
+  const inspSub = inspector.querySelector('.detail-titles .insp-sub');
+
+  function openInspector(keyEl) {
+    const data = getKeyData(keyEl);
+    if (data && inspTitle) {
+      inspTitle.textContent = data.label;
+      const idx = getAllKeys().indexOf(keyEl) + 1;
+      const page = chassis.classList.contains('shift-active') ? 'Shift' : 'Main';
+      inspSub.textContent = 'Key ' + idx + ' · ' + page;
+    }
+    inspector.classList.add('open');
+    inspector.classList.remove('picker-mode');
+    workspace.classList.add('inspector-active');
+    inspectorScrim.classList.add('show');
+  }
+
+  function closeInspector() {
+    inspector.classList.remove('open');
+    inspector.classList.remove('picker-mode');
+    workspace.classList.remove('inspector-active');
+    inspectorScrim.classList.remove('show');
+  }
+
+  pickerOpen.addEventListener('click', () => inspector.classList.add('picker-mode'));
+  pickerBack.addEventListener('click', () => inspector.classList.remove('picker-mode'));
+
+  document.querySelectorAll('.pick-row').forEach((row) => {
+    row.addEventListener('click', () => inspector.classList.remove('picker-mode'));
+  });
+
+  inspectorClose.addEventListener('click', closeInspector);
+  inspectorScrim.addEventListener('click', closeInspector);
+
+  // ═══════════════════════════════════════════════════════════════
+  //  Key helpers
+  // ═══════════════════════════════════════════════════════════════
+  function isKeyEmpty(keyEl) {
+    return !!keyEl.querySelector('.empty-plus');
+  }
+
+  function getKeyData(keyEl) {
+    const labelEl = keyEl.querySelector('.label');
+    if (!labelEl) return null;
+    const trigEl = keyEl.querySelector('.trig');
+    return {
+      label: labelEl.textContent,
+      trig: trigEl ? trigEl.textContent : '',
+      state: keyEl.classList.contains('assigned') ? 'assigned'
+           : keyEl.classList.contains('changed') ? 'changed'
+           : keyEl.classList.contains('submitted') ? 'submitted'
+           : '',
+    };
+  }
+
+  function setKeyContent(keyEl, data) {
+    keyEl.classList.remove('assigned', 'changed', 'submitted');
+    const display = keyEl.querySelector('.display');
+    const existingTrig = keyEl.querySelector('.trig');
+
+    if (!data) {
+      // Clear to empty
+      display.innerHTML = '<span class="empty-plus">+</span>';
+      if (existingTrig) existingTrig.remove();
+      keyEl.removeAttribute('draggable');
+      return;
+    }
+
+    if (data.state) keyEl.classList.add(data.state);
+    display.innerHTML = '<span class="label">' + data.label + '</span>';
+
+    if (data.trig) {
+      if (existingTrig) {
+        existingTrig.textContent = data.trig;
+      } else {
+        const trig = document.createElement('div');
+        trig.className = 'trig';
+        trig.textContent = data.trig;
+        keyEl.appendChild(trig);
+      }
+    } else if (existingTrig) {
+      existingTrig.remove();
+    }
+
+    keyEl.setAttribute('draggable', 'true');
+  }
+
+  function getAllKeys() {
+    // Get visible keys only (respects main/shift page)
+    const isShift = chassis.classList.contains('shift-active');
+    const pageClass = isShift ? '.page-shift' : '.page-main';
+    return Array.from(chassis.querySelectorAll(pageClass + ' .key'));
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  Key selection
+  // ═══════════════════════════════════════════════════════════════
+  let selectedKey = null;
+
+  function selectKey(keyEl) {
+    if (selectedKey) selectedKey.classList.remove('selected');
+    selectedKey = keyEl;
+    keyEl.classList.add('selected');
+  }
+
+  function deselectAll() {
+    if (selectedKey) selectedKey.classList.remove('selected');
+    selectedKey = null;
+  }
+
+  // Click a key: select it + open inspector.
+  chassis.addEventListener('click', (e) => {
+    const keyEl = e.target.closest('.key');
+    if (!keyEl) { deselectAll(); return; }
+    selectKey(keyEl);
+    openInspector(keyEl);
+  });
+
+  // Click outside chassis deselects
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.chassis') && !e.target.closest('.inspector')) {
+      deselectAll();
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  //  Keyboard shortcuts: Backspace, Cmd+C, Cmd+V, Esc
+  // ═══════════════════════════════════════════════════════════════
+  let clipboard = null; // { label, trig, state }
+
+  document.addEventListener('keydown', (e) => {
+    // Ignore if typing in an input
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+
+    // ── Escape ──
+    if (e.key === 'Escape') {
+      if (inspector.classList.contains('picker-mode')) {
+        inspector.classList.remove('picker-mode');
+      } else if (inspector.classList.contains('open')) {
+        closeInspector();
+      } else {
+        deselectAll();
+      }
+      return;
+    }
+
+    // ── Backspace / Delete — clear selected key ──
+    if ((e.key === 'Backspace' || e.key === 'Delete') && selectedKey) {
+      e.preventDefault();
+      const wasEmpty = isKeyEmpty(selectedKey);
+      setKeyContent(selectedKey, null);
+      selectedKey.classList.add('selected');
+      if (!wasEmpty) flashKey(selectedKey, '#ef4444');
+      return;
+    }
+
+    // ── Cmd/Ctrl + C — copy selected key ──
+    if ((e.metaKey || e.ctrlKey) && e.key === 'c' && selectedKey) {
+      e.preventDefault();
+      const data = getKeyData(selectedKey);
+      if (data) {
+        clipboard = data;
+        flashKey(selectedKey, '#22a7d3');
+      }
+      return;
+    }
+
+    // ── Cmd/Ctrl + X — cut selected key (copy + clear) ──
+    if ((e.metaKey || e.ctrlKey) && e.key === 'x' && selectedKey) {
+      e.preventDefault();
+      const data = getKeyData(selectedKey);
+      if (data) {
+        clipboard = data;
+        setKeyContent(selectedKey, null);
+        selectedKey.classList.add('selected');
+        flashKey(selectedKey, '#f59e0b');
+      }
+      return;
+    }
+
+    // ── Cmd/Ctrl + V — paste onto selected key ──
+    if ((e.metaKey || e.ctrlKey) && e.key === 'v' && selectedKey && clipboard) {
+      e.preventDefault();
+      setKeyContent(selectedKey, { ...clipboard, state: 'changed' });
+      selectedKey.classList.add('selected');
+      flashKey(selectedKey, '#10b981');
+      return;
+    }
+  });
+
+  // Brief color flash for visual feedback
+  function flashKey(keyEl, color) {
+    const orig = keyEl.style.boxShadow;
+    keyEl.style.boxShadow = '0 0 20px ' + color + '80';
+    setTimeout(() => { keyEl.style.boxShadow = orig; }, 300);
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  Drag & Drop: key ↔ key (overwrite mode)
+  // ═══════════════════════════════════════════════════════════════
+  let dragSourceKey = null;
+  let dragData = null; // 'key' or 'picklist'
+  let dragPickData = null;
+
+  function initDraggableKeys() {
+    chassis.querySelectorAll('.key').forEach((keyEl) => {
+      if (!isKeyEmpty(keyEl)) keyEl.setAttribute('draggable', 'true');
+    });
+  }
+
+  // Dragstart on keys (delegated)
+  chassis.addEventListener('dragstart', (e) => {
+    const keyEl = e.target.closest('.key');
+    if (!keyEl || isKeyEmpty(keyEl)) { e.preventDefault(); return; }
+
+    dragSourceKey = keyEl;
+    dragData = 'key';
+    dragPickData = null;
+    keyEl.classList.add('dragging');
+    selectKey(keyEl);
+
+    // Required for Firefox
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', '');
+  });
+
+  chassis.addEventListener('dragend', (e) => {
+    const keyEl = e.target.closest('.key');
+    if (keyEl) keyEl.classList.remove('dragging');
+    // Clean up all drag-over highlights
+    chassis.querySelectorAll('.drag-over').forEach((el) => el.classList.remove('drag-over'));
+    dragSourceKey = null;
+    dragData = null;
+    dragPickData = null;
+  });
+
+  // Dragover / drop on keys (delegated)
+  chassis.addEventListener('dragover', (e) => {
+    const keyEl = e.target.closest('.key');
+    if (!keyEl) return;
+    if (dragData === 'key' && keyEl === dragSourceKey) return;
+
+    e.preventDefault();
+    e.dataTransfer.dropEffect = (dragData === 'key') ? 'move' : 'copy';
+
+    // Highlight only the hovered key
+    chassis.querySelectorAll('.drag-over').forEach((el) => el.classList.remove('drag-over'));
+    keyEl.classList.add('drag-over');
+  });
+
+  chassis.addEventListener('dragleave', (e) => {
+    const keyEl = e.target.closest('.key');
+    if (keyEl) keyEl.classList.remove('drag-over');
+  });
+
+  chassis.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const targetKey = e.target.closest('.key');
+    if (!targetKey) return;
+    targetKey.classList.remove('drag-over');
+
+    // ── Drop from another key (overwrite) ──
+    if (dragData === 'key' && dragSourceKey && targetKey !== dragSourceKey) {
+      const sourceData = getKeyData(dragSourceKey);
+      // Overwrite: source content → target, source becomes empty
+      setKeyContent(targetKey, sourceData);
+      setKeyContent(dragSourceKey, null);
+      dragSourceKey.classList.remove('dragging');
+      selectKey(targetKey);
+      flashKey(targetKey, '#10b981');
+      return;
+    }
+
+    // ── Drop from pick list ──
+    if (dragData === 'picklist' && dragPickData) {
+      setKeyContent(targetKey, {
+        label: dragPickData.name,
+        trig: 'L', // default to Latching
+        state: 'changed',
+      });
+      selectKey(targetKey);
+      flashKey(targetKey, '#10b981');
+      return;
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  //  Drag from pick list → key
+  // ═══════════════════════════════════════════════════════════════
+  document.querySelectorAll('.pick-row').forEach((row) => {
+    row.setAttribute('draggable', 'true');
+
+    row.addEventListener('dragstart', (e) => {
+      dragData = 'picklist';
+      dragSourceKey = null;
+      const nameEl = row.querySelector('.pick-name');
+      const typeEl = row.querySelector('.pick-type');
+      dragPickData = {
+        name: nameEl ? nameEl.textContent : '?',
+        type: typeEl ? typeEl.textContent : '',
+      };
+      e.dataTransfer.effectAllowed = 'copy';
+      e.dataTransfer.setData('text/plain', '');
+    });
+
+    row.addEventListener('dragend', () => {
+      chassis.querySelectorAll('.drag-over').forEach((el) => el.classList.remove('drag-over'));
+      dragData = null;
+      dragPickData = null;
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  //  Init: mark non-empty keys as draggable
+  // ═══════════════════════════════════════════════════════════════
+  initDraggableKeys();
+</script>
+
+</body>
+</html>

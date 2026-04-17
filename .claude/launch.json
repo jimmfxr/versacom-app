@@ -7,6 +7,12 @@
       "runtimeArgs": ["next", "dev", "--turbopack"],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "mockup",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "public", "-p", "8888"],
+      "port": 8888
     }
   ]
 }
