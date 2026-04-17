@@ -114,6 +114,25 @@ function isAssignable(category: string) {
   return ['panels', 'wireless_bp', 'hardwire_bp'].includes(category)
 }
 
+/**
+ * For sorting team members by equipment number when the search matches
+ * an equipment name (e.g. searching "WLBP" should produce WLBP 1, 2, 3,
+ * ..., 10 in order — not jumbled by member name). Returns the smallest
+ * trailing number across the member's matching equipment names, or null
+ * if nothing matches the query.
+ */
+function lowestMatchingEquipmentNum(equipmentNames: string[], query: string): number | null {
+  let lowest: number | null = null
+  for (const name of equipmentNames) {
+    if (!name.toLowerCase().includes(query)) continue
+    const m = name.match(/(\d+)\s*$/)
+    if (!m) continue
+    const n = parseInt(m[1], 10)
+    if (lowest == null || n < lowest) lowest = n
+  }
+  return lowest
+}
+
 function getCategoryLabel(value: string) {
   return CATEGORIES.find((c) => c.value === value)?.label || value
 }
@@ -479,7 +498,23 @@ export function ProjectPage({
         m.equipmentNames.some((n) => n.toLowerCase().includes(q))
       )
     })
-    .sort((a, b) => a.firstName.localeCompare(b.firstName, undefined, { sensitivity: 'base' }))
+    .sort((a, b) => {
+      // When the search matches equipment names (PNL, WLBP, HWBP, etc.),
+      // sort by the equipment number rather than alphabetically by member —
+      // so results read PNL 1, PNL 2, PNL 3 … PNL 10 instead of being
+      // jumbled by whatever the assignee's first name is. Members whose
+      // equipment doesn't match the query (e.g. they only matched by name)
+      // fall back to alphabetical ordering after the equipment matches.
+      const q = teamSearch.trim().toLowerCase()
+      if (q) {
+        const numA = lowestMatchingEquipmentNum(a.equipmentNames, q)
+        const numB = lowestMatchingEquipmentNum(b.equipmentNames, q)
+        if (numA != null && numB != null && numA !== numB) return numA - numB
+        if (numA != null && numB == null) return -1
+        if (numA == null && numB != null) return 1
+      }
+      return a.firstName.localeCompare(b.firstName, undefined, { sensitivity: 'base' })
+    })
 
   const filteredPickList = pickListItems
     // PTP items are auto-managed (one per user) and aren't user-editable, so
