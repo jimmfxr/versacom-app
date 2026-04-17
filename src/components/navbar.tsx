@@ -136,10 +136,20 @@ export function Navbar({
         </div>
       </div>
 
-      <DisclosurePanel className="sm:hidden">
-        {/* User info on top */}
-        <div className="px-4 py-3">
-          <div className="flex items-center">
+      <DisclosurePanel className="fixed inset-0 z-50 flex flex-col bg-[#181818] sm:hidden">
+        {/* Top bar with logo + close */}
+        <div className="flex h-16 shrink-0 items-center justify-between px-4">
+          <img alt={logoAlt} src={logoSrc} className="h-8 w-auto" />
+          <DisclosureButton className="relative -mr-2 inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-white/5 hover:text-white focus:outline-2 focus:outline-offset-2 focus:outline-[#0178a3]">
+            <span className="absolute -inset-0.5" />
+            <span className="sr-only">Close main menu</span>
+            <XMarkIcon aria-hidden="true" className="size-6" />
+          </DisclosureButton>
+        </div>
+
+        {/* User info card */}
+        <div className="px-4 pt-2">
+          <div className="flex items-center gap-3 rounded-2xl bg-[#202020] px-5 py-4">
             <div className="shrink-0">
               {user.imageUrl ? (
                 <img
@@ -153,12 +163,12 @@ export function Navbar({
                 </span>
               )}
             </div>
-            <div className="ml-3">
-              <div className="text-base font-medium text-white">{user.name}</div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-base font-medium text-white">{user.name}</div>
             </div>
             <button
               type="button"
-              className="relative ml-auto shrink-0 rounded-full p-1 text-gray-400 hover:text-white focus:outline-2 focus:outline-offset-2 focus:outline-[#0178a3]"
+              className="relative shrink-0 rounded-full p-1 text-gray-400 hover:text-white focus:outline-2 focus:outline-offset-2 focus:outline-[#0178a3]"
             >
               <span className="absolute -inset-1.5" />
               <span className="sr-only">View notifications</span>
@@ -167,8 +177,8 @@ export function Navbar({
           </div>
         </div>
 
-        {/* Nav tabs */}
-        <div className="space-y-1 pt-2 pb-3">
+        {/* Nav cards */}
+        <div className="flex-1 space-y-2 overflow-y-auto px-4 pt-4">
           {navigation.map((item) => (
             <DisclosureButton
               key={item.name}
@@ -177,9 +187,9 @@ export function Navbar({
               aria-current={item.current ? 'page' : undefined}
               className={classNames(
                 item.current
-                  ? 'border-[#0178a3] bg-[#0178a3]/10 text-[#0178a3]'
-                  : 'border-transparent text-gray-400 hover:border-gray-500 hover:bg-white/5 hover:text-gray-200',
-                'block border-l-4 py-2 pr-4 pl-3 text-base font-medium',
+                  ? 'bg-[#202020] text-[#0178a3] ring-1 ring-[#0178a3]'
+                  : 'bg-[#202020] text-gray-300 hover:text-white',
+                'block rounded-2xl px-5 py-4 text-base font-medium transition-colors',
               )}
             >
               {item.name}
@@ -188,12 +198,12 @@ export function Navbar({
         </div>
 
         {/* Sign out */}
-        <div className="py-2">
+        <div className="shrink-0 px-4 pt-2 pb-6">
           {onSignOut && (
             <DisclosureButton
               as="button"
               onClick={onSignOut}
-              className="block w-full text-left px-4 py-2 text-base font-medium text-gray-400 hover:bg-white/5 hover:text-gray-200"
+              className="block w-full rounded-2xl bg-[#202020] px-5 py-4 text-left text-base font-medium text-gray-400 hover:text-white"
             >
               Sign out
             </DisclosureButton>
