@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { PencilIcon, XMarkIcon, ChevronLeftIcon } from '@heroicons/react/24/outline'
 import { useDeviceReachability } from '@/hooks/use-device-reachability'
 import { Button } from '@/components/button'
 import { showToast } from '@/components/toast'
@@ -519,14 +520,35 @@ export function ProjectPage({
     <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={isCrew}>
       <PageLayout
         title={project.name}
+        titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
+        inlineAction
+        before={
+          <button
+            type="button"
+            onClick={() => router.push('/projects')}
+            className="inline-flex items-center gap-1 text-sm text-gray-400 transition-colors hover:text-white sm:hidden"
+          >
+            <ChevronLeftIcon className="size-4" />
+            <span>Projects</span>
+          </button>
+        }
         action={
           <div className="flex items-center gap-2">
             {canSeeSettings && (
-              <Button variant="secondary" onClick={() => setShowSettings(!showSettings)}>
-                {showSettings ? 'Close' : 'Edit'}
+              <Button
+                variant="secondary"
+                onClick={() => setShowSettings(!showSettings)}
+                aria-label={showSettings ? 'Close settings' : 'Edit project'}
+              >
+                <span className="sm:hidden inline-flex items-center">
+                  {showSettings ? <XMarkIcon className="size-5" /> : <PencilIcon className="size-5" />}
+                </span>
+                <span className="hidden sm:inline">{showSettings ? 'Close' : 'Edit'}</span>
               </Button>
             )}
-            <Button variant="secondary" onClick={() => router.push('/projects')}>Back</Button>
+            <span className="hidden sm:inline-flex">
+              <Button variant="secondary" onClick={() => router.push('/projects')}>Back</Button>
+            </span>
           </div>
         }
       >

@@ -130,7 +130,7 @@ export function TasksClient({
 
   return (
     <AppShell userName={userName} isAdmin={isAdmin}>
-      <PageLayout title="Tasks">
+      <PageLayout title="Tasks" titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl">
         {totalTasks === 0 ? (
           <EmptyState icon={<CheckIcon />} title="Inbox zero" message="No pending tasks. All users are active and operational." />
         ) : (

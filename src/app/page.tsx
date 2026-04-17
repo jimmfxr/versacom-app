@@ -38,7 +38,7 @@ export default async function HomePage({
   if (userProjects.length === 0) {
     return (
       <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={showMyEquipment}>
-        <PageLayout title="Dashboard">
+        <PageLayout title="Dashboard" titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl">
           <EmptyState
             icon={null}
             title="No projects yet"
@@ -92,7 +92,7 @@ export default async function HomePage({
     // Shouldn't happen since selectedProjectId came from session, but bail safely.
     return (
       <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={showMyEquipment}>
-        <PageLayout title="Dashboard">
+        <PageLayout title="Dashboard" titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl">
           <EmptyState icon={null} title="Project not found" message="That project may have been deleted." />
         </PageLayout>
       </AppShell>
@@ -103,6 +103,7 @@ export default async function HomePage({
     <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={showMyEquipment}>
       <PageLayout
         title="Dashboard"
+        titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
         action={
           <DashboardHeaderAction
             projectId={project.id}

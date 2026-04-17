@@ -86,7 +86,14 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
     <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={showMyEquipment}>
       <PageLayout
         title="Projects"
-        action={!showForm ? <Button onClick={() => setShowForm(true)}>New Project</Button> : undefined}
+        titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
+        inlineAction
+        action={!showForm ? (
+          <Button onClick={() => setShowForm(true)}>
+            <span className="sm:hidden">+</span>
+            <span className="hidden sm:inline">New Project</span>
+          </Button>
+        ) : undefined}
       >
         {/* Inline create form */}
         {showForm && (
