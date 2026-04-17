@@ -472,7 +472,11 @@ export function ProjectPage({
         m.firstName.toLowerCase().includes(q) ||
         m.lastName.toLowerCase().includes(q) ||
         (m.position?.toLowerCase().includes(q) ?? false) ||
-        m.role.toLowerCase().includes(q)
+        m.role.toLowerCase().includes(q) ||
+        // Match equipment auto-names assigned to this member (e.g. "PNL 1",
+        // "WLBP 1", "HWBP 2") so an admin can search "PNL" or "HWBP" to
+        // find everyone using that gear.
+        m.equipmentNames.some((n) => n.toLowerCase().includes(q))
       )
     })
     .sort((a, b) => a.firstName.localeCompare(b.firstName, undefined, { sensitivity: 'base' }))
@@ -487,7 +491,10 @@ export function ProjectPage({
       return (
         p.name.toLowerCase().includes(q) ||
         (p.code?.toLowerCase().includes(q) ?? false) ||
-        (FUNCTION_TYPE_LABELS[p.type] || p.type).toLowerCase().includes(q)
+        (FUNCTION_TYPE_LABELS[p.type] || p.type).toLowerCase().includes(q) ||
+        // Match by user name so searching "John" surfaces every function
+        // John has assigned to a key on his panel.
+        p.users.some((u) => u.toLowerCase().includes(q))
       )
     })
     .sort((a, b) => plSortAbc ? a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) : 0)
@@ -829,7 +836,7 @@ export function ProjectPage({
                 <div className="flex-1">
                   <input
                     type="text"
-                    placeholder="Search team members..."
+                    placeholder="Search by name, position, role, or equipment..."
                     value={teamSearch}
                     onChange={(e) => setTeamSearch(e.target.value)}
                     className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
@@ -957,7 +964,7 @@ export function ProjectPage({
                 <div className="flex-1">
                   <input
                     type="text"
-                    placeholder="Search functions..."
+                    placeholder="Search by name, type, or user..."
                     value={plSearch}
                     onChange={(e) => setPlSearch(e.target.value)}
                     className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
