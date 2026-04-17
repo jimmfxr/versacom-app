@@ -155,7 +155,6 @@ export function useDeviceReachability(
   )
 
   const [reachable, setReachable] = useState<ReachabilityMap>({})
-  const mountedRef = useRef(true)
   const lastCheckedAtRef = useRef(0)
 
   // Hydrate from sessionStorage on mount / when device list changes so
@@ -172,19 +171,26 @@ export function useDeviceReachability(
   // next probe.
   useEffect(() => {
     if (typeof window === 'undefined' || typeof BroadcastChannel === 'undefined') return
+    let cancelled = false
     const channel = new BroadcastChannel(CHANNEL_NAME)
     channel.onmessage = (event: MessageEvent<ChannelMessage>) => {
+      if (cancelled) return
       const msg = event.data
       if (!msg || msg.ipKey !== ipKey) return
       if (msg.checkedAt <= lastCheckedAtRef.current) return
       lastCheckedAtRef.current = msg.checkedAt
-      if (mountedRef.current) setReachable(msg.reachable)
+      setReachable(msg.reachable)
     }
-    return () => channel.close()
+    return () => {
+      cancelled = true
+      channel.close()
+    }
   }, [ipKey])
 
   useEffect(() => {
-    mountedRef.current = true
+    // Per-effect-run flag so an in-flight checkAll() from a previous run
+    // can't write to a channel/state that's already been torn down.
+    let cancelled = false
 
     const ipItems = items.filter(
       (i): i is DeviceItem & { ipAddress: string } => !!i.ipAddress,
@@ -209,19 +215,24 @@ export function useDeviceReachability(
         }),
       )
 
-      if (!mountedRef.current) return
+      if (cancelled) return
       const checkedAt = Date.now()
       lastCheckedAtRef.current = checkedAt
       setReachable(results)
       writeCache(ipKey, results)
-      channel?.postMessage({ ipKey, checkedAt, reachable: results } satisfies ChannelMessage)
+      try {
+        channel?.postMessage({ ipKey, checkedAt, reachable: results } satisfies ChannelMessage)
+      } catch {
+        // Channel may have been closed between the cancelled check and now;
+        // safe to swallow — the next effect run owns its own channel.
+      }
     }
 
     checkAll()
     const timer = setInterval(checkAll, intervalMs)
 
     return () => {
-      mountedRef.current = false
+      cancelled = true
       clearInterval(timer)
       channel?.close()
     }
