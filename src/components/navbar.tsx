@@ -188,7 +188,9 @@ function MobileNavPanel({
               item.current
                 ? 'bg-[#2a2a2a] text-[#0178a3] ring-1 ring-[#0178a3]'
                 : 'bg-[#2a2a2a] text-gray-300 hover:text-white',
-              'block rounded-2xl px-5 py-4 text-base font-medium transition-colors',
+              // Press feedback: scale + cyan flash so the tap is visibly
+              // acknowledged before navigation completes.
+              'block rounded-2xl px-5 py-4 text-base font-medium transition-all duration-100 active:scale-[0.97] active:bg-[#0178a3]/20 active:text-white',
             )}
           >
             {item.name}
@@ -202,7 +204,7 @@ function MobileNavPanel({
           <DisclosureButton
             as="button"
             onClick={onSignOut}
-            className="block w-full rounded-2xl bg-[#2a2a2a] px-5 py-4 text-left text-base font-medium text-gray-400 hover:text-white"
+            className="block w-full rounded-2xl bg-[#2a2a2a] px-5 py-4 text-left text-base font-medium text-gray-400 transition-all duration-100 hover:text-white active:scale-[0.97] active:bg-[#0178a3]/20 active:text-white"
           >
             Sign out
           </DisclosureButton>
