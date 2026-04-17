@@ -90,6 +90,7 @@ export async function saveKeys(
     }
 
     revalidatePath(`/projects`)
+    revalidatePath(`/my-equipment`)
     return { success: true }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -166,6 +167,7 @@ export async function saveDraftKeys(
     }
 
     revalidatePath(`/projects`)
+    revalidatePath(`/my-equipment`)
     return { success: true }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -225,6 +227,8 @@ export async function submitChanges(
     })
 
     revalidatePath(`/projects`)
+    revalidatePath(`/admin`)
+    revalidatePath(`/my-equipment`)
     return { success: true, changeRequestId: changeRequest.id }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -395,6 +399,7 @@ export async function resolveChangeRequests(
 
     revalidatePath(`/projects`)
     revalidatePath(`/admin`)
+    revalidatePath(`/my-equipment`)
     return { success: true }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)

@@ -625,7 +625,8 @@ export function PanelStudio({
       } else {
         showToast('success', `${approvedItemIds.length} approved, ${deniedItemIds.length} denied`)
       }
-      router.push('/admin')
+      router.refresh()
+      router.replace('/admin')
     } catch {
       showToast('error', 'Failed to resolve')
     }
@@ -650,7 +651,8 @@ export function PanelStudio({
         return
       }
       showToast('success', `${allItemIds.length} key${allItemIds.length !== 1 ? 's' : ''} denied`)
-      router.push('/admin')
+      router.refresh()
+      router.replace('/admin')
     } catch {
       showToast('error', 'Failed to deny')
     }
