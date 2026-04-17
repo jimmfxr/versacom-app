@@ -1445,6 +1445,38 @@ export function PanelStudio({
 
                 {/* Picker list */}
                 <div className="px-[18px] py-3.5 overflow-y-auto flex-1 flex flex-col gap-[18px]">
+                  {/* "Unassigned" — always at the top so mobile users have a
+                      one-tap way to clear a key (no backspace on touch).
+                      Styled to match the other picker items, including the
+                      cyan-active state when the key is currently empty. */}
+                  {canEditKeys && (() => {
+                    const isUnassignedActive = !selectedKey?.pickListItemId
+                    return (
+                      <div
+                        onClick={() => {
+                          if (selectedKeyId) clearKey(selectedKeyId)
+                          // Always close the picker so this row behaves like
+                          // any other selection — even if the key was already
+                          // empty (clearKey is a no-op in that case).
+                          setPickerMode(false)
+                        }}
+                        className={`rounded-[10px] px-3.5 py-2.5 flex items-center gap-2.5 cursor-pointer transition-all border ${
+                          isUnassignedActive
+                            ? 'bg-[rgba(34,167,211,0.12)] border-[rgba(34,167,211,0.5)]'
+                            : 'bg-white/[0.03] border-transparent hover:bg-white/[0.06] hover:border-white/10'
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0 flex items-baseline gap-2 overflow-hidden">
+                          <span className={`text-xs font-semibold italic whitespace-nowrap overflow-hidden text-ellipsis ${isUnassignedActive ? 'text-[#22a7d3]' : 'text-gray-400'}`}>
+                            Unassigned
+                          </span>
+                          <span className="text-[11px] text-gray-500 whitespace-nowrap">
+                            Clear this key
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })()}
                   {Object.entries(groupedItems).map(([type, items]) => (
                     <div key={type} className="flex flex-col gap-1.5">
                       <div className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider px-1">
