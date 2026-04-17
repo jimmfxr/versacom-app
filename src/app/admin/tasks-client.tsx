@@ -104,6 +104,14 @@ export function TasksClient({
   const [isPending, startTransition] = useTransition()
   const [unlockingId, setUnlockingId] = useState<string | null>(null)
 
+  // Auto-refresh to pick up new requests
+  useEffect(() => {
+    const interval = setInterval(() => {
+      router.refresh()
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [router])
+
   const totalTasks = lockoutTasks.length + changeRequestTasks.length
 
   function handleUnlock(task: LockoutTask) {

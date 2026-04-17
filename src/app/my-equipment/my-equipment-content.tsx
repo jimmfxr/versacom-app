@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
 import { PageLayout } from '@/components/page-layout'
@@ -61,6 +62,14 @@ export function MyEquipmentContent({
   const router = useRouter()
   const isPanelType = (cat: string) => PANEL_CATEGORIES.includes(cat)
   const canEditPanel = (role: string) => ['crew', 'manager', 'admin'].includes(role)
+
+  // Auto-refresh to pick up approved changes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      router.refresh()
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [router])
 
   return (
     <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={!isUserOnly}>
