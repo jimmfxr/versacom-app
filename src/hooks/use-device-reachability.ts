@@ -17,6 +17,42 @@ interface DeviceItem {
   ipAddress: string | null
 }
 
+const CACHE_KEY = 'device-reachability-cache'
+const CACHE_TTL_MS = 60_000
+const CHANNEL_NAME = 'device-reachability'
+
+type CacheEntry = {
+  ipKey: string
+  checkedAt: number
+  reachable: ReachabilityMap
+}
+
+type ChannelMessage = CacheEntry
+
+function readCache(ipKey: string): ReachabilityMap | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY)
+    if (!raw) return null
+    const entry = JSON.parse(raw) as CacheEntry
+    if (entry.ipKey !== ipKey) return null
+    if (Date.now() - entry.checkedAt > CACHE_TTL_MS) return null
+    return entry.reachable
+  } catch {
+    return null
+  }
+}
+
+function writeCache(ipKey: string, reachable: ReachabilityMap): void {
+  if (typeof window === 'undefined') return
+  try {
+    const entry: CacheEntry = { ipKey, checkedAt: Date.now(), reachable }
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(entry))
+  } catch {
+    // sessionStorage may be unavailable (private mode, quota); ignore
+  }
+}
+
 /** Try fetch with no-cors — resolves if device answers, rejects otherwise. */
 async function fetchProbe(url: string, timeoutMs: number): Promise<void> {
   const signal = AbortSignal.timeout(timeoutMs)
@@ -90,6 +126,32 @@ export function useDeviceReachability(
 
   const [reachable, setReachable] = useState<ReachabilityMap>({})
   const mountedRef = useRef(true)
+  const lastCheckedAtRef = useRef(0)
+
+  // Hydrate from sessionStorage on mount / when device list changes so
+  // the IPs render in their last-known color instantly instead of going
+  // white for a few seconds while we re-probe.
+  useEffect(() => {
+    const cached = readCache(ipKey)
+    if (cached) setReachable(cached)
+    else setReachable({})
+  }, [ipKey])
+
+  // Listen for results broadcast from other open tabs. When a sibling
+  // tab finishes a probe round, adopt its results so we can skip the
+  // next probe.
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof BroadcastChannel === 'undefined') return
+    const channel = new BroadcastChannel(CHANNEL_NAME)
+    channel.onmessage = (event: MessageEvent<ChannelMessage>) => {
+      const msg = event.data
+      if (!msg || msg.ipKey !== ipKey) return
+      if (msg.checkedAt <= lastCheckedAtRef.current) return
+      lastCheckedAtRef.current = msg.checkedAt
+      if (mountedRef.current) setReachable(msg.reachable)
+    }
+    return () => channel.close()
+  }, [ipKey])
 
   useEffect(() => {
     mountedRef.current = true
@@ -99,7 +161,16 @@ export function useDeviceReachability(
     )
     if (ipItems.length === 0) return
 
+    const channel =
+      typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined'
+        ? new BroadcastChannel(CHANNEL_NAME)
+        : null
+
     async function checkAll() {
+      // If a sibling tab probed recently, skip — their broadcast already
+      // updated us via the listener above.
+      if (Date.now() - lastCheckedAtRef.current < intervalMs * 0.8) return
+
       const results: ReachabilityMap = {}
 
       await Promise.allSettled(
@@ -108,9 +179,12 @@ export function useDeviceReachability(
         }),
       )
 
-      if (mountedRef.current) {
-        setReachable(results)
-      }
+      if (!mountedRef.current) return
+      const checkedAt = Date.now()
+      lastCheckedAtRef.current = checkedAt
+      setReachable(results)
+      writeCache(ipKey, results)
+      channel?.postMessage({ ipKey, checkedAt, reachable: results } satisfies ChannelMessage)
     }
 
     checkAll()
@@ -119,6 +193,7 @@ export function useDeviceReachability(
     return () => {
       mountedRef.current = false
       clearInterval(timer)
+      channel?.close()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ipKey, intervalMs])
