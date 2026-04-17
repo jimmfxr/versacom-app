@@ -22,11 +22,13 @@ export default async function TasksPage() {
         status: true,
         createdAt: true,
         project: { select: { id: true, name: true } },
+        submittedById: true,
         submittedBy: { select: { firstName: true, lastName: true } },
         targetMember: {
           select: {
             id: true,
             position: true,
+            userId: true,
             user: { select: { firstName: true, lastName: true } },
             equipment: {
               select: { id: true, name: true, hardwareType: true },
@@ -82,39 +84,88 @@ export default async function TasksPage() {
     }))
     .sort((a, b) => new Date(b.lockedUntil!).getTime() - new Date(a.lockedUntil!).getTime())
 
-  const changeRequestTasks = changeRequests.map((cr) => {
+  // Group change requests by submitter + target member into single cards
+  const crGroupMap = new Map<string, {
+    changeRequestIds: number[]
+    projectId: number
+    projectName: string
+    submitterName: string
+    targetName: string
+    targetPosition: string | null
+    targetMemberId: number
+    isSelfRequest: boolean
+    equipmentId: number | null
+    equipmentName: string | null
+    hardwareType: string | null
+    bestStatus: string
+    changes: Array<{ keyIndex: number; page: string; from: string | null; to: string | null }>
+    latestCreatedAt: string
+  }>()
+
+  for (const cr of changeRequests) {
+    const groupKey = `${cr.submittedById}-${cr.targetMember.id}`
     const targetName = `${cr.targetMember.user.firstName} ${cr.targetMember.user.lastName}`
     const submitterName = `${cr.submittedBy.firstName} ${cr.submittedBy.lastName}`
     const eq = cr.targetMember.equipment[0]
+    const isSelf = cr.submittedById === cr.targetMember.userId
 
-    return {
-      id: `cr-${cr.id}`,
-      type: 'change-request' as const,
-      changeRequestId: cr.id,
-      projectId: cr.project.id,
-      projectName: cr.project.name,
-      submitterName,
-      targetName,
-      targetPosition: cr.targetMember.position,
-      targetMemberId: cr.targetMember.id,
-      equipmentId: eq?.id ?? null,
-      equipmentName: eq?.name ?? null,
-      hardwareType: eq?.hardwareType ?? null,
-      status: cr.status as 'submitted' | 'mgr_endorsed',
-      keyCount: cr.items.length,
-      changes: cr.items.map((item) => {
-        const prev = item.previousValue ? pickItemMap.get(parseInt(item.previousValue)) : null
-        const next = item.newValue ? pickItemMap.get(parseInt(item.newValue)) : null
-        return {
-          keyIndex: item.panelKey.keyIndex,
-          page: item.panelKey.page,
-          from: prev?.name ?? null,
-          to: next?.name ?? null,
-        }
-      }),
-      createdAt: cr.createdAt.toISOString(),
+    const changes = cr.items.map((item) => {
+      const prev = item.previousValue ? pickItemMap.get(parseInt(item.previousValue)) : null
+      const next = item.newValue ? pickItemMap.get(parseInt(item.newValue)) : null
+      return {
+        keyIndex: item.panelKey.keyIndex,
+        page: item.panelKey.page,
+        from: prev?.name ?? null,
+        to: next?.name ?? null,
+      }
+    })
+
+    const existing = crGroupMap.get(groupKey)
+    if (existing) {
+      existing.changeRequestIds.push(cr.id)
+      existing.changes.push(...changes)
+      if (cr.status === 'mgr_endorsed') existing.bestStatus = 'mgr_endorsed'
+      if (cr.createdAt.toISOString() > existing.latestCreatedAt) {
+        existing.latestCreatedAt = cr.createdAt.toISOString()
+      }
+    } else {
+      crGroupMap.set(groupKey, {
+        changeRequestIds: [cr.id],
+        projectId: cr.project.id,
+        projectName: cr.project.name,
+        submitterName,
+        targetName,
+        targetPosition: cr.targetMember.position,
+        targetMemberId: cr.targetMember.id,
+        isSelfRequest: isSelf,
+        equipmentId: eq?.id ?? null,
+        equipmentName: eq?.name ?? null,
+        hardwareType: eq?.hardwareType ?? null,
+        bestStatus: cr.status,
+        changes,
+        latestCreatedAt: cr.createdAt.toISOString(),
+      })
     }
-  })
+  }
+
+  const changeRequestTasks = Array.from(crGroupMap.values()).map((group) => ({
+    id: `cr-${group.changeRequestIds.join('-')}`,
+    type: 'change-request' as const,
+    projectId: group.projectId,
+    projectName: group.projectName,
+    submitterName: group.submitterName,
+    targetName: group.targetName,
+    targetPosition: group.targetPosition,
+    targetMemberId: group.targetMemberId,
+    isSelfRequest: group.isSelfRequest,
+    equipmentId: group.equipmentId,
+    equipmentName: group.equipmentName,
+    hardwareType: group.hardwareType,
+    status: group.bestStatus as 'submitted' | 'mgr_endorsed',
+    keyCount: group.changes.length,
+    changes: group.changes,
+    createdAt: group.latestCreatedAt,
+  }))
 
   const session = await getSession()
   const userName = session ? `${session.user.firstName} ${session.user.lastName}` : undefined
