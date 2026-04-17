@@ -18,7 +18,10 @@ interface DeviceItem {
 }
 
 const CACHE_KEY = 'device-reachability-cache'
-const CACHE_TTL_MS = 60_000
+// Short TTL keeps the "instant green on navigation" benefit without letting
+// stale results linger when the user moves between networks (e.g. closing
+// the laptop on-site and opening the phone at home).
+const CACHE_TTL_MS = 10_000
 const CHANNEL_NAME = 'device-reachability'
 
 type CacheEntry = {
@@ -53,18 +56,47 @@ function writeCache(ipKey: string, reachable: ReachabilityMap): void {
   }
 }
 
-/** Try fetch with no-cors — resolves if device answers, rejects otherwise. */
-async function fetchProbe(url: string, timeoutMs: number): Promise<void> {
+/**
+ * Minimum response time (ms) for a probe to count as success.
+ *
+ * Real panels on a LAN take ~10–300ms to respond (TCP handshake + HTTP +
+ * possibly TLS). When the browser is OFF the production network, the OS
+ * stack rejects the route almost instantly (<5ms) — and on mobile/Wi-Fi
+ * that fast failure looks like a successful probe to fetch/img because
+ * `no-cors` and `<img>` both fire success-looking events for any response,
+ * including local network-stack errors.
+ *
+ * Gating on response time filters out those false positives without
+ * affecting genuine slow LAN responses.
+ */
+const MIN_PROBE_MS = 25
+
+/**
+ * Try fetch with no-cors. Returns the elapsed time on resolve, or null if
+ * the request errored / aborted before the timeout.
+ */
+async function fetchProbe(url: string, timeoutMs: number): Promise<number | null> {
   const signal = AbortSignal.timeout(timeoutMs)
-  await fetch(url, { mode: 'no-cors', signal })
+  const start = performance.now()
+  try {
+    await fetch(url, { mode: 'no-cors', signal })
+    return performance.now() - start
+  } catch {
+    return null
+  }
 }
 
-/** Try loading an image from the device — resolves true if device answers. */
-function imgProbe(url: string, timeoutMs: number): Promise<boolean> {
+/**
+ * Try loading an image from the device. Returns whether the request settled
+ * (loaded OR errored without timing out) and the elapsed time. The caller
+ * decides whether the elapsed time is plausible for a real device.
+ */
+function imgProbe(url: string, timeoutMs: number): Promise<{ ok: boolean; ms: number }> {
   return new Promise((resolve) => {
+    const start = performance.now()
     let settled = false
-    const settle = (v: boolean) => {
-      if (!settled) { settled = true; resolve(v) }
+    const settle = (ok: boolean) => {
+      if (!settled) { settled = true; resolve({ ok, ms: performance.now() - start }) }
     }
 
     const timer = setTimeout(() => {
@@ -74,13 +106,7 @@ function imgProbe(url: string, timeoutMs: number): Promise<boolean> {
 
     const img = new Image()
     img.onload = () => { clearTimeout(timer); settle(true) }
-    img.onerror = () => {
-      clearTimeout(timer)
-      // onerror fires when the device responded with non-image content
-      // (still proves the host is up). On truly unreachable hosts the
-      // timeout fires instead.
-      settle(true)
-    }
+    img.onerror = () => { clearTimeout(timer); settle(true) }
     img.src = `${url}?_nc=${Date.now()}`
   })
 }
@@ -88,21 +114,25 @@ function imgProbe(url: string, timeoutMs: number): Promise<boolean> {
 async function probeDevice(ip: string): Promise<boolean> {
   // 1. Try fetch (HTTPS then HTTP) — fastest when it works
   for (const proto of ['https', 'http'] as const) {
-    try {
-      await fetchProbe(`${proto}://${ip}`, 3500)
-      console.log(`[Reach] ${ip} ✓ (${proto} fetch)`)
+    const ms = await fetchProbe(`${proto}://${ip}`, 3500)
+    if (ms != null && ms >= MIN_PROBE_MS) {
+      console.log(`[Reach] ${ip} ✓ (${proto} fetch, ${ms.toFixed(0)}ms)`)
       return true
-    } catch {
-      // continue to next attempt
+    }
+    if (ms != null) {
+      console.log(`[Reach] ${ip} ⚠ ${proto} fetch returned in ${ms.toFixed(0)}ms — too fast, likely network reject`)
     }
   }
 
   // 2. Fallback: image probe (some devices respond to img but not no-cors fetch)
   for (const proto of ['http', 'https'] as const) {
-    const ok = await imgProbe(`${proto}://${ip}/favicon.ico`, 3500)
-    if (ok) {
-      console.log(`[Reach] ${ip} ✓ (${proto} img)`)
+    const { ok, ms } = await imgProbe(`${proto}://${ip}/favicon.ico`, 3500)
+    if (ok && ms >= MIN_PROBE_MS) {
+      console.log(`[Reach] ${ip} ✓ (${proto} img, ${ms.toFixed(0)}ms)`)
       return true
+    }
+    if (ok) {
+      console.log(`[Reach] ${ip} ⚠ ${proto} img returned in ${ms.toFixed(0)}ms — too fast, likely network reject`)
     }
   }
 
