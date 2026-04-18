@@ -1015,14 +1015,8 @@ export function ProjectPage({
                                 <span>{m.firstName} {m.lastName}</span>
                                 {m.position && <span className="text-gray-400">· {m.position}</span>}
                                 <span className="text-gray-400">· {ROLE_LABELS[m.role] || m.role}</span>
-                                <span
-                                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                                    m.hasPin
-                                      ? 'bg-green-500/15 text-green-400'
-                                      : 'bg-amber-500/15 text-amber-400'
-                                  }`}
-                                >
-                                  {m.hasPin ? 'Active' : 'Pending'}
+                                <span className={m.hasPin ? 'text-green-400' : 'text-amber-400'}>
+                                  · {m.hasPin ? 'Active' : 'Pending'}
                                 </span>
                               </div>
                               {m.equipmentNames.length > 0 ? (
