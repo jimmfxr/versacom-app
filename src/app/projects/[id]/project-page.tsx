@@ -75,6 +75,7 @@ type Member = {
   lastName: string
   equipmentNames: string[]
   expansionCount: number
+  hasPin: boolean
 }
 
 type Project = {
@@ -1010,10 +1011,19 @@ export function ProjectPage({
                         ) : (
                           <div className="flex items-start justify-between">
                             <div>
-                              <div className="text-sm font-semibold text-white">
-                                {m.firstName} {m.lastName}
-                                {m.position && <span className="text-gray-400"> · {m.position}</span>}
-                                <span className="text-gray-400"> · {ROLE_LABELS[m.role] || m.role}</span>
+                              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm font-semibold text-white">
+                                <span>{m.firstName} {m.lastName}</span>
+                                {m.position && <span className="text-gray-400">· {m.position}</span>}
+                                <span className="text-gray-400">· {ROLE_LABELS[m.role] || m.role}</span>
+                                <span
+                                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                                    m.hasPin
+                                      ? 'bg-green-500/15 text-green-400'
+                                      : 'bg-amber-500/15 text-amber-400'
+                                  }`}
+                                >
+                                  {m.hasPin ? 'Active' : 'Pending'}
+                                </span>
                               </div>
                               {m.equipmentNames.length > 0 ? (
                                 <div className="mt-1.5 flex items-center justify-between gap-3 text-xs font-medium">

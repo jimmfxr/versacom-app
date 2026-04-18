@@ -30,7 +30,10 @@ export default async function ProjectDetailPage({
             role: true,
             position: true,
             location: true,
-            user: { select: { id: true, firstName: true, lastName: true } },
+            // `pin` is selected only to compute `hasPin` below — never shipped
+            // to the client. It's null until the user completes their first
+            // login via the project PIN and sets a personal PIN.
+            user: { select: { id: true, firstName: true, lastName: true, pin: true } },
           },
           orderBy: { id: 'asc' },
         },
@@ -167,6 +170,7 @@ export default async function ProjectDetailPage({
           lastName: m.user.lastName,
           equipmentNames: memberEquipmentMap[m.id] || [],
           expansionCount: expansionCountMap.get(m.id) ?? 0,
+          hasPin: Boolean(m.user.pin),
         })),
       }}
       equipment={equipment.map((e) => ({
