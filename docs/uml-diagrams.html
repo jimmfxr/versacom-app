@@ -16,6 +16,21 @@
   .diagram-card { background:#1a1a2e; border-radius:12px; padding:20px; margin-bottom:20px; overflow-x:auto; }
   .diagram-card h3 { color:#e2e8f0; font-size:0.9rem; margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid #334155; }
   .mermaid { font-size:14px; }
+  .mermaid { display: flex; justify-content: center; }
+  .mermaid svg { max-width: 100%; height: auto; }
+  @media (max-width: 640px) {
+    body { padding: 20px 12px; }
+    h1 { font-size: 1.4em; gap: 10px; padding-bottom: 6px; }
+    h1 img.logo { height: 28px; }
+    h2 { font-size: 1.05em; margin-top: 32px; }
+    .diagram { padding: 12px; border-radius: 8px; margin-bottom: 24px; }
+    .card { padding: 14px 16px; }
+    .card h3 { font-size: 1em; }
+    .card p { font-size: 0.85em; }
+    table { font-size: 0.8em; }
+    th, td { padding: 6px 8px; }
+    pre.mermaid { font-size: 12px; }
+  }
 </style>
 </head>
 <body>

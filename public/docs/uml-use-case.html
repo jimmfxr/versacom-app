@@ -19,6 +19,21 @@
   td.yes { color: #10b981; text-align: center; }
   td.no { color: #666; text-align: center; }
   td.view { color: #22a7d3; text-align: center; }
+  .mermaid { display: flex; justify-content: center; }
+  .mermaid svg { max-width: 100%; height: auto; }
+  @media (max-width: 640px) {
+    body { padding: 20px 12px; }
+    h1 { font-size: 1.4em; gap: 10px; padding-bottom: 6px; }
+    h1 img.logo { height: 28px; }
+    h2 { font-size: 1.05em; margin-top: 32px; }
+    .diagram { padding: 12px; border-radius: 8px; margin-bottom: 24px; }
+    .card { padding: 14px 16px; }
+    .card h3 { font-size: 1em; }
+    .card p { font-size: 0.85em; }
+    table { font-size: 0.8em; }
+    th, td { padding: 6px 8px; }
+    pre.mermaid { font-size: 12px; }
+  }
 </style>
 </head>
 <body>
