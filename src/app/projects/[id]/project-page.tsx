@@ -292,6 +292,9 @@ export function ProjectPage({
   const [teamSearch, setTeamSearch] = useState('')
   const [showAddMember, setShowAddMember] = useState(false)
   const [showJoinQr, setShowJoinQr] = useState(false)
+  // Crew users don't get the Add Member form but DO get a standalone QR
+  // card they can pull up to show to end users during gear deployment.
+  const [showTeamQr, setShowTeamQr] = useState(false)
   const [addMemberData, setAddMemberData] = useState<{ firstName: string; lastName: string; position: string; role: string }>({ firstName: '', lastName: '', position: '', role: 'user' })
   const [editingMemberId, setEditingMemberId] = useState<number | null>(null)
   const [editMemberData, setEditMemberData] = useState<{ firstName: string; lastName: string; position: string; role: string }>({ firstName: '', lastName: '', position: '', role: 'crew' })
@@ -586,7 +589,11 @@ export function ProjectPage({
   const tabActionButton = activeTab === 'equipment' ? (
     !showAdd && <Button onClick={() => setShowAdd(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Equipment</span></Button>
   ) : activeTab === 'team' ? (
-    !showAddMember && <Button onClick={() => setShowAddMember(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Member</span></Button>
+    canEditTeam
+      ? !showAddMember && <Button onClick={() => setShowAddMember(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Member</span></Button>
+      : isCrew
+        ? !showTeamQr && <Button onClick={() => setShowTeamQr(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Show QR</span></Button>
+        : null
   ) : (
     !showAddPl && <Button onClick={() => setShowAddPl(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Function</span></Button>
   )
@@ -932,7 +939,30 @@ export function ProjectPage({
                   />
                 </div>
                 {canEditTeam && !showAddMember && <Button onClick={() => setShowAddMember(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Member</span></Button>}
+                {!canEditTeam && isCrew && !showTeamQr && <Button onClick={() => setShowTeamQr(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Show QR</span></Button>}
               </div>
+
+              {/* Crew-only: standalone join-QR card */}
+              {isCrew && showTeamQr && (
+                <Card>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-white">Join QR</h3>
+                    <IconButton onClick={() => setShowTeamQr(false)}><CloseIcon /></IconButton>
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500">Show this to crew during gear deployment. Scanning pre-fills the project PIN; existing users will sign in, new users will create their PIN.</p>
+                  {(() => {
+                    const joinUrl = `https://versacom-app.vercel.app/login/join?pin=${project.pin}`
+                    return (
+                      <div className="mt-4 flex flex-col items-center gap-3">
+                        <div className="rounded-xl bg-white p-3">
+                          <QRCodeSVG value={joinUrl} size={220} level="M" />
+                        </div>
+                        <span className="font-mono text-[11px] text-gray-400 break-all text-center">{joinUrl}</span>
+                      </div>
+                    )
+                  })()}
+                </Card>
+              )}
 
               {/* Add member form */}
               {canEditTeam && showAddMember && (
