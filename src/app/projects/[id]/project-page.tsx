@@ -962,8 +962,10 @@ export function ProjectPage({
                         disabled={!addMemberData.firstName.trim() || !addMemberData.lastName.trim()}
                         onClick={() => {
                           const name = `${addMemberData.firstName.trim()} ${addMemberData.lastName.trim()}`
-                          const origin = typeof window !== 'undefined' ? window.location.origin : 'https://versacom-app.vercel.app'
-                          const joinUrl = `${origin}/login/join?pin=${project.pin}`
+                          // Always use the production URL for the QR / invite link so scanning
+                          // from a phone works regardless of where the admin is browsing from
+                          // (localhost dev, preview deploys, etc.).
+                          const joinUrl = `https://versacom-app.vercel.app/login/join?pin=${project.pin}`
                           const text = `Hi ${name}, you've been accepted into ${project.name}! Scan or tap: ${joinUrl}`
                           navigator.clipboard.writeText(text).then(() => showToast('success', 'Invite message copied to clipboard'))
                         }}
@@ -980,8 +982,7 @@ export function ProjectPage({
                       <Button type="submit" disabled={isPending || !addMemberData.firstName.trim() || !addMemberData.lastName.trim()}>{isPending ? 'Adding...' : 'Add'}</Button>
                     </div>
                     {showJoinQr && (() => {
-                      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://versacom-app.vercel.app'
-                      const joinUrl = `${origin}/login/join?pin=${project.pin}`
+                      const joinUrl = `https://versacom-app.vercel.app/login/join?pin=${project.pin}`
                       return (
                         <div className="mt-4 flex flex-col items-center gap-3">
                           <div className="rounded-xl bg-white p-3">
