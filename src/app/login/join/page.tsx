@@ -1,14 +1,26 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState, useEffect, useTransition } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { joinProject, createPersonalPin } from './actions'
 
 type Step = 'join' | 'create-pin'
 
+// Next.js 16 requires useSearchParams() to be wrapped in a Suspense boundary
+// so the page can be statically prerendered while the search params are
+// resolved on the client.
 export default function JoinProjectPage() {
+  return (
+    <Suspense fallback={null}>
+      <JoinProjectPageInner />
+    </Suspense>
+  )
+}
+
+function JoinProjectPageInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
 
   // Step state
@@ -19,6 +31,15 @@ export default function JoinProjectPage() {
   const [lastName, setLastName] = useState('')
   const [projectPinDigits, setProjectPinDigits] = useState(['', '', '', ''])
   const [joinError, setJoinError] = useState('')
+
+  // Pre-fill the project PIN from the `?pin=1234` query param so scanning
+  // the project QR code drops the crew straight to the name-entry step.
+  useEffect(() => {
+    const pin = searchParams.get('pin')
+    if (pin && /^\d{4}$/.test(pin)) {
+      setProjectPinDigits([pin[0], pin[1], pin[2], pin[3]])
+    }
+  }, [searchParams])
 
   // Create PIN form
   const [pinDigits, setPinDigits] = useState(['', '', '', ''])

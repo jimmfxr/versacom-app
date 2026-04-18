@@ -3,6 +3,7 @@
 import { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { PencilIcon, XMarkIcon, ChevronLeftIcon } from '@heroicons/react/24/outline'
+import { QRCodeSVG } from 'qrcode.react'
 import { STATUS_BADGE_STYLES, getStatusLabel } from '@/lib/deploy-status'
 import { DeployStatusSelect } from '@/components/deploy-status-select'
 import { useDeviceReachability } from '@/hooks/use-device-reachability'
@@ -290,6 +291,7 @@ export function ProjectPage({
   // Team state
   const [teamSearch, setTeamSearch] = useState('')
   const [showAddMember, setShowAddMember] = useState(false)
+  const [showJoinQr, setShowJoinQr] = useState(false)
   const [addMemberData, setAddMemberData] = useState<{ firstName: string; lastName: string; position: string; role: string }>({ firstName: '', lastName: '', position: '', role: 'user' })
   const [editingMemberId, setEditingMemberId] = useState<number | null>(null)
   const [editMemberData, setEditMemberData] = useState<{ firstName: string; lastName: string; position: string; role: string }>({ firstName: '', lastName: '', position: '', role: 'crew' })
@@ -960,14 +962,33 @@ export function ProjectPage({
                         disabled={!addMemberData.firstName.trim() || !addMemberData.lastName.trim()}
                         onClick={() => {
                           const name = `${addMemberData.firstName.trim()} ${addMemberData.lastName.trim()}`
-                          const text = `Hi ${name}, you've been accepted into ${project.name}! To get started, click here: https://versacom-app.vercel.app/login and enter your name along with the project PIN: ${project.pin}`
+                          const origin = typeof window !== 'undefined' ? window.location.origin : 'https://versacom-app.vercel.app'
+                          const joinUrl = `${origin}/login/join?pin=${project.pin}`
+                          const text = `Hi ${name}, you've been accepted into ${project.name}! Scan or tap: ${joinUrl}`
                           navigator.clipboard.writeText(text).then(() => showToast('success', 'Invite message copied to clipboard'))
                         }}
                       >
                         Invite
                       </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setShowJoinQr((v) => !v)}
+                      >
+                        {showJoinQr ? 'Hide QR' : 'QR'}
+                      </Button>
                       <Button type="submit" disabled={isPending || !addMemberData.firstName.trim() || !addMemberData.lastName.trim()}>{isPending ? 'Adding...' : 'Add'}</Button>
                     </div>
+                    {showJoinQr && (() => {
+                      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://versacom-app.vercel.app'
+                      const joinUrl = `${origin}/login/join?pin=${project.pin}`
+                      return (
+                        <div className="mt-4 flex flex-col items-center gap-2 rounded-xl bg-white p-4">
+                          <QRCodeSVG value={joinUrl} size={192} level="M" includeMargin={false} />
+                          <span className="font-mono text-[11px] text-gray-600 break-all text-center">{joinUrl}</span>
+                        </div>
+                      )
+                    })()}
                   </form>
                 </Card>
               )}
