@@ -104,6 +104,10 @@ export async function deleteProject(projectId: number) {
         where: { changeRequest: { projectId } },
       }),
       prisma.changeRequest.deleteMany({ where: { projectId } }),
+      // NfgReports reference Equipment — delete them before Equipment.
+      prisma.nfgReport.deleteMany({
+        where: { equipment: { projectId } },
+      }),
       prisma.panelKey.deleteMany({
         where: { projectMember: { projectId } },
       }),
