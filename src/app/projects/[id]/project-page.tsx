@@ -983,9 +983,11 @@ export function ProjectPage({
                       const origin = typeof window !== 'undefined' ? window.location.origin : 'https://versacom-app.vercel.app'
                       const joinUrl = `${origin}/login/join?pin=${project.pin}`
                       return (
-                        <div className="mt-4 flex flex-col items-center gap-2 rounded-xl bg-white p-4">
-                          <QRCodeSVG value={joinUrl} size={192} level="M" includeMargin={false} />
-                          <span className="font-mono text-[11px] text-gray-600 break-all text-center">{joinUrl}</span>
+                        <div className="mt-4 flex flex-col items-center gap-3">
+                          <div className="rounded-xl bg-white p-3">
+                            <QRCodeSVG value={joinUrl} size={192} level="M" />
+                          </div>
+                          <span className="font-mono text-[11px] text-gray-400 break-all text-center">{joinUrl}</span>
                         </div>
                       )
                     })()}
