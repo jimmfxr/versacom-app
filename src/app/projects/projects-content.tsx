@@ -13,6 +13,7 @@ import { StatusBadge } from '@/components/status-badge'
 import { IconButton } from '@/components/icon-button'
 import { FormInput } from '@/components/form-field'
 import { createProject } from './actions'
+import { setProjectStatus } from './[id]/actions'
 
 type Project = {
   id: number
@@ -47,12 +48,31 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
 
-  const filteredProjects = projects.filter((p) => {
-    if (!search.trim()) return true
-    const q = search.toLowerCase()
-    const creatorName = `${p.createdBy.firstName} ${p.createdBy.lastName}`.toLowerCase()
-    return p.name.toLowerCase().includes(q) || creatorName.includes(q)
-  })
+  const filteredProjects = projects
+    .filter((p) => {
+      if (!search.trim()) return true
+      const q = search.toLowerCase()
+      const creatorName = `${p.createdBy.firstName} ${p.createdBy.lastName}`.toLowerCase()
+      return (
+        p.name.toLowerCase().includes(q) ||
+        creatorName.includes(q) ||
+        p.status.toLowerCase().includes(q)
+      )
+    })
+    // Active first, archived after — preserve createdAt desc within each bucket
+    .sort((a, b) => {
+      if (a.status !== b.status) return a.status === 'archived' ? 1 : -1
+      return 0
+    })
+
+  function handleRestore(projectId: number) {
+    startTransition(async () => {
+      const result = await setProjectStatus(projectId, 'active')
+      if (result.error) { showToast('error', result.error); return }
+      showToast('success', 'Project restored')
+      router.refresh()
+    })
+  }
 
   function closeForm() {
     setShowForm(false)
@@ -160,28 +180,48 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
           />
         ) : (
           <div className="space-y-2">
-            {filteredProjects.map((project) => (
-              <RowCard key={project.id} onClick={() => router.push(`/projects/${project.id}`)}>
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#0178a3]/15">
-                  <svg className="size-5 text-[#0178a3]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
-                  </svg>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-white">{project.name}</span>
-                    <StatusBadge label={project.status} color="green" />
+            {filteredProjects.map((project) => {
+              const isArchived = project.status === 'archived'
+              return (
+                <RowCard
+                  key={project.id}
+                  className={isArchived ? 'opacity-60' : ''}
+                  onClick={() => router.push(`/projects/${project.id}`)}
+                >
+                  <div className={`flex size-10 shrink-0 items-center justify-center rounded-full ${isArchived ? 'bg-gray-500/15' : 'bg-[#0178a3]/15'}`}>
+                    <svg className={`size-5 ${isArchived ? 'text-gray-500' : 'text-[#0178a3]'}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
+                    </svg>
                   </div>
-                  <div className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
-                    <span>{project.memberCount} members</span>
-                    <span>·</span>
-                    <span>{project.equipmentCount} equipment</span>
-                    <span>·</span>
-                    <span>{formatDate(project.createdAt)}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm font-semibold ${isArchived ? 'text-gray-400' : 'text-white'}`}>{project.name}</span>
+                      <StatusBadge label={project.status} color={isArchived ? 'gray' : 'green'} />
+                    </div>
+                    <div className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
+                      <span>{project.memberCount} members</span>
+                      <span>·</span>
+                      <span>{project.equipmentCount} equipment</span>
+                      <span>·</span>
+                      <span>{formatDate(project.createdAt)}</span>
+                    </div>
                   </div>
-                </div>
-              </RowCard>
-            ))}
+                  {isArchived && isAdmin && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={isPending}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleRestore(project.id)
+                      }}
+                    >
+                      Restore
+                    </Button>
+                  )}
+                </RowCard>
+              )
+            })}
           </div>
         )}
       </PageLayout>

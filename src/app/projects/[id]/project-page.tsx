@@ -258,10 +258,18 @@ export function ProjectPage({
   const isManager = currentUserRole === 'manager'
   const isCrew = currentUserRole === 'crew'
   const isUser = currentUserRole === 'user'
-  const canEditEquipment = isProjectAdmin || isCrew
-  const canEditTeam = isProjectAdmin || isManager
-  const canEditPickList = isProjectAdmin || isManager
-  const canChangeStatus = isProjectAdmin || isCrew
+  // Archived projects become read-only for everyone regardless of role.
+  // Users can still navigate in and view, but every edit affordance hides.
+  // Un-archive (Restore) is the only mutation available and lives on the
+  // Projects list card, plus via the status dropdown in settings once the
+  // project has been restored.
+  const isArchived = project.status === 'archived'
+  const canEditEquipment = !isArchived && (isProjectAdmin || isCrew)
+  const canEditTeam = !isArchived && (isProjectAdmin || isManager)
+  const canEditPickList = !isArchived && (isProjectAdmin || isManager)
+  const canChangeStatus = !isArchived && (isProjectAdmin || isCrew)
+  // Admins still need the settings panel to restore an archived project
+  // (status dropdown lives there), so don't gate canSeeSettings on isArchived.
   const canSeeSettings = isProjectAdmin || isManager
 
   // Tab state — user role only sees "My Equipment"
@@ -630,6 +638,18 @@ export function ProjectPage({
         }
       >
         <div className="space-y-4">
+          {/* ─── Archived banner ─── */}
+          {isArchived && (
+            <div className="rounded-xl border border-gray-500/30 bg-gray-500/10 px-4 py-3 text-sm text-gray-300">
+              <span className="font-semibold text-gray-200">Archived · </span>
+              This project is read-only. Everything is preserved for reference;
+              editing, submitting changes, and changing deploy statuses are all disabled.
+              {isProjectAdmin && (
+                <span className="text-gray-300"> Restore it from the Projects list or in the Status dropdown below.</span>
+              )}
+            </div>
+          )}
+
           {/* ─── Settings Panel ─── */}
           {showSettings && (
             <div className="space-y-4">

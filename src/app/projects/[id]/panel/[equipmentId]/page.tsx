@@ -164,13 +164,15 @@ export default async function PanelStudioPage({
     position: m.position,
   }))
 
-  // Get project info
+  // Get project info (including status, so archived projects lock keys)
   const project = await prisma.project.findUnique({
     where: { id: projectId },
-    select: { id: true, name: true },
+    select: { id: true, name: true, status: true },
   })
 
   if (!project) notFound()
+
+  const isProjectArchived = project.status === 'archived'
 
   // Get session user's membership for permissions
   const currentMembership = await prisma.projectMember.findFirst({
@@ -194,10 +196,13 @@ export default async function PanelStudioPage({
     currentMembership?.id === member.id ||
     member.userId === session.user.id
   )
+  // Archived projects become read-only panels for everyone. The role-based
+  // rules only apply when the project is still active.
   const canEditKeys =
-    isAdmin ||
-    isManager ||
-    ((isCrew || isUser) && isOwnPanel)
+    !isProjectArchived &&
+    (isAdmin ||
+      isManager ||
+      ((isCrew || isUser) && isOwnPanel))
 
   // canManageExpansions: admin only
   const canManageExpansions = isAdmin

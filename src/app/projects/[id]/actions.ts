@@ -83,6 +83,36 @@ export async function removeMember(projectId: number, memberId: number) {
   return { success: true }
 }
 
+/**
+ * Flip status between 'active' and 'archived' in a single call. Used by
+ * the Restore button on archived project cards and the status dropdown
+ * in project settings. Fresh revalidation on every view that lists
+ * projects so the card instantly moves between buckets.
+ */
+export async function setProjectStatus(projectId: number, status: 'active' | 'archived') {
+  const session = await getSession()
+  if (!session) return { error: 'Not authenticated' }
+  if (status !== 'active' && status !== 'archived') {
+    return { error: 'Invalid status' }
+  }
+
+  try {
+    await prisma.project.update({
+      where: { id: projectId },
+      data: { status },
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    console.error('setProjectStatus error:', msg, e)
+    return { error: `Failed to update status: ${msg}` }
+  }
+
+  revalidatePath('/projects')
+  revalidatePath('/')
+  revalidatePath(`/projects/${projectId}`)
+  return { success: true }
+}
+
 export async function deleteProject(projectId: number) {
   const session = await getSession()
   if (!session) return { error: 'Not authenticated' }

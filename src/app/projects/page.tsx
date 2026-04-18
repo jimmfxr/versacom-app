@@ -12,8 +12,10 @@ export default async function ProjectsPage() {
   const isUserOnly = session ? session.memberships.every((m) => m.role === 'user') : false
   const showMyEquipment = session?.memberships.some((m) => m.role === 'crew') ?? false
 
-  // Admins see all active projects; managers/crew only see projects they belong to
-  const projectFilter: { status: string; id?: { in: number[] } } = { status: 'active' }
+  // Admins see every project (active + archived). Managers/crew only see
+  // projects they belong to — still includes archived so past shows remain
+  // visible for reference.
+  const projectFilter: { id?: { in: number[] } } = {}
   if (!isAdmin && session) {
     const memberProjectIds = session.memberships.map((m) => m.project.id)
     projectFilter.id = { in: memberProjectIds }
