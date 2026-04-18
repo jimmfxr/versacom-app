@@ -137,7 +137,13 @@ export default async function ProjectDetailPage({
   const currentMembership = session
     ? project.members.find((m) => m.user.id === session.user.id)
     : null
-  const currentUserRole = currentMembership?.role || 'user'
+  // Global admins (admin on any project) get 'admin' role on every project
+  // they view — even if they have no explicit membership on this one.
+  // This covers the orphan-project case where the admin's own membership
+  // was wiped by an earlier incomplete delete, leaving them locked out of
+  // the controls that would let them clean up.
+  const isGlobalAdmin = session?.memberships.some((m) => m.role === 'admin') ?? false
+  const currentUserRole = currentMembership?.role || (isGlobalAdmin ? 'admin' : 'user')
   const currentMemberId = currentMembership?.id || null
 
   const isAdmin = session?.memberships.some((m) => m.role === 'admin') ?? false
