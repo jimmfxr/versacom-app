@@ -83,6 +83,21 @@ interface PanelStudioProps {
       expansion: number
     }>
   }>
+  /**
+   * Change requests for this member that were resolved in the last 60s.
+   * Only populated when the viewer is looking at their OWN panel. Used to
+   * show an approval / denial toast when polling detects a resolution.
+   */
+  recentResolutions?: Array<{
+    id: number
+    resolvedAt: string
+    items: Array<{
+      keyIndex: number
+      page: string
+      expansion: number
+      approved: boolean
+    }>
+  }>
 }
 
 type KeyState = {
@@ -202,6 +217,7 @@ export function PanelStudio({
   currentUserId,
   currentMemberId: _currentMemberId,
   pendingChangeRequests = [],
+  recentResolutions = [],
 }: PanelStudioProps) {
   const isCrew = _currentUserRole === 'crew'
   void _currentMemberId
@@ -231,13 +247,25 @@ export function PanelStudio({
     return maxExp
   })
 
-  // Fingerprint the server data to detect real changes (not just reference changes)
+  // Fingerprint the server data to detect real changes (not just reference
+  // changes). Includes recentResolution IDs so a denial (which doesn't
+  // modify PanelKey data) still triggers a sync — otherwise the crew's
+  // local "submitted" state would persist and look like a phantom approval.
   const serverFingerprint = useMemo(
-    () => initialPanelKeys.map((k) => `${k.keyIndex}:${k.page}:${k.expansion}:${k.pickListItemId}`).join('|'),
-    [initialPanelKeys]
+    () => {
+      const keysFp = initialPanelKeys
+        .map((k) => `${k.keyIndex}:${k.page}:${k.expansion}:${k.pickListItemId}`)
+        .join('|')
+      const resFp = recentResolutions.map((r) => r.id).sort((a, b) => a - b).join(',')
+      return `${keysFp}||res:${resFp}`
+    },
+    [initialPanelKeys, recentResolutions]
   )
   const prevFingerprintRef = useRef(serverFingerprint)
   const hasSubmittedKeysRef = useRef(false)
+  // Resolutions we've already processed — prevents a toast from firing
+  // twice for the same resolution on repeated polls.
+  const seenResolutionIdsRef = useRef<Set<number>>(new Set())
 
   // Track whether we have submitted keys
   const hasSubmittedKeys = keys.some((k) => k.status === 'submitted')
@@ -245,16 +273,42 @@ export function PanelStudio({
     hasSubmittedKeysRef.current = hasSubmittedKeys
   }, [hasSubmittedKeys])
 
-  // Sync keys from server when data actually changes (e.g. admin approves)
+  // Sync keys from server when data actually changes (admin approved / denied
+  // a request, someone else edited, etc.) and surface an approve/deny toast
+  // matching what the admin did to any of our submitted keys.
   useEffect(() => {
-    if (prevFingerprintRef.current !== serverFingerprint) {
-      const hadSubmitted = hasSubmittedKeysRef.current
-      prevFingerprintRef.current = serverFingerprint
-      setKeys(initializeKeys(initialPanelKeys, keyCount))
+    if (prevFingerprintRef.current === serverFingerprint) return
+    prevFingerprintRef.current = serverFingerprint
+    setKeys(initializeKeys(initialPanelKeys, keyCount))
 
-      if (hadSubmitted) {
+    // New resolutions since the last sync — decide toast(s).
+    const newResolutions = recentResolutions.filter(
+      (r) => !seenResolutionIdsRef.current.has(r.id),
+    )
+    if (newResolutions.length > 0) {
+      const approvedKeyNums: number[] = []
+      const deniedKeyNums: number[] = []
+      for (const res of newResolutions) {
+        for (const item of res.items) {
+          // Display as 1-based key numbers to match the panel's labels.
+          const label = item.keyIndex + 1
+          if (item.approved) approvedKeyNums.push(label)
+          else deniedKeyNums.push(label)
+        }
+        seenResolutionIdsRef.current.add(res.id)
+      }
+      if (approvedKeyNums.length > 0) {
         showToast('success', 'Your panel changes are live')
       }
+      if (deniedKeyNums.length > 0) {
+        const uniq = Array.from(new Set(deniedKeyNums)).sort((a, b) => a - b)
+        showToast('error', `Keys ${uniq.join(', ')} denied`)
+      }
+    } else if (hasSubmittedKeysRef.current) {
+      // Fallback: fingerprint changed from a source we can't attribute
+      // (e.g. admin edited directly outside the request flow). Keep the
+      // existing success toast so the crew knows something updated.
+      showToast('success', 'Your panel changes are live')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverFingerprint])

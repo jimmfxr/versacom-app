@@ -315,6 +315,56 @@ export default async function PanelStudioPage({
     }))
   }
 
+  // Recent resolutions of this member's change requests — used by the
+  // crew-side UI to tell them which of their submitted keys got approved
+  // vs denied so we can show the right toast + revert state on denial.
+  // Window is short (60s) so old resolutions don't re-trigger after
+  // navigating back to the page.
+  type ResolutionItem = {
+    keyIndex: number
+    page: string
+    expansion: number
+    approved: boolean
+  }
+  let recentResolutions: { id: number; resolvedAt: string; items: ResolutionItem[] }[] = []
+  if (member && isOwnPanel) {
+    const sixtySecondsAgo = new Date(Date.now() - 60_000)
+    const recentCRs = await prisma.changeRequest.findMany({
+      where: {
+        targetMemberId: member.id,
+        status: { in: ['applied', 'rejected'] },
+        resolvedAt: { gte: sixtySecondsAgo },
+      },
+      include: {
+        items: {
+          include: {
+            panelKey: {
+              select: { keyIndex: true, page: true, expansion: true, pickListItemId: true },
+            },
+          },
+        },
+      },
+      orderBy: { resolvedAt: 'asc' },
+    })
+    recentResolutions = recentCRs.map((cr) => ({
+      id: cr.id,
+      resolvedAt: cr.resolvedAt!.toISOString(),
+      items: cr.items.map((i) => {
+        // Heuristic: an item was approved if the current PanelKey value
+        // matches what the item was trying to set. Denied items left the
+        // PanelKey untouched (still at its previous value).
+        const targetPickId = i.newValue ? parseInt(i.newValue) : null
+        const currentPickId = i.panelKey.pickListItemId
+        return {
+          keyIndex: i.panelKey.keyIndex,
+          page: i.panelKey.page,
+          expansion: i.panelKey.expansion,
+          approved: currentPickId === targetPickId,
+        }
+      }),
+    }))
+  }
+
   return (
     <PanelStudio
       userName={userName}
@@ -341,6 +391,7 @@ export default async function PanelStudioPage({
       currentUserId={session.user.id}
       currentMemberId={currentMembership?.id ?? null}
       pendingChangeRequests={pendingChangeRequests}
+      recentResolutions={recentResolutions}
     />
   )
 }
