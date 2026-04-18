@@ -103,13 +103,16 @@ export default async function PanelStudioPage({
     pickListItemType: k.pickListItem?.type ?? null,
   }))
 
-  // Fetch all ProjectMembers for PTP entries
+  // Fetch all ProjectMembers for PTP entries, plus their equipment
+  // categories so we can filter out members who can't reasonably receive
+  // a PTP (see excludedPtpNames below).
   const ptpMembersRaw = await prisma.projectMember.findMany({
     where: { projectId },
     select: {
       id: true,
       position: true,
       user: { select: { firstName: true, lastName: true } },
+      equipment: { select: { category: true } },
     },
     orderBy: { id: 'asc' },
   })
@@ -131,12 +134,29 @@ export default async function PanelStudioPage({
     }
   }
 
-  // Fetch PickListItem records for the project (including newly created PTP items)
-  const pickListItems = await prisma.pickListItem.findMany({
+  // Members whose equipment is NON-EMPTY but consists of only hardwire
+  // beltpacks can't be PTP'd practically — PTP to a hardwire beltpack
+  // takes more resources than the studio typically has. Exclude them from
+  // the picker's PTP list. Members with any panel / wireless gear stay
+  // (even if they also have HWBP — the call just targets their panel),
+  // and members with no equipment yet stay too (they may get kitted soon).
+  const excludedPtpNames = new Set<string>()
+  for (const m of ptpMembersRaw) {
+    if (m.equipment.length === 0) continue
+    const onlyHwbp = m.equipment.every((e) => e.category === 'hardwire_bp')
+    if (onlyHwbp) excludedPtpNames.add(`${m.user.firstName} ${m.user.lastName}`)
+  }
+
+  // Fetch PickListItem records for the project, filtering out PTP items
+  // whose member was flagged above.
+  const pickListItemsAll = await prisma.pickListItem.findMany({
     where: { projectId },
     select: { id: true, code: true, name: true, type: true },
     orderBy: [{ type: 'asc' }, { name: 'asc' }],
   })
+  const pickListItems = pickListItemsAll.filter(
+    (p) => p.type !== 'PTP' || !excludedPtpNames.has(p.name),
+  )
 
   const ptpMembers = ptpMembersRaw.map((m) => ({
     id: m.id,
