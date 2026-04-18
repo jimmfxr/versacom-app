@@ -87,9 +87,45 @@ export async function deleteProject(projectId: number) {
   const session = await getSession()
   if (!session) return { error: 'Not authenticated' }
 
-  await prisma.projectMember.deleteMany({ where: { projectId } })
-  await prisma.project.delete({ where: { id: projectId } })
+  // A Project has a web of foreign-key children. Prisma won't let us delete
+  // the Project row until every child is gone, so we wipe them in FK-safe
+  // order inside a transaction — either everything dies or nothing does.
+  //
+  // Previously this only deleted ProjectMembers before calling
+  // prisma.project.delete, which would silently fail if any other child
+  // (PickListItem, Equipment, ChangeRequest, ...) existed, leaving an
+  // orphan Project row with 0 members in the list.
+  try {
+    await prisma.$transaction([
+      prisma.keyDraft.deleteMany({
+        where: { panelKey: { projectMember: { projectId } } },
+      }),
+      prisma.changeRequestItem.deleteMany({
+        where: { changeRequest: { projectId } },
+      }),
+      prisma.changeRequest.deleteMany({ where: { projectId } }),
+      prisma.panelKey.deleteMany({
+        where: { projectMember: { projectId } },
+      }),
+      prisma.pickListItem.deleteMany({ where: { projectId } }),
+      prisma.equipment.deleteMany({ where: { projectId } }),
+      prisma.accessRequest.deleteMany({ where: { projectId } }),
+      prisma.rackSlot.deleteMany({
+        where: { rackTemplate: { projectId } },
+      }),
+      prisma.rackTemplate.deleteMany({ where: { projectId } }),
+      prisma.projectMember.deleteMany({ where: { projectId } }),
+      prisma.project.delete({ where: { id: projectId } }),
+    ])
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    console.error('deleteProject error:', msg, e)
+    return { error: `Failed to delete project: ${msg}` }
+  }
 
   revalidatePath('/projects')
+  revalidatePath('/')
+  revalidatePath('/admin')
+  revalidatePath('/my-equipment')
   return { success: true }
 }
