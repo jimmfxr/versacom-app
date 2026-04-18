@@ -25,10 +25,24 @@ export default async function HomePage({
   // Users (no admin/manager/crew) don't get a dashboard — bounce them to My Equipment.
   if (isUserOnly) redirect('/my-equipment')
 
-  // Build the dedupe list of projects this user belongs to (for the switcher).
+  // Fetch the list fresh from the DB instead of trusting the session cookie,
+  // which is set at login and never refreshes. A project the user had at
+  // login time but has since been archived / deleted would still show up
+  // in the dropdown otherwise. Only return active projects they still
+  // actively belong to.
+  const activeMemberships = await prisma.projectMember.findMany({
+    where: {
+      userId: session.user.id,
+      project: { status: 'active' },
+    },
+    select: {
+      project: { select: { id: true, name: true } },
+    },
+    orderBy: { id: 'asc' },
+  })
   const userProjects = (() => {
     const seen = new Map<number, { id: number; name: string }>()
-    for (const m of session.memberships) {
+    for (const m of activeMemberships) {
       if (!seen.has(m.project.id)) seen.set(m.project.id, { id: m.project.id, name: m.project.name })
     }
     return Array.from(seen.values())
