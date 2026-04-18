@@ -529,6 +529,8 @@ export function ProjectPage({
     .filter((m) => {
       if (!teamSearch) return true
       const q = teamSearch.toLowerCase()
+      // First-login status — same words that appear on the row.
+      const status = m.hasPin ? 'active' : 'pending'
       return (
         m.firstName.toLowerCase().includes(q) ||
         m.lastName.toLowerCase().includes(q) ||
@@ -537,7 +539,8 @@ export function ProjectPage({
         // Match equipment auto-names assigned to this member (e.g. "PNL 1",
         // "WLBP 1", "HWBP 2") so an admin can search "PNL" or "HWBP" to
         // find everyone using that gear.
-        m.equipmentNames.some((n) => n.toLowerCase().includes(q))
+        m.equipmentNames.some((n) => n.toLowerCase().includes(q)) ||
+        status.includes(q)
       )
     })
     .sort((a, b) => {
@@ -920,7 +923,7 @@ export function ProjectPage({
                 <div className="flex-1">
                   <input
                     type="text"
-                    placeholder="Search by name, position, role, or equipment..."
+                    placeholder="Search by name, position, role, equipment, or status..."
                     value={teamSearch}
                     onChange={(e) => setTeamSearch(e.target.value)}
                     className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
