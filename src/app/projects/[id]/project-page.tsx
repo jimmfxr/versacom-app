@@ -1015,7 +1015,7 @@ export function ProjectPage({
                                 <span>{m.firstName} {m.lastName}</span>
                                 {m.position && <span className="text-gray-400">· {m.position}</span>}
                                 <span className="text-gray-400">· {ROLE_LABELS[m.role] || m.role}</span>
-                                <span className={m.hasPin ? 'text-green-400' : 'text-amber-400'}>
+                                <span className={m.hasPin ? 'text-green-400' : 'text-yellow-600/80'}>
                                   · {m.hasPin ? 'Active' : 'Pending'}
                                 </span>
                               </div>
