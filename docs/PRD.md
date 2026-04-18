@@ -1,885 +1,443 @@
 # Nodal Control — Product Requirements Document
 
-**Version:** 1.0
-**Date:** April 12, 2026
-**Author:** Jimmy Xlou / Versacom (ATK / Clair Global)
-**Status:** Draft
+**Version:** 2.0 (current-state rewrite)
+**Updated:** 2026-04-17
+**Author:** Jimmy Xiloj / Versacom (ATK / Clair Global)
+**Status:** Living document — describes what is actually built and shipping, not future phases.
+
+> Source of truth for "what is this app" when returning to the codebase after time away. Previous PRD (April 12, 2026) archived as `PRD-v1-april2026.md` for historical reference.
+
+---
+
+## TL;DR
+
+Nodal Control is a web-based intercom management platform for live production shows (Grammys, Super Bowl, Oscars). It replaces the Google Sheets + Riedel hardware-programming + manual deployment tracking workflow with a single source of truth. Built with Next.js 16 App Router, Tailwind, Prisma, and Neon Postgres, deployed on Vercel.
+
+**What's built today (v2):**
+
+- PIN-based auth with project PIN + personal PIN flow
+- Three operational pages: **Projects list**, **Project detail** (Equipment/Team/Pick List tabs), **Panel Studio** (per-equipment key editor)
+- **Dashboard** and **My Equipment** (role-specific landings)
+- **Admin Tasks** page with lockout + change-request review inbox
+- Four roles: `admin`, `manager`, `crew`, `user` — each with specific permissions
+- Change-request approval workflow for panel key edits (submitted → applied/rejected)
+- QR code generation for project join links
+- Mobile-first nav with drag-to-dismiss gesture
+- Device reachability probing with caching + cross-tab sync
+
+**What's not built:**
+
+- Monitoring page (planned Phase 3 — not started)
+- NFG / asset tracking (Phase 4 — schema exists, no UI)
+- Rack designer (Phase 2 — schema exists, no UI)
+- Distribution page (the old "master sheet" idea — replaced in practice by the Equipment tab on Project detail)
 
 ---
 
 ## 1. Product Overview
 
-### 1.1 What is Nodal Control?
+### 1.1 What Nodal Control does
 
-Nodal Control is a collaborative intercom management platform for live production environments. It replaces the triple-entry workflow of Google Sheets + Riedel hardware programming + manual tracking with a single source of truth for show design, panel key assignments, change requests, equipment deployment, and device monitoring.
+Clair Global / ATK / Versacom operate a comms crew at major live broadcast events. For each show, a designer creates a "pick list" (named communication channels — Cameras, FOH, Stage Manager, etc.), assigns keys on physical intercom panels to those channels for each crew member, and tracks equipment deployment across dozens of stations. Today that work lives across Google Sheets, manual Riedel frame programming, and ad-hoc spreadsheets.
 
-### 1.2 Problem Statement
+Nodal Control consolidates all of it:
 
-Production comms teams currently maintain show designs in Google Sheets, manually program Riedel frames, and track deployments across disconnected tools. This creates:
+| Real-world task | Nodal Control feature |
+|---|---|
+| Maintain the master show sheet | **Projects** list + **Project detail** tabs |
+| Assign keys to a person's panel | **Panel Studio** |
+| Request mid-show key changes | **Change request** flow (crew submits → admin resolves) |
+| Track who has what gear and its deploy status | **Equipment tab** + **My Equipment** |
+| Add crew to the show quickly | **Project PIN** + **Join QR code** |
+| Lock out someone who forgot their PIN | **Admin Tasks → Lockouts** |
 
-- Triple data entry (sheet, hardware, tracking)
-- Version conflicts when multiple people edit the same sheet
-- No approval workflow for panel changes during live shows
-- No real-time visibility into deployment progress
-- No audit trail for who changed what and when
+### 1.2 Target users
 
-### 1.3 Solution
+- **Primary:** Clair Global / ATK / Versacom staff running comms at high-end live events
+- **Secondary:** Contract crew working one-off shows — they're added to a single project, never see others
 
-A four-page web application that serves as the single hub for all comms management:
+### 1.3 Proven scope (what actually works in production)
 
-| Page | Purpose |
-|------|---------|
-| **Distribution** | Master equipment view — replaces the Google Sheet entirely |
-| **Panel Studio** | Pick list and key assignment with hardware-accurate panel layouts |
-| **Inbox** | Change request and access request management |
-| **Monitoring** | Device health, RF signal, switch stats (replaces Grafana) |
+As of this writing, the app supports the full show-prep and show-run workflow for a single concurrent production:
 
-### 1.4 Target Users
+- Admin creates a project, shares a 4-digit PIN + QR code with crew
+- Crew members scan QR, type their name, set a personal PIN, and are in
+- Admin assigns gear via the Equipment tab, assigns crew to gear
+- Designers define pick list (CONF / IFB / Audio_IO / GRP items)
+- Crew open their assigned Panel Studio, assign pick-list items to keys, submit for approval
+- Admin sees change requests in Tasks inbox, approves or denies per-key
+- Crew see live updates to their panel when admin resolves
 
-Clair Global / ATK / Versacom comms teams operating at top-tier live events (Grammys, Super Bowl, Oscars, World Cup, etc.). Initially proving on Versacom (west coast) shows before company-wide rollout.
-
----
-
-## 2. User Roles & Permissions
-
-### 2.1 Role Definitions
-
-| Role | Description | Location |
-|------|-------------|----------|
-| **Admin** | Plans shows, manages everything, final approval authority | Show site / Office |
-| **Manager** | Oversees assigned projects, soft endorsement on changes | Show site |
-| **Crew** | Deploys gear, marks status, flags NFG, edits own panel | Show site / Field |
-| **User** | Views own panel, submits change requests only | Show site |
-| **Shop** | Warehouse/repair staff, sees NFG reports, views show design | Warehouse |
-
-### 2.2 Permission Matrix
-
-#### Distribution Page
-
-| Action | Admin | Manager | Crew | User | Shop |
-|--------|-------|---------|------|------|------|
-| Create / Edit Equipment | Yes | — | — | — | — |
-| Assign Equipment to Person | Yes | — | — | — | — |
-| Import / Export CSV | Yes | — | — | — | — |
-| Manage Rack Templates | Yes | — | — | — | — |
-| Update Deploy Status | Yes | — | Yes | — | — |
-| View Distribution | Yes | Yes | Yes | — | Yes |
-| Flag Device as NFG | — | — | Yes | — | — |
-| View NFG Reports | — | — | — | — | Yes |
-
-#### Panel Studio
-
-| Action | Admin | Manager | Crew | User | Shop |
-|--------|-------|---------|------|------|------|
-| Edit Any User Panel | Yes | — | — | — | — |
-| Edit Assigned Panels | — | Yes | — | — | — |
-| Edit Own Panel | — | — | Yes | — | — |
-| View Own Panel | — | — | — | Yes | — |
-| Submit Change Request | — | — | Yes | Yes | — |
-| Approve Changes — Final | Yes | — | — | — | — |
-| Approve Changes — Tier 1 (Soft) | — | Yes | — | — | — |
-
-#### Inbox
-
-| Action | Admin | Manager | Crew | User | Shop |
-|--------|-------|---------|------|------|------|
-| Approve All Requests | Yes | — | — | — | — |
-| Manage Access Requests | Yes | — | — | — | — |
-| Approve Assigned Requests (Soft) | — | Yes | — | — | — |
-| View Own Requests | — | — | Yes | Yes | — |
-
-#### Monitoring
-
-| Action | Admin | Manager | Crew | User | Shop |
-|--------|-------|---------|------|------|------|
-| Full Dashboard Access | Yes | — | — | — | — |
-| View Assigned Devices | — | Yes | Yes | — | — |
-| View Device Health | — | — | — | — | Yes |
-
-### 2.3 Project Security
-
-All roles including Admin can ONLY see projects they have created or been invited to. There is no global view across projects.
+Untested at scale: multiple concurrent shows, hundreds of crew, live event stress conditions.
 
 ---
 
-## 3. Data Model
+## 2. Tech Stack
 
-### 3.1 Phase 1 — Pick List / Panels / Change Requests (9 Models)
+| Layer | Choice |
+|---|---|
+| Framework | Next.js 16 (App Router, Turbopack dev server) |
+| Styling | Tailwind CSS 4 |
+| Language | TypeScript |
+| ORM | Prisma 7 |
+| Database | Neon Postgres (serverless driver) |
+| Hosting | Vercel |
+| Auth | PIN-based (bcrypt-hashed, session cookie) |
+| Real-time | **No WebSockets** — polling every 5s for Tasks badge + Panel Studio fingerprint sync |
+| UI components | Headless UI + Heroicons |
+| Forms | Custom components (`FormInput`, `SearchableSelect`, `ComboboxInput`) |
+| QR | `qrcode.react` |
+| Gestures | `@use-gesture/react` (for mobile nav drag-to-dismiss) |
 
-#### USER
-| Field | Type | Notes |
-|-------|------|-------|
-| id | int | PK |
-| firstName | string | |
-| lastName | string | |
-| pin | string | Authentication credential |
-| createdAt | datetime | |
-| updatedAt | datetime | |
+**Why no WebSockets:** Vercel serverless doesn't host persistent connections cleanly, and the use case tolerates 5-second latency on task notifications. Polling is cheap and simple.
 
-#### PROJECT
-| Field | Type | Notes |
-|-------|------|-------|
-| id | int | PK |
-| name | string | |
-| status | string | active, archived |
-| createdById | int | FK → User |
-| createdAt | datetime | |
-| updatedAt | datetime | |
-
-#### PROJECT_MEMBER
-| Field | Type | Notes |
-|-------|------|-------|
-| id | int | PK |
-| userId | int | FK → User |
-| projectId | int | FK → Project |
-| role | string | admin, manager, crew, user |
-| position | string | e.g. PLHQ, A1, A2 |
-| location | string | e.g. FOH, MON, STAGE |
-| hardwareType | string | e.g. RSP-1232, Bolero |
-| ipAddress | string | Panel IP address |
-| headsetType | string | e.g. 4 LWHS, DT290 |
-| deployStatus | string | deployed, done, returned, not-needed, damaged, na |
-| riedelId | int | Riedel hardware ID |
-
-#### PICK_LIST_ITEM
-| Field | Type | Notes |
-|-------|------|-------|
-| id | int | PK |
-| projectId | int | FK → Project |
-| name | string | Function name |
-| type | string | PTP, CONF, IFB, Audio_IO |
-
-#### PANEL_KEY
-| Field | Type | Notes |
-|-------|------|-------|
-| id | int | PK |
-| projectMemberId | int | FK → ProjectMember |
-| keyIndex | int | Physical key position |
-| page | string | main, shift |
-| expansion | int | 0 = main panel, 1-6 = expansion |
-| pickListItemId | int | FK → PickListItem (nullable) |
-| triggerMode | string | latch, momentary, auto |
-
-#### KEY_DRAFT
-| Field | Type | Notes |
-|-------|------|-------|
-| id | int | PK |
-| panelKeyId | int | FK → PanelKey |
-| editedById | int | FK → User |
-| pickListItemId | int | FK → PickListItem |
-| triggerMode | string | |
-| status | string | draft, submitted |
-| createdAt | datetime | |
-
-#### CHANGE_REQUEST
-| Field | Type | Notes |
-|-------|------|-------|
-| id | int | PK |
-| projectId | int | FK → Project |
-| submittedById | int | FK → User |
-| targetMemberId | int | FK → ProjectMember |
-| status | string | draft, submitted, mgr_endorsed, approved, rejected, applied |
-| rejectionNote | string | Reason if rejected |
-| createdAt | datetime | |
-| resolvedAt | datetime | |
-
-#### CHANGE_REQUEST_ITEM
-| Field | Type | Notes |
-|-------|------|-------|
-| id | int | PK |
-| changeRequestId | int | FK → ChangeRequest |
-| panelKeyId | int | FK → PanelKey |
-| fieldChanged | string | Which field was modified |
-| previousValue | string | Value before change |
-| newValue | string | Value after change |
-
-#### ACCESS_REQUEST
-| Field | Type | Notes |
-|-------|------|-------|
-| id | int | PK |
-| userId | int | FK → User |
-| projectId | int | FK → Project |
-| status | string | pending, approved, rejected |
-| createdAt | datetime | |
-| resolvedAt | datetime | |
-
-### 3.2 Phase 2-4 — Equipment / Assets / Racks / NFG (5 Models)
-
-#### EQUIPMENT
-| Field | Type | Notes |
-|-------|------|-------|
-| id | int | PK |
-| projectId | int | FK → Project |
-| assignedToId | int | FK → ProjectMember (nullable) |
-| category | string | panels, wireless_bp, hardwire_bp, switches, antennas |
-| hardwareType | string | Specific model |
-| position | string | e.g. A1, A2, STAGE MGR |
-| location | string | e.g. FOH, MON, STAGE |
-| headsetType | string | |
-| frequency | string | 1.9 / 2.4 GHz bands |
-| bpNumber | string | Beltpack number |
-| source | string | Signal source |
-| deployStatus | string | planning, holding, deployed, done, returned, not-needed, nfg |
-| notes | string | Free-form notes |
-| assetId | int | FK → Asset (nullable) |
-
-#### ASSET
-| Field | Type | Notes |
-|-------|------|-------|
-| id | int | PK |
-| qrCode | string | Physical QR label |
-| hardwareType | string | |
-| serialNumber | string | |
-| owner | string | e.g. Clair Global |
-| status | string | active, retired, repair |
-| createdAt | datetime | |
-
-#### RACK_TEMPLATE
-| Field | Type | Notes |
-|-------|------|-------|
-| id | int | PK |
-| name | string | e.g. FS11, Bolero, Bolero to Helixnet |
-| description | string | |
-| totalRU | int | Total rack units |
-| type | string | standard (touring) or custom |
-| projectId | int | FK → Project (nullable for templates) |
-
-#### RACK_SLOT
-| Field | Type | Notes |
-|-------|------|-------|
-| id | int | PK |
-| rackTemplateId | int | FK → RackTemplate |
-| ruPosition | int | Starting RU position (top = 1) |
-| ruSize | int | Height in RU (1RU = 1.75 inches) |
-| side | string | front, rear |
-| deviceType | string | e.g. Artist-64 Frame, Antaira Switch |
-| label | string | Display label |
-| color | string | Color code for visual grouping |
-
-#### NFG_REPORT
-| Field | Type | Notes |
-|-------|------|-------|
-| id | int | PK |
-| equipmentId | int | FK → Equipment |
-| assetId | int | FK → Asset (nullable) |
-| reportedById | int | FK → User |
-| notes | string | Description of the issue |
-| status | string | open, acknowledged, resolved |
-| createdAt | datetime | |
-| resolvedAt | datetime | |
-
-### 3.3 Relationships Summary
-
-```
-USER ──1:N──> PROJECT (creates)
-USER ──1:N──> PROJECT_MEMBER (belongs to)
-USER ──1:N──> CHANGE_REQUEST (submits)
-USER ──1:N──> KEY_DRAFT (edits)
-USER ──1:N──> ACCESS_REQUEST (requests)
-USER ──1:N──> NFG_REPORT (reports)
-
-PROJECT ──1:N──> PROJECT_MEMBER
-PROJECT ──1:N──> PICK_LIST_ITEM
-PROJECT ──1:N──> CHANGE_REQUEST
-PROJECT ──1:N──> ACCESS_REQUEST
-PROJECT ──1:N──> EQUIPMENT
-PROJECT ──1:N──> RACK_TEMPLATE
-
-PROJECT_MEMBER ──1:N──> PANEL_KEY
-PROJECT_MEMBER ──1:N──> EQUIPMENT (assigned to)
-
-PICK_LIST_ITEM ──1:N──> PANEL_KEY (used by)
-PICK_LIST_ITEM ──1:N──> KEY_DRAFT (draft uses)
-
-PANEL_KEY ──1:N──> KEY_DRAFT
-PANEL_KEY ──1:N──> CHANGE_REQUEST_ITEM
-
-CHANGE_REQUEST ──1:N──> CHANGE_REQUEST_ITEM
-
-RACK_TEMPLATE ──1:N──> RACK_SLOT
-
-ASSET ──1:N──> EQUIPMENT (tracked as)
-ASSET ──1:N──> NFG_REPORT
-
-EQUIPMENT ──1:N──> NFG_REPORT
-```
+**Why Neon serverless driver:** Talks to Postgres over HTTP-tunneled WebSockets, works inside Vercel functions. Added a retry wrapper (`src/lib/db.ts`) to silently recover from transient connection errors.
 
 ---
 
-## 4. State Machines
+## 3. User Roles & Permissions
 
-### 4.1 Panel Key State
+Role is **per-project** (`ProjectMember.role`). A person can be an `admin` on one project and a `user` on another.
 
-Keys have three visual states that are uniform across all roles:
+### 3.1 Role definitions
 
-| State | Color | Meaning |
-|-------|-------|---------|
-| **Clear** | No highlight | Live on hardware — current active assignment |
-| **Yellow** | `#f59e0b` | Local draft — user has made changes not yet submitted |
-| **Green** | `#10b981` | Submitted — change request awaiting approval |
+| Role | Shorthand | Typical person |
+|---|---|---|
+| `admin` | Final approver | Show design lead / Versacom staff |
+| `manager` | Design + planning | Production manager — sees but can't change deploy status or approve keys |
+| `crew` | On-site operator | A1, A2, stage manager — edits own panel, deploys gear |
+| `user` | Read-mostly | Talent, producers — view their gear, submit key requests |
 
-**Transitions:**
-```
-[Created] → Clear
-Clear → Yellow      (User edits key)
-Yellow → Yellow     (Additional edits)
-Yellow → Clear      (User discards changes)
-Yellow → Green      (User submits change request)
-Green → Clear       (Admin approves — applied to live)
-Green → Yellow      (Rejected — reverted to draft for re-edit)
-```
+### 3.2 Permission matrix
 
-### 4.2 Change Request Lifecycle
+Legend: ✅ can do, ❌ cannot, 👁 view only
 
-Manager approval is a **soft endorsement** — it is advisory, not blocking. Admin has sole final approval authority. Requests can skip directly to Admin review.
+| Action | admin | manager | crew | user |
+|---|---|---|---|---|
+| View Projects list | ✅ | ✅ (only own) | ✅ (only own) | ❌ |
+| View Project detail page | ✅ | ✅ | ✅ | ❌ (proxy redirects to `/my-equipment`) |
+| Create / rename / archive a project | ✅ | ❌ | ❌ | ❌ |
+| Edit Team tab (add / remove / role) | ✅ | ✅ | ❌ | ❌ |
+| Edit Pick List tab | ✅ | ✅ | ❌ | ❌ |
+| Edit Equipment tab (add, rename, assign) | ✅ | ❌ | ✅ | ❌ |
+| Change equipment deploy status | ✅ | 👁 | ✅ | ❌ |
+| Edit own Panel Studio keys | ✅ | ✅ | ✅ | ✅ |
+| Edit someone else's Panel Studio keys | ✅ | ✅ | ❌ | ❌ |
+| Submit key changes directly (no approval) | ✅ | ❌ | ❌ | ❌ |
+| Submit key changes via approval flow | N/A | ✅ | ✅ | ✅ |
+| Review & approve/deny change requests | ✅ | ❌ (only endorse) | ❌ | ❌ |
+| See Admin Tasks page | ✅ | ❌ | ❌ | ❌ |
+| Unlock a locked-out account | ✅ | ❌ | ❌ | ❌ |
+| See "Show QR" button | ✅ | ✅ | ✅ | ❌ |
+| See "Add Member" button | ✅ | ✅ | ❌ | ❌ |
 
-| Status | Description |
-|--------|-------------|
-| **Draft** | User has local edits, not yet submitted |
-| **Submitted** | Sent for review, visible in Inbox |
-| **MgrEndorsed** | Manager has reviewed and endorsed (soft) |
-| **Approved** | Admin has approved |
-| **Applied** | Changes written to live PanelKey records |
-| **Rejected** | Denied by Admin (with rejection note) |
-| **Discarded** | User cancelled before submitting |
+### 3.3 Proxy-level gating
 
-**Transitions:**
-```
-[Created] → Draft
-Draft → Submitted           (User submits)
-Draft → Discarded           (User cancels)
-Submitted → MgrEndorsed     (Manager endorses — soft approval)
-Submitted → AdminReview      (Skips to Admin directly)
-MgrEndorsed → Applied        (Admin approves)
-MgrEndorsed → Rejected       (Admin rejects)
-AdminReview → Applied        (Admin approves)
-AdminReview → Rejected       (Admin rejects)
-Applied → [Done]
-Rejected → [Done]
-Discarded → [Done]
-```
+`src/proxy.ts` computes `isUserOnly = every membership's role === 'user'`. If true, the proxy allows access only to:
 
-### 4.3 Equipment Deploy Status
+- `/my-equipment` and sub-paths
+- `/projects/{id}/panel/{equipmentId}` (their own panel, accessed from My Equipment cards)
 
-| Status | Color | Background | Description |
-|--------|-------|------------|-------------|
-| **Planning** | — | — | Added to show design, not yet assigned |
-| **Holding** | — | — | Assigned to person/location, not yet installed |
-| **Deployed** | `#0178a3` | `rgba(1,120,163,0.15)` | Physically installed and working on site |
-| **Done** | `#059669` | `rgba(5,150,105,0.20)` | Show complete, gear still in place |
-| **Returned** | `#f97316` | `rgba(249,115,22,0.15)` | Gear checked back into warehouse |
-| **Not Needed** | `#ef4444` | `rgba(239,68,68,0.15)` | Cut from show |
-| **NFG** | `#a855f7` | `rgba(168,85,247,0.15)` | Non-functional, flagged for Shop |
-| **Damaged** | `#a855f7` | `rgba(168,85,247,0.15)` | Physical damage reported |
-| **NA** | `rgba(148,163,184,0.5)` | `rgba(255,255,255,0.04)` | Not applicable |
+Every other route redirects them back to `/my-equipment`. A person with mixed roles across projects (e.g., `user` on one, `crew` on another) is *not* user-only — they get normal navigation, and the per-page role checks take over.
 
-**Transitions:**
-```
-[Added] → Planning
-Planning → Holding           (Assigned to person + location)
-Planning → Not Needed        (Cut before deployment)
-Holding → Deployed           (Crew installs on site)
-Holding → Not Needed         (Cut from show)
-Deployed → Done              (Show complete)
-Deployed → Returned          (Pulled early)
-Deployed → NFG               (Device fails — creates NFG Report)
-NFG → Returned               (After repair or replacement)
-Done → Returned              (Gear checked back in)
-Returned → [End]
-Not Needed → [End]
-```
+---
+
+## 4. Page Inventory
+
+Every authenticated page is wrapped by `AppShell` (navbar + toast container). Non-admins don't see the Tasks nav item.
+
+| Path | Purpose | Roles |
+|---|---|---|
+| `/login` | Sign in with name + personal PIN | Everyone |
+| `/login/join` | Join a project with the project PIN | Everyone (accepts `?pin=` for QR pre-fill) |
+| `/login/forgot-pin` | Recovery flow (limited — contact admin) | Everyone |
+| `/` (Dashboard) | Summary of a selected project | admin / manager / crew (not user-only) |
+| `/projects` | List of projects accessible to the viewer | admin (all) / manager / crew (own) |
+| `/projects/[id]` | Project detail with tabs (Equipment / Team / Pick List / My Equipment) | Any member of the project |
+| `/projects/[id]/panel/[equipmentId]` | Panel Studio — key editor for a specific panel | Members per role rules |
+| `/my-equipment` | Equipment assigned to the current user | Everyone |
+| `/admin` | Tasks inbox (lockouts + change requests) | admin only — non-admins redirected to `/` |
+| `/admin/lockouts` | Drill-down view of all locked users | admin |
+
+### 4.1 Project detail tabs
+
+| Tab | Shows | Who sees it |
+|---|---|---|
+| **Equipment** | Auto-named gear (`PNL 1`, `WLBP 3`, `SW 2`, …) with hardware type, assignee, IP, deploy status | admin / manager / crew |
+| **Team** | Members with role, position, assigned equipment, expansion count, first-login status (Active/Pending) | admin / manager / crew |
+| **Pick List** | CONF / IFB / Audio_IO / GRP communication functions. Usage display shows who has each item on their panel. | admin / manager / crew |
+| **My Equipment** (nested) | Shows ONLY when the current user is `crew` on this project — surfaces just the gear assigned to them | crew |
+
+### 4.2 Panel Studio modes
+
+Same route (`/projects/[id]/panel/[equipmentId]`) renders different modes:
+
+| Mode | Trigger | Capabilities |
+|---|---|---|
+| **Own panel, crew/user/manager** | Default when viewing a panel assigned to you | Edit keys → submit for approval |
+| **Own panel, admin** | Admin viewing a panel assigned to them | Edit keys → applied immediately (no approval) |
+| **Others' panel, admin/manager** | Navigating to a panel not assigned to you | Edit keys → changes require admin approval (manager = endorsement) |
+| **Review mode** | URL has `?review={memberId}` (admin clicks Review on a Tasks card) | Shows the submitted changes, allows per-key approve/deny |
 
 ---
 
 ## 5. Core Workflows
 
-### 5.1 Change Request Flow (Key Edit to Approval)
+### 5.1 Join a project (new crew member)
 
 ```
-1. Crew taps key in Panel Studio → assigns pick list function
-2. Key turns YELLOW (draft)
-3. Crew edits more keys as needed
-4. Crew taps Submit → POST /change-requests
-5. API creates ChangeRequest + ChangeRequestItems + KeyDrafts
-6. Keys turn GREEN (submitted)
-7. Manager sees request in Inbox → endorses (soft) → PATCH /cr/:id
-8. Admin sees request in Inbox → approves → PATCH /cr/:id
-9. API writes KeyDraft values to live PanelKey records
-10. API deletes KeyDrafts
-11. On next refresh, keys turn CLEAR (live)
+Admin            Crew
+  │                │
+  │ share QR ─────►│ scans
+  │                │
+  │                ▼
+  │            /login/join?pin=1234
+  │            (PIN pre-filled)
+  │                │
+  │                │ types first + last name
+  │                │ taps Join
+  │                ▼
+  │            Server: creates User (no pin), ProjectMember
+  │                │
+  │                ▼
+  │            Prompted to create personal PIN
+  │                │
+  │                │ types PIN twice
+  │                ▼
+  │            Server: hashes pin → stores on User
+  │                │
+  │                ▼
+  │            Redirected to /login → signs in
+  │                │
+  │                ▼
+  │            Landing: / (dashboard) or /my-equipment (user-only)
 ```
 
-### 5.2 Equipment Deployment Flow
+If the user already exists in the system (returning crew member), `joinProject` detects by name and either adds them to the project or signs them in.
+
+### 5.2 Change request (non-admin edits keys)
 
 ```
-1. Admin adds equipment entry → POST /equipment (status: planning)
-2. Admin assigns to person + location → PATCH /equipment/:id (status: holding)
-3. Admin can bulk import via CSV → POST /equipment/import
-4. Crew opens Distribution on site → sees equipment list
-5. Crew marks device as Deployed → PATCH /equipment/:id/status
-6a. Show wraps → Crew marks Done
-6b. Device fails → Crew flags NFG → creates NFG Report
-7. Shop sees NFG reports → acknowledges
-8. Crew marks gear as Returned when checked back in
+Crew                    Admin
+  │                       │
+  │ opens Panel Studio    │
+  │ edits key 5 "Cameras" │
+  │ clicks Submit         │
+  │                       │
+  ▼                       │
+ChangeRequest created     │
+status = submitted        │
+KeyDraft created          │
+status = submitted        │
+                          │
+  polls every 5s          │ polls /admin
+  waits for fingerprint   │ every 5s
+  change                  │
+                          │ badge count updates
+                          │ → "Tasks: 1"
+                          │
+                          ▼
+                        Clicks Tasks → Review
+                          │
+                          │ sees submitted keys
+                          │ can toggle each between
+                          │ Approve / Deny
+                          │
+                          │ clicks Approve all (or Deny,
+                          │ or mix)
+                          ▼
+                        resolveChangeRequests()
+                        Applied items → PanelKey.pickListItemId updated
+                        Denied items → PanelKey untouched
+                        CR.status = applied or rejected
+                        KeyDraft(submitted) deleted
+                          │
+  polling picks up ◄──────┤
+  new server fingerprint
+  │
+  ▼
+initializeKeys resets local state to server truth.
+recentResolutions has the id of the just-resolved CR.
+For each item: if currentPanelKey.pickListItemId == newValue → approved;
+               otherwise → denied.
+  │
+  ▼
+Toasts:
+  - "Your panel changes are live" for approved keys
+  - "Keys 3, 5 denied" for denied keys
+  (both fire if mixed outcome)
 ```
 
-### 5.3 Join Project / Access Request Flow
+See `src/app/projects/[id]/panel/[equipmentId]/page.tsx` for the server side and `panel-studio.tsx` for the client sync.
 
-```
-1. New user taps "Join Project" on Login screen
-2. Enters name + project code → POST /access-requests (status: pending)
-3. Shown "Request Pending" screen
-4. Admin sees request in Inbox → approves
-5. API creates ProjectMember record + generates PIN
-6. User returns to Login → enters PIN → authenticated
-7. Navigated to Dashboard
+### 5.3 Equipment bulk add with custom IDs
+
+Equipment add form: `ID | Category | Hardware | Quantity`.
+
+- ID blank → system uses category prefix (`PNL`, `WLBP`, `HWBP`, `SW`, `ANT`, `AUD`) + continue-past-highest
+- ID filled → literal sequence from user's value, preserving pad width and separator
+  - `P001` + Qty 10 → `P001, P002, … P010`
+  - `PNL 15` + Qty 5 → `PNL 15, PNL 16, … PNL 19`
+  - `P1` + Qty 5 → `P1, P2, P3, P4, P5`
+- Collisions in range → skipped; generator continues until N new items exist or `10 × quantity` iterations (safety cap)
+
+Same model applied to **Pick List**: ID field + Quantity field, with Name field as an additional switch:
+
+- Name filled → Quantity locks to 1 (single named item)
+- Name blank + ID blank → auto-gen with type prefix (`C1, C2, …` for CONF, `IF1, IF2, …` for IFB, etc.)
+- Name blank + ID filled → sequence from user's start; each item's name defaults to its code (rename later)
+
+### 5.4 HWBP exclusion from PTP picker
+
+Panel Studio picker's PTP section lists members as callable targets. Members whose only equipment is `hardwire_bp` are **excluded** because PTP'ing to a hardwire beltpack requires more studio resources than typically available. Members with HWBP + any other gear (panel / wireless BP) stay in the list — the PTP rings their non-HWBP device. Logic in `panel/[equipmentId]/page.tsx`:
+
+```ts
+const onlyHwbp = m.equipment.every((e) => e.category === 'hardwire_bp')
 ```
 
 ---
 
-## 6. Authentication
+## 6. Data Model Summary
 
-### 6.1 Auth Method
+13 models total. See `uml-erd.md` for the diagram.
 
-PIN-based authentication. No emails or passwords — practical for production environments where people share workstations.
+### Phase 1 models (built + in use)
 
-### 6.2 Auth Views (6 Total)
+| Model | Purpose | Notable fields |
+|---|---|---|
+| `User` | Person with a login | `firstName`, `lastName`, `pin` (nullable until first-login setup), `failedAttempts`, `lockedUntil` |
+| `Project` | A show | `name`, `pin` (4-digit join code), `status`, `createdById` |
+| `ProjectMember` | User's membership in a project | `role`, `position`, `location`, `hardwareType` (legacy — equipment carries this now), `deployStatus` (per-member, less-used now) |
+| `PickListItem` | A named comm function | `code`, `name`, `type` (PTP/CONF/IFB/Audio_IO/GRP) |
+| `PanelKey` | One physical key on someone's panel | `keyIndex`, `page` (main/shift), `expansion` (0-N), `pickListItemId`, `triggerMode` |
+| `KeyDraft` | Unsaved edit to a PanelKey | `editedById`, `pickListItemId`, `triggerMode`, `status` (draft/submitted) |
+| `ChangeRequest` | Bundle of key edits awaiting approval | `status` (draft/submitted/mgr_endorsed/applied/rejected/discarded), `submittedById`, `targetMemberId`, `resolvedAt` |
+| `ChangeRequestItem` | Per-key diff within a change request | `panelKeyId`, `fieldChanged`, `previousValue`, `newValue` |
+| `AccessRequest` | Not currently used in UI | (kept in schema for future project-access flow) |
 
-| View | Purpose |
-|------|---------|
-| **authLogin** | PIN entry + project selection |
-| **authJoin** | Join Project request form |
-| **authForgot** | Forgot PIN request form |
-| **authSetup** | Initial setup |
-| **authPending** | Access request awaiting admin approval |
-| **authPinPending** | PIN reset awaiting admin action |
+### Phase 2-4 models (schema present, no UI yet)
 
-### 6.3 PIN Specification
+| Model | Future purpose |
+|---|---|
+| `Equipment` | The actual piece of gear — **used heavily now** (v2 promoted this out of future-only) |
+| `Asset` | Warehouse asset with QR code, serial number, owner |
+| `RackTemplate` / `RackSlot` | Rack designer (Phase 2) |
+| `NfgReport` | "Not Functioning" reports for damaged gear |
 
-| Property | Value |
-|----------|-------|
-| **Format** | Numeric only (digits 0-9) |
-| **Length** | 4 digits |
-| **Generation** | System auto-generates; Admin can regenerate |
-| **Storage** | Hashed with bcrypt — never stored in plaintext |
-| **Delivery** | Admin communicates PIN verbally to user on-site |
-
-### 6.4 Auth Flow
-
-```
-App Launch → Logout Modal → Login Screen
-Login → Enter PIN → Valid? → Authenticate → Dashboard
-Login → Enter PIN → Invalid? → Increment fail counter → Show error
-Login → Enter PIN → Locked out? → Show lockout message + time remaining
-Login → Join Project → Submit Request → Pending → Admin Approves → Login
-Login → Forgot PIN → Submit → Pending → Admin Resets → Login
-```
-
-### 6.5 Lockout System (Rate Limiting)
-
-**Purpose:** Prevent brute force PIN guessing. With 4-digit numeric PINs (10,000 combinations), rate limiting is the primary defense.
-
-#### Rules
-
-| Rule | Value |
-|------|-------|
-| **Max failed attempts** | 10 |
-| **Lockout duration** | 15 minutes (auto-unlock) |
-| **Counter reset** | On successful login |
-| **Admin notification** | Admin sees locked-out users in Inbox with unlock option |
-| **Admin override** | Admin can manually unlock a user before the 15 minutes expires |
-
-#### How It Works
-
-1. User enters wrong PIN → `failedAttempts` increments by 1
-2. UI shows generic error: *"Incorrect PIN. Please try again."* (no attempt count shown to prevent gaming)
-3. After 10 failed attempts → account locks, `lockedUntil` set to now + 15 minutes
-4. While locked, login screen shows the lockout message (see below)
-5. Admin receives a notification in their Inbox showing the locked-out user
-6. After 15 minutes, lockout expires automatically — user can try again
-7. Admin can also tap **Unlock** in Inbox to clear the lockout immediately
-8. Successful login resets `failedAttempts` to 0 and clears `lockedUntil`
-
-#### Lockout Screen Copy
-
-When a user is locked out, the login screen displays:
-
-> **Account temporarily locked**
->
-> Too many incorrect attempts. Your account will automatically unlock in **[X] minutes**.
->
-> Your manager has been notified and can unlock your account immediately.
-> If you've forgotten your PIN, tap **Forgot PIN** below.
-
-#### Admin Inbox Notification
-
-When a user gets locked out, a notification appears in the Admin's Inbox:
-
-> **[User Name]** has been locked out after 10 failed login attempts.
-> *[Timestamp]*
->
-> **[Unlock]** · **[Reset PIN]**
-
-Admin actions:
-- **Unlock** — clears the lockout, user can try again immediately
-- **Reset PIN** — generates a new PIN for the user (Admin communicates it verbally)
-
-#### Data Fields (on User model)
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `failedAttempts` | int | Number of consecutive failed login attempts (default: 0) |
-| `lockedUntil` | datetime? | Timestamp when lockout expires (null = not locked) |
-| `lastFailedAt` | datetime? | When the last failed attempt occurred |
+`Equipment` was originally slated for Phase 2 but ended up being central to v2 — the Equipment tab, auto-generated names, deploy status tracking all live on this model. Schema is identical to the Phase-2 plan; UI matured faster than expected.
 
 ---
 
-## 7. Panel Hardware Specifications
+## 7. Key Technical Patterns
 
-### 7.1 Supported Hardware Types
+### 7.1 Session cookie
 
-| Hardware | Key Count | Grid Layout | Blocks |
-|----------|-----------|-------------|--------|
-| RSP-1216 | 16 | 8x1 | 2 blocks |
-| RSP-1232 | 32 | 8x2 | 2 blocks |
-| KP-32 | 32 | 8x2 | 2 blocks |
-| KP-5032 | 32 | 8x2 | 2 blocks |
-| RSP-2318 PRO | 18 | 2x3 | 3 blocks |
-| DSP-2312 | 12 | 2x3 | 2 blocks |
-| Bolero | 6 | 2x3 | 1 block |
-| DBP | 4 | 2x2 | 1 block |
-| ST-374 | 4 | 4x1 | 1 block |
-| ST-370 | 2 | 2x1 | 1 block |
-| C3 | 2 | 2x1 | 1 block |
+Login sets an HTTP-only cookie named `session` containing a JSON blob:
 
-### 7.2 Panel Layout Rules
+```json
+{
+  "user": { "id": 1, "firstName": "Jimmy", "lastName": "Xiloj" },
+  "memberships": [
+    { "id": 5, "role": "admin", "position": null, "project": { "id": 3, "name": "Grammys 2026" } }
+  ]
+}
+```
 
-- Layouts are **fixed** — they mirror the physical hardware exactly
-- Key size: 64x64px
-- User scrolls if the panel exceeds viewport
-- Panels are NOT editable/rearrangeable — the grid matches what the user physically sees
+`getSession()` in `src/lib/session.ts` reads + parses this. **Everything authentication-related flows from the cookie** — no JWT, no refresh, no external auth.
 
-### 7.3 Expansion Panels
+### 7.2 Proxy (middleware)
 
-Only the following hardware supports expansion panels (max 6):
-- RSP-1216
-- RSP-1232
-- KP-32
-- KP-5032
-- RSP-2318 PRO
+`src/proxy.ts` runs on every request. Redirects unauthenticated users to `/login` and enforces the user-only route lockdown described in §3.3.
 
-### 7.4 Shift/Main Pages
+### 7.3 Prisma client with retry
 
-Main and Shift page toggle is **hidden** for:
-- Bolero (6-Key)
-- DBP (4-Key)
-- ST-374
-- ST-370
-- C3
+`src/lib/db.ts` wraps `PrismaClient` with a `$extends` query middleware that retries up to 2 times on transient Neon WebSocket errors. Narrow allowlist (ErrorEvent name, Prisma codes `P1001/P1002/P1017`, WebSocket / ECONNRESET / "terminating connection" in message). Real query errors bubble up unchanged.
 
-### 7.5 Key Display
+### 7.4 Polling + fingerprint sync (Panel Studio)
 
-| Element | Position | Format |
-|---------|----------|--------|
-| Function type | Bottom-left | Single letter: P (PTP), C (CONF), I (IFB), 4 (Audio_IO), G (GPIO) |
-| Trigger mode | Bottom-right | Single letter: L (Latch), M (Momentary), A (Auto) |
-| PTP label | Center | First name only, truncated to 8 chars |
-| Font size | — | 0.55rem, nowrap |
+Panel Studio never refreshes from the server directly. Instead:
 
-### 7.6 Pick List Function Types
+1. Every 5s (while the crew has submitted keys), the client calls `router.refresh()`.
+2. Server re-runs the page's data fetch.
+3. Client computes a **fingerprint** from the returned PanelKey data + any recentResolutions.
+4. If the fingerprint differs from the previous one, the client `setKeys(initializeKeys(...))` — resetting local state to match server truth.
+5. If the sync included new resolutions, the client fires approve/deny toasts accordingly.
 
-| Type | Description |
-|------|-------------|
-| PTP | Point to Point |
-| CONF | Conference |
-| IFB | Interruptible Foldback |
-| Audio_IO | Audio Input/Output (formerly 4-Wire) |
+This means the crew doesn't need to manually reload to see admin's approval (or denial) — it happens within one polling cycle.
+
+### 7.5 Polling + cache (Tasks badge)
+
+`src/components/app-shell.tsx` fetches `/api/admin/task-count` every 5s (only if current user is admin) and displays the count next to the Tasks nav item. Count is cached in `sessionStorage` keyed `task-count-cache` so navigating between pages doesn't flash the badge back to 0 while the next fetch is in flight. The cache is hydrated inside a `useEffect` (not `useState` initializer) to avoid SSR hydration mismatch.
+
+### 7.6 Device reachability caching (`src/hooks/use-device-reachability.ts`)
+
+Probes each equipment IP via `fetch({ mode: 'no-cors' })` + `<img>` fallback. Sessions cache results in `sessionStorage` (TTL 10s) and broadcast via `BroadcastChannel('device-reachability')` so multiple tabs don't duplicate probe traffic. Probes with response time < 25ms are rejected as false positives — mobile networks reject requests to private IPs instantly, which the browser misreads as success.
+
+### 7.7 Mobile nav
+
+`src/components/navbar.tsx`:
+
+- Desktop: horizontal tabs with cyan underline on current route
+- Mobile: fullscreen overlay with nav cards, press-feedback (scale + cyan flash), **drag-to-dismiss** gesture via `@use-gesture/react`
+- Closes on swipe up > 30% of viewport OR a flick (velocity > 0.5 px/ms). Uses inline translateY during drag to follow finger, pins inline translate after close so there's no "ghost" flash between dismiss animation ending and Headless UI's leave animation starting
+
+### 7.8 Deploy status dropdown
+
+`src/components/deploy-status-select.tsx`: Headless UI `Listbox` rendering a colored pill button. Options show a colored dot matching the badge tint + checkmark on current. Colors centralized in `src/lib/deploy-status.ts`:
+
+- `na` → gray
+- `deployed` → yellow
+- `done` → green
+- `returned` → blue
+- `not-needed` → red
+- `damaged` → purple
+
+### 7.9 Naturally-sorted IDs
+
+Auto-generated pick list codes and equipment names are **not zero-padded** (`C1, C2, … C10` instead of `C001, C002, … C010`). A `naturalCompare` helper in `src/app/projects/[id]/project-page.tsx` and within Panel Studio's picker grouping sorts codes numerically ("C2" before "C10") rather than lexicographically.
 
 ---
 
-## 8. UI/UX Specifications
+## 8. Known Shortcomings / Parking Lot
 
-### 8.1 Color Scheme (Authorized — Do Not Change)
-
-```css
---accent-cyan:   #0178a3
---accent-green:  #10b981
---accent-red:    #ef4444
---accent-yellow: #f59e0b
---accent-blue:   #3b82f6
---bg-dark:       #0f1115
---bg-panel:      #000000
-Body:            #202020
-Sidebar:         #313131
-Header:          #202020
-Font:            Roboto
-```
-
-### 8.2 Role Badges
-
-All gray, no per-role colors:
-```css
-background: rgba(255,255,255,0.08);
-color: rgba(148,163,184,0.8);
-```
-
-### 8.3 Mobile Breakpoint
-
-**900px** — at 900px and below, switch to mobile layout.
-
-### 8.4 Dashboard Layout
-
-- Tabs pinned at top: INBOX, USERS, PROJECTS, PICK LIST, UPLOAD
-- Content scrolls beneath the tabs
-- Accordion flush pattern for all data lists (Users, Projects, Pick List)
-- Only one accordion row open at a time per group
-
-### 8.5 User Accordion Header — Desktop
-
-```
-[STATUS] | ID | Name + Position | Location | Hardware | Headset | IP | Role | chevron
-```
-
-Grid layout with `display:contents` technique to dissolve inner container so all children participate in the parent grid — enables consistent column alignment across all accordion rows.
-
-### 8.6 User Accordion Header — Mobile (below 900px)
-
-```
-Row 1: [STATUS]   Name       Position    Role     chevron
-Row 2:    ID      Location   Hardware    IP
-```
-
-Headset hidden on mobile.
-
-### 8.7 User Accordion Body — Desktop
-
-```
-Row 1: First Name | Last Name | Position | Role
-Row 2: ID | Hardware | IP Address | Headset
-Row 3: Save | Delete
-```
-
-Location field hidden on desktop (visible in header).
-
-### 8.8 User Accordion Body — Mobile
-
-```
-Row 1: First Name | Last Name
-Row 2: Position | Role
-Row 3: Location | ID
-Row 4: Hardware | Headset
-Row 5: IP Address
-Row 6: Save | Delete
-```
-
-### 8.9 Mobile Panel Interaction
-
-Bottom sheet pattern — half-screen sheet slides up from bottom when a key is tapped on mobile. Contains: Assign Function, Set Trigger Mode, View Key Details.
+- **AppShell remounts on every navigation** → Tasks badge briefly flashes 0 despite sessionStorage cache. Deeper fix is moving AppShell to a Next.js route-group layout. Tracked but not yet tackled.
+- **Bulk paste importer** (paste PDF text → parse → preview → bulk add) was started then parked; waiting on sample data from managers to know the real paste format.
+- **Playwright E2E test suite** scaffolded in `tests/e2e/` but requires a `TEST_DATABASE_URL` that's never been set up. Single spec (`change-request.spec.ts`) exists as the first candidate.
+- **Monitoring page / NFG UI / Rack designer** — schema present, no UI. Explicitly deferred from v2 scope.
+- **ChangeRequestItem has no per-item status field.** Current resolution sets the CR to `applied` or `rejected` at the bundle level; per-item approve/deny is inferred by comparing `newValue` to the current `PanelKey` — works for the 95% case but breaks if another edit happens in the ~60s window between resolution and crew polling.
+- **`riedelId` on ProjectMember** is legacy from the original Riedel-integration plan. No current code reads or writes it. Leave alone until the monitoring phase starts.
 
 ---
 
-## 9. Equipment Categories (Distribution Page)
+## 9. Source of Truth for Each Concern
 
-The Google Sheet had separate tabs per hardware type. Nodal Control replaces all tabs with **one unified Equipment model** filtered by category chips:
+When returning to the codebase, these are the files to re-read first:
 
-| Category | Fields Used | Person Assigned? |
-|----------|-------------|------------------|
-| **Panels** | status, stage, hardwareType, position, name, headsetType, source | Yes |
-| **Wireless BP** | status, stage, frequency, position, name, headsetType, bpNumber | Yes |
-| **Hardwire BP** | status, stage, bpType, bpNumber, position, name, source, headsetType | Yes |
-| **Switches** | status, stage, deviceType, location, notes | No |
-| **Antennas** | status, stage, frequency, location, source, notes | No |
-
-Every category follows the same pattern: **a piece of equipment, optionally assigned to a person, at a location, with a deployment status**. The only difference is which metadata fields apply.
-
-### 9.1 Distribution Page Features
-
-- Filter chips: All, Panels, Wireless, Hardwire, Switches, Antennas
-- Summary counts at top: Total / Deployed / Holding / Done / NFG
-- Import CSV and Export (CSV, PDF)
-- Inventory auto-calculated from equipment data (no separate tab)
-
----
-
-## 10. Rack Layouts
-
-### 10.1 Two Configuration Types
-
-| Type | Description |
-|------|-------------|
-| **Standard** | Clair HQ touring packages — predefined templates reused across shows |
-| **Custom** | ATK/Versacom one-off configurations per event |
-
-### 10.2 Display Rules
-
-- Accurate RU (Rack Unit) sizing: 1RU = 1 slot, 2RU = 2 slots, etc.
-- Upright orientation — wheels at bottom, gear stacked top-to-bottom
-- Color-coded by device type
-- Front/rear view toggle
-- Filter chips: All Racks, FS11, Bolero, etc.
-- Export PDF, Print, Custom Build buttons
-
-### 10.3 Standard Rack Configurations
-
-| Rack | Total RU | Contents |
-|------|----------|----------|
-| **FS11** | 12 RU | 2x Artist-64 Frame (3RU), 2x Antaira Switch (1RU), XLR + BNC/Fiber Patch (1RU each), UPS (2RU) |
-| **Bolero to Helixnet** | 12 RU | 2x Bolero AES (2RU), Helixnet HMS-4X (1RU), Antaira (1RU), Media Converter (1RU), XLR Patch (1RU), UPS (2RU) |
-| **Bolero** | 10 RU | 2x Bolero AES (2RU), Antaira 9P+1F (1RU), Media Converter (1RU), XLR Patch (1RU), Blank (1RU), UPS (2RU) |
-| **FS11 to OMS** | 14 RU | Artist-64 Frame (3RU), Compact Unit (2RU), 2x Antaira (1RU), 2x Media Converter (1RU), XLR + BNC/Fiber Patch (1RU each), UPS (2RU) |
+| Concern | File |
+|---|---|
+| Database models | `prisma/schema.prisma` |
+| Session / auth | `src/lib/session.ts`, `src/app/api/auth/login/route.ts` |
+| Route protection | `src/proxy.ts` |
+| DB client + retry | `src/lib/db.ts` |
+| Role derivation | Each page's `page.tsx` (server component) |
+| Tasks badge logic | `src/components/app-shell.tsx` + `src/app/api/admin/task-count/route.ts` |
+| Panel Studio sync + fingerprint | `src/app/projects/[id]/panel/[equipmentId]/panel-studio.tsx` (find `serverFingerprint` + the effect that reads it) |
+| Change request resolve action | `src/app/projects/[id]/panel/[equipmentId]/actions.ts` — `resolveChangeRequests` |
+| Equipment bulk add | `src/app/projects/[id]/distribution/actions.ts` — `bulkCreateEquipment` |
+| Pick list bulk add | `src/app/projects/[id]/picklist-actions.ts` — `createPickListItem` |
+| Deploy status colors | `src/lib/deploy-status.ts` |
+| Mobile nav gesture | `src/components/navbar.tsx` (`MobileNavPanel`) |
+| Reachability hook | `src/hooks/use-device-reachability.ts` |
+| QR code display | `src/app/projects/[id]/project-page.tsx` (`QRCodeSVG` import) |
 
 ---
 
-## 11. Monitoring (Phase 3)
+## 10. Related Documents
 
-### 11.1 Data Sources
-
-- APIs pushing alerts to Webex when devices go offline
-- Grafana dashboards (to be replaced by in-app monitoring)
-- Device names from Distribution serve as the naming authority for Webex and Grafana
-
-### 11.2 Metrics
-
-- Switch CPU usage
-- SFP signal values
-- Bolero RF: RSSI, antenna assignment, battery level
-- Antenna signal strength
-- Device online/offline status
-
----
-
-## 12. NFG (Non-Functional Gear) Workflow
-
-1. Crew or Admin flags a device as NFG with notes
-2. NFG Report created, linked to Equipment and optionally to Asset
-3. Shop role sees NFG reports in their view
-4. Shop acknowledges and handles in company inventory system
-5. Integration with company tracking database pending corporate approval
-6. Nodal is read-only toward the company asset system for now
-
----
-
-## 13. Phased Rollout
-
-| Phase | Name | Scope |
-|-------|------|-------|
-| **Phase 1** | Pick List Beta | Login, panels, pick list, change requests, approval workflow. Codex refactoring in progress. |
-| **Phase 2** | Show Design | Replace Google Sheet. One equipment catalog, filtered views, deployment tracking. This becomes the daily driver. |
-| **Phase 3** | Monitoring | Device health, RF signal, switch stats tied to show design entries. |
-| **Phase 4** | Asset Tracking | QR scanning, gear lifecycle, rack templates, shop visibility, NFG workflow. |
-
----
-
-## 14. Technical Stack
-
-| Layer | Technology |
-|-------|-----------|
-| **Framework** | Next.js 16 (App Router) + TypeScript |
-| **Styling** | Tailwind CSS |
-| **Communication** | REST API |
-| **Database** | Prisma ORM + Neon Postgres (Vercel-compatible serverless) |
-
----
-
-## 15. API Design (REST)
-
-### 15.1 Authentication
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/auth/login` | Validate PIN, return auth token |
-| POST | `/auth/forgot-pin` | Request PIN reset |
-
-### 15.2 Projects
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/projects` | List user's projects |
-| POST | `/projects` | Create new project |
-| PATCH | `/projects/:id` | Update project |
-| PATCH | `/projects/:id/archive` | Archive project |
-
-### 15.3 Users / Project Members
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/projects/:id/members` | List members |
-| POST | `/projects/:id/members` | Add member |
-| PATCH | `/members/:id` | Update member fields |
-| DELETE | `/members/:id` | Remove from project |
-| PATCH | `/members/:id/deploy-status` | Update deploy status |
-
-### 15.4 Pick List
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/projects/:id/picklist` | List functions |
-| POST | `/projects/:id/picklist` | Create function |
-| PATCH | `/picklist/:id` | Update function |
-| DELETE | `/picklist/:id` | Delete function |
-
-### 15.5 Panel Keys
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/panels/:memberId/keys` | Get all keys for a member's panel |
-| PATCH | `/keys/:id` | Update key assignment (creates draft) |
-
-### 15.6 Change Requests
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/inbox/change-requests` | List pending CRs |
-| POST | `/change-requests` | Submit new CR |
-| PATCH | `/change-requests/:id` | Endorse (manager) or approve/reject (admin) |
-
-### 15.7 Access Requests
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/access-requests` | Request to join project |
-| GET | `/inbox/access-requests` | List pending access requests |
-| PATCH | `/access-requests/:id` | Approve or reject |
-
-### 15.8 Equipment (Phase 2)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/equipment?project=:id` | List equipment |
-| POST | `/equipment` | Add equipment |
-| POST | `/equipment/import` | Bulk CSV import |
-| PATCH | `/equipment/:id` | Update equipment |
-| PATCH | `/equipment/:id/status` | Update deploy status |
-| POST | `/equipment/:id/nfg` | Flag as NFG |
-
-### 15.9 NFG Reports (Phase 4)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/nfg-reports` | List NFG reports |
-| PATCH | `/nfg-reports/:id` | Acknowledge / resolve |
-
----
-
-## 16. UML Diagram References
-
-All diagrams are maintained in the `/docs/` directory and viewable in-browser at `http://localhost:4445/uml-diagrams.html`:
-
-| Diagram | Source File | Description |
-|---------|-----------|-------------|
-| User Flow | `docs/user-flow.md` | Full app navigation flowchart |
-| Use Case | `docs/uml-use-case.md` | Role permissions per page |
-| ERD | `docs/uml-erd.md` | Entity relationships (Phase 1 + Phase 2-4) |
-| State Diagrams | `docs/uml-state-diagrams.md` | Key state, CR lifecycle, deploy status |
-| Sequence Diagrams | `docs/uml-sequence-diagrams.md` | CR flow, deployment flow, join project flow |
-
-Browser-viewable HTML with tab navigation: `docs/uml-diagrams.html`
-
----
-
-## 17. Open Questions
-
-1. **Bulk key operations**: Can a user submit changes to multiple keys in one change request? (Current assumption: yes, batch submit)
-2. **Admin self-approval**: If an Admin edits their own panel, does it auto-apply or require another Admin?
-3. **Company asset DB integration**: Timeline for Clair corporate approval for read access?
-4. **Upload tab**: Currently defined in Phase 1 dashboard but no workflow specified. Replaced by Distribution Import in Phase 2?
+- `uml-erd.md` — Entity relationship diagram (Mermaid)
+- `uml-sequence-diagrams.md` — Sequence flows for key operations
+- `uml-state-diagrams.md` — ChangeRequest lifecycle, deploy status transitions
+- `uml-use-case.md` — Use cases per role
+- `user-flow.md` — End-user narrative flows
+- `product-decisions.md` — Why we chose specific designs (with history)
+- `PRD-v1-april2026.md` — Original PRD (archived April 12, 2026 plan)

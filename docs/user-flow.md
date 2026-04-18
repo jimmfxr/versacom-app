@@ -1,134 +1,236 @@
+# Nodal Control — User Flow
+
+**Updated:** 2026-04-17
+
+End-user navigation and action flows for the current app. Each role starts at a different landing and unlocks different paths.
+
+---
+
+## 1. Top-level flow (entry + landing by role)
+
 ```mermaid
 flowchart TD
-    %% ===== AUTH FLOW =====
-    START([App Launch]) --> LOGOUT_MODAL[Logout Modal]
-    LOGOUT_MODAL --> LOGIN[Login Screen]
-    
-    LOGIN --> |Enter PIN| AUTH_CHECK{Valid PIN?}
-    LOGIN --> |Join Project| JOIN[Join Project Screen]
-    LOGIN --> |Forgot PIN| FORGOT[Forgot PIN Screen]
-    
-    AUTH_CHECK --> |Yes| CONNECT[Login & Authenticate]
-    AUTH_CHECK --> |No| LOGIN
-    
-    JOIN --> |Submit Request| REQ_PENDING[Request Pending Screen]
-    REQ_PENDING --> |Approved by Admin| LOGIN
-    REQ_PENDING --> |Back| LOGIN
-    
-    FORGOT --> |Submit| PIN_PENDING[PIN Reset Pending Screen]
-    PIN_PENDING --> |Reset by Admin| LOGIN
-    PIN_PENDING --> |Back| LOGIN
+    START([App opens]) --> COOKIE{Has session cookie?}
+    COOKIE -->|no| LOGIN[/login/]
+    COOKIE -->|yes| LANDING{Role check}
 
-    CONNECT --> DASHBOARD
+    LOGIN -->|enters name + personal PIN| AUTH{PIN valid?}
+    LOGIN -->|taps Join Project| JOIN_PAGE[/login/join/]
+    LOGIN -->|taps Forgot PIN| FORGOT[/login/forgot-pin/]
 
-    %% ===== DASHBOARD =====
-    subgraph DASHBOARD[Dashboard]
-        direction TB
-        TABS[Tab Bar: INBOX · USERS · PROJECTS · PICK LIST · UPLOAD]
-        
-        TABS --> TAB_INBOX[Inbox Tab]
-        TABS --> TAB_USERS[Users Tab]
-        TABS --> TAB_PROJECTS[Projects Tab]
-        TABS --> TAB_PICKLIST[Pick List Tab]
-        TABS --> TAB_UPLOAD[Upload Tab]
+    AUTH -->|yes| LANDING
+    AUTH -->|wrong, attempts < 10| LOGIN
+    AUTH -->|10 wrong attempts| LOCKED[Account locked 15 min]
+    LOCKED --> LOGIN
+
+    LANDING -->|admin or manager or crew| DASH[/ Dashboard]
+    LANDING -->|user-only memberships| MYEQ[/my-equipment/]
+
+    JOIN_PAGE -->|scans QR or enters PIN + name| JOIN_FLOW
+    JOIN_FLOW -->|new user| SET_PIN[Create personal PIN]
+    JOIN_FLOW -->|existing user| LOGIN
+    SET_PIN --> LOGIN
+
+    classDef landing fill:#0178a3,stroke:#0178a3,color:#fff
+    class DASH,MYEQ landing
+```
+
+---
+
+## 2. Admin / Manager / Crew nav
+
+```mermaid
+flowchart LR
+    DASH[Dashboard] --> NAV{Navbar}
+
+    NAV --> PROJECTS[/projects/]
+    NAV --> MYEQ_OPT[/my-equipment/<br/>crew only]
+    NAV --> TASKS[/admin/<br/>admin only - with badge]
+
+    PROJECTS --> PLIST[Projects list]
+    PLIST -->|click card| PDETAIL[/projects/ID/]
+
+    PDETAIL --> TABS{Tabs}
+    TABS --> EQ_TAB[Equipment tab]
+    TABS --> TEAM_TAB[Team tab]
+    TABS --> PL_TAB[Pick List tab]
+    TABS --> MYEQ_TAB[My Equipment tab<br/>crew only]
+
+    EQ_TAB -->|click panel card| PS[/projects/ID/panel/EQID/]
+    TEAM_TAB -->|click Show QR| QRCARD[Show-QR card inline]
+    MYEQ_TAB -->|click panel card| PS
+
+    PS -->|back arrow| PDETAIL
+    PDETAIL -->|back arrow| PROJECTS
+
+    TASKS --> TASKS_LIST{Task cards}
+    TASKS_LIST --> CR_CARD[Change request card]
+    TASKS_LIST --> LOCK_CARD[Lockout card]
+
+    CR_CARD -->|click Review| PS_REVIEW[/projects/ID/panel/EQID/?review=MID/]
+    LOCK_CARD -->|click Unlock| UNLOCK[Unlock user server action]
+```
+
+---
+
+## 3. User-only flow
+
+User-only accounts (`isUserOnly` — every membership is role='user') bypass the proxy to only access two routes.
+
+```mermaid
+flowchart TD
+    LOGIN[/login/] -->|signs in| MYEQ[/my-equipment/]
+    MYEQ --> CARDS[Equipment cards]
+    CARDS -->|tap a panel card| PS[/projects/ID/panel/EQID/]
+    PS -->|back arrow| MYEQ
+
+    PS --> EDIT{Edit keys?}
+    EDIT -->|yes - request mode| SUBMIT[Submit changes]
+    SUBMIT --> WAIT[Green 'submitted' highlight]
+    WAIT -->|polling detects resolution| RESULT{Admin action?}
+    RESULT -->|approved| TOAST_OK[Toast: Your panel changes are live]
+    RESULT -->|denied| TOAST_DENY[Toast: Keys X, Y denied<br/>keys revert to previous]
+
+    NAV_BLOCKED[User tries /projects or /] -->|proxy redirects| MYEQ
+
+    classDef blocked fill:#ef4444,stroke:#ef4444,color:#fff
+    class NAV_BLOCKED blocked
+```
+
+---
+
+## 4. Change request — crew submits, admin resolves
+
+The most important flow in the app. Diagram is from both sides.
+
+```mermaid
+flowchart TD
+    subgraph CrewSide [Crew on their own Panel Studio]
+        CS1[Panel Studio loaded] --> CS2[Tap empty or assigned key]
+        CS2 --> PICKER[Picker opens]
+        PICKER --> CS3{Pick an option}
+        CS3 -->|Pick an item| CS4[Key state: 'changed' yellow]
+        CS3 -->|Pick Unassigned| CS5[Key state: empty]
+        CS3 -->|Cancel| CS1
+
+        CS4 --> CS6[Click Submit changes]
+        CS5 --> CS6
+        CS6 --> CS7[Key state: 'submitted' green]
+        CS7 --> CS8[Polling every 5s]
+
+        CS8 -->|fingerprint unchanged| CS8
+        CS8 -->|fingerprint changed| CS9{Any resolutions?}
+        CS9 -->|approvals only| CS10[Toast: 'Your panel changes are live']
+        CS9 -->|denials only| CS11[Toast: 'Keys X, Y denied']
+        CS9 -->|mix| CS12[Both toasts fire]
+
+        CS10 --> CS13[Reset to DB truth]
+        CS11 --> CS13
+        CS12 --> CS13
     end
 
-    %% ===== INBOX FLOW =====
-    subgraph INBOX_FLOW[Inbox Flow]
-        direction TB
-        TAB_INBOX --> VIEW_REQUESTS[View Change Requests]
-        VIEW_REQUESTS --> REQ_DETAIL[Open Request Detail]
-        REQ_DETAIL --> |Manager| MGR_APPROVE{Approve?}
-        MGR_APPROVE --> |Yes| MGR_APPROVED[Status: MGR Approved]
-        MGR_APPROVE --> |No| MGR_REJECT[Status: Rejected]
-        MGR_APPROVED --> ADMIN_REVIEW[Admin Reviews]
-        REQ_DETAIL --> |Admin| ADMIN_REVIEW
-        ADMIN_REVIEW --> ADMIN_APPROVE{Approve?}
-        ADMIN_APPROVE --> |Yes| APPLY_CHANGES[Apply to Live Panel Keys]
-        ADMIN_APPROVE --> |No| ADMIN_REJECT[Status: Rejected]
-        VIEW_REQUESTS --> VIEW_ACCESS[View Access Requests]
-        VIEW_ACCESS --> |Approve/Reject| ACCESS_RESOLVED[User Granted/Denied]
+    subgraph AdminSide [Admin in Tasks]
+        AS1[/admin loaded] --> AS2[Tasks badge shows count]
+        AS2 -->|click Tasks| AS3[Tasks list]
+        AS3 --> AS4{Card type?}
+        AS4 -->|change request| AS5[Click Review]
+        AS4 -->|lockout| AS6[Click Unlock]
+
+        AS5 --> AS7[/projects/ID/panel/EQID/?review=MID/]
+        AS7 --> AS8[Per-key toggle: approve green or deny red]
+        AS8 --> AS9[Click Resolve]
+        AS9 --> AS10[resolveChangeRequests action]
+        AS10 --> AS11[Applied items update PanelKey]
+        AS10 --> AS12[CR.status = applied or rejected]
+        AS10 --> AS13[router.replace /admin]
     end
 
-    %% ===== USERS FLOW =====
-    subgraph USERS_FLOW[Users Flow]
-        direction TB
-        TAB_USERS --> USER_LIST[User Accordion List]
-        USER_LIST --> |Expand Row| EDIT_USER[Edit User Fields]
-        EDIT_USER --> EDIT_FIELDS["First Name · Last Name · Position · Role
-        ID · Hardware · Headset · IP Address · Location"]
-        EDIT_FIELDS --> |Save| SAVE_USER[Save User Changes]
-        EDIT_FIELDS --> |Delete| DELETE_USER[Remove User from Project]
-        USER_LIST --> |+ Add User| ADD_USER[Create New User]
-        USER_LIST --> |Change Deploy Status| DEPLOY_STATUS["Deployed · Done · Returned
-        Not Needed · Damaged · NA"]
-    end
+    AS11 -.->|crew polling picks up| CS8
+```
 
-    %% ===== PROJECTS FLOW =====
-    subgraph PROJECTS_FLOW[Projects Flow]
-        direction TB
-        TAB_PROJECTS --> PROJECT_LIST[Project Accordion List]
-        PROJECT_LIST --> |Expand Row| EDIT_PROJECT[Edit Project Fields]
-        EDIT_PROJECT --> PROJ_FIELDS[Project Name · Manager · Status]
-        PROJ_FIELDS --> |Save| SAVE_PROJECT[Save Project]
-        PROJ_FIELDS --> |Archive| ARCHIVE_PROJECT[Archive Project]
-        PROJECT_LIST --> |+ New Project| NEW_PROJECT[Create New Project]
-    end
+---
 
-    %% ===== PICK LIST FLOW =====
-    subgraph PICKLIST_FLOW[Pick List Flow]
-        direction TB
-        TAB_PICKLIST --> FUNC_LIST[Function Accordion List]
-        FUNC_LIST --> |Expand Row| EDIT_FUNC[Edit Function]
-        EDIT_FUNC --> FUNC_FIELDS["Name · Type (PTP / CONF / IFB / Audio_IO)"]
-        FUNC_FIELDS --> |Save| SAVE_FUNC[Save Function]
-        FUNC_FIELDS --> |Delete| DELETE_FUNC[Delete Function]
-        FUNC_LIST --> |+ Add Function| ADD_FUNC[Create New Function]
-    end
+## 5. Pick List + Equipment add flows
 
-    %% ===== PANEL EDITOR FLOW =====
-    DASHBOARD --> |Select User Panel| PANEL_EDITOR
+Both follow the same pattern: an inline `<Card>` opens above the list with the input form, the user fills it, it posts to a server action, the list refreshes.
 
-    subgraph PANEL_EDITOR[Panel Editor]
-        direction TB
-        PANEL_VIEW[Panel Grid View — Fixed Layout Mirrors Hardware]
-        PANEL_VIEW --> |Tap Key| KEY_INSPECT[Key Inspector]
-        KEY_INSPECT --> ASSIGN["Assign Pick List Item
-        Set Function Type (PTP/CONF/IFB/Audio_IO)
-        Set Trigger Mode (Latch/Momentary/Auto)"]
-        ASSIGN --> |Local Change| DRAFT["Key State: Yellow (Draft)"]
-        DRAFT --> |Submit Changes| SUBMIT_CR[Create Change Request]
-        SUBMIT_CR --> PENDING["Key State: Green (Submitted)"]
-        PENDING --> |Approved| LIVE["Key State: Clear (Live)"]
-        PENDING --> |Rejected| REVERTED[Reverted to Previous State]
-        
-        PANEL_VIEW --> |Switch Page| PAGE_SWITCH[Main / Shift Page Toggle]
-        PANEL_VIEW --> |Switch Expansion| EXP_SWITCH["Expansion Panels (1-6)"]
-    end
+```mermaid
+flowchart TD
+    START[User on tab] --> BUTTON{Click '+' or 'Add X'}
+    BUTTON --> FORM[Card opens with inputs]
 
-    %% ===== MOBILE PANEL FLOW =====
-    DASHBOARD --> |Tap Key on Mobile| MOBILE_PANEL
+    FORM --> INPUTS[ID or Name or Category<br/>+ Quantity]
+    INPUTS --> DECIDE{What did they fill?}
 
-    subgraph MOBILE_PANEL[Mobile Panel — Bottom Sheet]
-        direction TB
-        BOTTOM_SHEET[Half-Screen Bottom Sheet Slides Up]
-        BOTTOM_SHEET --> MOBILE_ASSIGN["Assign Function
-        Set Trigger Mode
-        View Key Details"]
-    end
+    DECIDE -->|Name filled<br/>Pick List only| SINGLE[Creates 1 named item<br/>ID auto if blank]
+    DECIDE -->|Name blank + ID blank| AUTO[Auto-gen N codes from type or category prefix<br/>continue past highest]
+    DECIDE -->|Name blank + ID filled| LITERAL[Start sequence at user's ID<br/>preserve pad width<br/>skip collisions]
 
-    %% ===== STYLING =====
-    style START fill:#0178a3,stroke:#0178a3,color:#fff
-    style CONNECT fill:#10b981,stroke:#10b981,color:#fff
-    style DASHBOARD fill:#1a1a2e,stroke:#0178a3,color:#fff
-    style PANEL_EDITOR fill:#1a1a2e,stroke:#10b981,color:#fff
-    style MOBILE_PANEL fill:#1a1a2e,stroke:#f59e0b,color:#fff
-    style INBOX_FLOW fill:#1a1a2e,stroke:#3b82f6,color:#fff
-    style USERS_FLOW fill:#1a1a2e,stroke:#3b82f6,color:#fff
-    style PROJECTS_FLOW fill:#1a1a2e,stroke:#3b82f6,color:#fff
-    style PICKLIST_FLOW fill:#1a1a2e,stroke:#3b82f6,color:#fff
-    style DRAFT fill:#f59e0b,stroke:#f59e0b,color:#000
-    style PENDING fill:#10b981,stroke:#10b981,color:#fff
-    style LIVE fill:#0178a3,stroke:#0178a3,color:#fff
-    style APPLY_CHANGES fill:#10b981,stroke:#10b981,color:#fff
+    SINGLE --> POST[POST to server action]
+    AUTO --> POST
+    LITERAL --> POST
+
+    POST --> RESULT{Success?}
+    RESULT -->|yes| TOAST_OK[Toast: 'Added N items']
+    RESULT -->|too many collisions| TOAST_ERR[Toast: 'Too many collisions'<br/>pick different starting ID]
+
+    TOAST_OK --> REFRESH[router.refresh]
+    TOAST_ERR --> FORM
+    REFRESH --> CLOSED[Form closes]
+```
+
+---
+
+## 6. Mobile nav flow
+
+```mermaid
+flowchart LR
+    CLOSED[Navbar closed] -->|tap hamburger| OPENING[Slide-down animation]
+    OPENING --> OPEN[Fullscreen nav overlay]
+
+    OPEN --> ACTIONS{User interaction}
+    ACTIONS -->|tap a nav card| NAV[Navigate to route<br/>press feedback: scale + cyan flash]
+    ACTIONS -->|tap X| CLOSING
+    ACTIONS -->|drag up > 30% screen| CLOSING
+    ACTIONS -->|flick up > 0.5 px/ms| CLOSING
+    ACTIONS -->|drag up < 30%, release| SNAP_BACK[Snap back to fully open]
+
+    SNAP_BACK --> OPEN
+    CLOSING --> CLOSED
+    NAV --> NEWPAGE[New page loaded]
+    NEWPAGE --> CLOSED
+```
+
+---
+
+## 7. Device reachability indicators
+
+On pages showing equipment with IPs (Equipment tab, Panel Studio header), IP addresses are colored to show if the device is reachable on the current network.
+
+```mermaid
+flowchart TD
+    LOAD[Page loads with IPs] --> CACHE{sessionStorage cache}
+    CACHE -->|fresh < 10s| INSTANT[Render last-known state instantly]
+    CACHE -->|stale or missing| START[Render all white]
+
+    INSTANT --> PROBE[Start probe round]
+    START --> PROBE
+
+    PROBE --> PAR[Probe every device in parallel]
+    PAR --> FETCH[fetch HTTPS or HTTP with no-cors]
+    PAR --> IMG[img fallback favicon.ico]
+
+    FETCH --> TIMING{Response time}
+    IMG --> TIMING
+    TIMING -->|>= 25ms & responded| REACHABLE[Mark as reachable - green]
+    TIMING -->|< 25ms| FALSE[Discard: likely network reject]
+    TIMING -->|timed out 3500ms| UNREACHABLE[Mark as unreachable - white]
+
+    REACHABLE --> SAVE[Save to sessionStorage + broadcast]
+    UNREACHABLE --> SAVE
+    SAVE --> PAINT[Update UI]
+    SAVE --> REPEAT[Wait 30s]
+    REPEAT --> PROBE
+
+    BC[Other tab broadcasts results] -.->|skip own probe| SAVE
 ```

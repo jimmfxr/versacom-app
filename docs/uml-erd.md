@@ -1,182 +1,239 @@
+# Nodal Control — Entity Relationship Diagram
+
+**Updated:** 2026-04-17
+**Source of truth:** `prisma/schema.prisma`. Regenerate this diagram when the schema changes.
+
+---
+
+## Full ERD
+
 ```mermaid
 erDiagram
-    USER {
+    User ||--o{ Project : "creates"
+    User ||--o{ ProjectMember : "has memberships"
+    User ||--o{ ChangeRequest : "submits"
+    User ||--o{ AccessRequest : "requests"
+    User ||--o{ KeyDraft : "edits"
+    User ||--o{ NfgReport : "reports"
+
+    Project ||--o{ ProjectMember : "has members"
+    Project ||--o{ PickListItem : "owns"
+    Project ||--o{ ChangeRequest : "owns"
+    Project ||--o{ AccessRequest : "receives"
+    Project ||--o{ Equipment : "owns"
+    Project ||--o{ RackTemplate : "scoped to"
+
+    ProjectMember ||--o{ PanelKey : "has keys"
+    ProjectMember ||--o{ Equipment : "assigned to"
+    ProjectMember ||--o{ ChangeRequest : "targeted by"
+
+    PickListItem ||--o{ PanelKey : "assigned to key"
+    PickListItem ||--o{ KeyDraft : "assigned in draft"
+
+    PanelKey ||--o{ KeyDraft : "has drafts"
+    PanelKey ||--o{ ChangeRequestItem : "referenced in item"
+
+    ChangeRequest ||--o{ ChangeRequestItem : "contains"
+
+    Asset ||--o{ Equipment : "physical inventory"
+    Asset ||--o{ NfgReport : "referenced in NFG"
+    Equipment ||--o{ NfgReport : "subject of"
+
+    RackTemplate ||--o{ RackSlot : "has slots"
+
+    User {
         int id PK
         string firstName
         string lastName
-        string pin
+        string pin "bcrypt, null until first-login"
+        int failedAttempts
+        datetime lockedUntil
+        datetime lastFailedAt
         datetime createdAt
         datetime updatedAt
     }
 
-    PROJECT {
+    Project {
         int id PK
         string name
-        string status
+        string pin UK "4-digit join code"
+        string status "active or archived"
         int createdById FK
         datetime createdAt
         datetime updatedAt
     }
 
-    PROJECT_MEMBER {
+    ProjectMember {
         int id PK
         int userId FK
         int projectId FK
-        string role
-        string position
-        string location
-        string hardwareType
-        string ipAddress
-        string headsetType
-        string deployStatus
-        int riedelId
+        string role "admin manager crew user"
+        string position "A1 FOH etc"
+        string location "STAGE FOH MON"
+        string hardwareType "legacy equipment carries this"
+        string ipAddress "legacy"
+        string headsetType "legacy"
+        string deployStatus "legacy"
+        int riedelId "unused"
     }
 
-    PICK_LIST_ITEM {
+    PickListItem {
         int id PK
         int projectId FK
+        string code "C1 IF1 G1 A1 or position for PTP"
         string name
-        string type
+        string type "PTP CONF IFB Audio_IO GRP"
     }
 
-    PANEL_KEY {
+    PanelKey {
         int id PK
         int projectMemberId FK
-        int keyIndex
-        string page
-        int expansion
+        int keyIndex "physical key position"
+        string page "main or shift"
+        int expansion "0 main 1-6 expansion"
         int pickListItemId FK
-        string triggerMode
+        string triggerMode "latch momentary auto"
     }
 
-    KEY_DRAFT {
+    KeyDraft {
         int id PK
         int panelKeyId FK
         int editedById FK
         int pickListItemId FK
         string triggerMode
-        string status
+        string status "draft or submitted"
         datetime createdAt
     }
 
-    CHANGE_REQUEST {
+    ChangeRequest {
         int id PK
         int projectId FK
         int submittedById FK
         int targetMemberId FK
-        string status
+        string status "submitted mgr_endorsed applied rejected"
         string rejectionNote
         datetime createdAt
         datetime resolvedAt
     }
 
-    CHANGE_REQUEST_ITEM {
+    ChangeRequestItem {
         int id PK
         int changeRequestId FK
         int panelKeyId FK
-        string fieldChanged
+        string fieldChanged "pickListItemId or triggerMode"
         string previousValue
         string newValue
     }
 
-    ACCESS_REQUEST {
+    AccessRequest {
         int id PK
         int userId FK
         int projectId FK
-        string status
+        string status "pending approved rejected"
         datetime createdAt
         datetime resolvedAt
     }
 
-    EQUIPMENT {
+    Equipment {
         int id PK
         int projectId FK
         int assignedToId FK
-        string category
-        string hardwareType
+        string name "PNL 1 WLBP 3 etc"
+        string category "panels wireless_bp hardwire_bp switches antennas audio"
+        string hardwareType "KP-5032 Bolero etc"
         string position
         string location
         string headsetType
-        string frequency
-        string bpNumber
-        string source
-        string deployStatus
+        string ipAddress
+        string patch
+        string deployStatus "na deployed done returned not-needed damaged"
         string notes
         int assetId FK
     }
 
-    ASSET {
+    Asset {
         int id PK
-        string qrCode
+        string qrCode UK
         string hardwareType
         string serialNumber
         string owner
-        string status
+        string status "active retired repair"
         datetime createdAt
     }
 
-    RACK_TEMPLATE {
+    RackTemplate {
         int id PK
         string name
         string description
         int totalRU
-        string type
+        string type "standard or custom"
         int projectId FK
     }
 
-    RACK_SLOT {
+    RackSlot {
         int id PK
         int rackTemplateId FK
-        int ruPosition
+        int ruPosition "top = 1"
         int ruSize
-        string side
+        string side "front or rear"
         string deviceType
         string label
         string color
     }
 
-    NFG_REPORT {
+    NfgReport {
         int id PK
         int equipmentId FK
         int assetId FK
         int reportedById FK
         string notes
-        string status
+        string status "open acknowledged resolved"
         datetime createdAt
         datetime resolvedAt
     }
-
-    %% ===== RELATIONSHIPS =====
-
-    USER ||--o{ PROJECT : "creates"
-    USER ||--o{ PROJECT_MEMBER : "member of"
-    USER ||--o{ CHANGE_REQUEST : "submits"
-    USER ||--o{ ACCESS_REQUEST : "requests"
-    USER ||--o{ KEY_DRAFT : "edits"
-    USER ||--o{ NFG_REPORT : "reports"
-
-    PROJECT ||--o{ PROJECT_MEMBER : "has members"
-    PROJECT ||--o{ PICK_LIST_ITEM : "has functions"
-    PROJECT ||--o{ CHANGE_REQUEST : "has requests"
-    PROJECT ||--o{ ACCESS_REQUEST : "has access reqs"
-    PROJECT ||--o{ EQUIPMENT : "has equipment"
-    PROJECT ||--o{ RACK_TEMPLATE : "has racks"
-
-    PROJECT_MEMBER ||--o{ PANEL_KEY : "has keys"
-    PROJECT_MEMBER ||--o{ EQUIPMENT : "assigned to"
-
-    PICK_LIST_ITEM ||--o{ PANEL_KEY : "used by"
-    PICK_LIST_ITEM ||--o{ KEY_DRAFT : "draft uses"
-
-    PANEL_KEY ||--o{ KEY_DRAFT : "has drafts"
-    PANEL_KEY ||--o{ CHANGE_REQUEST_ITEM : "changed in"
-
-    CHANGE_REQUEST ||--o{ CHANGE_REQUEST_ITEM : "contains"
-
-    RACK_TEMPLATE ||--o{ RACK_SLOT : "contains slots"
-
-    ASSET ||--o{ EQUIPMENT : "tracked as"
-    ASSET ||--o{ NFG_REPORT : "reported on"
-
-    EQUIPMENT ||--o{ NFG_REPORT : "flagged in"
 ```
+
+---
+
+## Phase 1 core (active, in-use subset)
+
+The subset of models driven by the UI today:
+
+```mermaid
+erDiagram
+    User ||--o{ ProjectMember : ""
+    Project ||--o{ ProjectMember : ""
+    Project ||--o{ PickListItem : ""
+    Project ||--o{ Equipment : ""
+    ProjectMember ||--o{ PanelKey : ""
+    ProjectMember ||--o{ Equipment : "assignedTo"
+    PickListItem ||--o{ PanelKey : ""
+    PanelKey ||--o{ KeyDraft : ""
+    PanelKey ||--o{ ChangeRequestItem : ""
+    ChangeRequest ||--o{ ChangeRequestItem : ""
+    ChangeRequest }o--|| ProjectMember : "targetMember"
+    ChangeRequest }o--|| User : "submittedBy"
+```
+
+---
+
+## Unique constraints
+
+| Model | Unique constraint | Enforces |
+|---|---|---|
+| `Project` | `pin` | No two active projects share a 4-digit join PIN |
+| `ProjectMember` | `(userId, projectId)` | A user isn't on the same project twice |
+| `PanelKey` | `(projectMemberId, keyIndex, page, expansion)` | One physical key position per member |
+| `Asset` | `qrCode` | Every physical asset has a unique QR |
+
+---
+
+## Model groupings
+
+### Phase 1 — Pick List / Panels / Change Requests (in use)
+
+`User`, `Project`, `ProjectMember`, `PickListItem`, `PanelKey`, `KeyDraft`, `ChangeRequest`, `ChangeRequestItem`, `AccessRequest`
+
+### Phase 2-4 — Equipment / Assets / Racks / NFG
+
+`Equipment` (promoted into v2 — Equipment tab drives the app now), `Asset`, `RackTemplate`, `RackSlot`, `NfgReport` (schema present, no UI yet)
