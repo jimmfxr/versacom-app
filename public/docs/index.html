@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Nodal Control — Docs</title>
+<style>
+  body { font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; background:#202020; color:#eee; margin:0; padding:40px 24px; max-width: 1000px; margin-inline:auto; line-height:1.6; }
+  h1 { color:#fff; border-bottom: 2px solid #0178a3; padding-bottom: 8px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  h1 img.logo { height: 40px; width: auto; }
+  h2 { color:#22a7d3; margin-top: 40px; }
+  .card { display:block; background:#2a2a2a; border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:20px 24px; margin:12px 0; text-decoration:none; color:#eee; transition: background 120ms; }
+  .card:hover { background:#313131; border-color:#0178a3; }
+  .card h3 { margin:0 0 6px; color:#22a7d3; }
+  .card p { margin:0; color:#999; font-size:0.9em; }
+  .note { color:#888; font-style:italic; font-size:0.9em; margin-top: 32px; }
+  code { background:#2a2a2a; padding:2px 6px; border-radius:4px; font-family: ui-monospace, monospace; font-size:0.9em; }
+</style>
+</head>
+<body>
+
+<h1><img src="/clair_logo_white.png" alt="Clair" class="logo" /> Nodal Control — Documentation</h1>
+<p class="note">Updated 2026-04-17. Pick a doc below. Rendered diagrams inline.</p>
+
+<h2>Diagrams (with rendered Mermaid)</h2>
+
+<a class="card" href="user-flow.html">
+  <h3>User Flow →</h3>
+  <p>End-user navigation and action flows: entry, role-based landings, change request round-trip, mobile nav gesture, device reachability.</p>
+</a>
+
+<a class="card" href="uml-erd.html">
+  <h3>Entity Relationship Diagram →</h3>
+  <p>Database schema (all 13 models) + Phase 1 core subset + unique constraints.</p>
+</a>
+
+<a class="card" href="uml-state-diagrams.html">
+  <h3>State Diagrams →</h3>
+  <p>Panel key visual states · ChangeRequest lifecycle · deploy status transitions · user first-login status · account lockout.</p>
+</a>
+
+<a class="card" href="uml-sequence-diagrams.html">
+  <h3>Sequence Diagrams →</h3>
+  <p>Join via QR · change request submit-review-resolve · equipment bulk add · tasks badge polling · device reachability probing.</p>
+</a>
+
+<a class="card" href="uml-use-case.html">
+  <h3>Use Cases / Permission Matrix →</h3>
+  <p>What each role (admin / manager / crew / user) can do. Full permission matrix table.</p>
+</a>
+
+<h2>Text docs</h2>
+
+<a class="card" href="PRD.md">
+  <h3>PRD (Product Requirements) →</h3>
+  <p>The comprehensive current-state reference — TL;DR, features, roles, workflows, tech patterns, source-of-truth pointers. Markdown only; view in VS Code with Markdown preview, or on GitHub.</p>
+</a>
+
+<a class="card" href="product-decisions.md">
+  <h3>Product Decisions →</h3>
+  <p>Why specific designs were chosen (architecture, tradeoffs, paths not taken).</p>
+</a>
+
+<a class="card" href="PRD-v1-april2026.md">
+  <h3>PRD v1 (archived) →</h3>
+  <p>The original April 12, 2026 PRD — preserved for historical reference. Current app has diverged significantly.</p>
+</a>
+
+<p class="note">
+Source Mermaid diagrams live in the matching <code>.md</code> files. The <code>.html</code> files in this folder are standalone renderers (use Mermaid from CDN). GitHub also renders Mermaid inside <code>.md</code>, though complex diagrams may fail — these HTMLs are the reliable viewer.
+</p>
+
+</body>
+</html>
