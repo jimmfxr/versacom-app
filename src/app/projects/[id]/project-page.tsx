@@ -115,6 +115,32 @@ function isAssignable(category: string) {
 }
 
 /**
+ * Natural sort comparator — sorts "C1, C10, C2, C20" as "C1, C2, C10, C20"
+ * by splitting each string into runs of digits and non-digits and comparing
+ * digit runs numerically. Needed now that auto-generated codes (C1, C2, ...)
+ * are no longer zero-padded.
+ */
+function naturalCompare(a: string, b: string): number {
+  const aParts = a.match(/(\d+|\D+)/g) ?? []
+  const bParts = b.match(/(\d+|\D+)/g) ?? []
+  const len = Math.min(aParts.length, bParts.length)
+  for (let i = 0; i < len; i++) {
+    const ap = aParts[i]
+    const bp = bParts[i]
+    const aIsNum = /^\d+$/.test(ap)
+    const bIsNum = /^\d+$/.test(bp)
+    if (aIsNum && bIsNum) {
+      const diff = parseInt(ap, 10) - parseInt(bp, 10)
+      if (diff !== 0) return diff
+    } else {
+      const diff = ap.localeCompare(bp, undefined, { sensitivity: 'base' })
+      if (diff !== 0) return diff
+    }
+  }
+  return aParts.length - bParts.length
+}
+
+/**
  * For sorting team members by equipment number when the search matches
  * an equipment name (e.g. searching "WLBP" should produce WLBP 1, 2, 3,
  * ..., 10 in order — not jumbled by member name). Returns the smallest
@@ -252,6 +278,7 @@ export function ProjectPage({
   // Equipment state
   const [eqSearch, setEqSearch] = useState('')
   const [showAdd, setShowAdd] = useState(false)
+  const [addEquipmentId, setAddEquipmentId] = useState('')
   const [addCategory, setAddCategory] = useState('panels')
   const [addHardwareType, setAddHardwareType] = useState('')
   const [addQuantity, setAddQuantity] = useState('1')
@@ -272,7 +299,7 @@ export function ProjectPage({
   const [editingPlId, setEditingPlId] = useState<number | null>(null)
   const [editPlData, setEditPlData] = useState<{ code: string; name: string; type: string }>({ code: '', name: '', type: 'CONF' })
   const [showAddPl, setShowAddPl] = useState(false)
-  const [addPlData, setAddPlData] = useState<{ code: string; name: string; type: string }>({ code: '', name: '', type: 'CONF' })
+  const [addPlData, setAddPlData] = useState<{ code: string; name: string; type: string; quantity: string }>({ code: '', name: '', type: 'CONF', quantity: '1' })
 
   // Device reachability — pings IPs from the browser every 30s (only works on same LAN)
   // Skip hardwire_bp (often DHCP — IPs change too frequently to be reliable)
@@ -314,10 +341,11 @@ export function ProjectPage({
     if (qty > 200) { setAddError('Quantity must be at most 200'); return }
     setAddError('')
     startTransition(async () => {
-      const result = await bulkCreateEquipment(project.id, addCategory, addHardwareType, qty)
+      const result = await bulkCreateEquipment(project.id, addCategory, addHardwareType, qty, addEquipmentId)
       if (result.error) { setAddError(result.error); return }
       showToast('success', `Added ${result.count} ${getCategoryLabel(addCategory)}`)
       setShowAdd(false)
+      setAddEquipmentId('')
       setAddHardwareType('')
       setAddQuantity('1')
       router.refresh()
@@ -438,13 +466,26 @@ export function ProjectPage({
   }
 
   function handleAddPl() {
-    if (!addPlData.name.trim()) return
+    const hasName = !!addPlData.name.trim()
+    const rawQty = parseInt(addPlData.quantity, 10)
+    const qty = hasName ? 1 : (Number.isFinite(rawQty) && rawQty > 0 ? rawQty : 0)
+    // Must have either a Name (named item) OR a positive Quantity (placeholder batch)
+    if (!hasName && qty < 1) return
     startTransition(async () => {
-      const result = await createPickListItem(project.id, addPlData)
+      const result = await createPickListItem(project.id, {
+        code: addPlData.code,
+        name: addPlData.name,
+        type: addPlData.type,
+        quantity: qty,
+      })
       if (result.error) { showToast('error', result.error); return }
-      showToast('success', `${addPlData.name} added`)
+      const count = result.count ?? 1
+      const msg = hasName
+        ? `${addPlData.name} added`
+        : `Added ${count} function${count === 1 ? '' : 's'}`
+      showToast('success', msg)
       setShowAddPl(false)
-      setAddPlData({ code: '', name: '', type: 'CONF' })
+      setAddPlData({ code: '', name: '', type: 'CONF', quantity: '1' })
       router.refresh()
     })
   }
@@ -532,7 +573,7 @@ export function ProjectPage({
         p.users.some((u) => u.toLowerCase().includes(q))
       )
     })
-    .sort((a, b) => plSortAbc ? a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) : 0)
+    .sort((a, b) => plSortAbc ? naturalCompare(a.name, b.name) : 0)
 
   /* ─── Tab action buttons ─── */
 
@@ -677,9 +718,16 @@ export function ProjectPage({
                     <h3 className="text-sm font-semibold text-white">Add Equipment</h3>
                     <IconButton onClick={() => { setShowAdd(false); setAddError('') }}><CloseIcon /></IconButton>
                   </div>
-                  <p className="mt-2 text-xs text-gray-500">Add equipment in bulk by category and quantity. Each item can be edited individually to assign team members, locations, and hardware details.</p>
+                  <p className="mt-2 text-xs text-gray-500">Add equipment. Each item auto-IDs by category (<span className="font-mono">PNL 1</span>, <span className="font-mono">WLBP 1</span>…). Type an ID to customize.</p>
                   <form onSubmit={(e) => { e.preventDefault(); handleBulkAdd() }}>
                     <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                      <FormInput
+                        label="ID"
+                        type="text"
+                        placeholder="Auto"
+                        value={addEquipmentId}
+                        onChange={(e) => setAddEquipmentId(e.target.value)}
+                      />
                       <SearchableSelect
                         label="Category"
                         value={addCategory}
@@ -1016,8 +1064,8 @@ export function ProjectPage({
                     <h3 className="text-sm font-semibold text-white">Add Function</h3>
                     <IconButton onClick={() => setShowAddPl(false)}><CloseIcon /></IconButton>
                   </div>
-                  <p className="mt-2 text-xs text-gray-500">Add communication functions like conferences, IFBs, and audio I/O channels. These will be available as key options on panels.</p>
-                  <form onSubmit={(e) => { e.preventDefault(); if (addPlData.name.trim()) handleAddPl() }}>
+                  <p className="mt-2 text-xs text-gray-500">Add a function. Leave Name blank to bulk-create placeholders (<span className="font-mono">C1</span>, <span className="font-mono">C2</span>…) you can rename later.</p>
+                  <form onSubmit={(e) => { e.preventDefault(); handleAddPl() }}>
                     <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
                       <FormInput label="ID" type="text" placeholder="Auto" value={addPlData.code} onChange={(e) => setAddPlData({ ...addPlData, code: e.target.value })} />
                       <FormInput autoFocus label="Name" type="text" value={addPlData.name} onChange={(e) => setAddPlData({ ...addPlData, name: e.target.value })} />
@@ -1028,9 +1076,26 @@ export function ProjectPage({
                         options={FUNCTION_TYPES.map((t) => ({ value: t, label: FUNCTION_TYPE_LABELS[t] }))}
                         onChange={(v) => setAddPlData({ ...addPlData, type: v })}
                       />
+                      <FormInput
+                        label="Quantity"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={addPlData.name.trim() ? '1' : addPlData.quantity}
+                        disabled={!!addPlData.name.trim()}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '')
+                          setAddPlData({ ...addPlData, quantity: val })
+                        }}
+                      />
                     </div>
                     <div className="mt-4 flex justify-end">
-                      <Button type="submit" disabled={isPending || !addPlData.name.trim()}>{isPending ? 'Adding...' : 'Add'}</Button>
+                      {(() => {
+                        const hasName = !!addPlData.name.trim()
+                        const qty = parseInt(addPlData.quantity, 10)
+                        const ok = hasName || (Number.isFinite(qty) && qty > 0)
+                        return <Button type="submit" disabled={isPending || !ok}>{isPending ? 'Adding...' : 'Add'}</Button>
+                      })()}
                     </div>
                   </form>
                 </Card>

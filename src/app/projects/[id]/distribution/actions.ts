@@ -24,11 +24,34 @@ const CATEGORY_PREFIXES: Record<string, string> = {
   audio: 'AUD',
 }
 
+/**
+ * Parse a user-provided starting name like "P001", "PNL 15", "P1" into
+ * a prefix, number, pad width, and whether a space separator was used.
+ * The returned pieces let us preserve the user's formatting exactly when
+ * generating the sequence (so "P001" yields "P002", not "P 002").
+ */
+function parseStartingName(name: string): {
+  prefix: string
+  start: number
+  padWidth: number
+  separator: string
+} | null {
+  const match = name.trim().match(/^([A-Za-z]+)(\s*)(\d+)$/)
+  if (!match) return null
+  return {
+    prefix: match[1],
+    separator: match[2],
+    start: parseInt(match[3], 10),
+    padWidth: match[3].length,
+  }
+}
+
 export async function bulkCreateEquipment(
   projectId: number,
   category: string,
   hardwareType: string,
-  quantity: number
+  quantity: number,
+  startingId: string = ''
 ) {
   const session = await getSession()
   if (!session) return { error: 'Not authenticated' }
@@ -40,22 +63,53 @@ export async function bulkCreateEquipment(
     return { error: 'Quantity must be between 1 and 200' }
   }
 
-  // Find the highest existing number for this category in this project
-  const existing = await prisma.equipment.findMany({
-    where: { projectId, category },
-    select: { name: true },
-    orderBy: { id: 'desc' },
-  })
+  const trimmedStartingId = startingId.trim()
 
-  const prefix = CATEGORY_PREFIXES[category]
-  let maxNum = 0
-  for (const e of existing) {
-    const match = e.name.match(new RegExp(`^${prefix}\\s+(\\d+)$`))
-    if (match) {
-      const num = parseInt(match[1], 10)
-      if (num > maxNum) maxNum = num
+  // Decide prefix + starting number + pad width + separator based on whether
+  // the user typed a starting ID. Blank → category default ("PNL 1", etc.);
+  // Filled → literal sequence from the user's value.
+  let prefix: string
+  let startNum: number
+  let padWidth: number
+  let separator: string
+
+  if (trimmedStartingId) {
+    const parsed = parseStartingName(trimmedStartingId)
+    if (!parsed) {
+      return { error: 'ID must be letters followed by digits (e.g. PNL 1, P001, P1)' }
     }
+    prefix = parsed.prefix
+    startNum = parsed.start
+    padWidth = parsed.padWidth
+    separator = parsed.separator
+  } else {
+    prefix = CATEGORY_PREFIXES[category]
+    separator = ' ' // Default format is "PNL 1" with a space.
+    padWidth = 1 // No zero-padding for auto-generated names.
+    // Find the highest existing number for this category prefix in this project.
+    const existing = await prisma.equipment.findMany({
+      where: { projectId, category },
+      select: { name: true },
+    })
+    let maxNum = 0
+    for (const e of existing) {
+      const m = e.name.match(new RegExp(`^${prefix}\\s+(\\d+)$`))
+      if (m) {
+        const num = parseInt(m[1], 10)
+        if (num > maxNum) maxNum = num
+      }
+    }
+    startNum = maxNum + 1
   }
+
+  // Pull every existing equipment name across the project so we can skip
+  // collisions when the user's chosen range overlaps existing items.
+  const existingNames = new Set<string>()
+  const allExisting = await prisma.equipment.findMany({
+    where: { projectId },
+    select: { name: true },
+  })
+  for (const e of allExisting) existingNames.add(e.name)
 
   // Auto-assign default headset for panels, wireless BP, and hardwire BP
   const LWHS_5_TYPES = ['KP-5032', 'KP32', 'ST-374', 'ST370']
@@ -65,21 +119,40 @@ export async function bulkCreateEquipment(
     defaultHeadset = LWHS_5_TYPES.includes(hardwareType) ? 'LWHS 5' : 'LWHS 4'
   }
 
-  const records = []
-  for (let i = 1; i <= quantity; i++) {
-    records.push({
-      projectId,
-      name: `${prefix} ${maxNum + i}`,
-      category,
-      hardwareType: hardwareType || null,
-      headsetType: defaultHeadset,
-    })
+  const records: {
+    projectId: number
+    name: string
+    category: string
+    hardwareType: string | null
+    headsetType: string | null
+  }[] = []
+  let n = startNum
+  const maxIterations = quantity * 10 + 10
+  let iterations = 0
+  while (records.length < quantity && iterations < maxIterations) {
+    const name = `${prefix}${separator}${String(n).padStart(padWidth, '0')}`
+    if (!existingNames.has(name)) {
+      records.push({
+        projectId,
+        name,
+        category,
+        hardwareType: hardwareType || null,
+        headsetType: defaultHeadset,
+      })
+      existingNames.add(name)
+    }
+    n++
+    iterations++
+  }
+
+  if (records.length < quantity) {
+    return { error: 'Too many collisions in the requested range. Pick a different starting ID.' }
   }
 
   await prisma.equipment.createMany({ data: records })
 
   revalidatePath(`/projects/${projectId}`)
-  return { success: true, count: quantity }
+  return { success: true, count: records.length }
 }
 
 export async function updateEquipment(

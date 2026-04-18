@@ -7,6 +7,13 @@ import { prisma } from '@/lib/db'
 const VALID_TYPES = ['CONF', 'IFB', 'Audio_IO', 'GRP'] as const
 type ValidType = (typeof VALID_TYPES)[number]
 
+const TYPE_PREFIXES: Record<ValidType, string> = {
+  CONF: 'C',
+  IFB: 'IF',
+  GRP: 'G',
+  Audio_IO: 'A',
+}
+
 async function getSession() {
   const cookieStore = await cookies()
   const sessionCookie = cookieStore.get('session')
@@ -18,65 +25,145 @@ async function getSession() {
   }
 }
 
-/** Format a sequential number into the type-specific human-readable code. */
-function formatCode(type: ValidType, n: number): string {
-  switch (type) {
-    case 'CONF':
-      return 'C' + String(n).padStart(3, '0')
-    case 'IFB':
-      return 'IF' + String(n).padStart(2, '0')
-    case 'GRP':
-      return 'G' + String(n).padStart(3, '0')
-    case 'Audio_IO':
-      return 'A' + String(n).padStart(3, '0')
+/**
+ * Parse a user-provided starting ID like "C100", "VW001", "IF42" into its
+ * alphabetic prefix, starting number, and pad width (so we preserve the
+ * user's zero-padding style — "C001" pads to 3, "C1" doesn't pad).
+ */
+function parseStartingId(id: string): { prefix: string; start: number; padWidth: number } | null {
+  const match = id.trim().match(/^([A-Za-z]+)(\d+)$/)
+  if (!match) return null
+  return {
+    prefix: match[1],
+    start: parseInt(match[2], 10),
+    padWidth: match[2].length,
   }
 }
 
-/** Find the next unused sequential number for a given type within a project. */
-async function nextCode(projectId: number, type: ValidType): Promise<string> {
+/** Format a code at the caller's chosen pad width. */
+function formatAtWidth(prefix: string, n: number, padWidth: number): string {
+  return `${prefix}${String(n).padStart(padWidth, '0')}`
+}
+
+/** Highest sequential number used by any code whose prefix matches (case-insensitive). */
+async function findMaxNumForPrefix(projectId: number, prefix: string): Promise<number> {
   const existing = await prisma.pickListItem.findMany({
-    where: { projectId, type },
+    where: { projectId },
     select: { code: true },
   })
-  // Parse trailing digits off existing codes, find max, increment
   let max = 0
+  const prefixLower = prefix.toLowerCase()
   for (const { code } of existing) {
     if (!code) continue
-    const match = code.match(/(\d+)$/)
-    if (match) {
-      const n = parseInt(match[1], 10)
-      if (n > max) max = n
-    }
+    const m = code.match(/^([A-Za-z]+)(\d+)$/)
+    if (!m) continue
+    if (m[1].toLowerCase() !== prefixLower) continue
+    const n = parseInt(m[2], 10)
+    if (n > max) max = n
   }
-  return formatCode(type, max + 1)
+  return max
+}
+
+/** All codes matching the prefix (case-insensitive) — for collision skipping. */
+async function findExistingCodesForPrefix(projectId: number, prefix: string): Promise<Set<string>> {
+  const existing = await prisma.pickListItem.findMany({
+    where: { projectId },
+    select: { code: true },
+  })
+  const set = new Set<string>()
+  const prefixLower = prefix.toLowerCase()
+  for (const { code } of existing) {
+    if (!code) continue
+    const m = code.match(/^([A-Za-z]+)(\d+)$/)
+    if (!m) continue
+    if (m[1].toLowerCase() === prefixLower) set.add(code)
+  }
+  return set
 }
 
 export async function createPickListItem(
   projectId: number,
-  data: { name: string; type: string; code?: string }
+  data: { name: string; type: string; code?: string; quantity?: number }
 ) {
   const session = await getSession()
   if (!session) return { error: 'Not authenticated' }
 
-  if (!data.name.trim()) return { error: 'Name is required' }
   if (!VALID_TYPES.includes(data.type as ValidType)) {
     return { error: 'Invalid function type' }
   }
-
   const type = data.type as ValidType
-  const code = data.code?.trim() || (await nextCode(projectId, type))
+  const trimmedName = data.name.trim()
+  const trimmedCode = data.code?.trim() ?? ''
+  const quantity = Math.max(1, Math.floor(data.quantity ?? 1))
 
-  await prisma.pickListItem.create({
-    data: {
-      projectId,
-      code,
-      name: data.name.trim(),
-      type,
-    },
-  })
+  if (quantity > 200) return { error: 'Quantity must be at most 200' }
 
+  // ─── Named single-item mode ─────────────────────────────────────
+  // If the user typed a Name, we create exactly one item — Quantity
+  // is forced to 1 on the client but enforce here too. ID is either
+  // the user's or auto-generated with type prefix.
+  if (trimmedName) {
+    let code = trimmedCode
+    if (!code) {
+      const prefix = TYPE_PREFIXES[type]
+      const max = await findMaxNumForPrefix(projectId, prefix)
+      code = formatAtWidth(prefix, max + 1, 1)
+    }
+    await prisma.pickListItem.create({
+      data: { projectId, code, name: trimmedName, type },
+    })
+    revalidatePath(`/projects/${projectId}`)
+    return { success: true, count: 1 }
+  }
+
+  // ─── Bulk placeholder mode (Name is blank) ──────────────────────
+  // Figure out starting point based on whether the user typed an ID.
+  let prefix: string
+  let startNum: number
+  let padWidth: number
+
+  if (trimmedCode) {
+    // User-specified starting ID like "C100" or "VW001".
+    const parsed = parseStartingId(trimmedCode)
+    if (!parsed) {
+      return { error: 'ID must be letters followed by digits (e.g. C100, VW001)' }
+    }
+    prefix = parsed.prefix
+    startNum = parsed.start
+    padWidth = parsed.padWidth
+  } else {
+    // Auto mode — type prefix, continue past highest, no padding.
+    prefix = TYPE_PREFIXES[type]
+    const max = await findMaxNumForPrefix(projectId, prefix)
+    startNum = max + 1
+    padWidth = 1
+  }
+
+  // Generate N codes, skipping collisions. Pre-load existing codes so we
+  // don't need a round-trip per check. Also dedupe within the batch itself.
+  const existing = await findExistingCodesForPrefix(projectId, prefix)
+  const records: { projectId: number; code: string; name: string; type: ValidType }[] = []
+  let n = startNum
+  const maxIterations = quantity * 10 + 10
+  let iterations = 0
+  while (records.length < quantity && iterations < maxIterations) {
+    const code = formatAtWidth(prefix, n, padWidth)
+    if (!existing.has(code)) {
+      // Name defaults to the code — user can rename later via edit.
+      records.push({ projectId, code, name: code, type })
+      existing.add(code)
+    }
+    n++
+    iterations++
+  }
+
+  if (records.length < quantity) {
+    return { error: 'Too many collisions in the requested range. Pick a different starting ID.' }
+  }
+
+  await prisma.pickListItem.createMany({ data: records })
   revalidatePath(`/projects/${projectId}`)
-  return { success: true }
+  return { success: true, count: records.length }
 }
 
 export async function updatePickListItem(

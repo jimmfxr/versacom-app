@@ -864,12 +864,33 @@ export function PanelStudio({
     return matchesFilter && matchesSearch
   })
 
-  // Group by type
+  // Group by type, then natural-sort within each group so codes like
+  // C1, C2, C10, C20 appear in numeric order (plain alphabetical would
+  // give C1, C10, C11, ... C2, C20 once zero-padding is removed).
   const groupedItems: Record<string, PickerItem[]> = {}
   for (const item of filteredPickerItems) {
     const group = item.type
     if (!groupedItems[group]) groupedItems[group] = []
     groupedItems[group].push(item)
+  }
+  for (const group of Object.keys(groupedItems)) {
+    groupedItems[group].sort((a, b) => {
+      const aParts = a.name.match(/(\d+|\D+)/g) ?? []
+      const bParts = b.name.match(/(\d+|\D+)/g) ?? []
+      const len = Math.min(aParts.length, bParts.length)
+      for (let i = 0; i < len; i++) {
+        const ap = aParts[i], bp = bParts[i]
+        const aIsNum = /^\d+$/.test(ap), bIsNum = /^\d+$/.test(bp)
+        if (aIsNum && bIsNum) {
+          const d = parseInt(ap, 10) - parseInt(bp, 10)
+          if (d !== 0) return d
+        } else {
+          const d = ap.localeCompare(bp, undefined, { sensitivity: 'base' })
+          if (d !== 0) return d
+        }
+      }
+      return aParts.length - bParts.length
+    })
   }
 
   const typeLabels: Record<string, string> = {
