@@ -157,7 +157,7 @@ function LandingPage() {
       </section>
 
       {/* Section nav */}
-      <div className="border-y border-white/[0.06] px-6 py-5">
+      <div className="px-6 py-5">
         <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-x-8 gap-y-3">
           <a href="#for-users" className="text-xs font-bold uppercase tracking-widest text-gray-400 transition-colors hover:text-[#22a7d3]">
             For Users →
@@ -172,7 +172,7 @@ function LandingPage() {
       </div>
 
       {/* How it works — User role */}
-      <section id="for-users" className="scroll-mt-8 border-t border-white/[0.06] px-6 py-16 sm:px-10">
+      <section id="for-users" className="scroll-mt-8 px-6 py-16 sm:px-10">
         <div className="mx-auto max-w-5xl">
           <p className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-gray-500">How it works</p>
           <h2 className="mb-10 text-center text-2xl font-bold sm:text-3xl">For Users</h2>
@@ -185,7 +185,7 @@ function LandingPage() {
       </section>
 
       {/* How it works — Manager role */}
-      <section id="for-managers" className="scroll-mt-8 border-t border-white/[0.06] px-6 py-16 sm:px-10">
+      <section id="for-managers" className="scroll-mt-8 px-6 py-16 sm:px-10">
         <div className="mx-auto max-w-5xl">
           <p className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-gray-500">How it works</p>
           <h2 className="mb-10 text-center text-2xl font-bold sm:text-3xl">For Managers</h2>
@@ -198,7 +198,7 @@ function LandingPage() {
       </section>
 
       {/* Features grid */}
-      <section id="whats-inside" className="scroll-mt-8 border-t border-white/[0.06] px-6 py-16 sm:px-10">
+      <section id="whats-inside" className="scroll-mt-8 px-6 py-16 sm:px-10">
         <div className="mx-auto max-w-5xl">
           <p className="mb-10 text-center text-xs font-bold uppercase tracking-widest text-gray-500">What&apos;s inside</p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -213,7 +213,7 @@ function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section className="border-t border-white/[0.06] px-6 py-20 text-center">
+      <section className="px-6 py-20 text-center">
         <h2 className="text-2xl font-bold sm:text-3xl">Ready to run your show?</h2>
         <p className="mt-3 text-sm text-gray-400">Log in with your name and PIN to get started.</p>
         <div className="mt-8">
@@ -224,7 +224,7 @@ function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-white/[0.06] px-6 py-8 text-center">
+      <footer className="px-6 py-8 text-center">
         <div className="flex items-center justify-center gap-2">
           <Image src="/clair_logo_white.png" alt="Clair" width={48} height={18} className="h-4 w-auto opacity-40" />
           <span className="text-xs text-gray-600">© {new Date().getFullYear()} Clair Global / ATK Versacom. All rights reserved.</span>
