@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Nodal Control — Doc</title>
+<style>
+  body { font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; background:#202020; color:#eee; margin:0; padding:40px 24px; max-width: 1000px; margin-inline:auto; line-height:1.65; }
+  h1, h2, h3, h4 { color:#fff; }
+  h1 { border-bottom: 2px solid #0178a3; padding-bottom: 8px; }
+  h2 { color:#22a7d3; margin-top: 36px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px; }
+  h3 { color:#22a7d3; margin-top: 28px; }
+  a { color:#22a7d3; }
+  code { background:#2a2a2a; padding:2px 6px; border-radius:4px; font-family: ui-monospace, monospace; font-size:0.9em; }
+  pre { background:#1a1a1a; border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:16px; overflow-x:auto; }
+  pre code { background:transparent; padding:0; }
+  blockquote { border-left: 3px solid #0178a3; margin: 16px 0; padding: 4px 16px; color:#bbb; background: rgba(1,120,163,0.05); }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+  th, td { border: 1px solid rgba(255,255,255,0.12); padding: 8px 12px; text-align: left; }
+  th { background: #2a2a2a; color: #22a7d3; }
+  hr { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 32px 0; }
+  ul, ol { padding-left: 24px; }
+  li { margin: 4px 0; }
+  img { max-width: 100%; }
+  .nav { margin-bottom: 24px; font-size: 0.9em; }
+  .nav a { text-decoration:none; color:#888; }
+  .nav a:hover { color:#22a7d3; }
+  .err { color:#ff6b6b; background:#2a1a1a; padding:16px; border-radius:8px; }
+  @media (max-width: 640px) {
+    body { padding: 20px 12px; }
+    h1 { font-size: 1.4em; }
+    h2 { font-size: 1.15em; }
+    table { font-size: 0.85em; }
+    th, td { padding: 6px 8px; }
+  }
+</style>
+</head>
+<body>
+<div class="nav"><a href="./index.html">← All docs</a></div>
+<div id="content">Loading…</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+  (async () => {
+    const params = new URLSearchParams(location.search);
+    const file = params.get('file');
+    const allowed = ['PRD.md', 'PRD-v1-april2026.md', 'product-decisions.md'];
+    const el = document.getElementById('content');
+    if (!file || !allowed.includes(file)) {
+      el.innerHTML = '<div class="err">Invalid or missing <code>?file=</code> parameter.</div>';
+      return;
+    }
+    try {
+      const res = await fetch(file);
+      if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+      const md = await res.text();
+      document.title = file.replace(/\.md$/, '') + ' — Nodal Control Docs';
+      el.innerHTML = marked.parse(md);
+    } catch (e) {
+      el.innerHTML = '<div class="err">Failed to load <code>' + file + '</code>: ' + e.message + '</div>';
+    }
+  })();
+</script>
+</body>
+</html>

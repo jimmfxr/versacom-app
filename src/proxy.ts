@@ -5,7 +5,9 @@ export function proxy(request: NextRequest) {
 
   // Public routes — always accessible
   if (
+    pathname === '/' ||
     pathname.startsWith('/login') ||
+    pathname.startsWith('/docs') ||
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
     pathname.startsWith('/favicon') ||
