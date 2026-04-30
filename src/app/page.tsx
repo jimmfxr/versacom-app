@@ -147,7 +147,7 @@ function LandingPage() {
           <span className="text-[#22a7d3]">in your pocket.</span>
         </h1>
         <p className="mt-6 max-w-2xl text-base leading-relaxed text-gray-400 sm:text-lg">
-          Built for our clients. Nodal Control comes with the rack — every crew member knows their panel, every manager sees the whole show, every user picks the channels they need.
+          Built for our clients. Nodal Control comes with the rack — every manager sees the whole show, every user picks the channels they need.
         </p>
         <div className="mt-10">
           <Link href="/login" className="rounded-xl bg-[#22a7d3] px-7 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#1e96be]">
