@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 type LoginError =
   | { type: 'invalid'; message: string }
@@ -189,7 +190,9 @@ export default function LoginPage() {
       <div className="flex min-h-screen items-center justify-center bg-[#202020] px-4">
         <div className="w-full max-w-sm">
           <div className="flex justify-center mb-10">
-            <img src="/clair_logo_white.png" alt="Clair" className="h-16 w-auto" />
+            <Link href="/" aria-label="Back to home">
+              <img src="/clair_logo_white.png" alt="Clair" className="h-16 w-auto transition-opacity hover:opacity-80" />
+            </Link>
           </div>
 
           <div className="rounded-xl bg-[#0178a3]/10 px-4 py-3 mb-6 text-center">

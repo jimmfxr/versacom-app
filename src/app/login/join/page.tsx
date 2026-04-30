@@ -134,7 +134,9 @@ function JoinProjectPageInner() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex justify-center mb-10">
-          <img src="/clair_logo_white.png" alt="Clair" className="h-16 w-auto" />
+          <Link href="/" aria-label="Back to home">
+            <img src="/clair_logo_white.png" alt="Clair" className="h-16 w-auto transition-opacity hover:opacity-80" />
+          </Link>
         </div>
 
         {step === 'join' ? (
