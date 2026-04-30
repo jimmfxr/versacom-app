@@ -159,32 +159,17 @@ function LandingPage() {
       {/* Section nav */}
       <div className="border-y border-white/[0.06] px-6 py-5">
         <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-x-8 gap-y-3">
-          <a href="#whats-inside" className="text-xs font-bold uppercase tracking-widest text-gray-400 transition-colors hover:text-[#22a7d3]">
-            What&apos;s inside →
-          </a>
           <a href="#for-users" className="text-xs font-bold uppercase tracking-widest text-gray-400 transition-colors hover:text-[#22a7d3]">
             For Users →
           </a>
           <a href="#for-managers" className="text-xs font-bold uppercase tracking-widest text-gray-400 transition-colors hover:text-[#22a7d3]">
             For Managers →
           </a>
+          <a href="#whats-inside" className="text-xs font-bold uppercase tracking-widest text-gray-400 transition-colors hover:text-[#22a7d3]">
+            What&apos;s inside →
+          </a>
         </div>
       </div>
-
-      {/* Features grid */}
-      <section id="whats-inside" className="scroll-mt-8 border-t border-white/[0.06] px-6 py-16 sm:px-10">
-        <div className="mx-auto max-w-5xl">
-          <p className="mb-10 text-center text-xs font-bold uppercase tracking-widest text-gray-500">What's inside</p>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="rounded-2xl bg-[#242424] p-6">
-                <div className="mb-1 text-sm font-semibold text-white">{f.title}</div>
-                <div className="text-sm leading-relaxed text-gray-400">{f.desc}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* How it works — User role */}
       <section id="for-users" className="scroll-mt-8 border-t border-white/[0.06] px-6 py-16 sm:px-10">
@@ -207,6 +192,21 @@ function LandingPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {MANAGER_STEPS.map((step) => (
               <StepCard key={step.num} step={step} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Features grid */}
+      <section id="whats-inside" className="scroll-mt-8 border-t border-white/[0.06] px-6 py-16 sm:px-10">
+        <div className="mx-auto max-w-5xl">
+          <p className="mb-10 text-center text-xs font-bold uppercase tracking-widest text-gray-500">What&apos;s inside</p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map((f) => (
+              <div key={f.title} className="rounded-2xl bg-[#242424] p-6">
+                <div className="mb-1 text-sm font-semibold text-white">{f.title}</div>
+                <div className="text-sm leading-relaxed text-gray-400">{f.desc}</div>
+              </div>
             ))}
           </div>
         </div>
