@@ -12,6 +12,7 @@ import {
 } from '@headlessui/react'
 import { Bars3Icon, BellIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useDrag } from '@use-gesture/react'
+import { InstallButton } from '@/components/install-prompt'
 
 export type NavItem = {
   readonly name: string
@@ -205,8 +206,9 @@ function MobileNavPanel({
         ))}
       </div>
 
-      {/* Sign out */}
-      <div className="shrink-0 px-4 pt-2 pb-6">
+      {/* Install app + Sign out */}
+      <div className="shrink-0 space-y-2 px-4 pt-2 pb-6">
+        <InstallButton className="block w-full rounded-2xl bg-[#2a2a2a] px-5 py-4 text-left text-base font-medium text-gray-400 transition-all duration-100 hover:text-white active:scale-[0.97] active:bg-[#0178a3]/20 active:text-white" />
         {onSignOut && (
           <DisclosureButton
             as="button"
@@ -293,6 +295,9 @@ export function Navbar({
                     transition
                     className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-gray-800 py-1 outline -outline-offset-1 outline-white/10 transition data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-200 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
                   >
+                    <MenuItem>
+                      <InstallButton className="block w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-white/5" />
+                    </MenuItem>
                     {userNavigation.map((item) => (
                       <MenuItem key={item.name}>
                         {item.name === 'Sign out' && onSignOut ? (

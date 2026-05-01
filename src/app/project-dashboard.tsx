@@ -67,7 +67,16 @@ const CATEGORY_GROUP_LABELS: Record<string, string> = {
   audio: 'Audio I/O',
 }
 
-type TypeBreakdown = { type: string; count: number; total: number }
+type TypeBreakdown = {
+  type: string
+  count: number
+  total: number
+  // Per-deploy-status counts inside the matched (count) subset.
+  // Used to draw colored segments inside the row's progress bar.
+  deployed: number
+  done: number
+  returned: number
+}
 
 function groupByHardwareType(
   equipment: EquipmentForDashboard[],
@@ -75,16 +84,21 @@ function groupByHardwareType(
   countMatches: (e: EquipmentForDashboard) => boolean,
 ): TypeBreakdown[] {
   const rows = equipment.filter((e) => e.category === category)
-  const byType = new Map<string, { count: number; total: number }>()
+  const byType = new Map<string, { count: number; total: number; deployed: number; done: number; returned: number }>()
   for (const e of rows) {
     const key = e.hardwareType || '(unset)'
-    const cur = byType.get(key) ?? { count: 0, total: 0 }
+    const cur = byType.get(key) ?? { count: 0, total: 0, deployed: 0, done: 0, returned: 0 }
     cur.total += 1
-    if (countMatches(e)) cur.count += 1
+    if (countMatches(e)) {
+      cur.count += 1
+      if (e.deployStatus === 'deployed') cur.deployed += 1
+      else if (e.deployStatus === 'done') cur.done += 1
+      else if (e.deployStatus === 'returned') cur.returned += 1
+    }
     byType.set(key, cur)
   }
   return Array.from(byType.entries())
-    .map(([type, { count, total }]) => ({ type, count, total }))
+    .map(([type, v]) => ({ type, ...v }))
     .sort((a, b) => b.total - a.total)
 }
 
@@ -200,19 +214,36 @@ function BarRow({
   count,
   total,
   tagOverride,
+  deployed = 0,
+  done = 0,
+  returned = 0,
 }: {
   label: string
   count: number
   total: number
   tagOverride?: string
+  /** Per-deploy-status counts inside `count`. Drawn as colored segments. */
+  deployed?: number
+  done?: number
+  returned?: number
 }) {
-  const pct = total > 0 ? (count / total) * 100 : 0
+  const safeTotal = total > 0 ? total : 1
+  const deployedPct = (deployed / safeTotal) * 100
+  const donePct = (done / safeTotal) * 100
+  const returnedPct = (returned / safeTotal) * 100
+  // Anything counted but without a known status shows as a neutral cyan
+  // segment so we never lose information.
+  const otherCount = Math.max(0, count - deployed - done - returned)
+  const otherPct = (otherCount / safeTotal) * 100
+
   return (
     <div className="mb-3 grid grid-cols-[110px_1fr_auto] items-center gap-3 last:mb-0 sm:grid-cols-[120px_1fr_auto] sm:gap-3.5">
       <div className="truncate text-[11px] font-medium text-gray-300 sm:text-xs">{label}</div>
       <div className="flex h-[18px] overflow-hidden rounded-md bg-white/[0.05]">
-        <div className="h-full bg-[#22a7d3]" style={{ width: `${pct}%` }} />
-        <div className="h-full bg-white/[0.12]" style={{ width: `${100 - pct}%` }} />
+        <div className="h-full bg-yellow-400" style={{ width: `${deployedPct}%` }} />
+        <div className="h-full bg-green-400" style={{ width: `${donePct}%` }} />
+        <div className="h-full bg-blue-400" style={{ width: `${returnedPct}%` }} />
+        <div className="h-full bg-[#22a7d3]" style={{ width: `${otherPct}%` }} />
       </div>
       <div className="min-w-[60px] text-right font-mono text-[10px] tabular-nums text-gray-400 sm:min-w-[80px] sm:text-[11px]">
         {tagOverride ? (
@@ -241,13 +272,13 @@ function EmptyRow({ children }: { children: React.ReactNode }) {
 
 function CardHeader({ title, subtitle, tag }: { title: string; subtitle?: string; tag?: string }) {
   return (
-    <div className="mb-4 flex items-start justify-between">
+    <div className="mb-1 flex items-start justify-between">
       <div>
         <div className="text-base font-semibold text-white">{title}</div>
         {subtitle && <div className="mt-0.5 text-[11px] text-gray-500">{subtitle}</div>}
       </div>
       {tag && (
-        <span className="inline-block rounded-full bg-[#22a7d3]/15 px-2 py-0.5 text-[10px] font-semibold text-[#22a7d3]">
+        <span className="inline-block rounded-full bg-[#22a7d3]/15 px-2.5 py-1 text-xs font-semibold text-[#22a7d3]">
           {tag}
         </span>
       )}
@@ -437,17 +468,22 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, canEd
      beltpack without packing its headset). The admin only edits to record
      spares or shortages on top. */
   const headsetMap = (() => {
-    const m = new Map<string, { needed: number; assigned: number; brought: number; tracked: boolean }>()
+    const m = new Map<string, { needed: number; assigned: number; brought: number; tracked: boolean; deployed: number; done: number; returned: number }>()
     for (const e of equipment) {
       if (!e.headsetType || !e.headsetType.trim()) continue
       const key = e.headsetType.trim()
-      const cur = m.get(key) ?? { needed: 0, assigned: 0, brought: 0, tracked: false }
+      const cur = m.get(key) ?? { needed: 0, assigned: 0, brought: 0, tracked: false, deployed: 0, done: 0, returned: 0 }
       cur.needed += 1
-      if (e.assignedToId != null) cur.assigned += 1
+      if (e.assignedToId != null) {
+        cur.assigned += 1
+        if (e.deployStatus === 'deployed') cur.deployed += 1
+        else if (e.deployStatus === 'done') cur.done += 1
+        else if (e.deployStatus === 'returned') cur.returned += 1
+      }
       m.set(key, cur)
     }
     for (const inv of headsetInventory) {
-      const cur = m.get(inv.headsetType) ?? { needed: 0, assigned: 0, brought: 0, tracked: false }
+      const cur = m.get(inv.headsetType) ?? { needed: 0, assigned: 0, brought: 0, tracked: false, deployed: 0, done: 0, returned: 0 }
       cur.brought = inv.brought
       cur.tracked = true
       m.set(inv.headsetType, cur)
@@ -455,7 +491,16 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, canEd
     // Resolve "effective brought" — implicit = needed when not tracked.
     const rows = Array.from(m.entries()).map(([type, v]) => {
       const effectiveBrought = v.tracked ? v.brought : v.needed
-      return { type, needed: v.needed, assigned: v.assigned, brought: effectiveBrought, tracked: v.tracked }
+      return {
+        type,
+        needed: v.needed,
+        assigned: v.assigned,
+        brought: effectiveBrought,
+        tracked: v.tracked,
+        deployed: v.deployed,
+        done: v.done,
+        returned: v.returned,
+      }
     })
     return rows
   })()
@@ -488,7 +533,7 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, canEd
 
             {/* Stacked-segment lifecycle bar */}
             <div className="min-w-0 flex-1">
-              <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+              <div className="flex h-[18px] w-full overflow-hidden rounded-full bg-white/[0.06]">
                 <div
                   className="h-full bg-yellow-400"
                   style={{ width: `${deployedPct}%` }}
@@ -540,7 +585,7 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, canEd
                       <EmptyRow>No {g.label.toLowerCase()} in this project</EmptyRow>
                     ) : (
                       g.rows.map((r) => (
-                        <BarRow key={r.type} label={r.type} count={r.count} total={r.total} />
+                        <BarRow key={r.type} label={r.type} count={r.count} total={r.total} deployed={r.deployed} done={r.done} returned={r.returned} />
                       ))
                     )}
                   </div>
@@ -565,7 +610,7 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, canEd
                       <EmptyRow>No {g.label.toLowerCase()} equipment in this project</EmptyRow>
                     ) : (
                       g.rows.map((r) => (
-                        <BarRow key={r.type} label={r.type} count={r.count} total={r.total} />
+                        <BarRow key={r.type} label={r.type} count={r.count} total={r.total} deployed={r.deployed} done={r.done} returned={r.returned} />
                       ))
                     )}
                   </div>
@@ -576,27 +621,10 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, canEd
 
           const headsetsDisplay = (
             <>
-              <div className="mb-3 flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-base font-semibold text-white">Headsets assigned</div>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  {headsetsBrought > 0 && (
-                    <span className="rounded-full bg-white/[0.06] px-2.5 py-1 text-xs font-semibold text-white">
-                      {headsetsAssigned} / {headsetsBrought}
-                    </span>
-                  )}
-                  {canEditInventory && (
-                    <button
-                      type="button"
-                      onClick={() => setEditingInventory(true)}
-                      className="rounded-md bg-[#0178a3] px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-[#019bc7]"
-                    >
-                      {headsetsBrought > 0 ? 'Edit' : 'Manage'}
-                    </button>
-                  )}
-                </div>
-              </div>
+              <CardHeader
+                title="Headsets assigned"
+                tag={headsetsBrought > 0 ? `${headsetsAssigned} / ${headsetsBrought}` : undefined}
+              />
               {headsetRows.length === 0 ? (
                 <EmptyRow>
                   {canEditInventory
@@ -604,15 +632,32 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, canEd
                     : 'No headsets assigned to any equipment in this project'}
                 </EmptyRow>
               ) : (
-                headsetRows.map((r) => (
-                  <BarRow
-                    key={r.type}
-                    label={r.type}
-                    count={r.assigned}
-                    total={Math.max(r.brought, 1)}
-                    tagOverride={`${r.assigned} / ${r.brought}`}
-                  />
-                ))
+                <div className="mt-6">
+                  <GroupLabel>All Types</GroupLabel>
+                  {headsetRows.map((r) => (
+                    <BarRow
+                      key={r.type}
+                      label={r.type}
+                      count={r.assigned}
+                      total={Math.max(r.brought, 1)}
+                      tagOverride={`${r.assigned} / ${r.brought}`}
+                      deployed={r.deployed}
+                      done={r.done}
+                      returned={r.returned}
+                    />
+                  ))}
+                </div>
+              )}
+              {canEditInventory && (
+                <div className="mt-auto flex justify-end pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setEditingInventory(true)}
+                    className="rounded-md bg-[#0178a3] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#019bc7]"
+                  >
+                    {headsetsBrought > 0 ? 'Edit' : 'Manage'}
+                  </button>
+                </div>
               )}
             </>
           )

@@ -1,0 +1,24 @@
+{
+  "name": "Nodal Control",
+  "short_name": "Nodal",
+  "description": "Intercom management for live production. Built for ATK Versacom clients.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#202020",
+  "theme_color": "#202020",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "640x640",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "640x640",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

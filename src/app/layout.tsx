@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NoZoom } from "@/components/no-zoom";
 import "./globals.css";
@@ -14,11 +14,26 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Clair | Nodal Control",
+  title: "Nodal Control",
   description: "Communication solutions for the modern world",
   icons: {
     icon: "/favicon.png",
+    apple: "/favicon.png", // iOS uses this when "Add to Home Screen"
   },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "Nodal",
+    statusBarStyle: "black-translucent",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#202020",
 };
 
 export default function RootLayout({
@@ -32,9 +47,6 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full bg-[#202020] antialiased`}
       suppressHydrationWarning
     >
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-      </head>
       <body className="h-full" suppressHydrationWarning>
         <NoZoom />
         {children}
