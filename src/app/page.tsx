@@ -6,6 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { AppShell } from '@/components/app-shell'
 import { ScrollToTop } from '@/components/scroll-to-top'
+import { StepCarousel } from '@/components/step-carousel'
 import { PageLayout } from '@/components/page-layout'
 import { EmptyState } from '@/components/empty-state'
 import { ProjectDashboard, DashboardHeaderAction } from './project-dashboard'
@@ -176,7 +177,12 @@ function LandingPage() {
         <div className="mx-auto max-w-5xl">
           <p className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-gray-500">How it works</p>
           <h2 className="mb-10 text-center text-2xl font-bold sm:text-3xl">For Users</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Mobile: swipeable carousel */}
+          <div className="sm:hidden">
+            <StepCarousel steps={USER_STEPS} />
+          </div>
+          {/* Desktop: grid */}
+          <div className="hidden gap-4 sm:grid sm:grid-cols-2 lg:grid-cols-4">
             {USER_STEPS.map((step) => (
               <StepCard key={step.num} step={step} />
             ))}
@@ -189,7 +195,12 @@ function LandingPage() {
         <div className="mx-auto max-w-5xl">
           <p className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-gray-500">How it works</p>
           <h2 className="mb-10 text-center text-2xl font-bold sm:text-3xl">For Managers</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Mobile: swipeable carousel */}
+          <div className="sm:hidden">
+            <StepCarousel steps={MANAGER_STEPS} />
+          </div>
+          {/* Desktop: grid */}
+          <div className="hidden gap-4 sm:grid sm:grid-cols-2 lg:grid-cols-4">
             {MANAGER_STEPS.map((step) => (
               <StepCard key={step.num} step={step} />
             ))}
@@ -310,7 +321,7 @@ export default async function HomePage({
   }
 
   // Fetch just the slice of data the dashboard needs.
-  const [project, equipment, memberCount] = await Promise.all([
+  const [project, equipment, memberCount, headsetInventory, selectedMembership] = await Promise.all([
     prisma.project.findUnique({
       where: { id: selectedProjectId },
       select: { id: true, name: true },
@@ -327,7 +338,18 @@ export default async function HomePage({
       },
     }),
     prisma.projectMember.count({ where: { projectId: selectedProjectId } }),
+    prisma.projectHeadsetInventory.findMany({
+      where: { projectId: selectedProjectId },
+      select: { headsetType: true, brought: true },
+    }),
+    prisma.projectMember.findFirst({
+      where: { projectId: selectedProjectId, userId: session.user.id },
+      select: { role: true },
+    }),
   ])
+
+  // Headset inventory editing is restricted to admins only.
+  const canEditInventory = isAdmin || selectedMembership?.role === 'admin'
 
   if (!project) {
     // Shouldn't happen since selectedProjectId came from session, but bail safely.
@@ -355,7 +377,12 @@ export default async function HomePage({
           />
         }
       >
-        <ProjectDashboard equipment={equipment} />
+        <ProjectDashboard
+          projectId={project.id}
+          equipment={equipment}
+          headsetInventory={headsetInventory}
+          canEditInventory={canEditInventory}
+        />
       </PageLayout>
     </AppShell>
   )

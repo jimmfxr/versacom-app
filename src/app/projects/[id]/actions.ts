@@ -163,3 +163,72 @@ export async function deleteProject(projectId: number) {
   revalidatePath('/my-equipment')
   return { success: true }
 }
+
+const HEADSET_TYPES = new Set([
+  'LWHS 4', 'LWHS 5', 'PH 88', 'Shure Single', 'Shure Double',
+  'Pliant Single', 'Pliant Double', 'Max D2', 'DT 200', 'DT 280',
+  'DT 290', 'Dave Clark', 'Peltor', 'Dalcom',
+])
+
+/**
+ * Save the "brought to the show" inventory counts for headset types on a project.
+ * Manager-or-admin only. Pass the full set of types you want to persist;
+ * any type set to 0 (or omitted) is removed from the inventory table so the
+ * "no record" state reads as "not tracked yet".
+ */
+export async function setHeadsetInventory(
+  projectId: number,
+  inventory: Array<{ headsetType: string; brought: number }>,
+) {
+  const session = await getSession()
+  if (!session) return { error: 'Not authenticated' }
+
+  // Authorization: admin only — globally or on this project.
+  const membership = await prisma.projectMember.findFirst({
+    where: { projectId, userId: session.user.id },
+    select: { role: true },
+  })
+  const globalAdmin = await prisma.projectMember.findFirst({
+    where: { userId: session.user.id, role: 'admin' },
+    select: { id: true },
+  })
+  const canEdit = !!globalAdmin || membership?.role === 'admin'
+  if (!canEdit) return { error: 'Not authorized to edit inventory on this project' }
+
+  // Validate input
+  for (const row of inventory) {
+    if (!HEADSET_TYPES.has(row.headsetType)) {
+      return { error: `Unknown headset type: ${row.headsetType}` }
+    }
+    if (!Number.isInteger(row.brought) || row.brought < 0 || row.brought > 9999) {
+      return { error: `Invalid count for ${row.headsetType}` }
+    }
+  }
+
+  // Upsert non-zero rows, delete zero rows in a single transaction.
+  const toUpsert = inventory.filter((r) => r.brought > 0)
+  const toDelete = inventory.filter((r) => r.brought === 0).map((r) => r.headsetType)
+
+  await prisma.$transaction([
+    ...toUpsert.map((r) =>
+      prisma.projectHeadsetInventory.upsert({
+        where: {
+          projectId_headsetType: { projectId, headsetType: r.headsetType },
+        },
+        update: { brought: r.brought },
+        create: { projectId, headsetType: r.headsetType, brought: r.brought },
+      }),
+    ),
+    ...(toDelete.length > 0
+      ? [
+          prisma.projectHeadsetInventory.deleteMany({
+            where: { projectId, headsetType: { in: toDelete } },
+          }),
+        ]
+      : []),
+  ])
+
+  revalidatePath('/')
+  revalidatePath(`/projects/${projectId}`)
+  return { success: true }
+}

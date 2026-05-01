@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { HeadsetInventoryEditor } from '@/components/headset-inventory-editor'
+import { SwipeCarousel } from '@/components/swipe-carousel'
 
 /* ─── Types ─── */
 
@@ -16,8 +18,13 @@ type EquipmentForDashboard = {
 
 type UserProject = { id: number; name: string }
 
+type HeadsetInventoryRow = { headsetType: string; brought: number }
+
 type ProjectDashboardProps = {
+  projectId: number
   equipment: EquipmentForDashboard[]
+  headsetInventory: HeadsetInventoryRow[]
+  canEditInventory: boolean
 }
 
 type DashboardHeaderActionProps = {
@@ -188,7 +195,17 @@ export function ProjectSwitcher({
 
 /* ─── Bar chart row ─── */
 
-function BarRow({ label, count, total }: { label: string; count: number; total: number }) {
+function BarRow({
+  label,
+  count,
+  total,
+  tagOverride,
+}: {
+  label: string
+  count: number
+  total: number
+  tagOverride?: string
+}) {
   const pct = total > 0 ? (count / total) * 100 : 0
   return (
     <div className="mb-3 grid grid-cols-[110px_1fr_auto] items-center gap-3 last:mb-0 sm:grid-cols-[120px_1fr_auto] sm:gap-3.5">
@@ -198,7 +215,13 @@ function BarRow({ label, count, total }: { label: string; count: number; total: 
         <div className="h-full bg-white/[0.12]" style={{ width: `${100 - pct}%` }} />
       </div>
       <div className="min-w-[60px] text-right font-mono text-[10px] tabular-nums text-gray-400 sm:min-w-[80px] sm:text-[11px]">
-        <span className="font-semibold text-white">{count}</span> / {total}
+        {tagOverride ? (
+          <span className="font-semibold text-white">{tagOverride}</span>
+        ) : (
+          <>
+            <span className="font-semibold text-white">{count}</span> / {total}
+          </>
+        )}
       </div>
     </div>
   )
@@ -206,7 +229,7 @@ function BarRow({ label, count, total }: { label: string; count: number; total: 
 
 function GroupLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mb-2 mt-3.5 border-b border-white/[0.05] pb-1 text-[9px] font-bold uppercase tracking-wider text-gray-500 first:mt-0">
+    <div className="mb-3 border-b border-white/[0.05] pb-1.5 text-[9px] font-bold uppercase tracking-wider text-gray-500">
       {children}
     </div>
   )
@@ -220,7 +243,7 @@ function CardHeader({ title, subtitle, tag }: { title: string; subtitle?: string
   return (
     <div className="mb-4 flex items-start justify-between">
       <div>
-        <div className="text-[13px] font-semibold text-gray-200">{title}</div>
+        <div className="text-base font-semibold text-white">{title}</div>
         {subtitle && <div className="mt-0.5 text-[11px] text-gray-500">{subtitle}</div>}
       </div>
       {tag && (
@@ -241,6 +264,36 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 }
 
 /* ─── Status hero card (Done / Returned) ─── */
+
+function StatusStat({
+  dotClass,
+  pctClass,
+  label,
+  count,
+  total,
+}: {
+  dotClass: string
+  pctClass: string
+  label: string
+  count: number
+  total: number
+}) {
+  const pct = total > 0 ? Math.round((count / total) * 100) : 0
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center gap-1.5">
+        <span className={`size-2 shrink-0 rounded-full ${dotClass}`} />
+        <span className="truncate font-semibold uppercase tracking-wider text-gray-400 text-[10px]">
+          {label}
+        </span>
+      </div>
+      <div className="mt-0.5 text-sm font-semibold tabular-nums text-white">
+        {count} <span className="text-gray-500">/ {total}</span>
+      </div>
+      <div className={`text-[11px] font-semibold tabular-nums ${pctClass}`}>{pct}%</div>
+    </div>
+  )
+}
 
 function StatusHero({
   count,
@@ -286,20 +339,67 @@ function StatusHero({
 
 /* ─── Main component ─── */
 
-export function ProjectDashboard({ equipment }: ProjectDashboardProps) {
-  /* Status counts — "Done" tracks actively deployed gear only */
-  const doneEligible = equipment.filter((e) => {
+export function ProjectDashboard({ projectId, equipment, headsetInventory, canEditInventory }: ProjectDashboardProps) {
+  const [editingInventory, setEditingInventory] = useState(false)
+  const editorMobileRef = useRef<HTMLDivElement>(null)
+  const editorDesktopRef = useRef<HTMLDivElement>(null)
+  const savedScrollY = useRef<number | null>(null)
+
+  // When entering edit mode, remember where we were and scroll the editor into
+  // view. The headsets card is rendered twice (mobile carousel + desktop grid);
+  // we measure whichever copy is currently visible, then scroll the page so the
+  // editor's bottom (Save/Cancel buttons) lands in view. On exit, restore.
+  useEffect(() => {
+    if (editingInventory) {
+      savedScrollY.current = window.scrollY
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // Pick whichever copy actually has dimensions (the visible one).
+          const candidates = [editorDesktopRef.current, editorMobileRef.current]
+          const editor = candidates.find((el) => el && el.getBoundingClientRect().height > 0)
+          if (!editor) return
+          const rect = editor.getBoundingClientRect()
+          const editorBottom = rect.bottom + window.scrollY
+          const viewportBottom = window.scrollY + window.innerHeight
+          if (editorBottom > viewportBottom) {
+            window.scrollTo({
+              top: editorBottom - window.innerHeight + 24,
+              behavior: 'smooth',
+            })
+          }
+        })
+      })
+    } else if (savedScrollY.current != null) {
+      window.scrollTo({ top: savedScrollY.current, behavior: 'smooth' })
+      savedScrollY.current = null
+    }
+  }, [editingInventory])
+  /* Deployment status — gear that's actually expected to deploy */
+  const deployEligible = equipment.filter((e) => {
     if (e.category === 'wireless_bp') return false // wireless excluded
     if (e.deployStatus === 'not-needed') return false // inventory only, not deployment
+    if (e.deployStatus === 'damaged') return false // damaged is its own state
     if (ASSIGNABLE_CATEGORIES.includes(e.category) && !e.assignedToId) return false // unassigned panels/hardwire
     if (['switches', 'antennas'].includes(e.category) && (!e.location || !e.location.trim())) return false // switches/antennas without a location
     return true
   })
-  const doneTotal = doneEligible.length
-  const doneCount = doneEligible.filter((e) => e.deployStatus === 'done').length
+  const deployTotal = deployEligible.length
+  const deployedCount = deployEligible.filter((e) => e.deployStatus === 'deployed').length
+  const doneCount = deployEligible.filter((e) => e.deployStatus === 'done').length
+  const returnedCount = deployEligible.filter((e) => e.deployStatus === 'returned').length
+  const donePct = deployTotal > 0 ? Math.round((doneCount / deployTotal) * 100) : 0
+  const deployedPct = deployTotal > 0 ? Math.round((deployedCount / deployTotal) * 100) : 0
+  const returnedPct = deployTotal > 0 ? Math.round((returnedCount / deployTotal) * 100) : 0
 
-  const returnedTotal = equipment.length
-  const returnedCount = equipment.filter((e) => e.deployStatus === 'returned').length
+  // Headline = whichever stage currently leads. Ties break: done > deployed > returned (most actionable).
+  const headlineStat = (() => {
+    const stats = [
+      { key: 'done', pct: donePct, label: 'Done', color: 'text-green-400' },
+      { key: 'deployed', pct: deployedPct, label: 'Deployed', color: 'text-yellow-400' },
+      { key: 'returned', pct: returnedPct, label: 'Returned', color: 'text-blue-400' },
+    ]
+    return stats.reduce((best, s) => (s.pct > best.pct ? s : best), stats[0])
+  })()
 
   /* Assignment by hardware type */
   const assignmentGroups = ASSIGNABLE_CATEGORIES.map((cat) => ({
@@ -331,123 +431,240 @@ export function ProjectDashboard({ equipment }: ProjectDashboardProps) {
     0,
   )
 
-  /* Headsets — pulled from headsetType field on beltpacks/panels */
-  const headsetRows = (() => {
-    const byType = new Map<string, { count: number; total: number }>()
+  /* Headsets — derived demand (needed + assigned), merged with packed inventory (brought)
+     If an admin hasn't explicitly recorded inventory for a type, we assume the
+     packed count equals the needed count (you wouldn't assign equipment to a
+     beltpack without packing its headset). The admin only edits to record
+     spares or shortages on top. */
+  const headsetMap = (() => {
+    const m = new Map<string, { needed: number; assigned: number; brought: number; tracked: boolean }>()
     for (const e of equipment) {
       if (!e.headsetType || !e.headsetType.trim()) continue
       const key = e.headsetType.trim()
-      const cur = byType.get(key) ?? { count: 0, total: 0 }
-      cur.total += 1
-      if (e.assignedToId != null) cur.count += 1
-      byType.set(key, cur)
+      const cur = m.get(key) ?? { needed: 0, assigned: 0, brought: 0, tracked: false }
+      cur.needed += 1
+      if (e.assignedToId != null) cur.assigned += 1
+      m.set(key, cur)
     }
-    return Array.from(byType.entries())
-      .map(([type, { count, total }]) => ({ type, count, total }))
-      .sort((a, b) => b.total - a.total)
+    for (const inv of headsetInventory) {
+      const cur = m.get(inv.headsetType) ?? { needed: 0, assigned: 0, brought: 0, tracked: false }
+      cur.brought = inv.brought
+      cur.tracked = true
+      m.set(inv.headsetType, cur)
+    }
+    // Resolve "effective brought" — implicit = needed when not tracked.
+    const rows = Array.from(m.entries()).map(([type, v]) => {
+      const effectiveBrought = v.tracked ? v.brought : v.needed
+      return { type, needed: v.needed, assigned: v.assigned, brought: effectiveBrought, tracked: v.tracked }
+    })
+    return rows
   })()
-  const headsetsCount = headsetRows.reduce((s, r) => s + r.count, 0)
-  const headsetsTotal = headsetRows.reduce((s, r) => s + r.total, 0)
+  const headsetRows = headsetMap.sort((a, b) => Math.max(b.brought, b.needed) - Math.max(a.brought, a.needed))
+
+  const headsetNeededByType: Record<string, number> = {}
+  for (const r of headsetRows) headsetNeededByType[r.type] = r.needed
+
+  const headsetsAssigned = headsetRows.reduce((s, r) => s + r.assigned, 0)
+  // r.brought already includes the implicit "packed = needed" fallback when not tracked.
+  const headsetsBrought = headsetRows.reduce((s, r) => s + r.brought, 0)
+  const headsetsNeeded = headsetRows.reduce((s, r) => s + r.needed, 0)
 
   return (
     <div className="space-y-5">
-      {/* Status hero row */}
+      {/* Deployment status — single combined card */}
       <div>
         <SectionHeader>Deployment status</SectionHeader>
-        <div className="grid grid-cols-2 gap-3 sm:gap-4">
-          <StatusHero
-            count={doneCount}
-            total={doneTotal}
-            label="Done"
-            sublabel={`${doneTotal - doneCount} still to go`}
-            color="cyan"
-            detail={`${doneCount} of ${doneTotal} items`}
-          />
-          <StatusHero
-            count={returnedCount}
-            total={returnedTotal}
-            label="Returned"
-            sublabel={`${returnedTotal - returnedCount} remaining`}
-            color="purple"
-            detail={`${returnedCount} of ${returnedTotal} items`}
-          />
+        <div className="rounded-2xl bg-[#2a2a2a] p-4 sm:p-5 sm:px-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+            {/* Headline % — the stage currently leading */}
+            <div className="flex items-baseline gap-2 sm:block">
+              <div className={`text-[36px] font-bold leading-none tabular-nums sm:text-[42px] ${headlineStat.color}`}>
+                {headlineStat.pct}%
+              </div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                {headlineStat.label}
+              </div>
+            </div>
+
+            {/* Stacked-segment lifecycle bar */}
+            <div className="min-w-0 flex-1">
+              <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+                <div
+                  className="h-full bg-yellow-400"
+                  style={{ width: `${deployedPct}%` }}
+                  title={`${deployedCount} deployed`}
+                />
+                <div
+                  className="h-full bg-green-400"
+                  style={{ width: `${donePct}%` }}
+                  title={`${doneCount} done`}
+                />
+                <div
+                  className="h-full bg-blue-400"
+                  style={{ width: `${returnedPct}%` }}
+                  title={`${returnedCount} returned`}
+                />
+              </div>
+
+              {/* Mini stats row */}
+              <div className="mt-3 grid grid-cols-3 gap-2 text-[11px] sm:text-xs">
+                <StatusStat dotClass="bg-yellow-400" pctClass="text-yellow-400" label="Deployed" count={deployedCount} total={deployTotal} />
+                <StatusStat dotClass="bg-green-400" pctClass="text-green-400" label="Done" count={doneCount} total={deployTotal} />
+                <StatusStat dotClass="bg-blue-400" pctClass="text-blue-400" label="Returned" count={returnedCount} total={deployTotal} />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Distribution: 2-col grid */}
+      {/* Distribution + Headsets — three cards: carousel on mobile, 3-col grid on desktop */}
       <div>
         <SectionHeader>Distribution</SectionHeader>
-        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 sm:gap-4">
-          {/* Assignment by hardware type */}
-          <div className="rounded-2xl bg-[#2a2a2a] p-4 sm:p-5">
-            <CardHeader
-              title="Assigned to a user"
-              subtitle="Who has what, by model"
-              tag={`${assignmentCount} / ${assignmentTotal}`}
-            />
-            {assignmentTotal === 0 ? (
-              <EmptyRow>No assignable equipment yet</EmptyRow>
-            ) : (
-              assignmentGroups.map((g) => (
-                <div key={g.cat}>
-                  <GroupLabel>{g.label}</GroupLabel>
-                  {g.rows.length === 0 ? (
-                    <EmptyRow>No {g.label.toLowerCase()} in this project</EmptyRow>
-                  ) : (
-                    g.rows.map((r) => (
-                      <BarRow key={r.type} label={r.type} count={r.count} total={r.total} />
-                    ))
+        {(() => {
+          const cardClass =
+            'flex h-full flex-col rounded-2xl bg-[#2a2a2a] p-4 sm:p-5'
+
+          const assignmentCard = (
+            <div className={cardClass}>
+              <CardHeader
+                title="Assigned to a user"
+                tag={`${assignmentCount} / ${assignmentTotal}`}
+              />
+              {assignmentTotal === 0 ? (
+                <EmptyRow>No assignable equipment yet</EmptyRow>
+              ) : (
+                assignmentGroups.map((g) => (
+                  <div key={g.cat} className="mt-6 first:mt-0">
+                    <GroupLabel>{g.label}</GroupLabel>
+                    {g.rows.length === 0 ? (
+                      <EmptyRow>No {g.label.toLowerCase()} in this project</EmptyRow>
+                    ) : (
+                      g.rows.map((r) => (
+                        <BarRow key={r.type} label={r.type} count={r.count} total={r.total} />
+                      ))
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          )
+
+          const utilizationCard = (
+            <div className={cardClass}>
+              <CardHeader
+                title="In use on the show"
+                tag={`${utilizationCount} / ${utilizationTotal}`}
+              />
+              {utilizationTotal === 0 ? (
+                <EmptyRow>No infrastructure equipment yet</EmptyRow>
+              ) : (
+                utilizationGroups.map((g) => (
+                  <div key={g.cat} className="mt-6 first:mt-0">
+                    <GroupLabel>{g.label}</GroupLabel>
+                    {g.rows.length === 0 ? (
+                      <EmptyRow>No {g.label.toLowerCase()} equipment in this project</EmptyRow>
+                    ) : (
+                      g.rows.map((r) => (
+                        <BarRow key={r.type} label={r.type} count={r.count} total={r.total} />
+                      ))
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          )
+
+          const headsetsDisplay = (
+            <>
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-base font-semibold text-white">Headsets assigned</div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  {headsetsBrought > 0 && (
+                    <span className="rounded-full bg-white/[0.06] px-2.5 py-1 text-xs font-semibold text-white">
+                      {headsetsAssigned} / {headsetsBrought}
+                    </span>
+                  )}
+                  {canEditInventory && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingInventory(true)}
+                      className="rounded-md bg-[#0178a3] px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-[#019bc7]"
+                    >
+                      {headsetsBrought > 0 ? 'Edit' : 'Manage'}
+                    </button>
                   )}
                 </div>
-              ))
-            )}
-          </div>
+              </div>
+              {headsetRows.length === 0 ? (
+                <EmptyRow>
+                  {canEditInventory
+                    ? 'No headsets tracked yet. Tap "Manage" to record what you packed.'
+                    : 'No headsets assigned to any equipment in this project'}
+                </EmptyRow>
+              ) : (
+                headsetRows.map((r) => (
+                  <BarRow
+                    key={r.type}
+                    label={r.type}
+                    count={r.assigned}
+                    total={Math.max(r.brought, 1)}
+                    tagOverride={`${r.assigned} / ${r.brought}`}
+                  />
+                ))
+              )}
+            </>
+          )
 
-          {/* Infrastructure utilization */}
-          <div className="rounded-2xl bg-[#2a2a2a] p-4 sm:p-5">
-            <CardHeader
-              title="In use on the show"
-              subtitle="Items with a location set, by model"
-              tag={`${utilizationCount} / ${utilizationTotal}`}
-            />
-            {utilizationTotal === 0 ? (
-              <EmptyRow>No infrastructure equipment yet</EmptyRow>
-            ) : (
-              utilizationGroups.map((g) => (
-                <div key={g.cat}>
-                  <GroupLabel>{g.label}</GroupLabel>
-                  {g.rows.length === 0 ? (
-                    <EmptyRow>No {g.label.toLowerCase()} equipment in this project</EmptyRow>
-                  ) : (
-                    g.rows.map((r) => (
-                      <BarRow key={r.type} label={r.type} count={r.count} total={r.total} />
-                    ))
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+          // Build the headsets card. Same JSX, but attaches a different editor
+          // ref depending on which copy this is (mobile carousel vs desktop grid)
+          // so the auto-scroll effect can find the visible one.
+          const buildHeadsetsCard = (editorRef: React.RefObject<HTMLDivElement | null>) => (
+            <div className={`${cardClass} relative`}>
+              {editingInventory && canEditInventory ? (
+                <>
+                  {/* Display "ghost" — invisible on desktop, hidden on mobile */}
+                  <div className="invisible hidden sm:block" aria-hidden="true">
+                    {headsetsDisplay}
+                  </div>
+                  {/* Editor: inline on mobile, absolute overlay on desktop */}
+                  <div ref={editorRef} className="sm:absolute sm:inset-x-0 sm:top-0 sm:z-10 sm:min-h-full sm:rounded-2xl sm:bg-[#2a2a2a] sm:p-5 sm:shadow-2xl sm:shadow-black/50">
+                    <HeadsetInventoryEditor
+                      projectId={projectId}
+                      initial={headsetInventory}
+                      needed={headsetNeededByType}
+                      onDone={() => setEditingInventory(false)}
+                    />
+                  </div>
+                </>
+              ) : (
+                headsetsDisplay
+              )}
+            </div>
+          )
+
+          return (
+            <>
+              {/* Mobile: swipeable carousel */}
+              <SwipeCarousel>
+                {assignmentCard}
+                {utilizationCard}
+                {buildHeadsetsCard(editorMobileRef)}
+              </SwipeCarousel>
+              {/* Desktop: 3-column grid, all cards equal height. The headsets
+                  editor renders absolutely so it can grow downward beyond the
+                  row without stretching the other two cards. */}
+              <div className="hidden items-stretch gap-4 sm:grid sm:grid-cols-3">
+                {assignmentCard}
+                {utilizationCard}
+                {buildHeadsetsCard(editorDesktopRef)}
+              </div>
+            </>
+          )
+        })()}
       </div>
 
-      {/* Headsets — separate full-width card */}
-      <div>
-        <SectionHeader>Headsets</SectionHeader>
-        <div className="rounded-2xl bg-[#2a2a2a] p-4 sm:p-5">
-          <CardHeader
-            title="Headsets assigned"
-            subtitle="Counted from the headset chosen on each beltpack"
-            tag={headsetsTotal > 0 ? `${headsetsCount} / ${headsetsTotal}` : undefined}
-          />
-          {headsetRows.length === 0 ? (
-            <EmptyRow>No headsets assigned to any equipment in this project</EmptyRow>
-          ) : (
-            headsetRows.map((r) => (
-              <BarRow key={r.type} label={r.type} count={r.count} total={r.total} />
-            ))
-          )}
-        </div>
-      </div>
     </div>
   )
 }

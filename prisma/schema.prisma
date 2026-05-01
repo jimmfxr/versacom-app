@@ -48,6 +48,20 @@ model Project {
   accessRequests AccessRequest[]
   equipment      Equipment[]
   rackTemplates  RackTemplate[]
+  headsetInventory ProjectHeadsetInventory[]
+}
+
+model ProjectHeadsetInventory {
+  id          Int     @id @default(autoincrement())
+  projectId   Int
+  headsetType String
+  brought     Int     @default(0)
+  updatedAt   DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, headsetType])
+  @@index([projectId])
 }
 
 model ProjectMember {
