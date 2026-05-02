@@ -243,7 +243,7 @@ function BarRow({
         <div className="h-full bg-yellow-400" style={{ width: `${deployedPct}%` }} />
         <div className="h-full bg-green-400" style={{ width: `${donePct}%` }} />
         <div className="h-full bg-blue-400" style={{ width: `${returnedPct}%` }} />
-        <div className="h-full bg-[#22a7d3]" style={{ width: `${otherPct}%` }} />
+        <div className="h-full bg-white/[0.18]" style={{ width: `${otherPct}%` }} />
       </div>
       <div className="min-w-[60px] text-right font-mono text-[10px] tabular-nums text-gray-400 sm:min-w-[80px] sm:text-[11px]">
         {tagOverride ? (

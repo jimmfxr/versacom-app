@@ -20,6 +20,10 @@ function getNavigation(pathname: string, isAdmin: boolean, isUserOnly: boolean, 
   items.push({ name: 'Dashboard', href: '/', current: pathname === '/' })
   if (isAdmin) {
     items.push({ name: 'Tasks', href: '/admin', current: pathname.startsWith('/admin'), badge: taskCount })
+  } else if (showMyEquipment) {
+    // Crew get a different "Tasks" page focused on deployment work, with the
+    // same kind of count badge admins get.
+    items.push({ name: 'Tasks', href: '/tasks', current: pathname.startsWith('/tasks'), badge: taskCount })
   }
   const projectsHref = lastProjectId ? `/projects/${lastProjectId}` : '/projects'
   items.push({ name: 'Projects', href: projectsHref, current: pathname.startsWith('/projects') })
@@ -59,7 +63,8 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
   useEffect(() => {
     if (typeof window === 'undefined') return
     try {
-      const cached = sessionStorage.getItem('task-count-cache')
+      const key = isAdmin ? 'task-count-cache' : 'crew-task-count-cache'
+      const cached = sessionStorage.getItem(key)
       if (cached) {
         const n = Number(cached)
         if (!Number.isNaN(n)) setTaskCount(n)
@@ -67,20 +72,26 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
     } catch {
       // sessionStorage may be unavailable; ignore.
     }
-  }, [])
+  }, [isAdmin])
 
   useEffect(() => {
-    if (!isAdmin) return
+    // Admins poll their /admin task list; crew (non-admin with crew role)
+    // poll the deployment task list at /tasks. Same UI badge, different
+    // source endpoint.
+    const isCrew = !isAdmin && showMyEquipment
+    if (!isAdmin && !isCrew) return
+    const endpoint = isAdmin ? '/api/admin/task-count' : '/api/tasks/count'
+    const cacheKey = isAdmin ? 'task-count-cache' : 'crew-task-count-cache'
     let cancelled = false
     async function fetchCount() {
       try {
-        const res = await fetch('/api/admin/task-count', { cache: 'no-store' })
+        const res = await fetch(endpoint, { cache: 'no-store' })
         if (!res.ok) return
         const data = (await res.json()) as { count: number }
         if (cancelled) return
         setTaskCount(data.count)
         try {
-          sessionStorage.setItem('task-count-cache', String(data.count))
+          sessionStorage.setItem(cacheKey, String(data.count))
         } catch {
           // sessionStorage may be unavailable; ignore.
         }
@@ -94,7 +105,7 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
       cancelled = true
       clearInterval(timer)
     }
-  }, [isAdmin])
+  }, [isAdmin, showMyEquipment])
 
   async function handleSignOut() {
     await fetch('/api/auth/logout', { method: 'POST' })
