@@ -112,7 +112,7 @@ export async function bulkCreateEquipment(
   for (const e of allExisting) existingNames.add(e.name)
 
   // Auto-assign default headset for panels, wireless BP, and hardwire BP
-  const LWHS_5_TYPES = ['KP-5032', 'KP32', 'ST-374', 'ST370']
+  const LWHS_5_TYPES = ['KP-5032', 'KP32', 'ST-374', 'ST370', 'DBP5']
   const HEADSET_CATEGORIES = ['panels', 'wireless_bp', 'hardwire_bp']
   let defaultHeadset: string | null = null
   if (HEADSET_CATEGORIES.includes(category)) {

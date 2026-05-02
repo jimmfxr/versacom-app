@@ -37,9 +37,9 @@ const CATEGORIES = [
 ] as const
 
 const HARDWARE_TYPES: Record<string, string[]> = {
-  panels: ['RSP-1232', 'RSP-1216', 'DSP-1216', 'KP-5032', 'KP32', 'RSP-2318', 'RSP-2312'],
-  wireless_bp: ['Bolero', 'Freespeak', 'Pliant'],
-  hardwire_bp: ['Helixnet', 'DBP', 'ST-374', 'ST370', 'C3', 'BP325'],
+  panels: ['RSP-1232', 'RSP-1216', 'DSP-1216', 'KP-5032', 'KP32', 'RSP-2318', 'DSP-2312', 'DKP-3016', 'KP-3016', 'DSPK4'],
+  wireless_bp: ['Bolero 1.9', 'Bolero 2.4', 'Freespeak', 'Pliant'],
+  hardwire_bp: ['Helixnet', 'DBP4', 'DBP5', 'ST-374', 'ST370', 'C3', 'BP325'],
   switches: ['26P+4F', '40P+4F', '16F', '9P+1F', 'Intellanet Old', 'Intellanet New', 'Media', 'Antaira', 'TP Link'],
   antennas: ['Bolero 1.9', 'Bolero 2.4', 'Pliant', 'Freespeak 1.9', 'Freespeak 2.4'],
   audio: ['NA2', 'A16r', 'Dark88'],
@@ -1005,7 +1005,16 @@ export function ProjectPage({
                                   value={(editEqData.hardwareType as string) || ''}
                                   placeholder="None"
                                   options={[{ value: '', label: 'None' }, ...(HARDWARE_TYPES[item.category] || []).map((ht) => ({ value: ht, label: ht }))]}
-                                  onChange={(v) => setEditEqData({ ...editEqData, hardwareType: v || null })}
+                                  onChange={(v) => {
+                                    // Auto-pick the matching headset for DBP4/DBP5 selections.
+                                    const autoHeadset =
+                                      v === 'DBP4' ? 'LWHS 4' : v === 'DBP5' ? 'LWHS 5' : null
+                                    setEditEqData({
+                                      ...editEqData,
+                                      hardwareType: v || null,
+                                      ...(autoHeadset ? { headsetType: autoHeadset } : {}),
+                                    })
+                                  }}
                                 />
                                 {hasField(item.category, 'headsetType') && (
                                   <SearchableSelect

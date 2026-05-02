@@ -125,9 +125,10 @@ type PickerItem = {
 
 const HARDWARE_KEY_COUNTS: Record<string, number> = {
   'RSP-1232': 32, 'RSP-1216': 16, 'DSP-1216': 16,
-  'KP-5032': 32, 'KP32': 32, 'RSP-2318': 18, 'RSP-2312': 12,
-  'Helixnet': 4, 'DBP': 4, 'ST-374': 4, 'ST370': 2,
-  'C3': 2, 'BP325': 2, 'Bolero': 6, 'Freespeak': 4, 'Pliant': 4,
+  'KP-5032': 32, 'KP32': 32, 'RSP-2318': 18, 'DSP-2312': 12,
+  'DKP-3016': 16, 'KP-3016': 16, 'DSPK4': 4,
+  'Helixnet': 4, 'DBP4': 4, 'DBP5': 4, 'ST-374': 4, 'ST370': 2,
+  'C3': 2, 'BP325': 2, 'Bolero 1.9': 6, 'Bolero 2.4': 6, 'Freespeak': 4, 'Pliant': 4,
 }
 
 /* ─── Block layout per hardware type ───
@@ -150,11 +151,19 @@ const BLOCK_LAYOUTS: Record<string, BlockLayout> = {
   'KP-5032':   { colsPerBlock: 8, rowsPerBlock: 1, blockCount: 4, panelRows: 2, blocksPerPanelRow: 2 },
   'KP32':      { colsPerBlock: 8, rowsPerBlock: 1, blockCount: 4, panelRows: 2, blocksPerPanelRow: 2 },
   'RSP-2318':  { colsPerBlock: 2, rowsPerBlock: 3, blockCount: 3, panelRows: 1, blocksPerPanelRow: 3 },
-  'RSP-2312':  { colsPerBlock: 2, rowsPerBlock: 3, blockCount: 2, panelRows: 1, blocksPerPanelRow: 2 },
-  'Bolero':    { colsPerBlock: 2, rowsPerBlock: 3, blockCount: 1, panelRows: 1, blocksPerPanelRow: 1 },
+  'DSP-2312':  { colsPerBlock: 2, rowsPerBlock: 3, blockCount: 2, panelRows: 1, blocksPerPanelRow: 2 },
+  // 16 keys laid out as 2 rows x 8 columns (single contiguous block).
+  'DKP-3016':  { colsPerBlock: 8, rowsPerBlock: 2, blockCount: 1, panelRows: 1, blocksPerPanelRow: 1 },
+  // 16 keys laid out as 2 sections of 8 in a single horizontal row.
+  'KP-3016':   { colsPerBlock: 8, rowsPerBlock: 1, blockCount: 2, panelRows: 1, blocksPerPanelRow: 2 },
+  // 4 keys laid out as 2 rows x 2 columns.
+  'DSPK4':     { colsPerBlock: 2, rowsPerBlock: 2, blockCount: 1, panelRows: 1, blocksPerPanelRow: 1 },
+  'Bolero 1.9': { colsPerBlock: 2, rowsPerBlock: 3, blockCount: 1, panelRows: 1, blocksPerPanelRow: 1 },
+  'Bolero 2.4': { colsPerBlock: 2, rowsPerBlock: 3, blockCount: 1, panelRows: 1, blocksPerPanelRow: 1 },
   'Freespeak': { colsPerBlock: 4, rowsPerBlock: 1, blockCount: 1, panelRows: 1, blocksPerPanelRow: 1 },
   'Pliant':    { colsPerBlock: 4, rowsPerBlock: 1, blockCount: 1, panelRows: 1, blocksPerPanelRow: 1 },
-  'DBP':       { colsPerBlock: 2, rowsPerBlock: 2, blockCount: 1, panelRows: 1, blocksPerPanelRow: 1 },
+  'DBP4':      { colsPerBlock: 2, rowsPerBlock: 2, blockCount: 1, panelRows: 1, blocksPerPanelRow: 1 },
+  'DBP5':      { colsPerBlock: 2, rowsPerBlock: 2, blockCount: 1, panelRows: 1, blocksPerPanelRow: 1 },
   'ST-374':    { colsPerBlock: 4, rowsPerBlock: 1, blockCount: 1, panelRows: 1, blocksPerPanelRow: 1 },
   'Helixnet':  { colsPerBlock: 4, rowsPerBlock: 1, blockCount: 1, panelRows: 1, blocksPerPanelRow: 1 },
   'ST370':     { colsPerBlock: 2, rowsPerBlock: 1, blockCount: 1, panelRows: 1, blocksPerPanelRow: 1 },

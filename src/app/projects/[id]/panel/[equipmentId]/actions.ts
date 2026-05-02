@@ -12,14 +12,19 @@ const HARDWARE_KEY_COUNTS: Record<string, number> = {
   'KP-5032': 32,
   'KP32': 32,
   'RSP-2318': 18,
-  'RSP-2312': 12,
+  'DSP-2312': 12,
+  'DKP-3016': 16,
+  'KP-3016': 16,
+  'DSPK4': 4,
   'Helixnet': 4,
-  'DBP': 4,
+  'DBP4': 4,
+  'DBP5': 4,
   'ST-374': 4,
   'ST370': 2,
   'C3': 2,
   'BP325': 2,
-  'Bolero': 6,
+  'Bolero 1.9': 6,
+  'Bolero 2.4': 6,
   'Freespeak': 4,
   'Pliant': 4,
 }
@@ -35,7 +40,8 @@ const EXPANSION_KEY_COUNTS: Record<string, number> = {
 
 /* ─── Devices that support shift pages (panels only) ─── */
 const SHIFT_PAGE_DEVICES = new Set([
-  'RSP-1232', 'RSP-1216', 'DSP-1216', 'KP-5032', 'KP32', 'RSP-2318', 'RSP-2312',
+  'RSP-1232', 'RSP-1216', 'DSP-1216', 'KP-5032', 'KP32', 'RSP-2318', 'DSP-2312',
+  'DKP-3016', 'KP-3016', 'DSPK4',
 ])
 
 async function getSession() {
