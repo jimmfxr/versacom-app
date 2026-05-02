@@ -18,6 +18,8 @@ import { Modal } from '@/components/modal'
 import { FormInput, FormSelect } from '@/components/form-field'
 import { SearchableSelect } from '@/components/searchable-select'
 import { ComboboxInput } from '@/components/combobox-input'
+import { FilterBar, Chip } from '@/components/filter-bar'
+import { LocationSummary } from '@/components/location-summary'
 import { updateProject, deleteProject } from './actions'
 import { bulkCreateEquipment, updateEquipment, deleteEquipment } from './distribution/actions'
 import { createMember, updateMember, deleteMember } from './team-actions'
@@ -266,6 +268,9 @@ export function ProjectPage({
   // project has been restored.
   const isArchived = project.status === 'archived'
   const canEditEquipment = !isArchived && (isProjectAdmin || isCrew)
+  // Add Equipment is a manager/admin power — crew can edit existing rows but
+  // shouldn't be adding new gear to the project from the field.
+  const canAddEquipment = !isArchived && isProjectAdmin
   const canEditTeam = !isArchived && (isProjectAdmin || isManager)
   const canEditPickList = !isArchived && (isProjectAdmin || isManager)
   const canChangeStatus = !isArchived && (isProjectAdmin || isCrew)
@@ -288,6 +293,9 @@ export function ProjectPage({
 
   // Equipment state
   const [eqSearch, setEqSearch] = useState('')
+  const [eqCategoryFilter, setEqCategoryFilter] = useState<string | null>(null)
+  const [eqLocationFilter, setEqLocationFilter] = useState<string | null>(null)
+  const [eqChipsExpanded, setEqChipsExpanded] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
   const [addEquipmentId, setAddEquipmentId] = useState('')
   const [addCategory, setAddCategory] = useState('panels')
@@ -299,6 +307,7 @@ export function ProjectPage({
 
   // Team state
   const [teamSearch, setTeamSearch] = useState('')
+  const [teamCategoryFilter, setTeamCategoryFilter] = useState<string | null>(null)
   const [showAddMember, setShowAddMember] = useState(false)
   const [showJoinQr, setShowJoinQr] = useState(false)
   // Crew users don't get the Add Member form but DO get a standalone QR
@@ -310,6 +319,7 @@ export function ProjectPage({
 
   // Pick list state
   const [plSearch, setPlSearch] = useState('')
+  const [plTypeFilter, setPlTypeFilter] = useState<string | null>(null)
   const [plSortAbc, setPlSortAbc] = useState(false)
   const [editingPlId, setEditingPlId] = useState<number | null>(null)
   const [editPlData, setEditPlData] = useState<{ code: string; name: string; type: string }>({ code: '', name: '', type: 'CONF' })
@@ -538,7 +548,34 @@ export function ProjectPage({
 
   /* ─── Filtered lists ─── */
 
+  // Distinct equipment locations for the location filter chip row. We include
+  // both the equipment's own location AND the assigned member's location, so
+  // panels/beltpacks (which usually have no location of their own) show up
+  // under the location of whoever they're assigned to.
+  // Defined BEFORE filteredEquipment because the filter callback uses it.
+  const memberLocationById = new Map<number, string>()
+  for (const m of project.members) {
+    if (m.location && m.location.trim()) memberLocationById.set(m.id, m.location.trim())
+  }
+  function effectiveLocation(e: EquipmentItem): string | null {
+    const own = e.location?.trim() || null
+    if (own) return own
+    if (e.assignedToId != null) {
+      return memberLocationById.get(e.assignedToId) ?? null
+    }
+    return null
+  }
+  const equipmentLocations = Array.from(
+    new Set(
+      equipment
+        .map((e) => effectiveLocation(e))
+        .filter((l): l is string => !!l),
+    ),
+  ).sort()
+
   const filteredEquipment = equipment.filter((e) => {
+    if (eqCategoryFilter && e.category !== eqCategoryFilter) return false
+    if (eqLocationFilter && effectiveLocation(e) !== eqLocationFilter) return false
     if (!eqSearch) return true
     const q = eqSearch.toLowerCase()
     return (
@@ -554,8 +591,23 @@ export function ProjectPage({
     )
   })
 
+  // Equipment categories the project actually uses (so chips don't include
+  // empty buckets the user has no gear in).
+  const usedEquipmentCategories = CATEGORIES.filter((c) =>
+    equipment.some((e) => e.category === c.value),
+  )
+
   const filteredMembers = project.members
     .filter((m) => {
+      if (teamCategoryFilter) {
+        // Show members who have at least one piece of gear in the chosen category.
+        const memberEqCategories = new Set(
+          equipment
+            .filter((e) => e.assignedToId === m.id)
+            .map((e) => e.category),
+        )
+        if (!memberEqCategories.has(teamCategoryFilter)) return false
+      }
       if (!teamSearch) return true
       const q = teamSearch.toLowerCase()
       // First-login status — same words that appear on the row.
@@ -595,6 +647,7 @@ export function ProjectPage({
     // they shouldn't clutter the pick list tab.
     .filter((p) => p.type !== 'PTP')
     .filter((p) => {
+      if (plTypeFilter && p.type !== plTypeFilter) return false
       if (!plSearch) return true
       const q = plSearch.toLowerCase()
       return (
@@ -728,15 +781,19 @@ export function ProjectPage({
               if (isCrew && myEqCount > 0) {
                 tabs.push({ key: 'my-equipment', label: 'My Equipment', count: myEqCount })
               }
-              tabs.push({ key: 'team', label: 'Team', count: project.members.length })
-              tabs.push({ key: 'picklist', label: 'Pick List', count: pickListItems.filter((p) => p.type !== 'PTP').length })
+              // Crew only see Equipment + My Equipment + Plots. Team and
+              // Pick List are admin/manager surfaces.
+              if (!isCrew) {
+                tabs.push({ key: 'team', label: 'Team', count: project.members.length })
+                tabs.push({ key: 'picklist', label: 'Pick List', count: pickListItems.filter((p) => p.type !== 'PTP').length })
+              }
               tabs.push({ key: 'stage-plots', label: 'Plots', count: mockPlots.length })
               return tabs
             })().map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`shrink-0 whitespace-nowrap rounded-md px-3 py-2 text-sm font-semibold transition-colors sm:flex-1 ${
+                className={`flex-1 whitespace-nowrap rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
                   activeTab === tab.key
                     ? 'bg-[#0178a3] text-white'
                     : 'text-gray-500 hover:text-gray-300'
@@ -762,11 +819,116 @@ export function ProjectPage({
                     className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
                   />
                 </div>
-                {canEditEquipment && !showAdd && <Button onClick={() => setShowAdd(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Equipment</span></Button>}
+                {canAddEquipment && !showAdd && <Button onClick={() => setShowAdd(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Equipment</span></Button>}
+                {!canAddEquipment && isCrew && !showTeamQr && <Button onClick={() => setShowTeamQr(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Show QR</span></Button>}
               </div>
 
+              {/* Filter chips (admin/manager only) — categories + locations
+                  share a single All button that resets both filters. Mobile
+                  uses a +N more overflow so the row never wraps. */}
+              {!isCrew && (usedEquipmentCategories.length > 0 || equipmentLocations.length > 0) && (() => {
+                type ChipDef = { key: string; label: string; active: boolean; onClick: () => void }
+                const chips: ChipDef[] = [
+                  ...usedEquipmentCategories.map((c) => ({
+                    key: `cat:${c.value}`,
+                    label: c.label,
+                    active: eqCategoryFilter === c.value,
+                    onClick: () => setEqCategoryFilter(eqCategoryFilter === c.value ? null : c.value),
+                  })),
+                  ...equipmentLocations.map((loc) => ({
+                    key: `loc:${loc}`,
+                    label: loc,
+                    active: eqLocationFilter === loc,
+                    onClick: () => setEqLocationFilter(eqLocationFilter === loc ? null : loc),
+                  })),
+                ]
+                const VISIBLE_MOBILE = 3
+                const VISIBLE_DESKTOP = 8
+
+                const renderRow = (limit: number) => {
+                  const overflow = chips.length > limit
+                  const visible = eqChipsExpanded ? chips : chips.slice(0, limit)
+                  return (
+                    <>
+                      <Chip
+                        active={!eqCategoryFilter && !eqLocationFilter}
+                        onClick={() => {
+                          setEqCategoryFilter(null)
+                          setEqLocationFilter(null)
+                        }}
+                      >
+                        All
+                      </Chip>
+                      {visible.map((c) => (
+                        <Chip key={c.key} active={c.active} onClick={c.onClick}>
+                          {c.label}
+                        </Chip>
+                      ))}
+                      {overflow && (
+                        <button
+                          type="button"
+                          onClick={() => setEqChipsExpanded((v) => !v)}
+                          className="rounded-md border border-white/[0.10] bg-[#2a2a2a] px-3 py-1.5 text-xs font-semibold text-gray-300 transition-colors hover:bg-[#313131]"
+                        >
+                          {eqChipsExpanded ? 'Show less' : `+${chips.length - limit} more`}
+                        </button>
+                      )}
+                    </>
+                  )
+                }
+
+                return (
+                  <div className="pb-3">
+                    {/* Mobile: stays on a single line — `+N more` handles
+                        anything that won't fit. Tap to expand and the chips
+                        wrap onto multiple rows. */}
+                    <div className={`gap-2 sm:hidden ${eqChipsExpanded ? 'flex flex-wrap' : 'flex flex-nowrap overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'}`}>
+                      {renderRow(VISIBLE_MOBILE)}
+                    </div>
+                    <div className="hidden flex-wrap gap-2 sm:flex">{renderRow(VISIBLE_DESKTOP)}</div>
+                  </div>
+                )
+              })()}
+
+              {/* Location summary — same card as the crew /tasks page */}
+              {!isCrew && eqLocationFilter && (
+                <LocationSummary
+                  location={eqLocationFilter}
+                  allGear={equipment.map((e) => ({
+                    id: e.id,
+                    name: e.name,
+                    category: e.category,
+                    hardwareType: e.hardwareType,
+                    headsetType: e.headsetType,
+                    effectiveLocation: effectiveLocation(e),
+                  }))}
+                />
+              )}
+
+              {/* Crew-only: standalone join-QR card on Equipment tab */}
+              {isCrew && showTeamQr && (
+                <Card>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-white">Join QR</h3>
+                    <IconButton onClick={() => setShowTeamQr(false)}><CloseIcon /></IconButton>
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500">Show this to crew during gear deployment. Scanning pre-fills the project PIN; existing users will sign in, new users will create their PIN.</p>
+                  {(() => {
+                    const joinUrl = `https://versacom-app.vercel.app/login/join?pin=${project.pin}`
+                    return (
+                      <div className="mt-4 flex flex-col items-center gap-3">
+                        <div className="rounded-xl bg-white p-3">
+                          <QRCodeSVG value={joinUrl} size={220} level="M" />
+                        </div>
+                        <span className="font-mono text-[11px] text-gray-400 break-all text-center">{joinUrl}</span>
+                      </div>
+                    )
+                  })()}
+                </Card>
+              )}
+
               {/* Bulk add form */}
-              {canEditEquipment && showAdd && (
+              {canAddEquipment && showAdd && (
                 <Card>
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-white">Add Equipment</h3>
@@ -1001,6 +1163,18 @@ export function ProjectPage({
                 {!canEditTeam && isCrew && !showTeamQr && <Button onClick={() => setShowTeamQr(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Show QR</span></Button>}
               </div>
 
+              {/* Filter chips: assignable equipment categories only — Team
+                  members never own infra gear (switches/antennas/audio). */}
+              {!isCrew && (
+                <FilterBar
+                  options={usedEquipmentCategories
+                    .filter((c) => c.assignable)
+                    .map((c) => ({ value: c.value, label: c.label }))}
+                  selected={teamCategoryFilter}
+                  onSelect={setTeamCategoryFilter}
+                />
+              )}
+
               {/* Crew-only: standalone join-QR card */}
               {isCrew && showTeamQr && (
                 <Card>
@@ -1176,6 +1350,13 @@ export function ProjectPage({
                 <Button variant={plSortAbc ? 'primary' : 'secondary'} onClick={() => setPlSortAbc(!plSortAbc)}>A–Z</Button>
                 {canEditPickList && !showAddPl && <Button onClick={() => setShowAddPl(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Function</span></Button>}
               </div>
+
+              {/* Filter chips: function types */}
+              <FilterBar
+                options={FUNCTION_TYPES.map((t) => ({ value: t, label: FUNCTION_TYPE_LABELS[t] || t }))}
+                selected={plTypeFilter}
+                onSelect={setPlTypeFilter}
+              />
 
               {/* Add function form */}
               {canEditPickList && showAddPl && (
