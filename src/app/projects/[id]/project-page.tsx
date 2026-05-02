@@ -178,7 +178,7 @@ function hasField(category: string, field: string) {
   const hardwireFields = ['location', 'headsetType', 'ipAddress']
   const switchFields = ['location', 'ipAddress', 'patch']
   const antennaFields = ['location', 'ipAddress']
-  const audioFields = ['location', 'ipAddress']
+  const audioFields = ['location']
   if (category === 'panels') return panelFields.includes(field)
   if (category === 'wireless_bp') return wirelessFields.includes(field)
   if (category === 'hardwire_bp') return hardwireFields.includes(field)
