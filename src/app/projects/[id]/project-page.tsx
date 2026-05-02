@@ -827,16 +827,18 @@ export function ProjectPage({
                   share a single All button that resets both filters. Mobile
                   uses a +N more overflow so the row never wraps. */}
               {!isCrew && (usedEquipmentCategories.length > 0 || equipmentLocations.length > 0) && (() => {
-                type ChipDef = { key: string; label: string; active: boolean; onClick: () => void }
+                type ChipDef = { key: string; kind: 'cat' | 'loc'; label: string; active: boolean; onClick: () => void }
                 const chips: ChipDef[] = [
-                  ...usedEquipmentCategories.map((c) => ({
+                  ...usedEquipmentCategories.map((c): ChipDef => ({
                     key: `cat:${c.value}`,
+                    kind: 'cat',
                     label: c.label,
                     active: eqCategoryFilter === c.value,
                     onClick: () => setEqCategoryFilter(eqCategoryFilter === c.value ? null : c.value),
                   })),
-                  ...equipmentLocations.map((loc) => ({
+                  ...equipmentLocations.map((loc): ChipDef => ({
                     key: `loc:${loc}`,
+                    kind: 'loc',
                     label: loc,
                     active: eqLocationFilter === loc,
                     onClick: () => setEqLocationFilter(eqLocationFilter === loc ? null : loc),
@@ -859,11 +861,20 @@ export function ProjectPage({
                       >
                         All
                       </Chip>
-                      {visible.map((c) => (
-                        <Chip key={c.key} active={c.active} onClick={c.onClick}>
-                          {c.label}
-                        </Chip>
-                      ))}
+                      {visible.map((c, i) => {
+                        const prev = visible[i - 1]
+                        const showDivider = prev && prev.kind === 'cat' && c.kind === 'loc'
+                        return (
+                          <span key={c.key} className="contents">
+                            {showDivider && (
+                              <span aria-hidden className="flex shrink-0 items-center text-gray-600">·</span>
+                            )}
+                            <Chip active={c.active} onClick={c.onClick}>
+                              {c.label}
+                            </Chip>
+                          </span>
+                        )
+                      })}
                       {overflow && (
                         <button
                           type="button"
