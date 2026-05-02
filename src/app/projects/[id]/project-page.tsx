@@ -870,11 +870,13 @@ export function ProjectPage({
                   })),
                 ]
                 const VISIBLE_MOBILE = 3
-                const VISIBLE_DESKTOP = 8
 
-                const renderRow = (limit: number) => {
-                  const overflow = chips.length > limit
-                  const visible = eqChipsExpanded ? chips : chips.slice(0, limit)
+                // limit = null means "show every chip, no +N more button" —
+                // used on desktop where flex-wrap can spill onto extra rows
+                // without looking cramped.
+                const renderRow = (limit: number | null) => {
+                  const overflow = limit != null && chips.length > limit
+                  const visible = limit == null || eqChipsExpanded ? chips : chips.slice(0, limit)
                   return (
                     <>
                       <Chip
@@ -892,7 +894,7 @@ export function ProjectPage({
                         return (
                           <span key={c.key} className="contents">
                             {showDivider && (
-                              <span aria-hidden className="flex shrink-0 items-center text-gray-600">·</span>
+                              <span aria-hidden className="flex shrink-0 items-center px-1 text-2xl font-bold leading-none text-[#22a7d3]">·</span>
                             )}
                             <Chip active={c.active} onClick={c.onClick}>
                               {c.label}
@@ -906,7 +908,7 @@ export function ProjectPage({
                           onClick={() => setEqChipsExpanded((v) => !v)}
                           className="rounded-md border border-white/[0.10] bg-[#2a2a2a] px-3 py-1.5 text-xs font-semibold text-gray-300 transition-colors hover:bg-[#313131]"
                         >
-                          {eqChipsExpanded ? 'Show less' : `+${chips.length - limit} more`}
+                          {eqChipsExpanded ? 'Show less' : `+${chips.length - (limit as number)} more`}
                         </button>
                       )}
                     </>
@@ -921,7 +923,9 @@ export function ProjectPage({
                     <div className={`gap-2 sm:hidden ${eqChipsExpanded ? 'flex flex-wrap' : 'flex flex-nowrap overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'}`}>
                       {renderRow(VISIBLE_MOBILE)}
                     </div>
-                    <div className="hidden flex-wrap gap-2 sm:flex">{renderRow(VISIBLE_DESKTOP)}</div>
+                    {/* Desktop: show every chip in one row; flex-wrap allows
+                        natural overflow onto a second row when truly needed. */}
+                    <div className="hidden flex-wrap gap-2 sm:flex">{renderRow(null)}</div>
                   </div>
                 )
               })()}
