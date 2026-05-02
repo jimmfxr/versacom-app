@@ -328,7 +328,13 @@ export default async function HomePage({
   const [project, equipment, memberCount, headsetInventory, selectedMembership] = await Promise.all([
     prisma.project.findUnique({
       where: { id: selectedProjectId },
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        goosenecksBrought: true,
+        footswitchesBrought: true,
+        speakersBrought: true,
+      },
     }),
     prisma.equipment.findMany({
       where: { projectId: selectedProjectId },
@@ -339,6 +345,9 @@ export default async function HomePage({
         location: true,
         deployStatus: true,
         assignedToId: true,
+        gooseneck: true,
+        footswitches: true,
+        speakers: true,
       },
     }),
     prisma.projectMember.count({ where: { projectId: selectedProjectId } }),
@@ -385,6 +394,11 @@ export default async function HomePage({
           projectId={project.id}
           equipment={equipment}
           headsetInventory={headsetInventory}
+          miscInventory={{
+            goosenecksBrought: project.goosenecksBrought,
+            footswitchesBrought: project.footswitchesBrought,
+            speakersBrought: project.speakersBrought,
+          }}
           canEditInventory={canEditInventory}
         />
       </PageLayout>

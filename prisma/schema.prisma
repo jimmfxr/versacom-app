@@ -39,6 +39,11 @@ model Project {
   createdById Int
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  // Manager-set "brought to the show" totals for panel misc accessories.
+  // 0 (default) means "not tracked" — fall back to needed count.
+  goosenecksBrought    Int @default(0)
+  footswitchesBrought  Int @default(0)
+  speakersBrought      Int @default(0)
 
   // Relations
   createdBy      User             @relation("ProjectCreator", fields: [createdById], references: [id])
@@ -195,6 +200,10 @@ model Equipment {
   deployStatus String  @default("na") // deployed, done, returned, not-needed, damaged, na
   notes        String?
   assetId      Int?
+  // Panel-only misc accessories (default off for all categories)
+  gooseneck    Boolean @default(false)
+  footswitches Int     @default(0)
+  speakers     Int     @default(0)
 
   // Relations
   project    Project        @relation(fields: [projectId], references: [id])

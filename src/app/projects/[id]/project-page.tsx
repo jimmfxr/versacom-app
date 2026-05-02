@@ -20,6 +20,7 @@ import { SearchableSelect } from '@/components/searchable-select'
 import { ComboboxInput } from '@/components/combobox-input'
 import { FilterBar, Chip } from '@/components/filter-bar'
 import { LocationSummary } from '@/components/location-summary'
+import { usePersistentState } from '@/lib/use-persistent-state'
 import { updateProject, deleteProject } from './actions'
 import { bulkCreateEquipment, updateEquipment, deleteEquipment } from './distribution/actions'
 import { createMember, updateMember, deleteMember } from './team-actions'
@@ -107,6 +108,9 @@ type EquipmentItem = {
   assignedToName: string | null
   assignedToPosition: string | null
   assignedMemberId: number | null
+  gooseneck: boolean
+  footswitches: number
+  speakers: number
 }
 
 type AssignableMember = { id: number; name: string }
@@ -174,11 +178,13 @@ function hasField(category: string, field: string) {
   const hardwireFields = ['location', 'headsetType', 'ipAddress']
   const switchFields = ['location', 'ipAddress', 'patch']
   const antennaFields = ['location', 'ipAddress']
+  const audioFields = ['location', 'ipAddress']
   if (category === 'panels') return panelFields.includes(field)
   if (category === 'wireless_bp') return wirelessFields.includes(field)
   if (category === 'hardwire_bp') return hardwireFields.includes(field)
   if (category === 'switches') return switchFields.includes(field)
   if (category === 'antennas') return antennaFields.includes(field)
+  if (category === 'audio') return audioFields.includes(field)
   return false
 }
 
@@ -291,10 +297,16 @@ export function ProjectPage({
   const [editError, setEditError] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
-  // Equipment state
+  // Equipment state — filters persist across navigation (per-project).
   const [eqSearch, setEqSearch] = useState('')
-  const [eqCategoryFilter, setEqCategoryFilter] = useState<string | null>(null)
-  const [eqLocationFilter, setEqLocationFilter] = useState<string | null>(null)
+  const [eqCategoryFilter, setEqCategoryFilter] = usePersistentState<string | null>(
+    `proj-${project.id}-eqCategory`,
+    null,
+  )
+  const [eqLocationFilter, setEqLocationFilter] = usePersistentState<string | null>(
+    `proj-${project.id}-eqLocation`,
+    null,
+  )
   const [eqChipsExpanded, setEqChipsExpanded] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
   const [addEquipmentId, setAddEquipmentId] = useState('')
@@ -307,7 +319,10 @@ export function ProjectPage({
 
   // Team state
   const [teamSearch, setTeamSearch] = useState('')
-  const [teamCategoryFilter, setTeamCategoryFilter] = useState<string | null>(null)
+  const [teamCategoryFilter, setTeamCategoryFilter] = usePersistentState<string | null>(
+    `proj-${project.id}-teamCategory`,
+    null,
+  )
   const [showAddMember, setShowAddMember] = useState(false)
   const [showJoinQr, setShowJoinQr] = useState(false)
   // Crew users don't get the Add Member form but DO get a standalone QR
@@ -319,7 +334,10 @@ export function ProjectPage({
 
   // Pick list state
   const [plSearch, setPlSearch] = useState('')
-  const [plTypeFilter, setPlTypeFilter] = useState<string | null>(null)
+  const [plTypeFilter, setPlTypeFilter] = usePersistentState<string | null>(
+    `proj-${project.id}-plType`,
+    null,
+  )
   const [plSortAbc, setPlSortAbc] = useState(false)
   const [editingPlId, setEditingPlId] = useState<number | null>(null)
   const [editPlData, setEditPlData] = useState<{ code: string; name: string; type: string }>({ code: '', name: '', type: 'CONF' })
@@ -403,6 +421,9 @@ export function ProjectPage({
       patch: item.patch || '',
       deployStatus: item.deployStatus,
       assignedToId: item.assignedMemberId,
+      gooseneck: item.gooseneck ?? false,
+      footswitches: item.footswitches ?? 0,
+      speakers: item.speakers ?? 0,
     })
   }
 
@@ -427,6 +448,10 @@ export function ProjectPage({
         patch: hasField(item.category, 'patch') ? (editEqData.patch as string) || null : null,
         deployStatus: (editEqData.deployStatus as string) || 'na',
         assignedToId: isAssignable(item.category) ? (editEqData.assignedToId as number | null) : null,
+        // Panel-only misc accessories
+        gooseneck: item.category === 'panels' ? Boolean(editEqData.gooseneck) : false,
+        footswitches: item.category === 'panels' ? Number(editEqData.footswitches ?? 0) : 0,
+        speakers: item.category === 'panels' ? Number(editEqData.speakers ?? 0) : 0,
       })
       if (result.error) { showToast('error', result.error); return }
       setEditingEqId(null)
@@ -826,7 +851,7 @@ export function ProjectPage({
               {/* Filter chips (admin/manager only) — categories + locations
                   share a single All button that resets both filters. Mobile
                   uses a +N more overflow so the row never wraps. */}
-              {!isCrew && (usedEquipmentCategories.length > 0 || equipmentLocations.length > 0) && (() => {
+              {(usedEquipmentCategories.length > 0 || equipmentLocations.length > 0) && (() => {
                 type ChipDef = { key: string; kind: 'cat' | 'loc'; label: string; active: boolean; onClick: () => void }
                 const chips: ChipDef[] = [
                   ...usedEquipmentCategories.map((c): ChipDef => ({
@@ -902,7 +927,7 @@ export function ProjectPage({
               })()}
 
               {/* Location summary — same card as the crew /tasks page */}
-              {!isCrew && eqLocationFilter && (
+              {eqLocationFilter && (
                 <LocationSummary
                   location={eqLocationFilter}
                   allGear={equipment.map((e) => ({
@@ -912,6 +937,9 @@ export function ProjectPage({
                     hardwareType: e.hardwareType,
                     headsetType: e.headsetType,
                     effectiveLocation: effectiveLocation(e),
+                    gooseneck: e.gooseneck,
+                    footswitches: e.footswitches,
+                    speakers: e.speakers,
                   }))}
                 />
               )}
@@ -1051,6 +1079,41 @@ export function ProjectPage({
                                     onChange={(v) => setEditEqData({ ...editEqData, assignedToId: v ? parseInt(v) : null })}
                                   />
                                 )}
+                                {/* Panel-only misc accessories */}
+                                {item.category === 'panels' && (
+                                  <>
+                                    <SearchableSelect
+                                      compact
+                                      label="Gooseneck"
+                                      value={editEqData.gooseneck ? 'yes' : 'no'}
+                                      options={[{ value: 'no', label: 'No' }, { value: 'yes', label: 'Yes' }]}
+                                      onChange={(v) => setEditEqData({ ...editEqData, gooseneck: v === 'yes' })}
+                                    />
+                                    <SearchableSelect
+                                      compact
+                                      label="Footswitches"
+                                      value={String(editEqData.footswitches ?? 0)}
+                                      options={[
+                                        { value: '0', label: 'None' },
+                                        { value: '1', label: '1' },
+                                        { value: '2', label: '2' },
+                                        { value: '3', label: '3' },
+                                      ]}
+                                      onChange={(v) => setEditEqData({ ...editEqData, footswitches: parseInt(v) || 0 })}
+                                    />
+                                    <SearchableSelect
+                                      compact
+                                      label="Speakers"
+                                      value={String(editEqData.speakers ?? 0)}
+                                      options={[
+                                        { value: '0', label: 'None' },
+                                        { value: '1', label: '1' },
+                                        { value: '2', label: '2' },
+                                      ]}
+                                      onChange={(v) => setEditEqData({ ...editEqData, speakers: parseInt(v) || 0 })}
+                                    />
+                                  </>
+                                )}
                               </div>
                               <div className="mt-3 flex items-center justify-end gap-3">
                                 <Button type="submit" size="sm" disabled={isPending}>Save</Button>
@@ -1119,6 +1182,9 @@ export function ProjectPage({
                                   {item.headsetType && <span><span className="text-xs text-gray-500">Headset: </span>{item.headsetType}</span>}
                                   {item.ipAddress && <span><span className="text-xs text-gray-500">IP: </span><a href={`http://${item.ipAddress}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[#22a7d3] underline decoration-[#22a7d3]/30 hover:decoration-[#22a7d3]">{item.ipAddress}</a></span>}
                                   {item.patch && <span><span className="text-xs text-gray-500">Patch: </span><span className="font-mono">{item.patch}</span></span>}
+                                  {item.gooseneck && <span><span className="text-xs text-gray-500">Misc: </span>Gooseneck</span>}
+                                  {item.footswitches > 0 && <span><span className="text-xs text-gray-500">FS: </span>{item.footswitches}</span>}
+                                  {item.speakers > 0 && <span><span className="text-xs text-gray-500">SPK: </span>{item.speakers}</span>}
                                 </div>
                                 {/* Desktop: inline with dots (original layout) */}
                                 <div className="hidden sm:flex flex-wrap items-center gap-x-1.5">
@@ -1127,6 +1193,9 @@ export function ProjectPage({
                                   {item.headsetType && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">Headset: </span><span>{item.headsetType}</span></>}
                                   {item.ipAddress && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">IP: </span><a href={`http://${item.ipAddress}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[#22a7d3] underline decoration-[#22a7d3]/30 hover:decoration-[#22a7d3]">{item.ipAddress}</a></>}
                                   {item.patch && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">Patch: </span><span className="font-mono">{item.patch}</span></>}
+                                  {item.gooseneck && <><span className="text-gray-500">·</span><span>Gooseneck</span></>}
+                                  {item.footswitches > 0 && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">FS: </span><span>{item.footswitches}</span></>}
+                                  {item.speakers > 0 && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">SPK: </span><span>{item.speakers}</span></>}
                                 </div>
                               </div>
                             </>

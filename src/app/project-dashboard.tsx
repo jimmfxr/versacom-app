@@ -14,16 +14,26 @@ type EquipmentForDashboard = {
   location: string | null
   deployStatus: string
   assignedToId: number | null
+  gooseneck: boolean
+  footswitches: number
+  speakers: number
 }
 
 type UserProject = { id: number; name: string }
 
 type HeadsetInventoryRow = { headsetType: string; brought: number }
 
+type MiscInventory = {
+  goosenecksBrought: number
+  footswitchesBrought: number
+  speakersBrought: number
+}
+
 type ProjectDashboardProps = {
   projectId: number
   equipment: EquipmentForDashboard[]
   headsetInventory: HeadsetInventoryRow[]
+  miscInventory: MiscInventory
   canEditInventory: boolean
 }
 
@@ -266,6 +276,38 @@ function GroupLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
+/** Collapsible variant — same look as GroupLabel but the header is a button
+ *  that toggles a section's visibility. */
+function CollapsibleLabel({
+  children,
+  collapsed,
+  onToggle,
+}: {
+  children: React.ReactNode
+  collapsed: boolean
+  onToggle: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="mb-3 flex w-full items-center justify-between border-b border-white/[0.05] pb-1.5 text-left text-[9px] font-bold uppercase tracking-wider text-gray-500 transition-colors hover:text-gray-300"
+      aria-expanded={!collapsed}
+    >
+      <span>{children}</span>
+      <svg
+        className={`size-3 text-gray-500 transition-transform ${collapsed ? '' : 'rotate-180'}`}
+        fill="none"
+        viewBox="0 0 24 24"
+        strokeWidth={2.5}
+        stroke="currentColor"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+      </svg>
+    </button>
+  )
+}
+
 function EmptyRow({ children }: { children: React.ReactNode }) {
   return <div className="py-5 text-center text-xs text-gray-500">{children}</div>
 }
@@ -370,8 +412,10 @@ function StatusHero({
 
 /* ─── Main component ─── */
 
-export function ProjectDashboard({ projectId, equipment, headsetInventory, canEditInventory }: ProjectDashboardProps) {
+export function ProjectDashboard({ projectId, equipment, headsetInventory, miscInventory, canEditInventory }: ProjectDashboardProps) {
   const [editingInventory, setEditingInventory] = useState(false)
+  const [headsetsCollapsed, setHeadsetsCollapsed] = useState(false)
+  const [miscCollapsed, setMiscCollapsed] = useState(false)
   const editorMobileRef = useRef<HTMLDivElement>(null)
   const editorDesktopRef = useRef<HTMLDivElement>(null)
   const savedScrollY = useRef<number | null>(null)
@@ -514,6 +558,24 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, canEd
   const headsetsBrought = headsetRows.reduce((s, r) => s + r.brought, 0)
   const headsetsNeeded = headsetRows.reduce((s, r) => s + r.needed, 0)
 
+  /* Panel-only Misc accessories — needed/brought, mirrors headset behavior.
+     "Needed" = sum of demand from panels (e.g. all gooseneck=true panels,
+     sum of footswitches values, sum of speakers values).
+     "Brought" = manager-set total in miscInventory; falls back to needed
+     when 0 ("not tracked"). */
+  const allPanels = equipment.filter((e) => e.category === 'panels')
+  const goosenecksNeeded = allPanels.filter((e) => e.gooseneck).length
+  const footswitchesNeeded = allPanels.reduce((s, e) => s + (e.footswitches || 0), 0)
+  const speakersNeeded = allPanels.reduce((s, e) => s + (e.speakers || 0), 0)
+  const goosenecksTracked = miscInventory.goosenecksBrought > 0
+  const footswitchesTracked = miscInventory.footswitchesBrought > 0
+  const speakersTracked = miscInventory.speakersBrought > 0
+  const goosenecksBrought = goosenecksTracked ? miscInventory.goosenecksBrought : goosenecksNeeded
+  const footswitchesBrought = footswitchesTracked ? miscInventory.footswitchesBrought : footswitchesNeeded
+  const speakersBrought = speakersTracked ? miscInventory.speakersBrought : speakersNeeded
+  const hasAnyMisc = goosenecksNeeded + footswitchesNeeded + speakersNeeded > 0
+    || goosenecksTracked || footswitchesTracked || speakersTracked
+
   return (
     <div className="space-y-5">
       {/* Deployment status — single combined card */}
@@ -622,31 +684,78 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, canEd
           const headsetsDisplay = (
             <>
               <CardHeader
-                title="Headsets assigned"
+                title={hasAnyMisc ? 'Headsets / Misc' : 'Headsets assigned'}
                 tag={headsetsBrought > 0 ? `${headsetsAssigned} / ${headsetsBrought}` : undefined}
               />
-              {headsetRows.length === 0 ? (
+              {headsetRows.length === 0 && !hasAnyMisc ? (
                 <EmptyRow>
                   {canEditInventory
                     ? 'No headsets tracked yet. Tap "Manage" to record what you packed.'
                     : 'No headsets assigned to any equipment in this project'}
                 </EmptyRow>
               ) : (
-                <div className="mt-6">
-                  <GroupLabel>All Types</GroupLabel>
-                  {headsetRows.map((r) => (
-                    <BarRow
-                      key={r.type}
-                      label={r.type}
-                      count={r.assigned}
-                      total={Math.max(r.brought, 1)}
-                      tagOverride={`${r.assigned} / ${r.brought}`}
-                      deployed={r.deployed}
-                      done={r.done}
-                      returned={r.returned}
-                    />
-                  ))}
-                </div>
+                <>
+                  {headsetRows.length > 0 && (
+                    <div className="mt-6">
+                      <CollapsibleLabel
+                        collapsed={headsetsCollapsed}
+                        onToggle={() => setHeadsetsCollapsed((v) => !v)}
+                      >
+                        Headsets · {headsetRows.length} {headsetRows.length === 1 ? 'type' : 'types'}
+                      </CollapsibleLabel>
+                      {!headsetsCollapsed && headsetRows.map((r) => (
+                        <BarRow
+                          key={r.type}
+                          label={r.type}
+                          count={r.assigned}
+                          total={Math.max(r.brought, 1)}
+                          tagOverride={`${r.assigned} / ${r.brought}`}
+                          deployed={r.deployed}
+                          done={r.done}
+                          returned={r.returned}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {hasAnyMisc && (
+                    <div className="mt-6">
+                      <CollapsibleLabel
+                        collapsed={miscCollapsed}
+                        onToggle={() => setMiscCollapsed((v) => !v)}
+                      >
+                        Misc
+                      </CollapsibleLabel>
+                      {!miscCollapsed && (
+                        <>
+                          {(goosenecksNeeded > 0 || goosenecksTracked) && (
+                            <BarRow
+                              label="Goosenecks"
+                              count={goosenecksNeeded}
+                              total={Math.max(goosenecksBrought, 1)}
+                              tagOverride={`${goosenecksNeeded} / ${goosenecksBrought}`}
+                            />
+                          )}
+                          {(footswitchesNeeded > 0 || footswitchesTracked) && (
+                            <BarRow
+                              label="Footswitches"
+                              count={footswitchesNeeded}
+                              total={Math.max(footswitchesBrought, 1)}
+                              tagOverride={`${footswitchesNeeded} / ${footswitchesBrought}`}
+                            />
+                          )}
+                          {(speakersNeeded > 0 || speakersTracked) && (
+                            <BarRow
+                              label="Speakers"
+                              count={speakersNeeded}
+                              total={Math.max(speakersBrought, 1)}
+                              tagOverride={`${speakersNeeded} / ${speakersBrought}`}
+                            />
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
               {canEditInventory && (
                 <div className="mt-auto flex justify-end pt-4">
@@ -679,6 +788,12 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, canEd
                       projectId={projectId}
                       initial={headsetInventory}
                       needed={headsetNeededByType}
+                      miscInitial={miscInventory}
+                      miscNeeded={{
+                        goosenecks: goosenecksNeeded,
+                        footswitches: footswitchesNeeded,
+                        speakers: speakersNeeded,
+                      }}
                       onDone={() => setEditingInventory(false)}
                     />
                   </div>

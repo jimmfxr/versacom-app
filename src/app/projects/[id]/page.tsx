@@ -53,6 +53,9 @@ export default async function ProjectDetailPage({
         patch: true,
         deployStatus: true,
         assignedToId: true,
+        gooseneck: true,
+        footswitches: true,
+        speakers: true,
         assignedTo: {
           select: {
             id: true,
@@ -196,6 +199,9 @@ export default async function ProjectDetailPage({
           : null,
         assignedToPosition: e.assignedTo?.position ?? null,
         assignedMemberId: e.assignedTo?.id ?? null,
+        gooseneck: e.gooseneck,
+        footswitches: e.footswitches,
+        speakers: e.speakers,
       }))}
       assignableMembers={memberRows.map((m) => ({
         id: m.id,

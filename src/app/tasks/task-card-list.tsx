@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { markDeployed, undoDeployed } from './actions'
 import { LocationSummary } from '@/components/location-summary'
+import { FilterBar } from '@/components/filter-bar'
+import { usePersistentState } from '@/lib/use-persistent-state'
 
 const CATEGORY_LABELS: Record<string, string> = {
   panels: 'Panel',
@@ -27,6 +29,9 @@ export type TaskCard = {
   ipAddress: string | null
   deployStatus: string
   assignedToId: number | null
+  gooseneck: boolean
+  footswitches: number
+  speakers: number
   projectName: string
   assignedTo: { name: string; position: string | null } | null
 }
@@ -61,8 +66,10 @@ export function TaskCardList({
   // completes — without these snapshots the card would vanish in <1s.
   const [frozenTasks, setFrozenTasks] = useState<Record<number, TaskCard>>({})
   const [search, setSearch] = useState('')
-  const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
-  const [showAllLocations, setShowAllLocations] = useState(false)
+  const [selectedLocation, setSelectedLocation] = usePersistentState<string | null>(
+    'tasks-locationFilter',
+    null,
+  )
 
   // Cleanup all timers on unmount so we don't leak intervals.
   useEffect(() => {
@@ -207,15 +214,12 @@ export function TaskCardList({
         </div>
       </div>
       {locations.length > 0 && (
-        <LocationChips
-          locations={locations}
+        <FilterBar
+          options={locations.map((loc) => ({ value: loc, label: loc }))}
           selected={selectedLocation}
-          onSelect={(loc) => {
-            setSelectedLocation(loc)
-            setShowAllLocations(false)
-          }}
-          showAll={showAllLocations}
-          onToggleShowAll={() => setShowAllLocations((v) => !v)}
+          onSelect={(loc) => setSelectedLocation(loc)}
+          visibleMobile={3}
+          visibleDesktop={6}
         />
       )}
     </div>
@@ -383,96 +387,5 @@ function TaskCardItem({
         {state === 'reverting' && <span className="px-3 py-1.5 text-xs text-gray-400">Restoring…</span>}
       </div>
     </div>
-  )
-}
-
-const VISIBLE_CHIP_COUNT_MOBILE = 3
-const VISIBLE_CHIP_COUNT_DESKTOP = 6
-
-function LocationChips({
-  locations,
-  selected,
-  onSelect,
-  showAll,
-  onToggleShowAll,
-}: {
-  locations: string[]
-  selected: string | null
-  onSelect: (loc: string | null) => void
-  showAll: boolean
-  onToggleShowAll: () => void
-}) {
-  // We render two chip rows (mobile + desktop) so each can have its own
-  // overflow threshold. Tailwind's responsive utilities pick which is visible.
-  const overflowMobile = locations.length > VISIBLE_CHIP_COUNT_MOBILE
-  const overflowDesktop = locations.length > VISIBLE_CHIP_COUNT_DESKTOP
-
-  return (
-    <div className="pb-3">
-      {/* Mobile row */}
-      <div className="flex flex-wrap gap-2 sm:hidden">
-        <Chip active={selected === null} onClick={() => onSelect(null)}>
-          All
-        </Chip>
-        {(showAll ? locations : locations.slice(0, VISIBLE_CHIP_COUNT_MOBILE)).map((loc) => (
-          <Chip key={loc} active={selected === loc} onClick={() => onSelect(loc)}>
-            {loc}
-          </Chip>
-        ))}
-        {overflowMobile && (
-          <button
-            type="button"
-            onClick={onToggleShowAll}
-            className="rounded-full border border-white/[0.10] bg-[#2a2a2a] px-3 py-1 text-xs font-semibold text-gray-300 transition-colors hover:bg-[#313131]"
-          >
-            {showAll ? 'Show less' : `+${locations.length - VISIBLE_CHIP_COUNT_MOBILE} more`}
-          </button>
-        )}
-      </div>
-      {/* Desktop row */}
-      <div className="hidden flex-wrap gap-2 sm:flex">
-        <Chip active={selected === null} onClick={() => onSelect(null)}>
-          All
-        </Chip>
-        {(showAll ? locations : locations.slice(0, VISIBLE_CHIP_COUNT_DESKTOP)).map((loc) => (
-          <Chip key={loc} active={selected === loc} onClick={() => onSelect(loc)}>
-            {loc}
-          </Chip>
-        ))}
-        {overflowDesktop && (
-          <button
-            type="button"
-            onClick={onToggleShowAll}
-            className="rounded-full border border-white/[0.10] bg-[#2a2a2a] px-3 py-1 text-xs font-semibold text-gray-300 transition-colors hover:bg-[#313131]"
-          >
-            {showAll ? 'Show less' : `+${locations.length - VISIBLE_CHIP_COUNT_DESKTOP} more`}
-          </button>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function Chip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-        active
-          ? 'bg-[#0178a3] text-white'
-          : 'border border-white/[0.10] bg-[#2a2a2a] text-gray-300 hover:bg-[#313131]'
-      }`}
-    >
-      {children}
-    </button>
   )
 }

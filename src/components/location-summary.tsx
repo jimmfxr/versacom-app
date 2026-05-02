@@ -27,6 +27,10 @@ export type LocationSummaryGear = {
    *  caller (e.g. equipment.location for infra, assignee.location for
    *  panels). Empty/null means the gear isn't placed yet. */
   effectiveLocation: string | null
+  /** Panel-only misc accessories. Optional — non-panel categories may omit. */
+  gooseneck?: boolean
+  footswitches?: number
+  speakers?: number
 }
 
 type LocationSummaryData = {
@@ -38,6 +42,9 @@ type LocationSummaryData = {
       name: string
       hardwareType: string | null
       headsetType: string | null
+      gooseneck: boolean
+      footswitches: number
+      speakers: number
     }>
   }>
   headsets: Array<{ type: string; count: number }>
@@ -59,6 +66,9 @@ export function buildLocationSummary(
         name: g.name || '(unnamed)',
         hardwareType: g.hardwareType,
         headsetType: g.headsetType,
+        gooseneck: g.gooseneck ?? false,
+        footswitches: g.footswitches ?? 0,
+        speakers: g.speakers ?? 0,
       }))
       .sort((a, b) => a.name.localeCompare(b.name))
     return {
@@ -145,7 +155,7 @@ export function LocationSummary({
                     </div>
                     <div className="space-y-0.5">
                       {g.items.map((item) => (
-                        <div key={item.id} className="flex items-baseline gap-2 text-sm">
+                        <div key={item.id} className="flex flex-wrap items-baseline gap-x-2 text-sm">
                           <span className="font-mono font-semibold tabular-nums text-[#22a7d3]">
                             {item.name}
                           </span>
@@ -156,6 +166,15 @@ export function LocationSummary({
                           </span>
                           {item.headsetType && (
                             <span className="text-xs text-gray-500">· {item.headsetType}</span>
+                          )}
+                          {item.gooseneck && (
+                            <span className="text-xs text-gray-500">· Gooseneck</span>
+                          )}
+                          {item.footswitches > 0 && (
+                            <span className="text-xs text-gray-500">· FS {item.footswitches}</span>
+                          )}
+                          {item.speakers > 0 && (
+                            <span className="text-xs text-gray-500">· SPK {item.speakers}</span>
                           )}
                         </div>
                       ))}

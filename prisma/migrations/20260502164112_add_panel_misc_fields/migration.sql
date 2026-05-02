@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Equipment" ADD COLUMN     "footswitches" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "gooseneck" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "speakers" INTEGER NOT NULL DEFAULT 0;

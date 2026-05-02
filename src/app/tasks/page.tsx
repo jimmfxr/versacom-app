@@ -56,6 +56,9 @@ export default async function TasksPage() {
           assignedToId: true,
           deployStatus: true,
           projectId: true,
+          gooseneck: true,
+          footswitches: true,
+          speakers: true,
           project: { select: { name: true } },
           assignedTo: {
             select: {
@@ -87,6 +90,9 @@ export default async function TasksPage() {
       ipAddress: e.ipAddress,
       deployStatus: e.deployStatus,
       assignedToId: e.assignedToId,
+      gooseneck: e.gooseneck,
+      footswitches: e.footswitches,
+      speakers: e.speakers,
       projectId: e.projectId,
       projectName: e.project.name,
       assignedTo:

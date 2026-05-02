@@ -168,6 +168,9 @@ export async function updateEquipment(
     patch?: string | null
     deployStatus?: string
     assignedToId?: number | null
+    gooseneck?: boolean
+    footswitches?: number
+    speakers?: number
   }
 ) {
   const session = await getSession()

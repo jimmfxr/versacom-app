@@ -232,3 +232,51 @@ export async function setHeadsetInventory(
   revalidatePath(`/projects/${projectId}`)
   return { success: true }
 }
+
+/**
+ * Save the per-project totals for panel-only misc accessories
+ * (goosenecks / footswitches / speakers brought to the show).
+ * Admin-only — same authorization as setHeadsetInventory.
+ */
+export async function setMiscInventory(
+  projectId: number,
+  misc: {
+    goosenecksBrought: number
+    footswitchesBrought: number
+    speakersBrought: number
+  },
+) {
+  const session = await getSession()
+  if (!session) return { error: 'Not authenticated' }
+
+  const membership = await prisma.projectMember.findFirst({
+    where: { projectId, userId: session.user.id },
+    select: { role: true },
+  })
+  const globalAdmin = await prisma.projectMember.findFirst({
+    where: { userId: session.user.id, role: 'admin' },
+    select: { id: true },
+  })
+  const canEdit = !!globalAdmin || membership?.role === 'admin'
+  if (!canEdit) return { error: 'Not authorized to edit inventory on this project' }
+
+  // Validate ranges (each field 0–9999, integers).
+  for (const [field, value] of Object.entries(misc)) {
+    if (!Number.isInteger(value) || value < 0 || value > 9999) {
+      return { error: `Invalid count for ${field}` }
+    }
+  }
+
+  await prisma.project.update({
+    where: { id: projectId },
+    data: {
+      goosenecksBrought: misc.goosenecksBrought,
+      footswitchesBrought: misc.footswitchesBrought,
+      speakersBrought: misc.speakersBrought,
+    },
+  })
+
+  revalidatePath('/')
+  revalidatePath(`/projects/${projectId}`)
+  return { success: true }
+}
