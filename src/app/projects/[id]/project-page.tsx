@@ -1332,11 +1332,21 @@ export function ProjectPage({
               {/* Add member form */}
               {canEditTeam && showAddMember && (
                 <Card>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-3">
                     <h3 className="text-sm font-semibold text-white">Add Member</h3>
-                    <IconButton onClick={() => setShowAddMember(false)}><CloseIcon /></IconButton>
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={`/projects/${project.id}/kiosk`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-lg bg-[#0178a3] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#019bc7]"
+                      >
+                        Open Kiosk
+                      </a>
+                      <IconButton onClick={() => setShowAddMember(false)}><CloseIcon /></IconButton>
+                    </div>
                   </div>
-                  <p className="mt-2 text-xs text-gray-500">Members are added automatically when they join with the project PIN. You can also add members manually.</p>
+                  <p className="mt-2 text-xs text-gray-500">Members are added automatically when they join with the project PIN. You can also add members manually, or open the Kiosk for self-service crew check-in.</p>
                   <form onSubmit={(e) => { e.preventDefault(); handleAddMember() }}>
                     <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
                       <FormInput autoFocus label="First Name" type="text" value={addMemberData.firstName} onChange={(e) => setAddMemberData({ ...addMemberData, firstName: e.target.value })} />

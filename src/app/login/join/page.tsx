@@ -34,11 +34,17 @@ function JoinProjectPageInner() {
 
   // Pre-fill the project PIN from the `?pin=1234` query param so scanning
   // the project QR code drops the crew straight to the name-entry step.
+  // Also pre-fill firstName + lastName when the kiosk QR includes them, so
+  // the crew member only has to set their personal PIN.
   useEffect(() => {
     const pin = searchParams.get('pin')
     if (pin && /^\d{4}$/.test(pin)) {
       setProjectPinDigits([pin[0], pin[1], pin[2], pin[3]])
     }
+    const fn = searchParams.get('firstName')
+    if (fn) setFirstName(fn)
+    const ln = searchParams.get('lastName')
+    if (ln) setLastName(ln)
   }, [searchParams])
 
   // Create PIN form
