@@ -48,44 +48,58 @@ export default async function MyEquipmentPage({
   const requestedMemberId = params.member ? parseInt(params.member, 10) : null
 
   // ──────────────────── BROWSE MODE (admin/manager) ────────────────────
+  // Admin/manager skip the cards-list view entirely — we figure out the
+  // first project / member / equipment and redirect straight to the panel
+  // studio with ?from=my-equipment. Panel studio renders all the browse
+  // controls (project + user dropdowns, prev/next, sibling-gear row), so
+  // /my-equipment is just an entry point.
   if (isBrowseMode) {
+    const PANEL_CATEGORIES = ['panels', 'hardwire_bp', 'wireless_bp']
+
     const selectedProjectId =
       requestedProjectId != null && adminOrManagerProjectsMap.has(requestedProjectId)
         ? requestedProjectId
         : browseProjects[0].id
 
-    // Pull all members of the selected project who have at least one piece
-    // of equipment assigned. Filter out gear-less people — there's no point
-    // clicking through someone with an empty page.
-    const members = await prisma.projectMember.findMany({
-      where: {
-        projectId: selectedProjectId,
-        equipment: { some: {} },
-      },
+    // If a specific member was requested in the URL, prefer them. Otherwise
+    // pick the first member on the project who has any gear.
+    const candidateMembers = await prisma.projectMember.findMany({
+      where: { projectId: selectedProjectId, equipment: { some: {} } },
       select: {
         id: true,
         position: true,
         user: { select: { firstName: true, lastName: true } },
+        equipment: {
+          select: { id: true, category: true },
+          orderBy: [{ category: 'asc' }, { name: 'asc' }],
+        },
       },
     })
+
     const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
-    const browseMembers = members
-      .map((m) => ({
-        id: m.id,
-        firstName: m.user.firstName,
-        lastName: m.user.lastName,
-        position: m.position,
-        displayName: `${m.user.firstName} ${m.user.lastName}`.trim(),
-      }))
+    const orderedMembers = candidateMembers
+      .map((m) => {
+        const panel = m.equipment.find((e) => PANEL_CATEGORIES.includes(e.category))
+        const firstEq = panel ?? m.equipment[0]
+        return {
+          id: m.id,
+          firstName: m.user.firstName,
+          lastName: m.user.lastName,
+          position: m.position,
+          displayName: `${m.user.firstName} ${m.user.lastName}`.trim(),
+          equipmentId: firstEq?.id ?? null,
+        }
+      })
+      .filter((m) => m.equipmentId != null)
       .sort((a, b) => {
         const byName = collator.compare(a.displayName, b.displayName)
         if (byName !== 0) return byName
         return collator.compare(a.position ?? '', b.position ?? '')
       })
 
-    if (browseMembers.length === 0) {
-      // No one on this project has gear yet. Render the page with an empty
-      // state and let the project dropdown stay so they can switch shows.
+    if (orderedMembers.length === 0) {
+      // Project genuinely has no gear-having members. Fall through to the
+      // empty state below so the admin can pick a different project.
       return (
         <MyEquipmentContent
           userName={userName}
@@ -100,64 +114,13 @@ export default async function MyEquipmentPage({
       )
     }
 
-    const selectedMemberId =
-      requestedMemberId != null && browseMembers.some((m) => m.id === requestedMemberId)
-        ? requestedMemberId
-        : browseMembers[0].id
+    const targetMember =
+      (requestedMemberId != null
+        ? orderedMembers.find((m) => m.id === requestedMemberId)
+        : null) ?? orderedMembers[0]
 
-    const selectedMember = browseMembers.find((m) => m.id === selectedMemberId)!
-
-    const equipment = await prisma.equipment.findMany({
-      where: { assignedToId: selectedMemberId },
-      select: {
-        id: true,
-        name: true,
-        category: true,
-        hardwareType: true,
-        location: true,
-        headsetType: true,
-        ipAddress: true,
-        deployStatus: true,
-        projectId: true,
-      },
-      orderBy: [{ category: 'asc' }, { name: 'asc' }],
-    })
-    const projectName = browseProjects.find((p) => p.id === selectedProjectId)!.name
-    // We treat everyone in browse mode as if the viewer were that user.
-    // Admins / managers can edit panels directly via the existing
-    // canEditPanel() rules.
-    const viewerRoleOnProject =
-      myMemberships.find((m) => m.project.id === selectedProjectId)?.role || 'admin'
-    const items = equipment.map((e) => ({
-      id: e.id,
-      name: e.name,
-      category: e.category,
-      hardwareType: e.hardwareType,
-      location: e.location,
-      headsetType: e.headsetType,
-      ipAddress: e.ipAddress,
-      deployStatus: e.deployStatus,
-      projectId: e.projectId,
-      projectName,
-      userRole: viewerRoleOnProject,
-    }))
-
-    return (
-      <MyEquipmentContent
-        userName={userName}
-        isAdmin={isAdmin}
-        isUserOnly={isUserOnly}
-        equipment={items}
-        browseProjects={browseProjects}
-        selectedProjectId={selectedProjectId}
-        browseMembers={browseMembers}
-        selectedMemberId={selectedMemberId}
-        browseMemberLabel={
-          selectedMember.position
-            ? `${selectedMember.displayName} · ${selectedMember.position}`
-            : selectedMember.displayName
-        }
-      />
+    redirect(
+      `/projects/${selectedProjectId}/panel/${targetMember.equipmentId}?from=my-equipment`,
     )
   }
 
