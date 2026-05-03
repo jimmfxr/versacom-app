@@ -49,10 +49,35 @@ type LocationSummaryData = {
       footswitches: number
       speakers: number
       deployStatus: string | null
+      cables: Array<{ label: string; count: number }>
     }>
   }>
   headsets: Array<{ type: string; count: number }>
+  cables: Array<{ label: string; count: number }>
   totalGear: number
+}
+
+/**
+ * Compute the cable accessories required for a single panel based on its
+ * footswitch + speaker counts. Returns a compact, ordered list of
+ * { label, count } entries — empty if the panel needs no cables.
+ *
+ * Rules:
+ *  - 1× "1/4-XLRM" per footswitch
+ *  - 1× "DB9-XLRF" per panel that has *any* footswitches (single DB9 covers
+ *    up to all 3 footswitches on one panel)
+ *  - 1× "RJ45-XLRMF" per speaker
+ */
+function cablesForPanel(footswitches: number, speakers: number) {
+  const cables: Array<{ label: string; count: number }> = []
+  if (footswitches > 0) {
+    cables.push({ label: '1/4-XLRM', count: footswitches })
+    cables.push({ label: 'DB9-XLRF', count: 1 })
+  }
+  if (speakers > 0) {
+    cables.push({ label: 'RJ45-XLRMF', count: speakers })
+  }
+  return cables
 }
 
 // Statuses worth surfacing on the pull list. We skip 'na' (the default —
@@ -69,16 +94,22 @@ export function buildLocationSummary(
     const inCat = atLocation.filter((g) => g.category === cat)
     if (inCat.length === 0) return null
     const items = inCat
-      .map((g) => ({
-        id: g.id,
-        name: g.name || '(unnamed)',
-        hardwareType: g.hardwareType,
-        headsetType: g.headsetType,
-        gooseneck: g.gooseneck ?? false,
-        footswitches: g.footswitches ?? 0,
-        speakers: g.speakers ?? 0,
-        deployStatus: g.deployStatus ?? null,
-      }))
+      .map((g) => {
+        const fs = g.footswitches ?? 0
+        const spk = g.speakers ?? 0
+        return {
+          id: g.id,
+          name: g.name || '(unnamed)',
+          hardwareType: g.hardwareType,
+          headsetType: g.headsetType,
+          gooseneck: g.gooseneck ?? false,
+          footswitches: fs,
+          speakers: spk,
+          deployStatus: g.deployStatus ?? null,
+          // Cables only apply to panels — other categories will return [].
+          cables: cat === 'panels' ? cablesForPanel(fs, spk) : [],
+        }
+      })
       .sort((a, b) => a.name.localeCompare(b.name))
     return {
       category: cat,
@@ -98,7 +129,21 @@ export function buildLocationSummary(
     .map(([type, count]) => ({ type, count }))
     .sort((a, b) => b.count - a.count)
 
-  return { byCategory, headsets, totalGear: atLocation.length }
+  // Aggregate cable totals across every panel at this location, then sort by
+  // a stable preferred ordering so the section reads consistently.
+  const cableMap = new Map<string, number>()
+  for (const g of atLocation) {
+    if (g.category !== 'panels') continue
+    for (const c of cablesForPanel(g.footswitches ?? 0, g.speakers ?? 0)) {
+      cableMap.set(c.label, (cableMap.get(c.label) ?? 0) + c.count)
+    }
+  }
+  const cableOrder = ['1/4-XLRM', 'DB9-XLRF', 'RJ45-XLRMF']
+  const cables = Array.from(cableMap.entries())
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => cableOrder.indexOf(a.label) - cableOrder.indexOf(b.label))
+
+  return { byCategory, headsets, cables, totalGear: atLocation.length }
 }
 
 /**
@@ -166,33 +211,49 @@ export function LocationSummary({
                       {g.label}
                       <span className="ml-1.5 text-gray-500">{g.items.length}</span>
                     </div>
-                    <div className="space-y-0.5">
+                    <div className="space-y-1">
                       {g.items.map((item) => (
-                        <div key={item.id} className="flex flex-wrap items-baseline gap-x-2 text-sm">
-                          <span className="font-mono font-semibold tabular-nums text-[#22a7d3]">
-                            {item.name}
-                          </span>
-                          <span className="text-gray-200">
-                            {item.hardwareType || (
-                              <span className="italic text-gray-500">no model</span>
-                            )}
-                          </span>
-                          {item.headsetType && (
-                            <span className="text-xs text-gray-500">· {item.headsetType}</span>
-                          )}
-                          {item.gooseneck && (
-                            <span className="text-xs text-gray-500">· Gooseneck</span>
-                          )}
-                          {item.footswitches > 0 && (
-                            <span className="text-xs text-gray-500">· FS {item.footswitches}</span>
-                          )}
-                          {item.speakers > 0 && (
-                            <span className="text-xs text-gray-500">· SPK {item.speakers}</span>
-                          )}
-                          {item.deployStatus && VISIBLE_STATUSES.has(item.deployStatus) && (
-                            <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${STATUS_BADGE_STYLES[item.deployStatus] || ''}`}>
-                              {getStatusLabel(item.deployStatus)}
+                        <div key={item.id}>
+                          <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
+                            <span className="font-mono font-semibold tabular-nums text-[#22a7d3]">
+                              {item.name}
                             </span>
+                            <span className="text-gray-200">
+                              {item.hardwareType || (
+                                <span className="italic text-gray-500">no model</span>
+                              )}
+                            </span>
+                            {item.headsetType && (
+                              <span className="text-xs text-gray-500">· {item.headsetType}</span>
+                            )}
+                            {item.gooseneck && (
+                              <span className="text-xs text-gray-500">· Gooseneck</span>
+                            )}
+                            {item.footswitches > 0 && (
+                              <span className="text-xs text-gray-500">· FS {item.footswitches}</span>
+                            )}
+                            {item.speakers > 0 && (
+                              <span className="text-xs text-gray-500">· SPK {item.speakers}</span>
+                            )}
+                            {item.deployStatus && VISIBLE_STATUSES.has(item.deployStatus) && (
+                              <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${STATUS_BADGE_STYLES[item.deployStatus] || ''}`}>
+                                {getStatusLabel(item.deployStatus)}
+                              </span>
+                            )}
+                          </div>
+                          {/* Cable accessories — second line, only when this
+                              panel actually needs cables. Compact, dim, and
+                              indented to align with the model name. */}
+                          {item.cables.length > 0 && (
+                            <div className="ml-1 flex flex-wrap items-baseline gap-x-1.5 text-[11px] text-gray-500">
+                              {item.cables.map((c, i) => (
+                                <span key={c.label}>
+                                  {i > 0 && <span className="text-gray-600"> · </span>}
+                                  <span className="font-mono tabular-nums">{c.count}× </span>
+                                  {c.label}
+                                </span>
+                              ))}
+                            </div>
                           )}
                         </div>
                       ))}
@@ -203,24 +264,47 @@ export function LocationSummary({
             )}
           </div>
 
-          <div>
-            <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-500">
-              Headsets needed
-            </div>
-            {summary.headsets.length === 0 ? (
-              <div className="text-xs text-gray-500">
-                None — no gear at this location has a headset assigned.
+          <div className="space-y-5">
+            <div>
+              <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                Headsets needed
               </div>
-            ) : (
-              <div className="space-y-1">
-                {summary.headsets.map((h) => (
-                  <div key={h.type} className="flex items-baseline gap-2 text-sm">
-                    <span className="font-mono font-semibold tabular-nums text-[#22a7d3]">
-                      {h.count}×
-                    </span>
-                    <span className="text-gray-200">{h.type}</span>
-                  </div>
-                ))}
+              {summary.headsets.length === 0 ? (
+                <div className="text-xs text-gray-500">
+                  None — no gear at this location has a headset assigned.
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {summary.headsets.map((h) => (
+                    <div key={h.type} className="flex items-baseline gap-2 text-sm">
+                      <span className="font-mono font-semibold tabular-nums text-[#22a7d3]">
+                        {h.count}×
+                      </span>
+                      <span className="text-gray-200">{h.type}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Cable totals derived from each panel's footswitch + speaker
+                accessories at this location. Hidden entirely when no panel
+                here needs any cables. */}
+            {summary.cables.length > 0 && (
+              <div>
+                <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                  Cables needed
+                </div>
+                <div className="space-y-1">
+                  {summary.cables.map((c) => (
+                    <div key={c.label} className="flex items-baseline gap-2 text-sm">
+                      <span className="font-mono font-semibold tabular-nums text-[#22a7d3]">
+                        {c.count}×
+                      </span>
+                      <span className="text-gray-200">{c.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
