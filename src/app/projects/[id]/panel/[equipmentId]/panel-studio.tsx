@@ -1648,7 +1648,85 @@ export function PanelStudio({
             )}
           </aside>
         </div>
+
+        {/* Copy keys button — bottom of the panel studio. Dumps a plain-text
+            snapshot of every key (main + shift + each expansion) so it can
+            be pasted into Slack / a sheet / another panel via paste flow. */}
+        <div className="mt-6 flex justify-center">
+          <button
+            type="button"
+            onClick={() => {
+              const text = formatKeysForClipboard(equipment, member, keys)
+              if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                void navigator.clipboard.writeText(text).then(
+                  () => showToast('success', 'Panel keys copied to clipboard'),
+                  () => showToast('error', 'Could not copy — clipboard blocked'),
+                )
+              }
+            }}
+            className="rounded-lg border border-white/10 bg-[#2a2a2a] px-4 py-2 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+          >
+            Copy keys
+          </button>
+        </div>
       </div>
     </AppShell>
   )
+}
+
+/**
+ * Format every key on the panel as a clipboard-friendly plain-text dump.
+ * Sections: panel header, MAIN page, SHIFT page (if applicable), and each
+ * EXPANSION 1..N. Empty keys are listed as "—" so positions stay visible.
+ */
+function formatKeysForClipboard(
+  equipment: { name: string | null; hardwareType: string | null },
+  member: { firstName: string; lastName: string; position: string | null } | null,
+  keys: Array<{
+    keyIndex: number
+    page: string
+    expansion: number
+    pickListItemName: string | null
+    pickListItemType: string | null
+    triggerMode: string
+  }>,
+): string {
+  const lines: string[] = []
+  const memberName = member ? `${member.firstName} ${member.lastName}`.trim() : ''
+  const headerBits = [
+    equipment.name || 'Panel',
+    equipment.hardwareType,
+    memberName,
+    member?.position,
+  ].filter(Boolean)
+  lines.push(headerBits.join(' · '))
+  lines.push('')
+
+  // Group keys by (expansion, page).
+  const expansions = Array.from(new Set(keys.map((k) => k.expansion))).sort((a, b) => a - b)
+  for (const exp of expansions) {
+    const expKeys = keys.filter((k) => k.expansion === exp)
+    const pages = Array.from(new Set(expKeys.map((k) => k.page)))
+    // Render main page first, then shift if present.
+    const orderedPages = ['main', 'shift'].filter((p) => pages.includes(p))
+    for (const page of orderedPages) {
+      const pageKeys = expKeys
+        .filter((k) => k.page === page)
+        .sort((a, b) => a.keyIndex - b.keyIndex)
+      if (pageKeys.length === 0) continue
+      const sectionLabel = exp === 0
+        ? page === 'main' ? 'MAIN' : 'SHIFT'
+        : `EXPANSION ${exp}${page === 'shift' ? ' (SHIFT)' : ''}`
+      lines.push(sectionLabel)
+      for (const k of pageKeys) {
+        const display = k.pickListItemName
+          ? `${k.pickListItemName}${k.pickListItemType ? ` · ${k.pickListItemType}` : ''}${k.triggerMode && k.triggerMode !== 'latch' ? ` · ${k.triggerMode}` : ''}`
+          : '—'
+        lines.push(`K${k.keyIndex + 1}: ${display}`)
+      }
+      lines.push('')
+    }
+  }
+
+  return lines.join('\n').trimEnd() + '\n'
 }

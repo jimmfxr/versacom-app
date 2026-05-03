@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
 import { PageLayout } from '@/components/page-layout'
 import { EmptyState } from '@/components/empty-state'
 import { STATUS_BADGE_STYLES, getStatusLabel } from '@/lib/deploy-status'
+import { ProjectSwitcher } from '@/app/project-dashboard'
 
 const PANEL_CATEGORIES = ['panels', 'hardwire_bp', 'wireless_bp']
 
@@ -31,18 +32,51 @@ function WrenchIcon() {
   )
 }
 
+type BrowseProject = { id: number; name: string }
+type BrowseMember = {
+  id: number
+  firstName: string
+  lastName: string
+  position: string | null
+  displayName: string
+}
+
 export function MyEquipmentContent({
   userName,
   isAdmin = false,
   isUserOnly = false,
   equipment,
+  browseProjects,
+  selectedProjectId,
+  browseMembers,
+  selectedMemberId,
+  browseMemberLabel,
 }: {
   userName: string
   isAdmin?: boolean
   isUserOnly?: boolean
   equipment: EquipmentItem[]
+  /** When set, the page is in admin/manager browse mode and renders project
+   *  + user switchers in the page header. */
+  browseProjects?: BrowseProject[]
+  selectedProjectId?: number
+  browseMembers?: BrowseMember[]
+  selectedMemberId?: number | null
+  browseMemberLabel?: string
 }) {
   const router = useRouter()
+  const browseMode = !!browseProjects && browseProjects.length > 0
+
+  // Prev / Next navigation through the browseMembers list. Wraps around.
+  function jumpToMember(index: number) {
+    if (!browseMembers || browseMembers.length === 0 || selectedProjectId == null) return
+    const wrapped = ((index % browseMembers.length) + browseMembers.length) % browseMembers.length
+    const next = browseMembers[wrapped]
+    router.push(`/my-equipment?project=${selectedProjectId}&member=${next.id}`)
+  }
+  const currentMemberIndex = browseMembers && selectedMemberId != null
+    ? browseMembers.findIndex((m) => m.id === selectedMemberId)
+    : -1
   const isPanelType = (cat: string) => PANEL_CATEGORIES.includes(cat)
   // All non-admin roles edit through the request/approval flow; admin can
   // apply directly. Every role assigned a panel can open it for editing.
@@ -58,9 +92,59 @@ export function MyEquipmentContent({
 
   return (
     <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={!isUserOnly}>
-      <PageLayout title="My Equipment">
+      <PageLayout
+        title="My Equipment"
+        action={
+          browseMode && browseProjects && selectedProjectId != null ? (
+            <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center">
+              {/* Project switcher — same component as Dashboard / Tasks */}
+              <ProjectSwitcher
+                projectId={selectedProjectId}
+                projectName={
+                  browseProjects.find((p) => p.id === selectedProjectId)?.name ?? '—'
+                }
+                userProjects={browseProjects}
+                basePath="/my-equipment"
+              />
+              {/* User switcher with prev/next stepper buttons */}
+              {browseMembers && browseMembers.length > 0 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => jumpToMember(currentMemberIndex - 1)}
+                    aria-label="Previous user"
+                    className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
+                  >
+                    <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                    </svg>
+                  </button>
+                  <MemberSwitcher
+                    members={browseMembers}
+                    selectedMemberId={selectedMemberId ?? null}
+                    selectedLabel={browseMemberLabel ?? '—'}
+                    onSelect={(id) => router.push(`/my-equipment?project=${selectedProjectId}&member=${id}`)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => jumpToMember(currentMemberIndex + 1)}
+                    aria-label="Next user"
+                    className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
+                  >
+                    <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : null
+        }
+      >
         <p className="text-xs text-gray-500">
-          {equipment.length} item{equipment.length !== 1 ? 's' : ''} assigned to you
+          {browseMode
+            ? `${equipment.length} item${equipment.length !== 1 ? 's' : ''} assigned`
+            : `${equipment.length} item${equipment.length !== 1 ? 's' : ''} assigned to you`}
         </p>
 
         {equipment.length === 0 ? (
@@ -138,5 +222,83 @@ export function MyEquipmentContent({
         )}
       </PageLayout>
     </AppShell>
+  )
+}
+
+function MemberSwitcher({
+  members,
+  selectedMemberId,
+  selectedLabel,
+  onSelect,
+}: {
+  members: BrowseMember[]
+  selectedMemberId: number | null
+  selectedLabel: string
+  onSelect: (id: number) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    if (open) document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative w-full sm:inline-block sm:w-auto">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`flex w-full items-center justify-between gap-2.5 rounded-lg border px-3.5 py-2 text-sm font-medium text-gray-200 transition-colors sm:min-w-[220px] ${
+          open
+            ? 'border-[#22a7d3]/50 bg-white/[0.04]'
+            : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04]'
+        }`}
+      >
+        <span className="truncate">{selectedLabel}</span>
+        <svg
+          className={`size-3.5 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="5 8 10 13 15 8" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-[320px] min-w-[260px] overflow-y-auto rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl">
+          {members.map((m) => {
+            const isActive = m.id === selectedMemberId
+            const label = m.position
+              ? `${m.displayName} · ${m.position}`
+              : m.displayName
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => {
+                  setOpen(false)
+                  if (!isActive) onSelect(m.id)
+                }}
+                className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2.5 text-left transition-colors ${
+                  isActive ? 'bg-[#22a7d3]/10' : 'hover:bg-white/[0.06]'
+                }`}
+              >
+                <span className={`text-[13px] font-medium ${isActive ? 'text-[#22a7d3]' : 'text-gray-200'}`}>
+                  {label}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }

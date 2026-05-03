@@ -27,7 +27,10 @@ function getNavigation(pathname: string, isAdmin: boolean, isUserOnly: boolean, 
   }
   const projectsHref = lastProjectId ? `/projects/${lastProjectId}` : '/projects'
   items.push({ name: 'Projects', href: projectsHref, current: pathname.startsWith('/projects') })
-  if (showMyEquipment) {
+  // Crew see their own gear; admins/managers see a browse-mode view that
+  // lets them step through every crew member on a project. Anyone except
+  // pure-user role gets the link — the page renders the right mode.
+  if (!isUserOnly) {
     items.push({ name: 'My Equipment', href: '/my-equipment', current: pathname.startsWith('/my-equipment') })
   }
   return items
