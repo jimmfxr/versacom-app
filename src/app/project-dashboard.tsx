@@ -142,10 +142,21 @@ export function ProjectSwitcher({
   projectId,
   projectName,
   userProjects,
+  basePath = '/',
+  showAllOption = false,
+  allLabel = 'All shows',
 }: {
-  projectId: number
+  /** Currently-selected project id. null = the "All shows" entry is active. */
+  projectId: number | null
+  /** Label rendered in the trigger button when a project is selected. */
   projectName: string
   userProjects: UserProject[]
+  /** Page to navigate to on selection — defaults to dashboard. */
+  basePath?: string
+  /** Adds a leading "All shows" entry that maps to no project filter. */
+  showAllOption?: boolean
+  /** Override the "All shows" label. */
+  allLabel?: string
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -176,6 +187,26 @@ export function ProjectSwitcher({
 
       {open && (
         <div className="absolute left-0 right-0 top-full z-30 mt-1 min-w-[280px] rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl">
+          {showAllOption && (() => {
+            const isActive = projectId == null
+            return (
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false)
+                  if (!isActive) router.push(basePath)
+                }}
+                className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2.5 text-left transition-colors ${
+                  isActive ? 'bg-[#22a7d3]/10' : 'hover:bg-white/[0.06]'
+                }`}
+              >
+                <span className={`text-[13px] font-medium ${isActive ? 'text-[#22a7d3]' : 'text-gray-200'}`}>
+                  {allLabel}
+                </span>
+                {isActive && <CheckIcon />}
+              </button>
+            )
+          })()}
           {userProjects.map((p) => {
             const isActive = p.id === projectId
             return (
@@ -186,7 +217,8 @@ export function ProjectSwitcher({
                   setOpen(false)
                   if (!isActive) {
                     document.cookie = `selectedProject=${p.id};path=/;max-age=${60 * 60 * 24 * 365}`
-                    router.push(`/?project=${p.id}`)
+                    const sep = basePath.includes('?') ? '&' : '?'
+                    router.push(`${basePath}${sep}project=${p.id}`)
                   }
                 }}
                 className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2.5 text-left transition-colors ${

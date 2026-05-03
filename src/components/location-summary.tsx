@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { STATUS_BADGE_STYLES, getStatusLabel } from '@/lib/deploy-status'
 
 const CATEGORY_LABELS: Record<string, string> = {
   panels: 'Panels',
@@ -31,6 +32,8 @@ export type LocationSummaryGear = {
   gooseneck?: boolean
   footswitches?: number
   speakers?: number
+  /** Optional — when present, renders a small status pill on the gear row. */
+  deployStatus?: string
 }
 
 type LocationSummaryData = {
@@ -45,11 +48,16 @@ type LocationSummaryData = {
       gooseneck: boolean
       footswitches: number
       speakers: number
+      deployStatus: string | null
     }>
   }>
   headsets: Array<{ type: string; count: number }>
   totalGear: number
 }
+
+// Statuses worth surfacing on the pull list. We skip 'na' (the default —
+// adds no info) but include 'not-needed' so crew know not to grab those.
+const VISIBLE_STATUSES = new Set(['deployed', 'done', 'returned', 'not-needed', 'damaged'])
 
 export function buildLocationSummary(
   allGear: LocationSummaryGear[],
@@ -69,6 +77,7 @@ export function buildLocationSummary(
         gooseneck: g.gooseneck ?? false,
         footswitches: g.footswitches ?? 0,
         speakers: g.speakers ?? 0,
+        deployStatus: g.deployStatus ?? null,
       }))
       .sort((a, b) => a.name.localeCompare(b.name))
     return {
@@ -100,9 +109,13 @@ export function buildLocationSummary(
 export function LocationSummary({
   location,
   allGear,
+  label = 'Pull list',
 }: {
   location: string
   allGear: LocationSummaryGear[]
+  /** Header label — defaults to "Pull list", switches to "Return list" when
+   *  the calling page is in return phase. */
+  label?: string
 }) {
   const summary = buildLocationSummary(allGear, location)
   const [collapsed, setCollapsed] = useState(false)
@@ -117,7 +130,7 @@ export function LocationSummary({
       >
         <div>
           <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-            Pull list
+            {label}
           </div>
           <div className="text-base font-semibold text-white">{location}</div>
         </div>
@@ -175,6 +188,11 @@ export function LocationSummary({
                           )}
                           {item.speakers > 0 && (
                             <span className="text-xs text-gray-500">· SPK {item.speakers}</span>
+                          )}
+                          {item.deployStatus && VISIBLE_STATUSES.has(item.deployStatus) && (
+                            <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${STATUS_BADGE_STYLES[item.deployStatus] || ''}`}>
+                              {getStatusLabel(item.deployStatus)}
+                            </span>
                           )}
                         </div>
                       ))}

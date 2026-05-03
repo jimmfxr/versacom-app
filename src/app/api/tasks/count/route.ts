@@ -21,28 +21,35 @@ export async function GET() {
 
   const memberships = await prisma.projectMember.findMany({
     where: { userId: session.user.id, project: { status: 'active' } },
-    select: { projectId: true },
+    select: { projectId: true, project: { select: { returnPhaseActive: true } } },
   })
   const projectIds = Array.from(new Set(memberships.map((m) => m.projectId)))
   if (projectIds.length === 0) return NextResponse.json({ count: 0 })
+  const returnPhaseProjectIds = new Set(
+    memberships.filter((m) => m.project.returnPhaseActive).map((m) => m.projectId),
+  )
 
-  // Pull only the rows we need to verify the location-non-empty condition,
-  // since Prisma can't easily express "string is not empty/whitespace" without raw SQL.
+  // Two task surfaces share the badge: deploy (na items planned) +
+  // return (done items in projects with active return phase).
   const rows = await prisma.equipment.findMany({
     where: {
       projectId: { in: projectIds },
-      deployStatus: 'na',
+      deployStatus: { in: ['na', 'done'] },
       OR: [
         { category: { in: ASSIGNABLE_CATEGORIES }, assignedToId: { not: null } },
         { category: { in: INFRA_CATEGORIES }, location: { not: null } },
       ],
     },
-    select: { category: true, assignedToId: true, location: true },
+    select: { category: true, assignedToId: true, location: true, deployStatus: true, projectId: true },
   })
 
   const count = rows.filter((e) => {
-    if (ASSIGNABLE_CATEGORIES.includes(e.category)) return e.assignedToId != null
-    if (INFRA_CATEGORIES.includes(e.category)) return !!(e.location && e.location.trim())
+    const planned =
+      (ASSIGNABLE_CATEGORIES.includes(e.category) && e.assignedToId != null) ||
+      (INFRA_CATEGORIES.includes(e.category) && !!(e.location && e.location.trim()))
+    if (!planned) return false
+    if (e.deployStatus === 'na') return true
+    if (e.deployStatus === 'done') return returnPhaseProjectIds.has(e.projectId)
     return false
   }).length
 

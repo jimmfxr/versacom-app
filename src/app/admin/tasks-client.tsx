@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/empty-state'
 import { RowCard } from '@/components/row-card'
 import { StatusBadge } from '@/components/status-badge'
 import { unlockUser } from './actions'
+import { ProjectSwitcher } from '@/app/project-dashboard'
 
 type LockoutTask = {
   id: string
@@ -94,11 +95,17 @@ export function TasksClient({
   changeRequestTasks,
   userName,
   isAdmin,
+  userProjects = [],
+  selectedProjectId = null,
 }: {
   lockoutTasks: LockoutTask[]
   changeRequestTasks: ChangeRequestTask[]
   userName?: string
   isAdmin?: boolean
+  /** Admin's projects, drives the top-right project switcher. */
+  userProjects?: Array<{ id: number; name: string }>
+  /** Currently-filtered project, or null for "All shows". */
+  selectedProjectId?: number | null
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -130,7 +137,22 @@ export function TasksClient({
 
   return (
     <AppShell userName={userName} isAdmin={isAdmin}>
-      <PageLayout title="Tasks" titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+      <PageLayout
+        title="Tasks"
+        titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
+        action={
+          userProjects.length > 1 ? (
+            <ProjectSwitcher
+              projectId={selectedProjectId}
+              projectName={
+                userProjects.find((p) => p.id === selectedProjectId)?.name ?? userProjects[0].name
+              }
+              userProjects={userProjects}
+              basePath="/admin"
+            />
+          ) : null
+        }
+      >
         {totalTasks === 0 ? (
           <EmptyState icon={<CheckIcon />} title="Inbox zero" message="No pending tasks. All users are active and operational." />
         ) : (

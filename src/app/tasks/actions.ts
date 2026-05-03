@@ -62,3 +62,37 @@ export async function undoDeployed(equipmentId: number) {
   revalidatePath('/my-equipment')
   return { success: true }
 }
+
+/** Crew action: mark a "done" piece of equipment returned (back in case). */
+export async function markReturned(equipmentId: number) {
+  const session = await getSession()
+  if (!session) return { error: 'Not authenticated' }
+  if (!(await userBelongsToProject(session.user.id, equipmentId))) {
+    return { error: 'Not authorized' }
+  }
+  await prisma.equipment.update({
+    where: { id: equipmentId },
+    data: { deployStatus: 'returned' },
+  })
+  revalidatePath('/tasks')
+  revalidatePath('/')
+  revalidatePath('/my-equipment')
+  return { success: true }
+}
+
+/** Reverts a markReturned within the 10-second undo window. */
+export async function undoReturned(equipmentId: number) {
+  const session = await getSession()
+  if (!session) return { error: 'Not authenticated' }
+  if (!(await userBelongsToProject(session.user.id, equipmentId))) {
+    return { error: 'Not authorized' }
+  }
+  await prisma.equipment.update({
+    where: { id: equipmentId },
+    data: { deployStatus: 'done' },
+  })
+  revalidatePath('/tasks')
+  revalidatePath('/')
+  revalidatePath('/my-equipment')
+  return { success: true }
+}

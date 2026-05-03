@@ -44,6 +44,9 @@ model Project {
   goosenecksBrought    Int @default(0)
   footswitchesBrought  Int @default(0)
   speakersBrought      Int @default(0)
+  // When admin activates Return phase, crew see "done" gear as Return tasks
+  // alongside the existing Deploy tasks. Toggle on the project edit form.
+  returnPhaseActive    Boolean @default(false)
 
   // Relations
   createdBy      User             @relation("ProjectCreator", fields: [createdById], references: [id])

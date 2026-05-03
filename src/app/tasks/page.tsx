@@ -5,6 +5,7 @@ import { AppShell } from '@/components/app-shell'
 import { PageLayout } from '@/components/page-layout'
 import { EmptyState } from '@/components/empty-state'
 import { TaskCardList } from './task-card-list'
+import { ProjectSwitcher } from '@/app/project-dashboard'
 
 function CheckIcon() {
   return (
@@ -19,9 +20,18 @@ export const dynamic = 'force-dynamic'
 const ASSIGNABLE_CATEGORIES = ['panels', 'wireless_bp', 'hardwire_bp']
 const INFRA_CATEGORIES = ['switches', 'antennas', 'audio']
 
-export default async function TasksPage() {
+export default async function TasksPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ project?: string }>
+}) {
   const session = await getSession()
   if (!session) redirect('/login')
+
+  const params = await searchParams
+  const selectedProjectId = params.project ? parseInt(params.project, 10) : null
+  const filteredProjectId =
+    selectedProjectId && Number.isFinite(selectedProjectId) ? selectedProjectId : null
 
   const userName = `${session.user.firstName} ${session.user.lastName}`
   const isAdmin = session.memberships.some((m) => m.role === 'admin')
@@ -30,12 +40,38 @@ export default async function TasksPage() {
 
   if (isUserOnly) redirect('/my-equipment')
 
-  // Pull all projects the user belongs to so we can scope the task list.
+  // Pull all projects the user belongs to so we can scope the task list and
+  // populate the top-right project switcher.
   const memberships = await prisma.projectMember.findMany({
     where: { userId: session.user.id, project: { status: 'active' } },
-    select: { projectId: true },
+    select: {
+      projectId: true,
+      project: { select: { id: true, name: true, returnPhaseActive: true } },
+    },
   })
-  const projectIds = Array.from(new Set(memberships.map((m) => m.projectId)))
+  // Project IDs where return phase is currently active — controls whether
+  // "done" items show up as Return tasks on the page.
+  const returnPhaseProjectIds = new Set(
+    memberships.filter((m) => m.project.returnPhaseActive).map((m) => m.projectId),
+  )
+  // De-dup project list (a user can have multiple memberships per project).
+  const userProjectsMap = new Map<number, { id: number; name: string }>()
+  for (const m of memberships) {
+    if (!userProjectsMap.has(m.project.id)) {
+      userProjectsMap.set(m.project.id, { id: m.project.id, name: m.project.name })
+    }
+  }
+  const userProjects = Array.from(userProjectsMap.values()).sort((a, b) => a.name.localeCompare(b.name))
+
+  // ?project= filter — defaults to the first project if absent or invalid.
+  // No "All shows" option here; the page always scopes to one project.
+  const validFilteredId =
+    filteredProjectId != null && userProjectsMap.has(filteredProjectId)
+      ? filteredProjectId
+      : userProjects.length > 0
+        ? userProjects[0].id
+        : null
+  const projectIds = validFilteredId != null ? [validFilteredId] : []
 
   // We pull every piece of equipment in the user's projects (not just the
   // not-yet-deployed ones) because the location filter on the client needs
@@ -105,13 +141,29 @@ export default async function TasksPage() {
     }
   })
 
-  // Cards = the actionable subset (deployStatus='na' AND planned).
-  const cards = allGear.filter((e) => {
-    if (e.deployStatus !== 'na') return false
-    if (ASSIGNABLE_CATEGORIES.includes(e.category)) return e.assignedToId != null
-    if (INFRA_CATEGORIES.includes(e.category)) return !!(e.location && e.location.trim())
-    return false
-  })
+  // Deploy cards = na items that are planned (assigned or located).
+  const deployCards = allGear
+    .filter((e) => {
+      if (e.deployStatus !== 'na') return false
+      if (ASSIGNABLE_CATEGORIES.includes(e.category)) return e.assignedToId != null
+      if (INFRA_CATEGORIES.includes(e.category)) return !!(e.location && e.location.trim())
+      return false
+    })
+    .map((e) => ({ ...e, mode: 'deploy' as const }))
+
+  // Return cards = done items in projects whose admin has activated the
+  // Return phase. Same eligibility rules as deploy (must be planned).
+  const returnCards = allGear
+    .filter((e) => {
+      if (e.deployStatus !== 'done') return false
+      if (!returnPhaseProjectIds.has(e.projectId)) return false
+      if (ASSIGNABLE_CATEGORIES.includes(e.category)) return e.assignedToId != null
+      if (INFRA_CATEGORIES.includes(e.category)) return !!(e.location && e.location.trim())
+      return false
+    })
+    .map((e) => ({ ...e, mode: 'return' as const }))
+
+  const cards = [...deployCards, ...returnCards]
 
   // Distinct location chips — sorted alphabetically.
   const locations = Array.from(
@@ -123,6 +175,16 @@ export default async function TasksPage() {
       <PageLayout
         title="Tasks"
         titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
+        action={
+          userProjects.length > 1 && validFilteredId != null ? (
+            <ProjectSwitcher
+              projectId={validFilteredId}
+              projectName={userProjectsMap.get(validFilteredId)!.name}
+              userProjects={userProjects}
+              basePath="/tasks"
+            />
+          ) : null
+        }
       >
         {cards.length === 0 ? (
           <EmptyState

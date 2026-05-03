@@ -21,7 +21,7 @@ import { ComboboxInput } from '@/components/combobox-input'
 import { FilterBar, Chip } from '@/components/filter-bar'
 import { LocationSummary } from '@/components/location-summary'
 import { usePersistentState } from '@/lib/use-persistent-state'
-import { updateProject, deleteProject } from './actions'
+import { updateProject, deleteProject, setReturnPhase } from './actions'
 import { bulkCreateEquipment, updateEquipment, deleteEquipment } from './distribution/actions'
 import { createMember, updateMember, deleteMember } from './team-actions'
 import { createPickListItem, updatePickListItem, deletePickListItem } from './picklist-actions'
@@ -91,6 +91,7 @@ type Project = {
   createdAt: string
   createdBy: { id: number; firstName: string; lastName: string }
   members: Member[]
+  returnPhaseActive: boolean
 }
 
 type EquipmentItem = {
@@ -291,6 +292,27 @@ export function ProjectPage({
   const [showSettings, setShowSettings] = useState(false)
   const [name, setName] = useState(project.name)
   const [status, setStatus] = useState(project.status)
+  // Optimistic state for the Activate Return / Undo Return toggle so the
+  // button label flips instantly without waiting for a refresh.
+  const [returnPhaseActive, setReturnPhaseActiveLocal] = useState(project.returnPhaseActive)
+  const [returnPending, setReturnPending] = useState(false)
+  function handleToggleReturnPhase() {
+    const next = !returnPhaseActive
+    setReturnPhaseActiveLocal(next)
+    setReturnPending(true)
+    startTransition(async () => {
+      const res = await setReturnPhase(project.id, next)
+      setReturnPending(false)
+      if (res.error) {
+        // Revert optimistic state on failure.
+        setReturnPhaseActiveLocal(!next)
+        showToast('error', res.error)
+        return
+      }
+      showToast('success', next ? 'Return phase activated' : 'Return phase ended')
+      router.refresh()
+    })
+  }
   const [managerId, setManagerId] = useState(
     () => project.members.find((m) => m.role === 'manager')?.userId.toString() || ''
   )
@@ -784,9 +806,19 @@ export function ProjectPage({
                   />
                 </div>
                 {editError && <p className="mt-3 text-sm text-red-400">{editError}</p>}
-                <div className="mt-4 flex items-center justify-between">
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
                   <Button variant="danger" size="sm" onClick={() => setShowDeleteConfirm(true)} disabled={isPending}>Delete Project</Button>
-                  <Button size="sm" onClick={handleSaveProject} disabled={isPending}>{isPending ? 'Saving...' : 'Save Changes'}</Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant={returnPhaseActive ? 'secondary' : 'primary'}
+                      onClick={handleToggleReturnPhase}
+                      disabled={returnPending}
+                    >
+                      {returnPending ? '...' : returnPhaseActive ? 'Undo Return' : 'Activate Return'}
+                    </Button>
+                    <Button size="sm" onClick={handleSaveProject} disabled={isPending}>{isPending ? 'Saving...' : 'Save Changes'}</Button>
+                  </div>
                 </div>
               </Card>
               <div className="border-t border-white/10" />
@@ -833,20 +865,22 @@ export function ProjectPage({
           {/* ═══════════════════════════════ EQUIPMENT TAB ═══════════════════════════════ */}
           {activeTab === 'equipment' && (
             <>
-              {/* Search + Add bar */}
-              <div className="sticky top-16 z-20 -mx-4 flex items-center gap-3 bg-[#202020] px-4 pb-3 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-                <div className="flex-1">
-                  <input
-                    type="text"
-                    placeholder="Search equipment..."
-                    value={eqSearch}
-                    onChange={(e) => setEqSearch(e.target.value)}
-                    className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
-                  />
+              {/* Sticky bundle: search + filter chips ride together so both
+                  stay in view as the equipment list scrolls underneath. */}
+              <div className="sticky top-16 z-20 -mx-4 bg-[#202020] px-4 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+                <div className="flex items-center gap-3 pb-3">
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      placeholder="Search equipment..."
+                      value={eqSearch}
+                      onChange={(e) => setEqSearch(e.target.value)}
+                      className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
+                    />
+                  </div>
+                  {canAddEquipment && !showAdd && <Button onClick={() => setShowAdd(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Equipment</span></Button>}
+                  {!canAddEquipment && isCrew && !showTeamQr && <Button onClick={() => setShowTeamQr(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Show QR</span></Button>}
                 </div>
-                {canAddEquipment && !showAdd && <Button onClick={() => setShowAdd(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Equipment</span></Button>}
-                {!canAddEquipment && isCrew && !showTeamQr && <Button onClick={() => setShowTeamQr(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Show QR</span></Button>}
-              </div>
 
               {/* Filter chips (admin/manager only) — categories + locations
                   share a single All button that resets both filters. Mobile
@@ -929,6 +963,7 @@ export function ProjectPage({
                   </div>
                 )
               })()}
+              </div>{/* /sticky bundle */}
 
               {/* Location summary — same card as the crew /tasks page */}
               {eqLocationFilter && (
@@ -944,6 +979,7 @@ export function ProjectPage({
                     gooseneck: e.gooseneck,
                     footswitches: e.footswitches,
                     speakers: e.speakers,
+                    deployStatus: e.deployStatus,
                   }))}
                 />
               )}
@@ -1242,31 +1278,34 @@ export function ProjectPage({
           {/* ═══════════════════════════════ TEAM TAB ═══════════════════════════════ */}
           {activeTab === 'team' && (
             <>
-              <div className="sticky top-16 z-20 -mx-4 flex items-center gap-3 bg-[#202020] px-4 pb-3 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-                <div className="flex-1">
-                  <input
-                    type="text"
-                    placeholder="Search by name, position, role, equipment, or status..."
-                    value={teamSearch}
-                    onChange={(e) => setTeamSearch(e.target.value)}
-                    className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
-                  />
+              {/* Sticky bundle: search bar + filter chips. */}
+              <div className="sticky top-16 z-20 -mx-4 bg-[#202020] px-4 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+                <div className="flex items-center gap-3 pb-3">
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      placeholder="Search by name, position, role, equipment, or status..."
+                      value={teamSearch}
+                      onChange={(e) => setTeamSearch(e.target.value)}
+                      className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
+                    />
+                  </div>
+                  {canEditTeam && !showAddMember && <Button onClick={() => setShowAddMember(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Member</span></Button>}
+                  {!canEditTeam && isCrew && !showTeamQr && <Button onClick={() => setShowTeamQr(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Show QR</span></Button>}
                 </div>
-                {canEditTeam && !showAddMember && <Button onClick={() => setShowAddMember(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Member</span></Button>}
-                {!canEditTeam && isCrew && !showTeamQr && <Button onClick={() => setShowTeamQr(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Show QR</span></Button>}
-              </div>
 
-              {/* Filter chips: assignable equipment categories only — Team
-                  members never own infra gear (switches/antennas/audio). */}
-              {!isCrew && (
-                <FilterBar
-                  options={usedEquipmentCategories
-                    .filter((c) => c.assignable)
-                    .map((c) => ({ value: c.value, label: c.label }))}
-                  selected={teamCategoryFilter}
-                  onSelect={setTeamCategoryFilter}
-                />
-              )}
+                {/* Filter chips: assignable equipment categories only — Team
+                    members never own infra gear (switches/antennas/audio). */}
+                {!isCrew && (
+                  <FilterBar
+                    options={usedEquipmentCategories
+                      .filter((c) => c.assignable)
+                      .map((c) => ({ value: c.value, label: c.label }))}
+                    selected={teamCategoryFilter}
+                    onSelect={setTeamCategoryFilter}
+                  />
+                )}
+              </div>{/* /sticky bundle */}
 
               {/* Crew-only: standalone join-QR card */}
               {isCrew && showTeamQr && (
@@ -1430,26 +1469,29 @@ export function ProjectPage({
           {/* ═══════════════════════════════ PICK LIST TAB ═══════════════════════════════ */}
           {activeTab === 'picklist' && (
             <>
-              <div className="sticky top-16 z-20 -mx-4 flex items-center gap-3 bg-[#202020] px-4 pb-3 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-                <div className="flex-1">
-                  <input
-                    type="text"
-                    placeholder="Search by name, type, or user..."
-                    value={plSearch}
-                    onChange={(e) => setPlSearch(e.target.value)}
-                    className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
-                  />
+              {/* Sticky bundle: search bar + filter chips. */}
+              <div className="sticky top-16 z-20 -mx-4 bg-[#202020] px-4 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+                <div className="flex items-center gap-3 pb-3">
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      placeholder="Search by name, type, or user..."
+                      value={plSearch}
+                      onChange={(e) => setPlSearch(e.target.value)}
+                      className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
+                    />
+                  </div>
+                  <Button variant={plSortAbc ? 'primary' : 'secondary'} onClick={() => setPlSortAbc(!plSortAbc)}>A–Z</Button>
+                  {canEditPickList && !showAddPl && <Button onClick={() => setShowAddPl(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Function</span></Button>}
                 </div>
-                <Button variant={plSortAbc ? 'primary' : 'secondary'} onClick={() => setPlSortAbc(!plSortAbc)}>A–Z</Button>
-                {canEditPickList && !showAddPl && <Button onClick={() => setShowAddPl(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Function</span></Button>}
-              </div>
 
-              {/* Filter chips: function types */}
-              <FilterBar
-                options={FUNCTION_TYPES.map((t) => ({ value: t, label: FUNCTION_TYPE_LABELS[t] || t }))}
-                selected={plTypeFilter}
-                onSelect={setPlTypeFilter}
-              />
+                {/* Filter chips: function types */}
+                <FilterBar
+                  options={FUNCTION_TYPES.map((t) => ({ value: t, label: FUNCTION_TYPE_LABELS[t] || t }))}
+                  selected={plTypeFilter}
+                  onSelect={setPlTypeFilter}
+                />
+              </div>{/* /sticky bundle */}
 
               {/* Add function form */}
               {canEditPickList && showAddPl && (

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { markDeployed, undoDeployed } from './actions'
+import { markDeployed, undoDeployed, markReturned, undoReturned } from './actions'
 import { LocationSummary } from '@/components/location-summary'
 import { FilterBar } from '@/components/filter-bar'
 import { usePersistentState } from '@/lib/use-persistent-state'
@@ -34,9 +34,13 @@ export type TaskCard = {
   speakers: number
   projectName: string
   assignedTo: { name: string; position: string | null } | null
+  /** 'deploy' = na item, button reads "Deployed". 'return' = done item, button reads "Returned". */
+  mode: 'deploy' | 'return'
 }
 
-export type GearItem = TaskCard
+// Gear listed in the location summary doesn't need a `mode` — that's a
+// task-only concern. Strip it from the shared GearItem type.
+export type GearItem = Omit<TaskCard, 'mode'>
 
 const UNDO_WINDOW_SECONDS = 10
 const UNDO_WINDOW_MS = UNDO_WINDOW_SECONDS * 1000
@@ -120,16 +124,19 @@ export function TaskCardList({
     }
   }
 
-  function handleDeployed(id: number) {
+  function handlePrimary(id: number) {
     // Snapshot the task data NOW so we can keep rendering the card during its
-    // 20s undo window even though the server-side revalidation will remove it
-    // from the `tasks` prop almost immediately.
+    // 10s undo window even though the server-side revalidation will remove it
+    // from the `tasks` prop almost immediately. The action chosen depends on
+    // the card's mode — deploy cards call markDeployed, return cards call
+    // markReturned.
     const task = tasks.find((t) => t.id === id)
     if (task) {
       setFrozenTasks((f) => ({ ...f, [id]: task }))
     }
     setStateById((s) => ({ ...s, [id]: 'undo' }))
-    void markDeployed(id).then((res) => {
+    const action = task?.mode === 'return' ? markReturned : markDeployed
+    void action(id).then((res) => {
       if (res?.error) {
         setStateById((s) => ({ ...s, [id]: 'idle' }))
         setFrozenTasks((f) => {
@@ -146,7 +153,9 @@ export function TaskCardList({
   function handleUndo(id: number) {
     cancelUndoTimer(id)
     setStateById((s) => ({ ...s, [id]: 'reverting' }))
-    void undoDeployed(id).then((res) => {
+    const task = tasks.find((t) => t.id === id) ?? frozenTasks[id]
+    const action = task?.mode === 'return' ? undoReturned : undoDeployed
+    void action(id).then((res) => {
       if (res?.error) {
         setStateById((s) => ({ ...s, [id]: 'idle' }))
         return
@@ -245,45 +254,103 @@ export function TaskCardList({
     )
   }
 
-  // Group cards by project so the user sees a tidy section per show.
-  const grouped = (() => {
+  // Split visible into Deploy and Return sections, each grouped by project.
+  const deployVisible = visible.filter((t) => t.mode === 'deploy')
+  const returnVisible = visible.filter((t) => t.mode === 'return')
+
+  function groupByProject(list: TaskCard[]) {
     const m = new Map<string, TaskCard[]>()
-    for (const t of visible) {
-      const list = m.get(t.projectName) ?? []
-      list.push(t)
-      m.set(t.projectName, list)
+    for (const t of list) {
+      const arr = m.get(t.projectName) ?? []
+      arr.push(t)
+      m.set(t.projectName, arr)
     }
     return Array.from(m.entries())
-  })()
+  }
 
   return (
     <>
       {SearchBar}
-      {selectedLocation && <LocationSummary location={selectedLocation} allGear={allGear} />}
-      <div className="space-y-6">
-      {grouped.map(([projectName, items]) => (
-        <div key={projectName}>
-          {grouped.length > 1 && (
-            <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-500">
-              {projectName}
-            </div>
-          )}
-          <div className="space-y-2">
-            {items.map((task) => (
-              <TaskCardItem
-                key={task.id}
-                task={task}
-                state={stateById[task.id] ?? 'idle'}
-                secondsLeft={secondsLeftById[task.id] ?? 10}
-                onDeployed={() => handleDeployed(task.id)}
-                onUndo={() => handleUndo(task.id)}
-              />
-            ))}
-          </div>
-        </div>
-      ))}
+      {selectedLocation && (
+        <LocationSummary
+          location={selectedLocation}
+          allGear={allGear}
+          label={returnVisible.length > 0 && deployVisible.length === 0 ? 'Return list' : 'Pull list'}
+        />
+      )}
+      <div className="space-y-8">
+        <TaskSection
+          title="Deploy"
+          cards={deployVisible}
+          stateById={stateById}
+          secondsLeftById={secondsLeftById}
+          onPrimary={handlePrimary}
+          onUndo={handleUndo}
+          groupByProject={groupByProject}
+        />
+        <TaskSection
+          title="Return"
+          cards={returnVisible}
+          stateById={stateById}
+          secondsLeftById={secondsLeftById}
+          onPrimary={handlePrimary}
+          onUndo={handleUndo}
+          groupByProject={groupByProject}
+        />
       </div>
     </>
+  )
+}
+
+function TaskSection({
+  title,
+  cards,
+  stateById,
+  secondsLeftById,
+  onPrimary,
+  onUndo,
+  groupByProject,
+}: {
+  title: string
+  cards: TaskCard[]
+  stateById: Record<number, CardState>
+  secondsLeftById: Record<number, number>
+  onPrimary: (id: number) => void
+  onUndo: (id: number) => void
+  groupByProject: (list: TaskCard[]) => Array<[string, TaskCard[]]>
+}) {
+  if (cards.length === 0) return null
+  const grouped = groupByProject(cards)
+  return (
+    <div>
+      <h3 className="mb-3 flex items-baseline gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+        <span>{title}</span>
+        <span className="text-gray-600">{cards.length}</span>
+      </h3>
+      <div className="space-y-4">
+        {grouped.map(([projectName, items]) => (
+          <div key={projectName}>
+            {grouped.length > 1 && (
+              <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                {projectName}
+              </div>
+            )}
+            <div className="space-y-2">
+              {items.map((task) => (
+                <TaskCardItem
+                  key={task.id}
+                  task={task}
+                  state={stateById[task.id] ?? 'idle'}
+                  secondsLeft={secondsLeftById[task.id] ?? 10}
+                  onPrimary={() => onPrimary(task.id)}
+                  onUndo={() => onUndo(task.id)}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -291,13 +358,13 @@ function TaskCardItem({
   task,
   state,
   secondsLeft,
-  onDeployed,
+  onPrimary,
   onUndo,
 }: {
   task: TaskCard
   state: CardState
   secondsLeft: number
-  onDeployed: () => void
+  onPrimary: () => void
   onUndo: () => void
 }) {
   const [pending, startTransition] = useTransition()
@@ -363,11 +430,11 @@ function TaskCardItem({
         {state === 'idle' && (
           <button
             type="button"
-            onClick={() => startTransition(onDeployed)}
+            onClick={() => startTransition(onPrimary)}
             disabled={pending}
             className="rounded-md bg-[#0178a3] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#019bc7] disabled:opacity-60"
           >
-            Deployed
+            {task.mode === 'return' ? 'Returned' : 'Deployed'}
           </button>
         )}
         {state === 'undo' && (

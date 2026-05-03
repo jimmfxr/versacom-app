@@ -23,6 +23,7 @@ export default async function ProjectDetailPage({
         pin: true,
         status: true,
         createdAt: true,
+        returnPhaseActive: true,
         createdBy: { select: { id: true, firstName: true, lastName: true } },
         members: {
           select: {
@@ -168,6 +169,7 @@ export default async function ProjectDetailPage({
         pin: project.pin || '',
         status: project.status,
         createdAt: project.createdAt.toISOString(),
+        returnPhaseActive: project.returnPhaseActive,
         createdBy: project.createdBy,
         members: project.members.map((m) => ({
           id: m.id,

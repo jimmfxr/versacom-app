@@ -5,17 +5,37 @@ import { TasksClient } from './tasks-client'
 
 export const dynamic = 'force-dynamic'
 
-export default async function TasksPage() {
+export default async function TasksPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ project?: string }>
+}) {
   const session = await getSession()
   if (!session) redirect('/login')
 
   // Tasks are admin-only and scoped to projects the current user is admin
   // on. Anyone hitting this page who isn't admin anywhere is bounced home.
-  const adminProjectIds = session.memberships
+  const adminProjects = session.memberships
     .filter((m) => m.role === 'admin')
-    .map((m) => m.project.id)
+    .map((m) => ({ id: m.project.id, name: m.project.name }))
 
-  if (adminProjectIds.length === 0) redirect('/')
+  if (adminProjects.length === 0) redirect('/')
+
+  // De-dup in case the same project appears multiple times in memberships.
+  const adminProjectsMap = new Map<number, { id: number; name: string }>()
+  for (const p of adminProjects) {
+    if (!adminProjectsMap.has(p.id)) adminProjectsMap.set(p.id, p)
+  }
+  const userProjects = Array.from(adminProjectsMap.values()).sort((a, b) => a.name.localeCompare(b.name))
+
+  // ?project= filter — defaults to the first project if absent or invalid.
+  const params = await searchParams
+  const requestedId = params.project ? parseInt(params.project, 10) : null
+  const selectedProjectId =
+    requestedId != null && adminProjectsMap.has(requestedId)
+      ? requestedId
+      : userProjects[0].id
+  const adminProjectIds = [selectedProjectId]
 
   const [users, changeRequests] = await Promise.all([
     prisma.user.findMany({
@@ -215,6 +235,8 @@ export default async function TasksPage() {
       changeRequestTasks={changeRequestTasks}
       userName={userName}
       isAdmin={isAdmin}
+      userProjects={userProjects}
+      selectedProjectId={selectedProjectId}
     />
   )
 }

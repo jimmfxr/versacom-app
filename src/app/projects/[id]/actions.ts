@@ -280,3 +280,35 @@ export async function setMiscInventory(
   revalidatePath(`/projects/${projectId}`)
   return { success: true }
 }
+
+/**
+ * Toggle Return Phase on/off for a project. While active, crew see
+ * "done" equipment as Return tasks on /tasks alongside the existing
+ * deploy tasks. Admin/manager only.
+ */
+export async function setReturnPhase(projectId: number, active: boolean) {
+  const session = await getSession()
+  if (!session) return { error: 'Not authenticated' }
+
+  const membership = await prisma.projectMember.findFirst({
+    where: { projectId, userId: session.user.id },
+    select: { role: true },
+  })
+  const globalAdmin = await prisma.projectMember.findFirst({
+    where: { userId: session.user.id, role: 'admin' },
+    select: { id: true },
+  })
+  const canEdit =
+    !!globalAdmin || membership?.role === 'admin' || membership?.role === 'manager'
+  if (!canEdit) return { error: 'Not authorized to change return phase' }
+
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { returnPhaseActive: active },
+  })
+
+  revalidatePath('/')
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath('/tasks')
+  return { success: true }
+}
