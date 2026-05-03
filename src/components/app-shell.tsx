@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { Navbar, type NavItem, type NavUser } from '@/components/navbar'
 import { ToastContainer } from '@/components/toast'
 import { ScrollToTop } from '@/components/scroll-to-top'
@@ -10,28 +10,38 @@ const userNavigation: ReadonlyArray<Pick<NavItem, 'name' | 'href'>> = [
   { name: 'Sign out', href: '#' },
 ]
 
-function getNavigation(pathname: string, isAdmin: boolean, isUserOnly: boolean, showMyEquipment: boolean, lastProjectId: string | null, taskCount: number): NavItem[] {
+function getNavigation(
+  pathname: string,
+  isAdmin: boolean,
+  isUserOnly: boolean,
+  showMyEquipment: boolean,
+  lastProjectId: string | null,
+  taskCount: number,
+  inMyEquipmentBrowse: boolean,
+): NavItem[] {
   if (isUserOnly) {
     return [
       { name: 'My Equipment', href: '/my-equipment', current: pathname.startsWith('/my-equipment') },
     ]
   }
+  // /my-equipment for admin/manager redirects to /projects/X/panel/Y?from=my-equipment.
+  // From the URL alone the route looks like a project page, but the user is
+  // really inside the My Equipment surface. Use the from=my-equipment search
+  // param to flip the active highlight away from Projects and onto My Equipment.
+  const onMyEquipment = pathname.startsWith('/my-equipment') || inMyEquipmentBrowse
+  const onProjects = pathname.startsWith('/projects') && !inMyEquipmentBrowse
+
   const items: NavItem[] = []
   items.push({ name: 'Dashboard', href: '/', current: pathname === '/' })
   if (isAdmin) {
     items.push({ name: 'Tasks', href: '/admin', current: pathname.startsWith('/admin'), badge: taskCount })
   } else if (showMyEquipment) {
-    // Crew get a different "Tasks" page focused on deployment work, with the
-    // same kind of count badge admins get.
     items.push({ name: 'Tasks', href: '/tasks', current: pathname.startsWith('/tasks'), badge: taskCount })
   }
   const projectsHref = lastProjectId ? `/projects/${lastProjectId}` : '/projects'
-  items.push({ name: 'Projects', href: projectsHref, current: pathname.startsWith('/projects') })
-  // Crew see their own gear; admins/managers see a browse-mode view that
-  // lets them step through every crew member on a project. Anyone except
-  // pure-user role gets the link — the page renders the right mode.
+  items.push({ name: 'Projects', href: projectsHref, current: onProjects })
   if (!isUserOnly) {
-    items.push({ name: 'My Equipment', href: '/my-equipment', current: pathname.startsWith('/my-equipment') })
+    items.push({ name: 'My Equipment', href: '/my-equipment', current: onMyEquipment })
   }
   return items
 }
@@ -44,6 +54,8 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
   }
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const inMyEquipmentBrowse = searchParams.get('from') === 'my-equipment'
 
   const [lastProjectId, setLastProjectId] = useState<string | null>(null)
   useEffect(() => {
@@ -118,7 +130,7 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
   return (
     <div className="min-h-full bg-[#202020]">
       <Navbar
-        navigation={getNavigation(pathname, isAdmin, isUserOnly, showMyEquipment, lastProjectId, taskCount)}
+        navigation={getNavigation(pathname, isAdmin, isUserOnly, showMyEquipment, lastProjectId, taskCount, inMyEquipmentBrowse)}
         user={navUser}
         userNavigation={userNavigation}
         onSignOut={handleSignOut}
