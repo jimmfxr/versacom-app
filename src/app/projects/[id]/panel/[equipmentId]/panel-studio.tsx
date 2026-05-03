@@ -507,6 +507,10 @@ export function PanelStudio({
   function closeInspector() {
     setInspectorOpen(false)
     setPickerMode(false)
+    // Drop the key selection too — leaving it highlighted in cyan after the
+    // inspector is dismissed is misleading because there's no longer any UI
+    // tied to that selection.
+    setSelectedKeyId(null)
   }
 
   /* ─── Get visible keys for current page ─── */
