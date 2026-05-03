@@ -27,6 +27,9 @@ type MiscInventory = {
   goosenecksBrought: number
   footswitchesBrought: number
   speakersBrought: number
+  quarterXlrmBrought: number
+  db9XlrfBrought: number
+  rj45XlrmfBrought: number
 }
 
 type ProjectDashboardProps = {
@@ -599,14 +602,30 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
   const goosenecksNeeded = allPanels.filter((e) => e.gooseneck).length
   const footswitchesNeeded = allPanels.reduce((s, e) => s + (e.footswitches || 0), 0)
   const speakersNeeded = allPanels.reduce((s, e) => s + (e.speakers || 0), 0)
+  // Cable accessories derived from panel config:
+  //   1/4-XLRM = 1 per footswitch                     → same as footswitchesNeeded
+  //   DB9-XLRF = 1 per panel that has any footswitches
+  //   RJ45-XLRMF = 1 per speaker                       → same as speakersNeeded
+  const quarterXlrmNeeded = footswitchesNeeded
+  const db9XlrfNeeded = allPanels.filter((e) => (e.footswitches || 0) > 0).length
+  const rj45XlrmfNeeded = speakersNeeded
+
   const goosenecksTracked = miscInventory.goosenecksBrought > 0
   const footswitchesTracked = miscInventory.footswitchesBrought > 0
   const speakersTracked = miscInventory.speakersBrought > 0
+  const quarterXlrmTracked = miscInventory.quarterXlrmBrought > 0
+  const db9XlrfTracked = miscInventory.db9XlrfBrought > 0
+  const rj45XlrmfTracked = miscInventory.rj45XlrmfBrought > 0
   const goosenecksBrought = goosenecksTracked ? miscInventory.goosenecksBrought : goosenecksNeeded
   const footswitchesBrought = footswitchesTracked ? miscInventory.footswitchesBrought : footswitchesNeeded
   const speakersBrought = speakersTracked ? miscInventory.speakersBrought : speakersNeeded
-  const hasAnyMisc = goosenecksNeeded + footswitchesNeeded + speakersNeeded > 0
+  const quarterXlrmBrought = quarterXlrmTracked ? miscInventory.quarterXlrmBrought : quarterXlrmNeeded
+  const db9XlrfBrought = db9XlrfTracked ? miscInventory.db9XlrfBrought : db9XlrfNeeded
+  const rj45XlrmfBrought = rj45XlrmfTracked ? miscInventory.rj45XlrmfBrought : rj45XlrmfNeeded
+  const hasAnyMisc =
+    goosenecksNeeded + footswitchesNeeded + speakersNeeded + quarterXlrmNeeded + db9XlrfNeeded + rj45XlrmfNeeded > 0
     || goosenecksTracked || footswitchesTracked || speakersTracked
+    || quarterXlrmTracked || db9XlrfTracked || rj45XlrmfTracked
 
   return (
     <div className="space-y-5">
@@ -783,6 +802,30 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
                               tagOverride={`${speakersNeeded} / ${speakersBrought}`}
                             />
                           )}
+                          {(quarterXlrmNeeded > 0 || quarterXlrmTracked) && (
+                            <BarRow
+                              label="1/4-XLRM"
+                              count={quarterXlrmNeeded}
+                              total={Math.max(quarterXlrmBrought, 1)}
+                              tagOverride={`${quarterXlrmNeeded} / ${quarterXlrmBrought}`}
+                            />
+                          )}
+                          {(db9XlrfNeeded > 0 || db9XlrfTracked) && (
+                            <BarRow
+                              label="DB9-XLRF"
+                              count={db9XlrfNeeded}
+                              total={Math.max(db9XlrfBrought, 1)}
+                              tagOverride={`${db9XlrfNeeded} / ${db9XlrfBrought}`}
+                            />
+                          )}
+                          {(rj45XlrmfNeeded > 0 || rj45XlrmfTracked) && (
+                            <BarRow
+                              label="RJ45-XLRMF"
+                              count={rj45XlrmfNeeded}
+                              total={Math.max(rj45XlrmfBrought, 1)}
+                              tagOverride={`${rj45XlrmfNeeded} / ${rj45XlrmfBrought}`}
+                            />
+                          )}
                         </>
                       )}
                     </div>
@@ -825,6 +868,9 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
                         goosenecks: goosenecksNeeded,
                         footswitches: footswitchesNeeded,
                         speakers: speakersNeeded,
+                        quarterXlrm: quarterXlrmNeeded,
+                        db9Xlrf: db9XlrfNeeded,
+                        rj45Xlrmf: rj45XlrmfNeeded,
                       }}
                       onDone={() => setEditingInventory(false)}
                     />

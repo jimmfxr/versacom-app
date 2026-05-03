@@ -244,6 +244,9 @@ export async function setMiscInventory(
     goosenecksBrought: number
     footswitchesBrought: number
     speakersBrought: number
+    quarterXlrmBrought: number
+    db9XlrfBrought: number
+    rj45XlrmfBrought: number
   },
 ) {
   const session = await getSession()
@@ -273,6 +276,9 @@ export async function setMiscInventory(
       goosenecksBrought: misc.goosenecksBrought,
       footswitchesBrought: misc.footswitchesBrought,
       speakersBrought: misc.speakersBrought,
+      quarterXlrmBrought: misc.quarterXlrmBrought,
+      db9XlrfBrought: misc.db9XlrfBrought,
+      rj45XlrmfBrought: misc.rj45XlrmfBrought,
     },
   })
 

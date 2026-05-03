@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Project" ADD COLUMN     "db9XlrfBrought" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "quarterXlrmBrought" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "rj45XlrmfBrought" INTEGER NOT NULL DEFAULT 0;

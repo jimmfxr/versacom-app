@@ -13,12 +13,18 @@ type MiscInventoryEdit = {
   goosenecksBrought: number
   footswitchesBrought: number
   speakersBrought: number
+  quarterXlrmBrought: number
+  db9XlrfBrought: number
+  rj45XlrmfBrought: number
 }
 
 type MiscNeeded = {
   goosenecks: number
   footswitches: number
   speakers: number
+  quarterXlrm: number
+  db9Xlrf: number
+  rj45Xlrmf: number
 }
 
 type Props = {
@@ -59,6 +65,12 @@ export function HeadsetInventoryEditor({ projectId, initial, needed, miscInitial
       miscInitial.footswitchesBrought > 0 ? miscInitial.footswitchesBrought : miscNeeded.footswitches,
     speakersBrought:
       miscInitial.speakersBrought > 0 ? miscInitial.speakersBrought : miscNeeded.speakers,
+    quarterXlrmBrought:
+      miscInitial.quarterXlrmBrought > 0 ? miscInitial.quarterXlrmBrought : miscNeeded.quarterXlrm,
+    db9XlrfBrought:
+      miscInitial.db9XlrfBrought > 0 ? miscInitial.db9XlrfBrought : miscNeeded.db9Xlrf,
+    rj45XlrmfBrought:
+      miscInitial.rj45XlrmfBrought > 0 ? miscInitial.rj45XlrmfBrought : miscNeeded.rj45Xlrmf,
   })
   const [pending, startTransition] = useTransition()
   const [err, setErr] = useState<string | null>(null)
@@ -198,6 +210,30 @@ export function HeadsetInventoryEditor({ projectId, initial, needed, miscInitial
               value={misc.speakersBrought}
               onBump={(d) => bumpMisc('speakersBrought', d)}
               onSet={(raw) => setMiscExact('speakersBrought', raw)}
+              pending={pending}
+            />
+            <MiscRow
+              label="1/4-XLRM"
+              needed={miscNeeded.quarterXlrm}
+              value={misc.quarterXlrmBrought}
+              onBump={(d) => bumpMisc('quarterXlrmBrought', d)}
+              onSet={(raw) => setMiscExact('quarterXlrmBrought', raw)}
+              pending={pending}
+            />
+            <MiscRow
+              label="DB9-XLRF"
+              needed={miscNeeded.db9Xlrf}
+              value={misc.db9XlrfBrought}
+              onBump={(d) => bumpMisc('db9XlrfBrought', d)}
+              onSet={(raw) => setMiscExact('db9XlrfBrought', raw)}
+              pending={pending}
+            />
+            <MiscRow
+              label="RJ45-XLRMF"
+              needed={miscNeeded.rj45Xlrmf}
+              value={misc.rj45XlrmfBrought}
+              onBump={(d) => bumpMisc('rj45XlrmfBrought', d)}
+              onSet={(raw) => setMiscExact('rj45XlrmfBrought', raw)}
               pending={pending}
             />
           </>

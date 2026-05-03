@@ -44,6 +44,11 @@ model Project {
   goosenecksBrought    Int @default(0)
   footswitchesBrought  Int @default(0)
   speakersBrought      Int @default(0)
+  // Cable accessories derived from panel footswitch/speaker config.
+  // 0 (default) means "not tracked" — fall back to needed count.
+  quarterXlrmBrought   Int @default(0) // 1/4" to XLR-M, one per footswitch
+  db9XlrfBrought       Int @default(0) // DB9 to XLR-F, one per FS-equipped panel
+  rj45XlrmfBrought     Int @default(0) // RJ45 to XLR-M/F, one per speaker
   // When admin activates Return phase, crew see "done" gear as Return tasks
   // alongside the existing Deploy tasks. Toggle on the project edit form.
   returnPhaseActive    Boolean @default(false)

@@ -330,6 +330,9 @@ export default async function HomePage({
         goosenecksBrought: true,
         footswitchesBrought: true,
         speakersBrought: true,
+        quarterXlrmBrought: true,
+        db9XlrfBrought: true,
+        rj45XlrmfBrought: true,
       },
     }),
     prisma.equipment.findMany({
@@ -394,6 +397,9 @@ export default async function HomePage({
             goosenecksBrought: project.goosenecksBrought,
             footswitchesBrought: project.footswitchesBrought,
             speakersBrought: project.speakersBrought,
+            quarterXlrmBrought: project.quarterXlrmBrought,
+            db9XlrfBrought: project.db9XlrfBrought,
+            rj45XlrmfBrought: project.rj45XlrmfBrought,
           }}
           canEditInventory={canEditInventory}
         />
