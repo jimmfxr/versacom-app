@@ -46,6 +46,37 @@ const HARDWARE_TYPES: Record<string, string[]> = {
   audio: ['NA2', 'A16r', 'Dark88'],
 }
 
+/**
+ * Hardware types that should pre-fill the IP field with a known network
+ * prefix when no IP is set yet. Lookup is exact (case-sensitive) by the
+ * hardwareType string, so it doesn't matter which category the row is in.
+ */
+const IP_PREFIX_BY_HARDWARE: Record<string, string> = {
+  // Riedel panels live on the 10.240.x.x net.
+  'RSP-1216': '10.240.',
+  'RSP-1232': '10.240.',
+  'RSP-2318': '10.240.',
+  'DSP-1216': '10.240.',
+  'DSP-2312': '10.240.',
+  // Cisco-style network switches we manage live on 10.249.x.x.
+  '26P+4F': '10.249.',
+  '40P+4F': '10.249.',
+  '16F': '10.249.',
+  '9P+1F': '10.249.',
+}
+
+/**
+ * Switch hardware types that aren't network-managed (no IP needed). Hide
+ * the IP field entirely when the row is one of these.
+ */
+const NO_IP_HARDWARE = new Set([
+  'Antaira',
+  'TP Link',
+  'Intellanet Old',
+  'Intellanet New',
+  'Media',
+])
+
 const HEADSET_TYPES = [
   'LWHS 4', 'LWHS 5', 'PH 88', 'Shure Single', 'Shure Double',
   'Pliant Single', 'Pliant Double', 'Max D2', 'DT 200', 'DT 280',
@@ -173,13 +204,25 @@ function getCategoryLabel(value: string) {
   return CATEGORIES.find((c) => c.value === value)?.label || value
 }
 
-function hasField(category: string, field: string) {
+function hasField(category: string, field: string, hardwareType?: string | null) {
   const panelFields = ['location', 'headsetType', 'ipAddress']
   const wirelessFields = ['headsetType']
   const hardwireFields = ['location', 'headsetType', 'ipAddress']
   const switchFields = ['location', 'ipAddress', 'patch']
   const antennaFields = ['location', 'ipAddress']
   const audioFields = ['location']
+
+  // IP field is hidden for non-managed switch types (Antaira, TP Link,
+  // Intellanet, Media). Other categories are unaffected.
+  if (
+    field === 'ipAddress' &&
+    category === 'switches' &&
+    hardwareType &&
+    NO_IP_HARDWARE.has(hardwareType)
+  ) {
+    return false
+  }
+
   if (category === 'panels') return panelFields.includes(field)
   if (category === 'wireless_bp') return wirelessFields.includes(field)
   if (category === 'hardwire_bp') return hardwireFields.includes(field)
@@ -444,12 +487,19 @@ export function ProjectPage({
 
   function startEqEdit(item: EquipmentItem) {
     setEditingEqId(item.id)
+    // Pre-fill the IP field with the network prefix when this row has a
+    // recognized hardware type but no IP yet — so admins editing fresh
+    // bulk-added rows see "10.240." or "10.249." already there and only
+    // type the last octet. Existing IPs are never touched.
+    const existingIp = item.ipAddress || ''
+    const prefix = item.hardwareType ? IP_PREFIX_BY_HARDWARE[item.hardwareType] : undefined
+    const seedIp = !existingIp.trim() && prefix ? prefix : existingIp
     setEditEqData({
       name: item.name,
       hardwareType: item.hardwareType || '',
       location: item.location || '',
       headsetType: item.headsetType || '',
-      ipAddress: item.ipAddress || '',
+      ipAddress: seedIp,
       patch: item.patch || '',
       deployStatus: item.deployStatus,
       assignedToId: item.assignedMemberId,
@@ -476,7 +526,7 @@ export function ProjectPage({
         position: null,
         location: normalizedLocation,
         headsetType: hasField(item.category, 'headsetType') ? (editEqData.headsetType as string) || null : null,
-        ipAddress: hasField(item.category, 'ipAddress') ? (editEqData.ipAddress as string) || null : null,
+        ipAddress: hasField(item.category, 'ipAddress', editEqData.hardwareType as string | null) ? (editEqData.ipAddress as string) || null : null,
         patch: hasField(item.category, 'patch') ? (editEqData.patch as string) || null : null,
         deployStatus: (editEqData.deployStatus as string) || 'na',
         assignedToId: isAssignable(item.category) ? (editEqData.assignedToId as number | null) : null,
@@ -1153,10 +1203,21 @@ export function ProjectPage({
                                     // Auto-pick the matching headset for DBP4/DBP5 selections.
                                     const autoHeadset =
                                       v === 'DBP4' ? 'LWHS 4' : v === 'DBP5' ? 'LWHS 5' : null
+                                    // Pre-fill the IP field with the network prefix for known
+                                    // hardware (Riedel panels -> 10.240., switches -> 10.249.)
+                                    // ONLY when the row doesn't already have an IP set, so we
+                                    // never overwrite existing entries.
+                                    const currentIp = (editEqData.ipAddress as string) || ''
+                                    const prefixForHardware = v ? IP_PREFIX_BY_HARDWARE[v] : undefined
+                                    const autoIp =
+                                      prefixForHardware && !currentIp.trim()
+                                        ? prefixForHardware
+                                        : undefined
                                     setEditEqData({
                                       ...editEqData,
                                       hardwareType: v || null,
                                       ...(autoHeadset ? { headsetType: autoHeadset } : {}),
+                                      ...(autoIp ? { ipAddress: autoIp } : {}),
                                     })
                                   }}
                                 />
@@ -1179,7 +1240,7 @@ export function ProjectPage({
                                     onChange={(v) => setEditEqData({ ...editEqData, location: v })}
                                   />
                                 )}
-                                {hasField(item.category, 'ipAddress') && (
+                                {hasField(item.category, 'ipAddress', editEqData.hardwareType as string | null) && (
                                   <FormInput compact label="IP Address" type="text" value={(editEqData.ipAddress as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, ipAddress: e.target.value })} />
                                 )}
                                 {hasField(item.category, 'patch') && (
