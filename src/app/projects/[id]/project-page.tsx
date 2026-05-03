@@ -1332,19 +1332,9 @@ export function ProjectPage({
               {/* Add member form */}
               {canEditTeam && showAddMember && (
                 <Card>
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-white">Add Member</h3>
-                    <div className="flex items-center gap-2">
-                      <a
-                        href={`/projects/${project.id}/kiosk`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="rounded-lg bg-[#0178a3] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#019bc7]"
-                      >
-                        Open Kiosk
-                      </a>
-                      <IconButton onClick={() => setShowAddMember(false)}><CloseIcon /></IconButton>
-                    </div>
+                    <IconButton onClick={() => setShowAddMember(false)}><CloseIcon /></IconButton>
                   </div>
                   <p className="mt-2 text-xs text-gray-500">Members are added automatically when they join with the project PIN. You can also add members manually, or open the Kiosk for self-service crew check-in.</p>
                   <form onSubmit={(e) => { e.preventDefault(); handleAddMember() }}>
@@ -1361,6 +1351,14 @@ export function ProjectPage({
                       />
                     </div>
                     <div className="mt-4 flex items-center justify-end gap-2">
+                      <a
+                        href={`/projects/${project.id}/kiosk`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
+                      >
+                        Kiosk
+                      </a>
                       <Button
                         type="button"
                         variant="secondary"

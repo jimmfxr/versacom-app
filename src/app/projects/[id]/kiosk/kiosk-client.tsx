@@ -107,6 +107,16 @@ function FormView({
   const [lastName, setLastName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending2, startTransition] = useTransition()
+  const [pendingSearch, setPendingSearch] = useState('')
+
+  const filteredPending = (() => {
+    const q = pendingSearch.trim().toLowerCase()
+    if (!q) return pending
+    return pending.filter((m) => {
+      const haystack = `${m.firstName} ${m.lastName} ${m.position ?? ''}`.toLowerCase()
+      return haystack.includes(q)
+    })
+  })()
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -187,28 +197,45 @@ function FormView({
             No one waiting. Add a crew member above to begin.
           </p>
         ) : (
-          <div className="space-y-2">
-            {pending.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => onPickPending(m)}
-                className="flex w-full items-center justify-between gap-4 rounded-2xl bg-[#2a2a2a] px-5 py-4 text-left transition-colors hover:bg-[#313131]"
-              >
-                <div className="min-w-0">
-                  <div className="text-base font-semibold text-white">
-                    {m.firstName} {m.lastName}
-                  </div>
-                  {m.position && (
-                    <div className="mt-0.5 text-sm text-[#22a7d3]">{m.position}</div>
-                  )}
-                </div>
-                <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Edit →
-                </span>
-              </button>
-            ))}
-          </div>
+          <>
+            <div className="mb-3">
+              <input
+                type="text"
+                placeholder="Search pending check-ins..."
+                value={pendingSearch}
+                onChange={(e) => setPendingSearch(e.target.value)}
+                className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
+              />
+            </div>
+            {filteredPending.length === 0 ? (
+              <p className="py-8 text-center text-sm text-gray-500">
+                No matches for &ldquo;{pendingSearch}&rdquo;.
+              </p>
+            ) : (
+              <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
+                {filteredPending.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => onPickPending(m)}
+                    className="flex w-full items-center justify-between gap-4 rounded-2xl bg-[#2a2a2a] px-5 py-4 text-left transition-colors hover:bg-[#313131]"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-base font-semibold text-white">
+                        {m.firstName} {m.lastName}
+                      </div>
+                      {m.position && (
+                        <div className="mt-0.5 text-sm text-[#22a7d3]">{m.position}</div>
+                      )}
+                    </div>
+                    <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      Edit →
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </>
