@@ -279,6 +279,32 @@ export function PanelStudio({
     return maxExp
   })
 
+  // Panel-level clipboard for the Copy / Paste buttons next to Save.
+  // Holds every key (across main, shift, and all expansions) from the source
+  // panel and persists across navigation via sessionStorage so admins can
+  // copy from one user and paste onto another. Distinct from the per-key
+  // `clipboard` above which only holds a single key.
+  type PanelClipboardEntry = {
+    keyIndex: number
+    page: string
+    expansion: number
+    pickListItemId: number | null
+    pickListItemName: string | null
+    pickListItemType: string | null
+    triggerMode: string
+  }
+  type PanelClipboard = { sourceLabel: string; entries: PanelClipboardEntry[] }
+  const [panelClipboard, setPanelClipboard] = useState<PanelClipboard | null>(null)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const raw = sessionStorage.getItem('panel-clipboard')
+      if (raw) setPanelClipboard(JSON.parse(raw) as PanelClipboard)
+    } catch {
+      // sessionStorage unavailable or corrupt — ignore.
+    }
+  }, [])
+
   // Fingerprint the server data to detect real changes (not just reference
   // changes). Includes recentResolution IDs so a denial (which doesn't
   // modify PanelKey data) still triggers a sync — otherwise the crew's
@@ -648,6 +674,61 @@ export function PanelStudio({
     return () => document.removeEventListener('keydown', handleKeyDown)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedKeyId, clipboard, pickerMode, inspectorOpen, canEditKeys, isRequestMode])
+
+  /* ─── Panel-level Copy / Paste (admin/manager) ─── */
+  function handleCopyPanel() {
+    const memberName = member ? `${member.firstName} ${member.lastName}`.trim() : ''
+    const sourceLabel = [equipment.name, memberName].filter(Boolean).join(' · ') || 'Panel'
+    const entries: PanelClipboardEntry[] = keys.map((k) => ({
+      keyIndex: k.keyIndex,
+      page: k.page,
+      expansion: k.expansion,
+      pickListItemId: k.pickListItemId,
+      pickListItemName: k.pickListItemName,
+      pickListItemType: k.pickListItemType,
+      triggerMode: k.triggerMode,
+    }))
+    const payload: PanelClipboard = { sourceLabel, entries }
+    setPanelClipboard(payload)
+    try {
+      sessionStorage.setItem('panel-clipboard', JSON.stringify(payload))
+    } catch {
+      // ignore
+    }
+    // Also drop the plain-text snapshot onto the system clipboard so the
+    // admin can paste it into Slack / a sheet if they want a paper trail.
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      const text = formatKeysForClipboard(equipment, member, keys)
+      void navigator.clipboard.writeText(text).catch(() => {})
+    }
+    showToast('success', `Copied ${entries.length} keys`)
+  }
+
+  function handlePastePanel() {
+    if (!panelClipboard) return
+    let pasted = 0
+    for (const entry of panelClipboard.entries) {
+      const target = keys.find(
+        (k) => k.keyIndex === entry.keyIndex && k.page === entry.page && k.expansion === entry.expansion,
+      )
+      if (!target) continue
+      const id = keyId(entry.keyIndex, entry.page, entry.expansion)
+      const hasItem = entry.pickListItemId != null
+      updateKey(id, {
+        pickListItemId: entry.pickListItemId,
+        pickListItemName: entry.pickListItemName,
+        pickListItemType: entry.pickListItemType,
+        triggerMode: entry.triggerMode,
+        status: isRequestMode ? 'changed' : (hasItem ? 'assigned' : 'empty'),
+      })
+      pasted++
+    }
+    if (pasted > 0) {
+      showToast('success', `Pasted ${pasted} keys from ${panelClipboard.sourceLabel}`)
+    } else {
+      showToast('error', 'No matching keys to paste')
+    }
+  }
 
   /* ─── Save handler ─── */
   async function handleSave() {
@@ -1448,21 +1529,25 @@ export function PanelStudio({
                     {canEditKeys && (
                       <div className="flex items-center gap-2">
                         {(_currentUserRole === 'admin' || _currentUserRole === 'manager' || isAdminGlobal) && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const text = formatKeysForClipboard(equipment, member, keys)
-                              if (typeof navigator !== 'undefined' && navigator.clipboard) {
-                                void navigator.clipboard.writeText(text).then(
-                                  () => showToast('success', 'Panel keys copied to clipboard'),
-                                  () => showToast('error', 'Could not copy — clipboard blocked'),
-                                )
-                              }
-                            }}
-                            className="rounded-lg border border-white/10 bg-[#2a2a2a] px-4 py-2 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
-                          >
-                            Copy keys
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              onClick={handleCopyPanel}
+                              className="rounded-lg border border-white/10 bg-[#2a2a2a] px-4 py-2 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                            >
+                              Copy
+                            </button>
+                            {panelClipboard && panelClipboard.entries.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={handlePastePanel}
+                                title={`Paste from ${panelClipboard.sourceLabel}`}
+                                className="rounded-lg border border-white/10 bg-[#2a2a2a] px-4 py-2 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                              >
+                                Paste
+                              </button>
+                            )}
+                          </>
                         )}
                         {!isRequestMode && (
                           <Button onClick={handleSave} disabled={saving} size="sm">
