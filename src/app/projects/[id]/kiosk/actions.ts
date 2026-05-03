@@ -45,6 +45,13 @@ function buildJoinUrl(projectPin: string, firstName: string, lastName: string) {
   return `${PRODUCTION_URL}/login/join?${params.toString()}`
 }
 
+/** Existing user — they already have a PIN and history. Send them to the
+ *  plain login page with name pre-filled so they sign in with their PIN. */
+function buildSignInUrl(firstName: string, lastName: string) {
+  const params = new URLSearchParams({ firstName, lastName })
+  return `${PRODUCTION_URL}/login?${params.toString()}`
+}
+
 /**
  * Kiosk action: create a brand-new user + project membership in one shot,
  * then return the deep-linked join URL so the kiosk can show a scan-ready QR.
@@ -73,9 +80,46 @@ export async function createKioskMember(
     return { error: 'Project needs a 4-digit PIN before kiosk can run' }
   }
 
-  // If a user with this exact name already exists in this project, route the
-  // manager to edit them instead of silently double-adding.
-  const existingMember = await prisma.projectMember.findFirst({
+  // Look for an existing real user (PIN set) with that name first. Same
+  // three-branch logic as updatePendingMember:
+  //   - Real user already a member of this project → block (avoid dupe membership)
+  //   - Real user exists but not yet on this project → add them, return sign-in URL
+  //   - No real user with that name → create a fresh placeholder, return join URL
+  const existingRealUser = await prisma.user.findFirst({
+    where: {
+      firstName: { equals: fn, mode: 'insensitive' },
+      lastName: { equals: ln, mode: 'insensitive' },
+      pin: { not: '' },
+    },
+    select: { id: true, firstName: true, lastName: true },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  if (existingRealUser) {
+    const existingMembership = await prisma.projectMember.findFirst({
+      where: { projectId, userId: existingRealUser.id },
+      select: { id: true },
+    })
+    if (existingMembership) {
+      return { error: `${existingRealUser.firstName} ${existingRealUser.lastName} is already on this project — they can sign in with their PIN.` }
+    }
+    await prisma.projectMember.create({
+      data: { userId: existingRealUser.id, projectId, role: 'crew' },
+    })
+    revalidatePath(`/projects/${projectId}`)
+    revalidatePath(`/projects/${projectId}/kiosk`)
+    return {
+      success: true,
+      firstName: existingRealUser.firstName,
+      lastName: existingRealUser.lastName,
+      joinUrl: buildSignInUrl(existingRealUser.firstName, existingRealUser.lastName),
+    }
+  }
+
+  // Also block if there's a placeholder (PIN='') with this exact name on this
+  // project — manager should pick them from the Pending list rather than
+  // creating yet another placeholder.
+  const existingPlaceholder = await prisma.projectMember.findFirst({
     where: {
       projectId,
       user: {
@@ -85,25 +129,16 @@ export async function createKioskMember(
     },
     select: { id: true },
   })
-  if (existingMember) {
+  if (existingPlaceholder) {
     return { error: `${fn} ${ln} is already on this project — edit them in the Pending list below` }
   }
 
-  // Create user (no PIN — they set one on first login) + add them to the
-  // project as a crew member.
+  // Fresh placeholder: create user (no PIN) + project membership as crew.
   const user = await prisma.user.create({
-    data: {
-      firstName: fn,
-      lastName: ln,
-      pin: '',
-    },
+    data: { firstName: fn, lastName: ln, pin: '' },
   })
   await prisma.projectMember.create({
-    data: {
-      userId: user.id,
-      projectId,
-      role: 'crew',
-    },
+    data: { userId: user.id, projectId, role: 'crew' },
   })
 
   revalidatePath(`/projects/${projectId}`)
@@ -117,8 +152,25 @@ export async function createKioskMember(
 }
 
 /**
- * Kiosk action: update a pending member's name + position, then return the
- * deep-linked join URL so the kiosk can show a fresh QR for them.
+ * Kiosk action: update a pending member's name + position.
+ *
+ * Three outcomes depending on what the manager typed:
+ *
+ *   1. The new name doesn't match any existing user → just rename the
+ *      placeholder User row (current behavior). QR points at the join
+ *      flow so they set a new PIN.
+ *
+ *   2. The new name matches an EXISTING user (PIN already set) and that
+ *      user is ALREADY a member of this project → delete the placeholder
+ *      member row, leave the real user's existing membership untouched
+ *      (don't overwrite their position). QR points at /login with the
+ *      name pre-filled so they sign in with their existing PIN.
+ *
+ *   3. The new name matches an existing user but they're NOT yet a
+ *      member of this project → delete the placeholder, also delete the
+ *      placeholder User row so we don't leave an orphan, create a new
+ *      membership tying the real user to this project with the typed
+ *      position. QR points at /login with name pre-filled.
  */
 export async function updatePendingMember(
   memberId: number,
@@ -129,7 +181,11 @@ export async function updatePendingMember(
 
   const member = await prisma.projectMember.findUnique({
     where: { id: memberId },
-    select: { projectId: true, userId: true, project: { select: { pin: true } } },
+    select: {
+      projectId: true,
+      userId: true,
+      project: { select: { pin: true } },
+    },
   })
   if (!member) return { error: 'Member not found' }
 
@@ -147,21 +203,82 @@ export async function updatePendingMember(
   const position = data.position?.trim() || null
   if (position && position.length > 50) return { error: 'Position too long' }
 
-  await prisma.user.update({
-    where: { id: member.userId },
-    data: { firstName: fn, lastName: ln },
+  // Look for an EXISTING user with that name and a real PIN. If duplicates
+  // exist (shouldn't, but defensive), pick the most recently created one.
+  const existingRealUser = await prisma.user.findFirst({
+    where: {
+      id: { not: member.userId },
+      firstName: { equals: fn, mode: 'insensitive' },
+      lastName: { equals: ln, mode: 'insensitive' },
+      pin: { not: '' },
+    },
+    select: { id: true, firstName: true, lastName: true },
+    orderBy: { createdAt: 'desc' },
   })
-  await prisma.projectMember.update({
-    where: { id: memberId },
-    data: { position },
+
+  if (!existingRealUser) {
+    // ── Branch 1: fresh placeholder rename ──
+    await prisma.user.update({
+      where: { id: member.userId },
+      data: { firstName: fn, lastName: ln },
+    })
+    await prisma.projectMember.update({
+      where: { id: memberId },
+      data: { position },
+    })
+
+    revalidatePath(`/projects/${member.projectId}`)
+    revalidatePath(`/projects/${member.projectId}/kiosk`)
+    return {
+      success: true,
+      firstName: fn,
+      lastName: ln,
+      joinUrl: buildJoinUrl(member.project.pin, fn, ln),
+    }
+  }
+
+  // Existing user with PIN found. Check whether they're already on this
+  // project under their REAL identity.
+  const existingMembership = await prisma.projectMember.findFirst({
+    where: { projectId: member.projectId, userId: existingRealUser.id },
+    select: { id: true },
+  })
+
+  // Cleanup steps shared by branches 2 and 3: delete the placeholder member
+  // row (and the placeholder user row, since it had no PIN and no other
+  // memberships rely on it).
+  await prisma.$transaction(async (tx) => {
+    await tx.projectMember.delete({ where: { id: memberId } })
+    // Only delete the placeholder user if it has no other memberships.
+    const otherMemberships = await tx.projectMember.count({
+      where: { userId: member.userId },
+    })
+    if (otherMemberships === 0) {
+      await tx.user.delete({ where: { id: member.userId } })
+    }
+
+    if (!existingMembership) {
+      // Branch 3: create a new membership for the real user.
+      await tx.projectMember.create({
+        data: {
+          userId: existingRealUser.id,
+          projectId: member.projectId,
+          role: 'crew',
+          position,
+        },
+      })
+    }
+    // Branch 2: existing membership stays untouched on purpose so we don't
+    // overwrite the position they already have on this project.
   })
 
   revalidatePath(`/projects/${member.projectId}`)
   revalidatePath(`/projects/${member.projectId}/kiosk`)
   return {
     success: true,
-    firstName: fn,
-    lastName: ln,
-    joinUrl: buildJoinUrl(member.project.pin, fn, ln),
+    firstName: existingRealUser.firstName,
+    lastName: existingRealUser.lastName,
+    // Real user with a PIN — sign-in URL, not join URL.
+    joinUrl: buildSignInUrl(existingRealUser.firstName, existingRealUser.lastName),
   }
 }

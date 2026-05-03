@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 type LoginError =
@@ -16,8 +16,28 @@ type SetupInfo = {
 }
 
 export default function LoginPage() {
+  // Wrap in Suspense so useSearchParams() can be statically prerendered
+  // (Next 16 requirement). Inner component reads the params.
+  return (
+    <Suspense fallback={null}>
+      <LoginPageInner />
+    </Suspense>
+  )
+}
+
+function LoginPageInner() {
+  const searchParams = useSearchParams()
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
+
+  // Pre-fill name from kiosk QR / deep link so existing crew don't have
+  // to re-type their name when scanning at the kiosk station.
+  useEffect(() => {
+    const fn = searchParams.get('firstName')
+    if (fn) setFirstName(fn)
+    const ln = searchParams.get('lastName')
+    if (ln) setLastName(ln)
+  }, [searchParams])
   const [pinDigits, setPinDigits] = useState(['', '', '', ''])
   const [error, setError] = useState<LoginError | null>(null)
   const [loading, setLoading] = useState(false)
