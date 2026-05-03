@@ -1229,14 +1229,17 @@ export function PanelStudio({
               )}
 
               {/* Browse-mode controls — project + user dropdowns and prev/next.
-                  Only render when admin/manager arrived via /my-equipment. */}
+                  ml-auto pushes them to the far right even when the back
+                  button next to them is hidden. */}
               {isBrowseMode && browseProjects && browseMembers && (
-                <BrowseHeader
-                  project={project}
-                  member={member}
-                  browseProjects={browseProjects}
-                  browseMembers={browseMembers}
-                />
+                <div className="ml-auto">
+                  <BrowseHeader
+                    project={project}
+                    member={member}
+                    browseProjects={browseProjects}
+                    browseMembers={browseMembers}
+                  />
+                </div>
               )}
             </div>
 
