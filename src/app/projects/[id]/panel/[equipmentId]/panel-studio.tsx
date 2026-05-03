@@ -1232,7 +1232,7 @@ export function PanelStudio({
                   ml-auto pushes them to the far right even when the back
                   button next to them is hidden. */}
               {isBrowseMode && browseProjects && browseMembers && (
-                <div className="ml-auto">
+                <div className="w-full sm:ml-auto sm:w-auto">
                   <BrowseHeader
                     project={project}
                     member={member}
@@ -1431,7 +1431,24 @@ export function PanelStudio({
 
                     {/* Save/Submit button */}
                     {canEditKeys && (
-                      <div className="flex gap-2">
+                      <div className="flex items-center gap-2">
+                        {(_currentUserRole === 'admin' || _currentUserRole === 'manager' || isAdminGlobal) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const text = formatKeysForClipboard(equipment, member, keys)
+                              if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                                void navigator.clipboard.writeText(text).then(
+                                  () => showToast('success', 'Panel keys copied to clipboard'),
+                                  () => showToast('error', 'Could not copy — clipboard blocked'),
+                                )
+                              }
+                            }}
+                            className="rounded-lg border border-white/10 bg-[#2a2a2a] px-4 py-2 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                          >
+                            Copy keys
+                          </button>
+                        )}
                         {!isRequestMode && (
                           <Button onClick={handleSave} disabled={saving} size="sm">
                             {saving ? 'Saving...' : 'Save'}
@@ -1712,27 +1729,6 @@ export function PanelStudio({
             )}
           </aside>
         </div>
-
-        {/* Copy keys button — bottom of the panel studio. Dumps a plain-text
-            snapshot of every key (main + shift + each expansion) so it can
-            be pasted into Slack / a sheet / another panel via paste flow. */}
-        <div className="mt-6 flex justify-center">
-          <button
-            type="button"
-            onClick={() => {
-              const text = formatKeysForClipboard(equipment, member, keys)
-              if (typeof navigator !== 'undefined' && navigator.clipboard) {
-                void navigator.clipboard.writeText(text).then(
-                  () => showToast('success', 'Panel keys copied to clipboard'),
-                  () => showToast('error', 'Could not copy — clipboard blocked'),
-                )
-              }
-            }}
-            className="rounded-lg border border-white/10 bg-[#2a2a2a] px-4 py-2 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
-          >
-            Copy keys
-          </button>
-        </div>
       </div>
     </AppShell>
   )
@@ -1868,19 +1864,19 @@ function BrowseHeader({
   }
 
   return (
-    <div ref={ref} className="flex flex-wrap items-center gap-2">
+    <div ref={ref} className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
       {/* Project dropdown */}
-      <div className="relative">
+      <div className="relative w-full sm:w-auto">
         <button
           type="button"
           onClick={() => setOpen(open === 'project' ? null : 'project')}
-          className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors ${
+          className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium text-gray-200 transition-colors sm:w-auto sm:justify-start ${
             open === 'project'
               ? 'border-[#22a7d3]/50 bg-white/[0.04]'
               : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04]'
           }`}
         >
-          <span className="max-w-[160px] truncate">{project.name}</span>
+          <span className="truncate sm:max-w-[160px]">{project.name}</span>
           <svg className="size-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
         </button>
         {open === 'project' && (
@@ -1905,26 +1901,26 @@ function BrowseHeader({
       </div>
 
       {/* User dropdown + prev/next */}
-      <div className="flex items-center gap-1">
+      <div className="flex w-full items-center gap-1 sm:w-auto">
         <button
           type="button"
           onClick={() => jumpToMemberByOffset(-1)}
           aria-label="Previous user"
-          className="flex size-8 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
+          className="flex h-[38px] w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
         >
           <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
         </button>
-        <div className="relative">
+        <div className="relative flex-1 sm:flex-initial">
           <button
             type="button"
             onClick={() => setOpen(open === 'member' ? null : 'member')}
-            className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors ${
+            className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium text-gray-200 transition-colors sm:w-auto sm:justify-start ${
               open === 'member'
                 ? 'border-[#22a7d3]/50 bg-white/[0.04]'
                 : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04]'
             }`}
           >
-            <span className="max-w-[200px] truncate">{memberLabel}</span>
+            <span className="truncate sm:max-w-[200px]">{memberLabel}</span>
             <svg className="size-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
           </button>
           {open === 'member' && (
@@ -1953,7 +1949,7 @@ function BrowseHeader({
           type="button"
           onClick={() => jumpToMemberByOffset(1)}
           aria-label="Next user"
-          className="flex size-8 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
+          className="flex h-[38px] w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
         >
           <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
         </button>
