@@ -919,7 +919,10 @@ export function PanelStudio({
         triggerMode: 'latch',
         status: isRequestMode ? 'changed' : 'assigned',
       })
-      selectKey(targetId)
+      // Don't call selectKey() here — that closes the picker. Keeping the
+      // picker open lets the user drag item after item without having to
+      // re-open "Pick destination" between drops. Just flash the target
+      // so they get visual confirmation the drop landed.
       flashKey(targetId, '#10b981')
     }
 
