@@ -351,6 +351,10 @@ export function ProjectPage({
     `proj-${project.id}-teamCategory`,
     null,
   )
+  const [teamSortAbc, setTeamSortAbc] = usePersistentState<boolean>(
+    `proj-${project.id}-teamSortAbc`,
+    false,
+  )
   const [showAddMember, setShowAddMember] = useState(false)
   const [showJoinQr, setShowJoinQr] = useState(false)
   // Crew users don't get the Add Member form but DO get a standalone QR
@@ -703,12 +707,29 @@ export function ProjectPage({
       )
     })
     .sort((a, b) => {
-      // When the search matches equipment names (PNL, WLBP, HWBP, etc.),
-      // sort by the equipment number rather than alphabetically by member —
-      // so results read PNL 1, PNL 2, PNL 3 … PNL 10 instead of being
-      // jumbled by whatever the assignee's first name is. Members whose
-      // equipment doesn't match the query (e.g. they only matched by name)
-      // fall back to alphabetical ordering after the equipment matches.
+      // Priority 1 — explicit A–Z chip wins over everything: alphabetical by
+      // first name regardless of which category is selected.
+      if (teamSortAbc) {
+        return a.firstName.localeCompare(b.firstName, undefined, { sensitivity: 'base' })
+      }
+
+      // Priority 2 — when an assignable category chip is selected and A–Z is
+      // off, sort by the equipment ID number for that category. So picking
+      // "Panels" lists members in PNL 1, PNL 2, PNL 3 … PNL 10 order.
+      if (teamCategoryFilter) {
+        const prefix = CATEGORIES.find((c) => c.value === teamCategoryFilter)?.prefix
+        if (prefix) {
+          const q = prefix.toLowerCase()
+          const numA = lowestMatchingEquipmentNum(a.equipmentNames, q)
+          const numB = lowestMatchingEquipmentNum(b.equipmentNames, q)
+          if (numA != null && numB != null && numA !== numB) return numA - numB
+          if (numA != null && numB == null) return -1
+          if (numA == null && numB != null) return 1
+        }
+      }
+
+      // Priority 3 — same logic as before: if the search query mentions an
+      // equipment prefix, surface those matches in numeric order first.
       const q = teamSearch.trim().toLowerCase()
       if (q) {
         const numA = lowestMatchingEquipmentNum(a.equipmentNames, q)
@@ -717,6 +738,9 @@ export function ProjectPage({
         if (numA != null && numB == null) return -1
         if (numA == null && numB != null) return 1
       }
+
+      // Default fallback — alphabetical by first name (matches the existing
+      // "All" view behavior the user wants preserved).
       return a.firstName.localeCompare(b.firstName, undefined, { sensitivity: 'base' })
     })
 
@@ -1346,17 +1370,37 @@ export function ProjectPage({
                   {!canEditTeam && isCrew && !showTeamQr && <Button onClick={() => setShowTeamQr(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Show QR</span></Button>}
                 </div>
 
-                {/* Filter chips: assignable equipment categories only — Team
-                    members never own infra gear (switches/antennas/audio). */}
-                {!isCrew && (
-                  <FilterBar
-                    options={usedEquipmentCategories
-                      .filter((c) => c.assignable)
-                      .map((c) => ({ value: c.value, label: c.label }))}
-                    selected={teamCategoryFilter}
-                    onSelect={setTeamCategoryFilter}
-                  />
-                )}
+                {/* Filter chips: assignable equipment categories (Panels /
+                    Wireless BP / Hardwire BP) plus an A–Z sort toggle on the
+                    right separated by the same cyan dot used on other tabs.
+                    When a category is selected and A–Z is OFF, members sort
+                    by their equipment ID (PNL 1, PNL 2, …). When A–Z is ON
+                    (or "All" is selected with A–Z off), members sort by
+                    first name. */}
+                {!isCrew && (() => {
+                  const cats = usedEquipmentCategories.filter((c) => c.assignable)
+                  if (cats.length === 0) return null
+                  return (
+                    <div className="flex flex-wrap gap-2 pb-3">
+                      <Chip active={teamCategoryFilter === null} onClick={() => setTeamCategoryFilter(null)}>
+                        All
+                      </Chip>
+                      {cats.map((c) => (
+                        <Chip
+                          key={c.value}
+                          active={teamCategoryFilter === c.value}
+                          onClick={() => setTeamCategoryFilter(teamCategoryFilter === c.value ? null : c.value)}
+                        >
+                          {c.label}
+                        </Chip>
+                      ))}
+                      <span aria-hidden className="flex shrink-0 items-center px-1 text-2xl font-bold leading-none text-[#22a7d3]">·</span>
+                      <Chip active={teamSortAbc} onClick={() => setTeamSortAbc(!teamSortAbc)}>
+                        A–Z
+                      </Chip>
+                    </div>
+                  )
+                })()}
               </div>{/* /sticky bundle */}
 
               {/* Crew-only: standalone join-QR card */}
