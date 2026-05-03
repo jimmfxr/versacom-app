@@ -2067,7 +2067,7 @@ function SiblingGearRow({
 }) {
   const router = useRouter()
   return (
-    <div className="flex-shrink-0 px-5 pt-2">
+    <div className="flex-shrink-0 mx-auto w-full max-w-7xl px-4 pt-2 sm:px-6 lg:px-8">
       <div className="flex flex-wrap gap-2">
         {gear.map((g) => {
           const isActive = g.id === currentEquipmentId
