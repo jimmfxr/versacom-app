@@ -1590,16 +1590,32 @@ export function ProjectPage({
                       className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
                     />
                   </div>
-                  <Button variant={plSortAbc ? 'primary' : 'secondary'} onClick={() => setPlSortAbc(!plSortAbc)}>A–Z</Button>
                   {canEditPickList && !showAddPl && <Button onClick={() => setShowAddPl(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Function</span></Button>}
                 </div>
 
-                {/* Filter chips: function types */}
-                <FilterBar
-                  options={FUNCTION_TYPES.map((t) => ({ value: t, label: FUNCTION_TYPE_LABELS[t] || t }))}
-                  selected={plTypeFilter}
-                  onSelect={setPlTypeFilter}
-                />
+                {/* Filter chips: All / function types · A–Z sort toggle.
+                    Function-type filter chips on the left, then a cyan dot
+                    divider, then the A–Z toggle (same chip styling) on the
+                    right. Mirrors the equipment tab's category-then-location
+                    pattern. */}
+                <div className="flex flex-wrap gap-2 pb-3">
+                  <Chip active={plTypeFilter === null} onClick={() => setPlTypeFilter(null)}>
+                    All
+                  </Chip>
+                  {FUNCTION_TYPES.map((t) => (
+                    <Chip
+                      key={t}
+                      active={plTypeFilter === t}
+                      onClick={() => setPlTypeFilter(plTypeFilter === t ? null : t)}
+                    >
+                      {FUNCTION_TYPE_LABELS[t] || t}
+                    </Chip>
+                  ))}
+                  <span aria-hidden className="flex shrink-0 items-center px-1 text-2xl font-bold leading-none text-[#22a7d3]">·</span>
+                  <Chip active={plSortAbc} onClick={() => setPlSortAbc(!plSortAbc)}>
+                    A–Z
+                  </Chip>
+                </div>
               </div>{/* /sticky bundle */}
 
               {/* Add function form */}
