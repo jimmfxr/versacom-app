@@ -1210,26 +1210,23 @@ export function PanelStudio({
                 User-only accounts can't access the project page (proxy
                 blocks it), so route them back to My Equipment instead. */}
             <div className="flex-shrink-0 flex flex-wrap items-center justify-between gap-3 px-5 pt-3">
-              <button
-                onClick={() => {
-                  // Browse-mode arrival from /my-equipment → return there
-                  // scoped to the same project + member.
-                  const dest = isReviewMode
-                    ? '/admin'
-                    : isBrowseMode
-                      ? `/my-equipment?project=${project.id}${member ? `&member=${member.id}` : ''}`
-                      : isUserOnly
-                        ? '/my-equipment'
-                        : `/projects/${project.id}`
-                  router.push(dest)
-                }}
-                className="inline-flex items-center gap-1 text-sm text-gray-400 transition-colors hover:text-white"
-              >
-                <ChevronLeftIcon className="size-4" />
-                <span>
-                  {isReviewMode ? 'Tasks' : (isBrowseMode || isUserOnly) ? 'My Equipment' : 'Project'}
-                </span>
-              </button>
+              {/* The back button is only useful when the admin/manager came
+                  in from a project tab or an admin review. Browse mode and
+                  the user-only role both treat panel studio as the entire
+                  My Equipment experience, so the back button would just
+                  reload the same page — hide it. */}
+              {!isBrowseMode && !isUserOnly && (
+                <button
+                  onClick={() => {
+                    const dest = isReviewMode ? '/admin' : `/projects/${project.id}`
+                    router.push(dest)
+                  }}
+                  className="inline-flex items-center gap-1 text-sm text-gray-400 transition-colors hover:text-white"
+                >
+                  <ChevronLeftIcon className="size-4" />
+                  <span>{isReviewMode ? 'Tasks' : 'Project'}</span>
+                </button>
+              )}
 
               {/* Browse-mode controls — project + user dropdowns and prev/next.
                   Only render when admin/manager arrived via /my-equipment. */}
