@@ -98,6 +98,26 @@ interface PanelStudioProps {
       approved: boolean
     }>
   }>
+  /** Browse mode (set when admin/manager arrives via /my-equipment).
+   *  Drives the project + user dropdowns, prev/next, and sibling-gear row
+   *  rendered above the panel keys. */
+  browseProjects?: Array<{ id: number; name: string }>
+  browseMembers?: Array<{
+    id: number
+    firstName: string
+    lastName: string
+    position: string | null
+    displayName: string
+    /** First panel-or-any equipment ID for this member, used to resolve
+     *  prev/next navigation. Null when the member has no equipment. */
+    equipmentId: number | null
+  }>
+  siblingGear?: Array<{
+    id: number
+    name: string
+    category: string
+    hardwareType: string | null
+  }>
 }
 
 type KeyState = {
@@ -227,6 +247,9 @@ export function PanelStudio({
   currentMemberId: _currentMemberId,
   pendingChangeRequests = [],
   recentResolutions = [],
+  browseProjects,
+  browseMembers,
+  siblingGear,
 }: PanelStudioProps) {
   const isCrew = _currentUserRole === 'crew'
   void _currentMemberId
@@ -332,6 +355,9 @@ export function PanelStudio({
   }, [hasSubmittedKeys, router])
 
   const isReviewMode = pendingChangeRequests.length > 0
+  // Browse mode flag — true when we received the browse data props from the
+  // server (admin/manager arriving via /my-equipment).
+  const isBrowseMode = !!browseProjects && !!browseMembers
   const [reviewProcessing, setReviewProcessing] = useState(false)
   const [rejectedKeyIds, setRejectedKeyIds] = useState<Set<string>>(new Set())
 
@@ -1171,24 +1197,50 @@ export function PanelStudio({
             {/* Back link — pinned to the very top of the workspace.
                 User-only accounts can't access the project page (proxy
                 blocks it), so route them back to My Equipment instead. */}
-            <div className="flex-shrink-0 px-5 pt-3">
+            <div className="flex-shrink-0 flex flex-wrap items-center justify-between gap-3 px-5 pt-3">
               <button
                 onClick={() => {
+                  // Browse-mode arrival from /my-equipment → return there
+                  // scoped to the same project + member.
                   const dest = isReviewMode
                     ? '/admin'
-                    : isUserOnly
-                      ? '/my-equipment'
-                      : `/projects/${project.id}`
+                    : isBrowseMode
+                      ? `/my-equipment?project=${project.id}${member ? `&member=${member.id}` : ''}`
+                      : isUserOnly
+                        ? '/my-equipment'
+                        : `/projects/${project.id}`
                   router.push(dest)
                 }}
                 className="inline-flex items-center gap-1 text-sm text-gray-400 transition-colors hover:text-white"
               >
                 <ChevronLeftIcon className="size-4" />
                 <span>
-                  {isReviewMode ? 'Tasks' : isUserOnly ? 'My Equipment' : 'Project'}
+                  {isReviewMode ? 'Tasks' : (isBrowseMode || isUserOnly) ? 'My Equipment' : 'Project'}
                 </span>
               </button>
+
+              {/* Browse-mode controls — project + user dropdowns and prev/next.
+                  Only render when admin/manager arrived via /my-equipment. */}
+              {isBrowseMode && browseProjects && browseMembers && (
+                <BrowseHeader
+                  project={project}
+                  member={member}
+                  browseProjects={browseProjects}
+                  browseMembers={browseMembers}
+                />
+              )}
             </div>
+
+            {/* Sibling-gear card row — every piece of equipment for the
+                current member on this project. Click to switch panels
+                without leaving browse mode. */}
+            {isBrowseMode && siblingGear && siblingGear.length > 1 && (
+              <SiblingGearRow
+                gear={siblingGear}
+                currentEquipmentId={equipment.id}
+                projectId={project.id}
+              />
+            )}
 
             <div className="flex flex-col items-center justify-center flex-1 min-h-0">
 
@@ -1729,4 +1781,222 @@ function formatKeysForClipboard(
   }
 
   return lines.join('\n').trimEnd() + '\n'
+}
+
+const PANEL_CATS = ['panels', 'hardwire_bp', 'wireless_bp']
+const CAT_SHORT: Record<string, string> = {
+  panels: 'Panel',
+  wireless_bp: 'WL BP',
+  hardwire_bp: 'HW BP',
+  switches: 'Switch',
+  antennas: 'Antenna',
+  audio: 'Audio',
+}
+
+/**
+ * Browse-mode header bar: project switcher + user switcher + prev/next.
+ * Same look as the controls on /my-equipment so the experience flows.
+ */
+function BrowseHeader({
+  project,
+  member,
+  browseProjects,
+  browseMembers,
+}: {
+  project: { id: number; name: string }
+  member: { id: number } | null
+  browseProjects: Array<{ id: number; name: string }>
+  browseMembers: Array<{
+    id: number
+    firstName: string
+    lastName: string
+    position: string | null
+    displayName: string
+    equipmentId: number | null
+  }>
+}) {
+  const router = useRouter()
+  const [open, setOpen] = useState<'project' | 'member' | null>(null)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(null)
+    }
+    if (open) document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [open])
+
+  const currentMember = member ? browseMembers.find((m) => m.id === member.id) : null
+  const memberLabel = currentMember
+    ? currentMember.position
+      ? `${currentMember.displayName} · ${currentMember.position}`
+      : currentMember.displayName
+    : '—'
+  const currentMemberIndex = currentMember
+    ? browseMembers.findIndex((m) => m.id === currentMember.id)
+    : -1
+
+  function navigateToMember(memberId: number) {
+    const target = browseMembers.find((m) => m.id === memberId)
+    if (!target || target.equipmentId == null) return
+    router.push(`/projects/${project.id}/panel/${target.equipmentId}?from=my-equipment`)
+  }
+
+  function jumpToMemberByOffset(offset: number) {
+    if (browseMembers.length === 0 || currentMemberIndex < 0) return
+    const wrapped = ((currentMemberIndex + offset) % browseMembers.length + browseMembers.length) % browseMembers.length
+    navigateToMember(browseMembers[wrapped].id)
+  }
+
+  function navigateToProject(nextId: number) {
+    if (nextId === project.id) return
+    // Land on /my-equipment for the new project — no specific equipment yet.
+    router.push(`/my-equipment?project=${nextId}`)
+  }
+
+  return (
+    <div ref={ref} className="flex flex-wrap items-center gap-2">
+      {/* Project dropdown */}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen(open === 'project' ? null : 'project')}
+          className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors ${
+            open === 'project'
+              ? 'border-[#22a7d3]/50 bg-white/[0.04]'
+              : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04]'
+          }`}
+        >
+          <span className="max-w-[160px] truncate">{project.name}</span>
+          <svg className="size-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
+        </button>
+        {open === 'project' && (
+          <div className="absolute right-0 top-full z-30 mt-1 max-h-[280px] min-w-[220px] overflow-y-auto rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl">
+            {browseProjects.map((p) => {
+              const isActive = p.id === project.id
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => { setOpen(null); navigateToProject(p.id) }}
+                  className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left transition-colors ${
+                    isActive ? 'bg-[#22a7d3]/10' : 'hover:bg-white/[0.06]'
+                  }`}
+                >
+                  <span className={`text-[12px] font-medium ${isActive ? 'text-[#22a7d3]' : 'text-gray-200'}`}>{p.name}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* User dropdown + prev/next */}
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => jumpToMemberByOffset(-1)}
+          aria-label="Previous user"
+          className="flex size-8 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
+        >
+          <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+        </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setOpen(open === 'member' ? null : 'member')}
+            className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors ${
+              open === 'member'
+                ? 'border-[#22a7d3]/50 bg-white/[0.04]'
+                : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04]'
+            }`}
+          >
+            <span className="max-w-[200px] truncate">{memberLabel}</span>
+            <svg className="size-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
+          </button>
+          {open === 'member' && (
+            <div className="absolute right-0 top-full z-30 mt-1 max-h-[320px] min-w-[260px] overflow-y-auto rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl">
+              {browseMembers.map((m) => {
+                const isActive = currentMember?.id === m.id
+                const label = m.position ? `${m.displayName} · ${m.position}` : m.displayName
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => { setOpen(null); navigateToMember(m.id) }}
+                    disabled={m.equipmentId == null}
+                    className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left transition-colors disabled:opacity-40 ${
+                      isActive ? 'bg-[#22a7d3]/10' : 'hover:bg-white/[0.06]'
+                    }`}
+                  >
+                    <span className={`text-[12px] font-medium ${isActive ? 'text-[#22a7d3]' : 'text-gray-200'}`}>{label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => jumpToMemberByOffset(1)}
+          aria-label="Next user"
+          className="flex size-8 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
+        >
+          <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Horizontal row of the current member's other gear on this project. Click
+ * a card to navigate to that equipment's page (panel studio for panels,
+ * which currently is the only category that renders meaningful keys).
+ */
+function SiblingGearRow({
+  gear,
+  currentEquipmentId,
+  projectId,
+}: {
+  gear: Array<{ id: number; name: string; category: string; hardwareType: string | null }>
+  currentEquipmentId: number
+  projectId: number
+}) {
+  const router = useRouter()
+  return (
+    <div className="flex-shrink-0 px-5 pt-2">
+      <div className="flex flex-wrap gap-2">
+        {gear.map((g) => {
+          const isActive = g.id === currentEquipmentId
+          const isPanel = PANEL_CATS.includes(g.category)
+          const catLabel = CAT_SHORT[g.category] ?? g.category
+          return (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => {
+                if (!isActive && isPanel) {
+                  router.push(`/projects/${projectId}/panel/${g.id}?from=my-equipment`)
+                }
+              }}
+              disabled={!isPanel}
+              className={`rounded-lg border px-3 py-1.5 text-left text-[11px] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                isActive
+                  ? 'border-[#22a7d3] bg-[#22a7d3]/10 text-white'
+                  : 'border-white/10 bg-[#2a2a2a] text-gray-300 hover:border-white/20 hover:bg-[#313131]'
+              }`}
+            >
+              <div className={`font-mono font-semibold ${isActive ? 'text-[#22a7d3]' : 'text-gray-400'}`}>{g.name}</div>
+              <div className="text-[10px] text-gray-500">
+                {catLabel}
+                {g.hardwareType ? ` · ${g.hardwareType}` : ''}
+              </div>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
 }

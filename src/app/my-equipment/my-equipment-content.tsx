@@ -162,7 +162,16 @@ export function MyEquipmentContent({
                 <div
                   key={item.id}
                   className={`flex items-start gap-4 rounded-2xl bg-[#2a2a2a] px-5 py-4 transition-colors ${hasPanel ? 'cursor-pointer hover:bg-[#313131]' : ''}`}
-                  onClick={hasPanel ? () => router.push(`/projects/${item.projectId}/panel/${item.id}`) : undefined}
+                  onClick={hasPanel ? () => {
+                    // In browse mode (admin/manager) we tag the URL with
+                    // ?from=my-equipment so the panel studio renders the
+                    // dropdowns + prev/next + sibling-gear row, and so its
+                    // back button returns here scoped to this user.
+                    const url = browseMode
+                      ? `/projects/${item.projectId}/panel/${item.id}?from=my-equipment`
+                      : `/projects/${item.projectId}/panel/${item.id}`
+                    router.push(url)
+                  } : undefined}
                 >
                   <div className="min-w-0 flex-1">
                     {/* Row 1: ID, project, and edit badge */}

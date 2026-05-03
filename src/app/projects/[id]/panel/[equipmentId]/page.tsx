@@ -12,10 +12,10 @@ export default async function PanelStudioPage({
   searchParams,
 }: {
   params: Promise<{ id: string; equipmentId: string }>
-  searchParams: Promise<{ review?: string }>
+  searchParams: Promise<{ review?: string; from?: string }>
 }) {
   const { id, equipmentId } = await params
-  const { review: reviewMemberId } = await searchParams
+  const { review: reviewMemberId, from } = await searchParams
   const projectId = parseInt(id, 10)
   const eqId = parseInt(equipmentId, 10)
   if (isNaN(projectId) || isNaN(eqId)) notFound()
@@ -370,6 +370,97 @@ export default async function PanelStudioPage({
     }))
   }
 
+  // Browse mode — when admin/manager arrives via My Equipment, fetch the
+  // sibling data so we can render the project + user dropdowns, prev/next,
+  // and a row of all the current member's gear at the top of the page.
+  let browseProjects: Array<{ id: number; name: string }> | undefined
+  let browseMembers:
+    | Array<{
+        id: number
+        firstName: string
+        lastName: string
+        position: string | null
+        displayName: string
+        equipmentId: number | null // first panel-or-any equipment id (for prev/next)
+      }>
+    | undefined
+  let siblingGear:
+    | Array<{
+        id: number
+        name: string
+        category: string
+        hardwareType: string | null
+      }>
+    | undefined
+
+  const isBrowseEntry = from === 'my-equipment'
+  const isManagerOrAdminGlobal = session.memberships.some(
+    (m) => m.role === 'admin' || m.role === 'manager',
+  )
+  if (isBrowseEntry && isManagerOrAdminGlobal) {
+    // Projects this user can browse — admin or manager on at least one.
+    const myMemberships = await prisma.projectMember.findMany({
+      where: { userId: session.user.id, project: { status: 'active' } },
+      select: { role: true, project: { select: { id: true, name: true } } },
+    })
+    const browseProjectsMap = new Map<number, { id: number; name: string }>()
+    for (const m of myMemberships) {
+      if (m.role === 'admin' || m.role === 'manager') {
+        if (!browseProjectsMap.has(m.project.id)) {
+          browseProjectsMap.set(m.project.id, { id: m.project.id, name: m.project.name })
+        }
+      }
+    }
+    browseProjects = Array.from(browseProjectsMap.values()).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    )
+
+    // Members with gear on THIS project, plus their first equipment id for
+    // prev/next navigation. Prefer a panel-category item; fall back to
+    // anything they have.
+    const projMembers = await prisma.projectMember.findMany({
+      where: { projectId, equipment: { some: {} } },
+      select: {
+        id: true,
+        position: true,
+        user: { select: { firstName: true, lastName: true } },
+        equipment: {
+          select: { id: true, category: true, name: true },
+          orderBy: [{ category: 'asc' }, { name: 'asc' }],
+        },
+      },
+    })
+    const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
+    browseMembers = projMembers
+      .map((m) => {
+        const panel = m.equipment.find((e) => PANEL_CATEGORIES.includes(e.category))
+        const firstEq = panel ?? m.equipment[0]
+        return {
+          id: m.id,
+          firstName: m.user.firstName,
+          lastName: m.user.lastName,
+          position: m.position,
+          displayName: `${m.user.firstName} ${m.user.lastName}`.trim(),
+          equipmentId: firstEq?.id ?? null,
+        }
+      })
+      .sort((a, b) => {
+        const byName = collator.compare(a.displayName, b.displayName)
+        if (byName !== 0) return byName
+        return collator.compare(a.position ?? '', b.position ?? '')
+      })
+
+    // Sibling gear — every equipment item assigned to the panel's
+    // current member, scoped to THIS project. Drives the cards row.
+    if (member) {
+      siblingGear = await prisma.equipment.findMany({
+        where: { projectId, assignedToId: member.id },
+        select: { id: true, name: true, category: true, hardwareType: true },
+        orderBy: [{ category: 'asc' }, { name: 'asc' }],
+      })
+    }
+  }
+
   return (
     <PanelStudio
       userName={userName}
@@ -397,6 +488,9 @@ export default async function PanelStudioPage({
       currentMemberId={currentMembership?.id ?? null}
       pendingChangeRequests={pendingChangeRequests}
       recentResolutions={recentResolutions}
+      browseProjects={browseProjects}
+      browseMembers={browseMembers}
+      siblingGear={siblingGear}
     />
   )
 }
