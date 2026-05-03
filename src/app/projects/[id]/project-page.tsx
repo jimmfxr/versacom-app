@@ -1482,9 +1482,27 @@ export function ProjectPage({
                               <span className="text-gray-500"> · {ROLE_LABELS[m.role] || m.role}</span>
                             </div>
                             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                              <FormInput compact label="First Name" type="text" value={editMemberData.firstName} onChange={(e) => setEditMemberData({ ...editMemberData, firstName: e.target.value })} />
-                              <FormInput compact label="Last Name" type="text" value={editMemberData.lastName} onChange={(e) => setEditMemberData({ ...editMemberData, lastName: e.target.value })} />
-                              <FormInput compact label="Position" type="text" value={editMemberData.position} onChange={(e) => setEditMemberData({ ...editMemberData, position: e.target.value })} />
+                              <ComboboxInput
+                                compact
+                                label="First Name"
+                                value={editMemberData.firstName}
+                                options={firstNameSuggestions}
+                                onChange={(v) => setEditMemberData({ ...editMemberData, firstName: v })}
+                              />
+                              <ComboboxInput
+                                compact
+                                label="Last Name"
+                                value={editMemberData.lastName}
+                                options={lastNameSuggestions}
+                                onChange={(v) => setEditMemberData({ ...editMemberData, lastName: v })}
+                              />
+                              <ComboboxInput
+                                compact
+                                label="Position"
+                                value={editMemberData.position}
+                                options={positionSuggestions}
+                                onChange={(v) => setEditMemberData({ ...editMemberData, position: v })}
+                              />
                               <SearchableSelect
                                 compact
                                 label="Role"
