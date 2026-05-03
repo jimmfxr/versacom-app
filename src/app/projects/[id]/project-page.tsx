@@ -819,7 +819,7 @@ export function ProjectPage({
               </Card>
               <Card>
                 <h3 className="text-sm font-semibold text-white">Project Details</h3>
-                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <FormInput label="Project name" type="text" value={name} onChange={(e) => { setName(e.target.value); setEditError('') }} maxLength={100} />
                   <SearchableSelect
                     label="Manager"
@@ -828,18 +828,39 @@ export function ProjectPage({
                     options={[{ value: '', label: 'None' }, ...project.members.map((m) => ({ value: String(m.userId), label: `${m.firstName} ${m.lastName}` }))]}
                     onChange={(v) => setManagerId(v)}
                   />
-                  <SearchableSelect
-                    label="Status"
-                    value={status}
-                    placeholder="Select..."
-                    options={[{ value: 'active', label: 'Active' }, { value: 'archived', label: 'Archived' }]}
-                    onChange={(v) => setStatus(v)}
-                  />
                 </div>
+                {/* Archive is admin-only, given its own subsection so it's
+                    findable instead of buried as a third dropdown. */}
+                {isProjectAdmin && (
+                  <div className="mt-5 border-t border-white/[0.06] pt-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <h4 className="text-sm font-semibold text-white">
+                          {status === 'archived' ? 'Restore project' : 'Archive project'}
+                        </h4>
+                        <p className="mt-0.5 text-xs text-gray-500">
+                          {status === 'archived'
+                            ? 'Bring this project back to Active so crew can edit equipment again.'
+                            : 'Lock the project as read-only after the show wraps. Everything is preserved; you can restore it later.'}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setStatus(status === 'archived' ? 'active' : 'archived')}
+                        disabled={isPending}
+                      >
+                        {status === 'archived' ? 'Restore' : 'Archive'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 {editError && <p className="mt-3 text-sm text-red-400">{editError}</p>}
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-                  <Button variant="danger" size="sm" onClick={() => setShowDeleteConfirm(true)} disabled={isPending}>Delete Project</Button>
-                  <div className="flex flex-wrap items-center gap-2">
+                  {isProjectAdmin && (
+                    <Button variant="danger" size="sm" onClick={() => setShowDeleteConfirm(true)} disabled={isPending}>Delete Project</Button>
+                  )}
+                  <div className="ml-auto flex flex-wrap items-center gap-2">
                     <Button
                       size="sm"
                       variant={returnPhaseActive ? 'secondary' : 'primary'}

@@ -7,7 +7,6 @@ import Link from 'next/link'
 import { AppShell } from '@/components/app-shell'
 import { ScrollToTop } from '@/components/scroll-to-top'
 import { StepCarousel } from '@/components/step-carousel'
-import { InstallButton } from '@/components/install-prompt'
 import { PageLayout } from '@/components/page-layout'
 import { EmptyState } from '@/components/empty-state'
 import { ProjectDashboard, DashboardHeaderAction } from './project-dashboard'
@@ -134,12 +133,9 @@ function LandingPage() {
           <Image src="/clair_logo_white.png" alt="Clair" width={64} height={24} className="h-6 w-auto" />
           <span className="text-sm font-semibold tracking-wide text-gray-300">Nodal Control</span>
         </div>
-        <div className="flex items-center gap-2">
-          <InstallButton />
-          <Link href="/login" className="rounded-lg bg-[#22a7d3] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1e96be]">
-            Log In
-          </Link>
-        </div>
+        <Link href="/login" className="rounded-lg bg-[#22a7d3] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1e96be]">
+          Log In
+        </Link>
       </nav>
 
       {/* Hero */}
