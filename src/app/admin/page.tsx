@@ -14,10 +14,21 @@ export default async function TasksPage({
   if (!session) redirect('/login')
 
   // Tasks are admin-only and scoped to projects the current user is admin
-  // on. Anyone hitting this page who isn't admin anywhere is bounced home.
-  const adminProjects = session.memberships
-    .filter((m) => m.role === 'admin')
-    .map((m) => ({ id: m.project.id, name: m.project.name }))
+  // on. We query the DB fresh (instead of trusting session.memberships,
+  // which is set at login and never refreshes) so projects created or
+  // role-changed after login show up in the dropdown right away.
+  const adminMemberships = await prisma.projectMember.findMany({
+    where: {
+      userId: session.user.id,
+      role: 'admin',
+      project: { status: 'active' },
+    },
+    select: { project: { select: { id: true, name: true } } },
+  })
+  const adminProjects = adminMemberships.map((m) => ({
+    id: m.project.id,
+    name: m.project.name,
+  }))
 
   if (adminProjects.length === 0) redirect('/')
 
