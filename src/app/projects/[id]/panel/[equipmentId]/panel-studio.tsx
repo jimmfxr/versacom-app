@@ -358,6 +358,18 @@ export function PanelStudio({
   // Browse mode flag — true when we received the browse data props from the
   // server (admin/manager arriving via /my-equipment).
   const isBrowseMode = !!browseProjects && !!browseMembers
+
+  // Remember the last project + member the admin browsed to so the nav
+  // "My Equipment" link returns them right where they left off. Cookies are
+  // server-readable, so /my-equipment can read them on next entry without a
+  // round-trip through the URL.
+  useEffect(() => {
+    if (!isBrowseMode || !member) return
+    const maxAge = 60 * 60 * 24 * 30 // 30 days
+    document.cookie = `lastBrowseProject=${project.id};path=/;max-age=${maxAge}`
+    document.cookie = `lastBrowseMember=${member.id};path=/;max-age=${maxAge}`
+  }, [isBrowseMode, project.id, member])
+
   const [reviewProcessing, setReviewProcessing] = useState(false)
   const [rejectedKeyIds, setRejectedKeyIds] = useState<Set<string>>(new Set())
 

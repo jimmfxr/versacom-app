@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { MyEquipmentContent } from './my-equipment-content'
@@ -43,9 +44,21 @@ export default async function MyEquipmentPage({
   const isBrowseMode = browseProjects.length > 0
 
   // Resolve which project + member we're browsing (admin/manager view).
+  // URL params win when present; otherwise fall back to the last-browsed
+  // values stored in cookies so navigating away and back lands the admin
+  // right where they left off.
   const params = await searchParams
-  const requestedProjectId = params.project ? parseInt(params.project, 10) : null
-  const requestedMemberId = params.member ? parseInt(params.member, 10) : null
+  const cookieStore = await cookies()
+  const lastProjectCookie = cookieStore.get('lastBrowseProject')?.value
+  const lastMemberCookie = cookieStore.get('lastBrowseMember')?.value
+  const parseId = (raw: string | undefined | null) => {
+    const n = raw ? parseInt(raw, 10) : NaN
+    return Number.isFinite(n) ? n : null
+  }
+  const requestedProjectId =
+    parseId(params.project) ?? parseId(lastProjectCookie) ?? null
+  const requestedMemberId =
+    parseId(params.member) ?? parseId(lastMemberCookie) ?? null
 
   // ──────────────────── BROWSE MODE (admin/manager) ────────────────────
   // Admin/manager skip the cards-list view entirely — we figure out the
