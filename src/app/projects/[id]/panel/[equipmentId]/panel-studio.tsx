@@ -1209,7 +1209,7 @@ export function PanelStudio({
             {/* Back link — pinned to the very top of the workspace.
                 User-only accounts can't access the project page (proxy
                 blocks it), so route them back to My Equipment instead. */}
-            <div className="flex-shrink-0 flex flex-wrap items-center justify-between gap-3 px-5 pt-3">
+            <div className={`flex-shrink-0 flex flex-wrap items-center justify-between gap-3 pt-3 ${isBrowseMode ? 'mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8' : 'px-5'}`}>
               {/* The back button is only useful when the admin/manager came
                   in from a project tab or an admin review. Browse mode and
                   the user-only role both treat panel studio as the entire
