@@ -1840,7 +1840,11 @@ function BrowseHeader({
 }) {
   const router = useRouter()
   const [open, setOpen] = useState<'project' | 'member' | null>(null)
+  const [projectQuery, setProjectQuery] = useState('')
+  const [memberQuery, setMemberQuery] = useState('')
   const ref = useRef<HTMLDivElement>(null)
+  const projectInputRef = useRef<HTMLInputElement>(null)
+  const memberInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
@@ -1849,6 +1853,33 @@ function BrowseHeader({
     if (open) document.addEventListener('mousedown', onMouseDown)
     return () => document.removeEventListener('mousedown', onMouseDown)
   }, [open])
+
+  // Reset filter and focus the input every time a dropdown opens so the user
+  // can start typing immediately to narrow shows / users.
+  useEffect(() => {
+    if (open === 'project') {
+      setProjectQuery('')
+      projectInputRef.current?.focus()
+    } else if (open === 'member') {
+      setMemberQuery('')
+      memberInputRef.current?.focus()
+    }
+  }, [open])
+
+  const filteredProjects = projectQuery.trim()
+    ? browseProjects.filter((p) =>
+        p.name.toLowerCase().includes(projectQuery.trim().toLowerCase()),
+      )
+    : browseProjects
+  const filteredMembers = memberQuery.trim()
+    ? browseMembers.filter((m) => {
+        const q = memberQuery.trim().toLowerCase()
+        return (
+          m.displayName.toLowerCase().includes(q) ||
+          (m.position ?? '').toLowerCase().includes(q)
+        )
+      })
+    : browseMembers
 
   const currentMember = member ? browseMembers.find((m) => m.id === member.id) : null
   const memberLabel = currentMember
@@ -1895,22 +1926,44 @@ function BrowseHeader({
           <svg className="size-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
         </button>
         {open === 'project' && (
-          <div className="absolute right-0 top-full z-30 mt-1 max-h-[280px] min-w-[220px] overflow-y-auto rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl">
-            {browseProjects.map((p) => {
-              const isActive = p.id === project.id
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => { setOpen(null); navigateToProject(p.id) }}
-                  className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left transition-colors ${
-                    isActive ? 'bg-[#22a7d3]/10' : 'hover:bg-white/[0.06]'
-                  }`}
-                >
-                  <span className={`text-[12px] font-medium ${isActive ? 'text-[#22a7d3]' : 'text-gray-200'}`}>{p.name}</span>
-                </button>
-              )
-            })}
+          <div className="absolute right-0 top-full z-30 mt-1 flex max-h-[320px] min-w-[240px] flex-col rounded-lg border border-white/10 bg-[#2a2a2a] shadow-2xl">
+            <input
+              ref={projectInputRef}
+              type="text"
+              value={projectQuery}
+              onChange={(e) => setProjectQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && filteredProjects.length > 0) {
+                  e.preventDefault()
+                  setOpen(null)
+                  navigateToProject(filteredProjects[0].id)
+                } else if (e.key === 'Escape') {
+                  setOpen(null)
+                }
+              }}
+              placeholder="Search shows…"
+              className="m-1 rounded-md border border-white/10 bg-[#202020] px-2.5 py-1.5 text-[12px] text-gray-200 placeholder:text-gray-500 focus:border-[#22a7d3]/50 focus:outline-none"
+            />
+            <div className="overflow-y-auto p-1 pt-0">
+              {filteredProjects.map((p) => {
+                const isActive = p.id === project.id
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => { setOpen(null); navigateToProject(p.id) }}
+                    className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left transition-colors ${
+                      isActive ? 'bg-[#22a7d3]/10' : 'hover:bg-white/[0.06]'
+                    }`}
+                  >
+                    <span className={`text-[12px] font-medium ${isActive ? 'text-[#22a7d3]' : 'text-gray-200'}`}>{p.name}</span>
+                  </button>
+                )
+              })}
+              {filteredProjects.length === 0 && (
+                <div className="px-3 py-2 text-[12px] text-gray-500">No shows match</div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -1939,24 +1992,49 @@ function BrowseHeader({
             <svg className="size-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
           </button>
           {open === 'member' && (
-            <div className="absolute right-0 top-full z-30 mt-1 max-h-[320px] min-w-[260px] overflow-y-auto rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl">
-              {browseMembers.map((m) => {
-                const isActive = currentMember?.id === m.id
-                const label = m.position ? `${m.displayName} · ${m.position}` : m.displayName
-                return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => { setOpen(null); navigateToMember(m.id) }}
-                    disabled={m.equipmentId == null}
-                    className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left transition-colors disabled:opacity-40 ${
-                      isActive ? 'bg-[#22a7d3]/10' : 'hover:bg-white/[0.06]'
-                    }`}
-                  >
-                    <span className={`text-[12px] font-medium ${isActive ? 'text-[#22a7d3]' : 'text-gray-200'}`}>{label}</span>
-                  </button>
-                )
-              })}
+            <div className="absolute right-0 top-full z-30 mt-1 flex max-h-[360px] min-w-[280px] flex-col rounded-lg border border-white/10 bg-[#2a2a2a] shadow-2xl">
+              <input
+                ref={memberInputRef}
+                type="text"
+                value={memberQuery}
+                onChange={(e) => setMemberQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const first = filteredMembers.find((m) => m.equipmentId != null)
+                    if (first) {
+                      e.preventDefault()
+                      setOpen(null)
+                      navigateToMember(first.id)
+                    }
+                  } else if (e.key === 'Escape') {
+                    setOpen(null)
+                  }
+                }}
+                placeholder="Search users…"
+                className="m-1 rounded-md border border-white/10 bg-[#202020] px-2.5 py-1.5 text-[12px] text-gray-200 placeholder:text-gray-500 focus:border-[#22a7d3]/50 focus:outline-none"
+              />
+              <div className="overflow-y-auto p-1 pt-0">
+                {filteredMembers.map((m) => {
+                  const isActive = currentMember?.id === m.id
+                  const label = m.position ? `${m.displayName} · ${m.position}` : m.displayName
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => { setOpen(null); navigateToMember(m.id) }}
+                      disabled={m.equipmentId == null}
+                      className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left transition-colors disabled:opacity-40 ${
+                        isActive ? 'bg-[#22a7d3]/10' : 'hover:bg-white/[0.06]'
+                      }`}
+                    >
+                      <span className={`text-[12px] font-medium ${isActive ? 'text-[#22a7d3]' : 'text-gray-200'}`}>{label}</span>
+                    </button>
+                  )
+                })}
+                {filteredMembers.length === 0 && (
+                  <div className="px-3 py-2 text-[12px] text-gray-500">No users match</div>
+                )}
+              </div>
             </div>
           )}
         </div>
