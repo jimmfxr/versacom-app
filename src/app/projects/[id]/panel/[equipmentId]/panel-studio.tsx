@@ -1228,6 +1228,14 @@ export function PanelStudio({
                 </button>
               )}
 
+              {/* Browse-mode title — matches Dashboard / Tasks page heading
+                  so admin/manager get a consistent "My Equipment" anchor. */}
+              {isBrowseMode && (
+                <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                  My Equipment
+                </h1>
+              )}
+
               {/* Browse-mode controls — project + user dropdowns and prev/next.
                   ml-auto pushes them to the far right even when the back
                   button next to them is hidden. */}
