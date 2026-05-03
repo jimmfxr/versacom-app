@@ -15,6 +15,8 @@ export function ComboboxInput({
   placeholder,
   compact = false,
   autoFocus = false,
+  id,
+  onKeyDown,
 }: {
   label: string
   value: string
@@ -23,6 +25,10 @@ export function ComboboxInput({
   placeholder?: string
   compact?: boolean
   autoFocus?: boolean
+  /** DOM id on the underlying input — used by callers that need to focus it. */
+  id?: string
+  /** Forwarded to the input so callers can intercept Enter / Escape / etc. */
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -52,11 +58,19 @@ export function ComboboxInput({
       <label className={labelClass}>{label}</label>
       <input
         type="text"
+        id={id}
         autoFocus={autoFocus}
         placeholder={placeholder}
         value={value}
         onChange={(e) => { onChange(e.target.value); setOpen(true) }}
         onFocus={() => setOpen(true)}
+        onKeyDown={(e) => {
+          // Close the suggestions on Enter so the parent's submit handler
+          // (or whatever onKeyDown does) runs cleanly.
+          if (e.key === 'Enter') setOpen(false)
+          if (e.key === 'Escape') setOpen(false)
+          onKeyDown?.(e)
+        }}
         className={inputClass}
       />
       {open && filtered.length > 0 && (

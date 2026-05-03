@@ -133,3 +133,109 @@ export async function deleteMember(projectId: number, memberId: number) {
   revalidatePath(`/projects/${projectId}`)
   return { success: true }
 }
+
+/**
+ * Bulk-add helper. Reads the trailing integer in `lastName` and increments
+ * to generate `quantity` distinct user names. If `lastName` has no trailing
+ * integer, it falls back to a numeric suffix starting at 2 ("Spot Tech",
+ * "Spot Tech 2", "Spot Tech 3", ...).
+ *
+ * Skips and continues whenever a generated name is already on the project,
+ * just like the equipment auto-IDer does. firstName, position, and role
+ * are shared across all created members.
+ */
+export async function bulkCreateMembers(
+  projectId: number,
+  data: {
+    firstName: string
+    lastName: string
+    position?: string
+    role: string
+    quantity: number
+  },
+) {
+  const session = await getSession()
+  if (!session) return { error: 'Not authenticated' }
+
+  const fn = data.firstName.trim()
+  const ln = data.lastName.trim()
+  const position = data.position?.trim() || null
+
+  if (!fn || !ln) return { error: 'First and last name are required' }
+  if (!['admin', 'manager', 'crew', 'user'].includes(data.role)) {
+    return { error: 'Invalid role' }
+  }
+  if (!Number.isInteger(data.quantity) || data.quantity < 1 || data.quantity > 200) {
+    return { error: 'Quantity must be 1–200' }
+  }
+
+  // Generate the sequence of (firstName, lastName) name pairs.
+  // - Trailing integer in lastName → increment from there.
+  // - No trailing integer + qty 1 → use as-is.
+  // - No trailing integer + qty > 1 → first use as-is, then suffix " 2", " 3"...
+  const trailing = ln.match(/^(.*?)(\d+)$/)
+  const targets: Array<{ firstName: string; lastName: string }> = []
+  if (trailing) {
+    const prefix = trailing[1]
+    const startN = parseInt(trailing[2], 10)
+    for (let i = 0; i < data.quantity; i++) {
+      targets.push({ firstName: fn, lastName: `${prefix}${startN + i}` })
+    }
+  } else {
+    targets.push({ firstName: fn, lastName: ln })
+    for (let i = 2; i <= data.quantity; i++) {
+      targets.push({ firstName: fn, lastName: `${ln} ${i}` })
+    }
+  }
+
+  // Pre-check existing members on this project so we know which ones to skip.
+  // We compare case-insensitively to match createMember's behavior.
+  const existingMembers = await prisma.projectMember.findMany({
+    where: { projectId },
+    select: { user: { select: { firstName: true, lastName: true } } },
+  })
+  const existingKeys = new Set(
+    existingMembers.map((m) => `${m.user.firstName.toLowerCase()}|${m.user.lastName.toLowerCase()}`),
+  )
+
+  let created = 0
+  let skipped = 0
+
+  // Process sequentially. Trying to do this in parallel risks two iterations
+  // both creating the same user when the trailing-int generator produces the
+  // same name (it shouldn't, but defensive anyway). Sequential keeps the
+  // unique check meaningful per insert.
+  for (const target of targets) {
+    const key = `${target.firstName.toLowerCase()}|${target.lastName.toLowerCase()}`
+    if (existingKeys.has(key)) {
+      skipped++
+      continue
+    }
+    existingKeys.add(key)
+
+    // Reuse user if exists (by name) so we don't create duplicate User rows.
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        firstName: { equals: target.firstName, mode: 'insensitive' },
+        lastName: { equals: target.lastName, mode: 'insensitive' },
+      },
+      select: { id: true },
+    })
+
+    const userId = existingUser
+      ? existingUser.id
+      : (
+          await prisma.user.create({
+            data: { firstName: target.firstName, lastName: target.lastName, pin: '' },
+          })
+        ).id
+
+    await prisma.projectMember.create({
+      data: { userId, projectId, role: data.role, position },
+    })
+    created++
+  }
+
+  revalidatePath(`/projects/${projectId}`)
+  return { success: true, created, skipped }
+}

@@ -14,7 +14,7 @@ export default async function ProjectDetailPage({
   const projectId = parseInt(id, 10)
   if (isNaN(projectId)) notFound()
 
-  const [project, equipment, memberRows, pickListItems, panelKeyUsage, expansionRows] = await Promise.all([
+  const [project, equipment, memberRows, pickListItems, panelKeyUsage, expansionRows, allUsers, distinctPositions] = await Promise.all([
     prisma.project.findUnique({
       where: { id: projectId },
       select: {
@@ -106,9 +106,31 @@ export default async function ProjectDetailPage({
       select: { projectMemberId: true, expansion: true },
       distinct: ['projectMemberId', 'expansion'],
     }),
+    // Autocomplete sources for the Add Member form. Pulled across the whole
+    // DB (not just this project) so common entries like "Lighting", "Audio",
+    // and known crew members propagate consistently across shows.
+    prisma.user.findMany({
+      select: { firstName: true, lastName: true },
+    }),
+    prisma.projectMember.findMany({
+      where: { position: { not: null } },
+      select: { position: true },
+      distinct: ['position'],
+    }),
   ])
 
   if (!project) notFound()
+
+  // Distinct lists for the Add Member autocomplete dropdowns.
+  const firstNameSuggestions = Array.from(
+    new Set(allUsers.map((u) => u.firstName.trim()).filter(Boolean)),
+  ).sort((a, b) => a.localeCompare(b))
+  const lastNameSuggestions = Array.from(
+    new Set(allUsers.map((u) => u.lastName.trim()).filter(Boolean)),
+  ).sort((a, b) => a.localeCompare(b))
+  const positionSuggestions = Array.from(
+    new Set(distinctPositions.map((m) => m.position?.trim() || '').filter(Boolean)),
+  ).sort((a, b) => a.localeCompare(b))
 
   // Build equipment-per-member map
   const memberEquipmentMap: Record<number, string[]> = {}
@@ -163,6 +185,9 @@ export default async function ProjectDetailPage({
       isUserOnly={isUserOnly}
       currentUserRole={currentUserRole}
       currentMemberId={currentMemberId}
+      firstNameSuggestions={firstNameSuggestions}
+      lastNameSuggestions={lastNameSuggestions}
+      positionSuggestions={positionSuggestions}
       project={{
         id: project.id,
         name: project.name,

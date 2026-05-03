@@ -23,7 +23,7 @@ import { LocationSummary } from '@/components/location-summary'
 import { usePersistentState } from '@/lib/use-persistent-state'
 import { updateProject, deleteProject, setReturnPhase } from './actions'
 import { bulkCreateEquipment, updateEquipment, deleteEquipment } from './distribution/actions'
-import { createMember, updateMember, deleteMember } from './team-actions'
+import { createMember, updateMember, deleteMember, bulkCreateMembers } from './team-actions'
 import { createPickListItem, updatePickListItem, deletePickListItem } from './picklist-actions'
 
 /* ─── Constants ─── */
@@ -244,6 +244,9 @@ export function ProjectPage({
   isUserOnly,
   currentUserRole = 'user',
   currentMemberId,
+  firstNameSuggestions = [],
+  lastNameSuggestions = [],
+  positionSuggestions = [],
 }: {
   project: Project
   equipment: EquipmentItem[]
@@ -254,6 +257,9 @@ export function ProjectPage({
   isUserOnly?: boolean
   currentUserRole?: string
   currentMemberId?: number | null
+  firstNameSuggestions?: string[]
+  lastNameSuggestions?: string[]
+  positionSuggestions?: string[]
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -350,7 +356,7 @@ export function ProjectPage({
   // Crew users don't get the Add Member form but DO get a standalone QR
   // card they can pull up to show to end users during gear deployment.
   const [showTeamQr, setShowTeamQr] = useState(false)
-  const [addMemberData, setAddMemberData] = useState<{ firstName: string; lastName: string; position: string; role: string }>({ firstName: '', lastName: '', position: '', role: 'user' })
+  const [addMemberData, setAddMemberData] = useState<{ firstName: string; lastName: string; position: string; quantity: string; role: string }>({ firstName: '', lastName: '', position: '', quantity: '1', role: 'user' })
   const [editingMemberId, setEditingMemberId] = useState<number | null>(null)
   const [editMemberData, setEditMemberData] = useState<{ firstName: string; lastName: string; position: string; role: string }>({ firstName: '', lastName: '', position: '', role: 'crew' })
 
@@ -517,13 +523,38 @@ export function ProjectPage({
 
   function handleAddMember() {
     if (!addMemberData.firstName.trim() || !addMemberData.lastName.trim()) return
+    const qty = Math.max(1, Math.min(200, parseInt(addMemberData.quantity, 10) || 1))
     startTransition(async () => {
-      const result = await createMember(project.id, addMemberData)
+      // Single add uses createMember; quantity > 1 routes to the bulk action
+      // which generates incrementing names from the trailing integer in lastName.
+      const result =
+        qty === 1
+          ? await createMember(project.id, addMemberData)
+          : await bulkCreateMembers(project.id, { ...addMemberData, quantity: qty })
       if (result.error) { showToast('error', result.error); return }
-      showToast('success', `${addMemberData.firstName.trim()} ${addMemberData.lastName.trim()} added`)
-      setShowAddMember(false)
-      setAddMemberData({ firstName: '', lastName: '', position: '', role: 'user' })
+      const fn = addMemberData.firstName.trim()
+      const ln = addMemberData.lastName.trim()
+      if (qty === 1) {
+        showToast('success', `${fn} ${ln} added`)
+      } else {
+        const r = result as { created?: number; skipped?: number }
+        const created = r.created ?? 0
+        const skipped = r.skipped ?? 0
+        showToast(
+          'success',
+          skipped > 0
+            ? `Added ${created} (skipped ${skipped} duplicate${skipped === 1 ? '' : 's'})`
+            : `Added ${created}`,
+        )
+      }
+      // Reset name + position fields, keep quantity + role for rapid entry.
+      // Card stays open and focus snaps back to First Name.
+      setAddMemberData((d) => ({ ...d, firstName: '', lastName: '', position: '' }))
       router.refresh()
+      // Refocus First Name. requestAnimationFrame so React has flushed.
+      requestAnimationFrame(() => {
+        document.getElementById('add-member-first-name')?.focus()
+      })
     })
   }
 
@@ -1338,10 +1369,41 @@ export function ProjectPage({
                   </div>
                   <p className="mt-2 text-xs text-gray-500">Members are added automatically when they join with the project PIN. You can also add members manually, or open the Kiosk for self-service crew check-in.</p>
                   <form onSubmit={(e) => { e.preventDefault(); handleAddMember() }}>
-                    <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                      <FormInput autoFocus label="First Name" type="text" value={addMemberData.firstName} onChange={(e) => setAddMemberData({ ...addMemberData, firstName: e.target.value })} />
-                      <FormInput label="Last Name" type="text" value={addMemberData.lastName} onChange={(e) => setAddMemberData({ ...addMemberData, lastName: e.target.value })} />
-                      <FormInput label="Position" type="text" value={addMemberData.position} onChange={(e) => setAddMemberData({ ...addMemberData, position: e.target.value })} />
+                    {/* 5 inputs in one row on desktop; mobile 2-col grid keeps
+                        Role at the same width as everything else (with an
+                        empty cell on its right). */}
+                    <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-5">
+                      <ComboboxInput
+                        id="add-member-first-name"
+                        label="First Name"
+                        value={addMemberData.firstName}
+                        options={firstNameSuggestions}
+                        onChange={(v) => setAddMemberData({ ...addMemberData, firstName: v })}
+                      />
+                      <ComboboxInput
+                        label="Last Name"
+                        value={addMemberData.lastName}
+                        options={lastNameSuggestions}
+                        onChange={(v) => setAddMemberData({ ...addMemberData, lastName: v })}
+                      />
+                      <ComboboxInput
+                        label="Position"
+                        value={addMemberData.position}
+                        options={positionSuggestions}
+                        placeholder="e.g. Lighting"
+                        onChange={(v) => setAddMemberData({ ...addMemberData, position: v })}
+                      />
+                      <FormInput
+                        label="Quantity"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={addMemberData.quantity}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/\D/g, '')
+                          setAddMemberData({ ...addMemberData, quantity: v })
+                        }}
+                      />
                       <SearchableSelect
                         label="Role"
                         value={addMemberData.role}
