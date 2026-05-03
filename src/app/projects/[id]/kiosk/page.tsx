@@ -44,15 +44,23 @@ export default async function KioskPage({
       position: true,
       user: { select: { firstName: true, lastName: true } },
     },
-    orderBy: { id: 'desc' },
   })
 
-  const pending = pendingMembers.map((m) => ({
-    id: m.id,
-    firstName: m.user.firstName,
-    lastName: m.user.lastName,
-    position: m.position,
-  }))
+  // Natural-number sort so "Spot 1" comes before "Spot 2" before "Spot 10".
+  // Plain alphabetical would put "Spot 10" right after "Spot 1".
+  const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
+  const pending = pendingMembers
+    .map((m) => ({
+      id: m.id,
+      firstName: m.user.firstName,
+      lastName: m.user.lastName,
+      position: m.position,
+    }))
+    .sort((a, b) => {
+      const byFirst = collator.compare(a.firstName, b.firstName)
+      if (byFirst !== 0) return byFirst
+      return collator.compare(a.lastName, b.lastName)
+    })
 
   return (
     <KioskClient
