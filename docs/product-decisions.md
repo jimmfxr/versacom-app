@@ -70,6 +70,34 @@ A living record of key product decisions and the reasoning behind them.
 
 ---
 
+## PD-010: Unified My Equipment — admin/manager redirect into Panel Studio
+
+**Decision:** `/my-equipment` no longer renders a cards-list page for admins or managers. The server immediately `redirect()`s them to `/projects/{id}/panel/{equipmentId}?from=my-equipment`. Crew and user-only roles still see the cards list.
+
+**Why:** Admins and managers spend their time auditing other people's panels, not their own. Forcing them through a cards page added a click before any real work. Putting them straight into Panel Studio in browse mode (with a project + user dropdown at the top) lets them flip through users in seconds. Cookies (`lastBrowseProject`, `lastBrowseMember`) remember where they were so coming back to `/my-equipment` lands on the same panel they were last looking at.
+
+**Consequence:** The nav highlight has to know about `?from=my-equipment` so it can flip "Projects" off and "My Equipment" on even though the URL is `/projects/X/panel/Y`. See `getNavigation` in `src/components/app-shell.tsx`.
+
+---
+
+## PD-011: Two clipboards on Panel Studio (per-key + panel-level)
+
+**Decision:** Panel Studio holds two independent clipboards — Cmd/Ctrl-C copies a single key into React state; the **Copy** button next to Save snapshots the entire panel into `sessionStorage` keyed `panel-clipboard`.
+
+**Why:** Two distinct workflows. Per-key clipboard is for tweaks while editing a single panel ("make key 7 the same as key 5"). The panel-level clipboard is for cloning configurations between users — copy from PNL 3 / Jane Doe, navigate to PNL 4 / John Smith, paste. Putting the panel clipboard in `sessionStorage` lets it survive the navigation. Per-key in component state is enough because it lives inside one panel.
+
+**Side effect:** Copy also writes a plain-text snapshot to the system clipboard so the admin can paste it into Slack or a sheet for a paper trail.
+
+---
+
+## PD-012: Global admin = admin on any project
+
+**Decision:** A user with `role === 'admin'` on **any** membership is treated as a global admin: sees every project, can open any project page, and gets the Tasks nav item.
+
+**Why:** Designers and Versacom staff carry the admin bit across all shows in practice. Forcing them to be added explicitly to every project (including read-only past shows) added busywork without changing what they could do. Manager / crew / user remain scoped to their memberships only — only `admin` triggers the global-promote.
+
+---
+
 ## PD-009: Login lockout — 10 attempts, 15-min auto-unlock + Admin notify
 
 **Decision:** 10 wrong PIN attempts locks the account for 15 minutes. Auto-unlocks after 15 minutes OR Admin can manually unlock immediately. Admin gets notified in Inbox.

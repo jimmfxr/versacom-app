@@ -38,7 +38,7 @@
 
 <a class="back" href="index.html">‹ Docs</a>
 <h1><img src="/clair_logo_white.png" alt="Clair" class="logo" /> Nodal Control — Entity Relationship Diagram</h1>
-<p class="note">Updated 2026-04-17. Source of truth: <code>prisma/schema.prisma</code>.</p>
+<p class="note">Updated 2026-05-03. Source of truth: <code>prisma/schema.prisma</code>.</p>
 
 <h2>1. Full schema</h2>
 <div class="diagram">
@@ -57,6 +57,7 @@ erDiagram
     Project ||--o{ AccessRequest : receives
     Project ||--o{ Equipment : owns
     Project ||--o{ RackTemplate : scoped
+    Project ||--o{ ProjectHeadsetInventory : headsets
 
     ProjectMember ||--o{ PanelKey : keys
     ProjectMember ||--o{ Equipment : assigned
@@ -92,6 +93,20 @@ erDiagram
       string pin UK "4-digit join code"
       string status
       int createdById FK
+      int goosenecksBrought
+      int footswitchesBrought
+      int speakersBrought
+      int quarterXlrmBrought
+      int db9XlrfBrought
+      int rj45XlrmfBrought
+      boolean returnPhaseActive
+    }
+
+    ProjectHeadsetInventory {
+      int id PK
+      int projectId FK
+      string headsetType
+      int brought
     }
 
     ProjectMember {
@@ -155,6 +170,9 @@ erDiagram
       string category
       string hardwareType
       string deployStatus
+      boolean gooseneck
+      int footswitches
+      int speakers
     }
 
     Asset {
@@ -221,6 +239,7 @@ erDiagram
     <tr><td><code>ProjectMember</code></td><td><code>(userId, projectId)</code></td><td>A user isn't on the same project twice</td></tr>
     <tr><td><code>PanelKey</code></td><td><code>(projectMemberId, keyIndex, page, expansion)</code></td><td>One physical key position per member</td></tr>
     <tr><td><code>Asset</code></td><td><code>qrCode</code></td><td>Every physical asset has a unique QR</td></tr>
+    <tr><td><code>ProjectHeadsetInventory</code></td><td><code>(projectId, headsetType)</code></td><td>One brought-total row per headset type per project</td></tr>
   </tbody>
 </table>
 

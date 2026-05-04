@@ -22,9 +22,6 @@
     h1 img.logo { height: 28px; }
     h2 { font-size: 1.05em; margin-top: 32px; }
     .diagram { padding: 12px; border-radius: 8px; margin-bottom: 24px; }
-    .card { padding: 14px 16px; }
-    .card h3 { font-size: 1em; }
-    .card p { font-size: 0.85em; }
     table { font-size: 0.8em; }
     th, td { padding: 6px 8px; }
     pre.mermaid { font-size: 12px; }
@@ -35,211 +32,178 @@
 
 <a class="back" href="index.html">‹ Docs</a>
 <h1><img src="/clair_logo_white.png" alt="Clair" class="logo" /> Nodal Control — Sequence Diagrams</h1>
-<p class="note">Updated 2026-04-17. Key flows showing who talks to who and in what order.</p>
+<p class="note">Updated 2026-05-03. Key flows as currently implemented (server actions + 5s polling, no PATCH endpoints).</p>
 
-<h2>1. Join a project via QR code</h2>
-<div class="diagram">
-<pre class="mermaid">
-sequenceDiagram
-    actor Admin
-    actor Crew
-    participant ProjectUI as Project Detail UI
-    participant JoinUI as login/join page
-    participant Server as Server Action
-    participant DB
-
-    Admin->>ProjectUI: opens Team tab
-    Admin->>ProjectUI: clicks Show QR (crew) or Add Member + QR (admin)
-    ProjectUI->>ProjectUI: renders QR encoding URL with pin=1234
-
-    Crew->>Crew: scans QR
-    Crew->>JoinUI: loads login/join?pin=1234
-    JoinUI->>JoinUI: pre-fills PIN digits
-    Crew->>JoinUI: types first + last name, taps Join
-
-    JoinUI->>Server: joinProject(firstName, lastName, pin)
-    Server->>DB: find Project by pin
-
-    alt existing user
-        Server->>DB: ensure ProjectMember
-        Server-->>JoinUI: needsPin false
-        JoinUI->>JoinUI: redirect to login
-    else new user
-        Server->>DB: create User with pin null
-        Server->>DB: create ProjectMember
-        Server-->>JoinUI: needsPin true
-        JoinUI->>JoinUI: show create-PIN step
-        Crew->>JoinUI: types new PIN twice
-        JoinUI->>Server: createPersonalPin(pin)
-        Server->>DB: bcrypt hash - User.pin set
-        Server-->>JoinUI: ok
-        JoinUI->>JoinUI: redirect to login
-    end
-
-    Crew->>Crew: signs in at login
-</pre>
-</div>
-
-<h2>2. Change request: submit, review, resolve</h2>
+<h2>1. Change Request flow</h2>
+<p>Crew submits, admin reviews directly. Manager endorsement is a CR status but admin is still the only resolver in code today.</p>
 <div class="diagram">
 <pre class="mermaid">
 sequenceDiagram
     actor Crew
-    participant PS as Panel Studio (client)
-    participant Server as Server Actions
-    participant DB
+    participant UI as Panel Studio (crew)
+    participant SA as Server actions
+    participant DB as Database
     actor Admin
-    participant Tasks as Admin Tasks
+    participant AdminUI as Tasks / Panel Studio (review)
 
-    Crew->>PS: taps key, picks Cameras
-    PS->>PS: key.status = changed (yellow)
-    Crew->>PS: clicks Submit
-    PS->>Server: submitChanges(items)
-    Server->>DB: create ChangeRequest + Items + KeyDraft submitted
-    Server-->>PS: ok
-    PS->>PS: key.status = submitted (green)
-    PS->>PS: start 5s polling
+    Crew->>UI: Tap key, pick item
+    UI->>UI: Key turns YELLOW (changed)
 
-    Tasks->>Server: GET task-count every 5s
-    Server->>DB: count CRs + lockouts scoped to admin projects
-    Server-->>Tasks: count
-    Tasks->>Tasks: badge appears
+    Crew->>UI: Tap Submit changes
+    UI->>SA: submitChangeRequest(panelId, edits)
+    SA->>DB: INSERT ChangeRequest (submitted)
+    SA->>DB: INSERT ChangeRequestItem rows
+    SA->>DB: INSERT KeyDraft rows (submitted)
+    SA-->>UI: ok
+    UI->>UI: Keys turn GREEN (submitted)
 
-    Admin->>Tasks: clicks Review
-    Tasks->>PS: navigate Panel Studio review mode
-
-    Admin->>PS: toggles keys approve or deny
-    Admin->>PS: clicks Resolve
-    PS->>Server: resolveChangeRequests
-    Server->>DB: update PanelKey for approved - delete KeyDrafts
-    Server->>DB: set CR status applied or rejected
-    Server-->>PS: ok
-
-    Crew->>PS: poll fires
-    PS->>Server: refresh page query
-    Server->>DB: fetch PanelKey + recentResolutions (60s window)
-    Server-->>PS: new data
-
-    PS->>PS: fingerprint changed
-    PS->>PS: initializeKeys from DB
-
-    alt approved
-        PS->>PS: toast Your panel changes are live
-    else denied
-        PS->>PS: toast Keys X Y denied
+    loop every 5s while submitted
+        UI->>SA: router.refresh
+        SA-->>UI: page data
+        UI->>UI: fingerprint unchanged - skip
     end
+
+    AdminUI->>SA: GET /api/admin/task-count (5s)
+    SA-->>AdminUI: { count }
+    AdminUI->>AdminUI: Tasks badge updates
+
+    Admin->>AdminUI: Click Tasks then Review
+    AdminUI->>AdminUI: Navigate /projects/X/panel/Y?review=MID
+    Admin->>AdminUI: Per-key Approve / Deny
+    Admin->>SA: resolveChangeRequests(crIds, approved)
+    SA->>DB: UPDATE PanelKey for approved
+    SA->>DB: UPDATE ChangeRequest.status applied or rejected
+    SA->>DB: DELETE KeyDraft(submitted)
+    SA-->>AdminUI: ok
+    AdminUI->>AdminUI: router.replace /admin
+
+    UI->>SA: router.refresh (next poll)
+    SA-->>UI: PanelKey + recentResolutions
+    UI->>UI: fingerprint changed - reset to DB truth
+    UI->>UI: For each resolution, compare newValue vs PanelKey
+    UI->>UI: Toast approved / denied accordingly
 </pre>
 </div>
 
-<h2>3. Equipment bulk add (with optional custom ID)</h2>
+<h2>2. Panel Copy / Paste between users</h2>
 <div class="diagram">
 <pre class="mermaid">
 sequenceDiagram
     actor Admin
-    participant UI as Equipment Tab
-    participant Server as bulkCreateEquipment
-    participant DB
+    participant Src as Panel Studio (source user)
+    participant SS as sessionStorage
+    participant Sys as System clipboard
+    participant Dst as Panel Studio (dest user)
+    participant SA as Server actions
+    participant DB as Database
 
-    Admin->>UI: clicks Add Equipment
-    Admin->>UI: Category Panels, Hardware KP-5032, Qty 5
-    alt ID blank
-        Note right of Admin: uses category prefix PNL
-    else ID P001
-        Note right of Admin: prefix P, start 1, padWidth 3
+    Admin->>Src: Click Copy (next to Save)
+    Src->>SS: setItem panel-clipboard {sourceLabel, entries}
+    Src->>Sys: writeText plain-text snapshot
+    Src-->>Admin: Toast Copied N keys
+
+    Admin->>Src: Use Browse Header to switch user
+    Src->>Dst: Navigate /projects/X/panel/Y2?from=my-equipment
+    Dst->>SS: getItem panel-clipboard
+    SS-->>Dst: clipboard payload
+    Dst->>Dst: Render Paste button (clipboard non-empty)
+
+    Admin->>Dst: Click Paste
+    loop each entry in clipboard
+        Dst->>Dst: find target by (keyIndex, page, expansion)
+        Dst->>Dst: updateKey(target, entry)
     end
-    Admin->>UI: Add
+    Dst-->>Admin: Toast Pasted N keys from sourceLabel
 
-    UI->>Server: bulkCreateEquipment args
-
-    alt blank starting id
-        Server->>DB: find highest PNL N in project
-        Server->>Server: prefix PNL, start max+1, pad 1
-    else P001
-        Server->>Server: parse prefix P, start 1, pad 3
-    end
-
-    Server->>DB: fetch all equipment names for collision check
-
-    loop until qty reached or safety cap
-        Server->>Server: candidate = prefix + separator + number
-        alt candidate exists
-            Note right of Server: skip, n++
-        else free
-            Server->>Server: push record, n++
-        end
-    end
-
-    alt enough
-        Server->>DB: createMany
-        Server-->>UI: success count
-        UI->>UI: toast Added N Panels
-    else cap hit
-        Server-->>UI: error too many collisions
+    alt admin or global admin
+        Admin->>Dst: Click Save
+        Dst->>SA: savePanel(memberId, keys)
+        SA->>DB: UPSERT PanelKey rows
+        SA-->>Dst: ok
+    else manager / crew on others panel
+        Admin->>Dst: Submit changes
+        Dst->>SA: submitChangeRequest(memberId, edits)
+        SA->>DB: INSERT ChangeRequest + items + drafts
     end
 </pre>
 </div>
 
-<h2>4. Tasks badge polling</h2>
+<h2>3. Equipment deployment flow</h2>
 <div class="diagram">
 <pre class="mermaid">
 sequenceDiagram
-    participant Shell as AppShell
-    participant SS as sessionStorage
-    participant API as /api/admin/task-count
-    participant DB
+    actor Admin
+    participant Eq as Equipment tab
+    participant SA as Server actions
+    participant DB as Database
+    actor Crew
+    participant Tasks as Crew /tasks
 
-    Note over Shell: on mount
-    Shell->>SS: read task-count-cache
-    SS-->>Shell: value
-    Shell->>Shell: setTaskCount(cached)
-    Shell->>Shell: badge shows instantly
+    Admin->>Eq: Add equipment (bulk form)
+    Eq->>SA: bulkCreateEquipment(rows)
+    SA->>DB: INSERT Equipment (na)
+    SA-->>Eq: count
 
-    loop every 5s (admin only)
-        Shell->>API: GET task-count
-        API->>DB: count grouped CRs + lockouts scoped to admin projects
-        API-->>Shell: count
-        Shell->>Shell: setTaskCount
-        Shell->>SS: write cache
+    Admin->>Eq: Assign to member + location
+    Eq->>SA: updateEquipment(id, ...)
+    SA->>DB: UPDATE Equipment
+
+    Crew->>Tasks: Open /tasks
+    Tasks->>SA: list tasks
+    SA->>DB: SELECT Equipment in deploy queue
+    SA-->>Tasks: deploy-task list
+
+    Crew->>Tasks: Mark deployed
+    Tasks->>SA: updateDeployStatus(id, deployed)
+    SA->>DB: UPDATE Equipment
+
+    alt Return phase
+        Admin->>Eq: Toggle Project.returnPhaseActive = true
+        Eq->>SA: setReturnPhase(projectId, true)
+        SA->>DB: UPDATE Project
+        Note over Tasks: /tasks now also includes Return queue (status = done)
+        Crew->>Tasks: Mark returned
+        Tasks->>SA: updateDeployStatus(id, returned)
+        SA->>DB: UPDATE Equipment
+    else Device fails
+        Crew->>Eq: Mark damaged
+        Eq->>SA: updateDeployStatus(id, damaged)
+        SA->>DB: UPDATE Equipment
     end
 </pre>
 </div>
 
-<h2>5. Device reachability probing</h2>
+<h2>4. Join project (current behavior)</h2>
+<p>The original AccessRequest gating is not used. The project PIN is the gate.</p>
 <div class="diagram">
 <pre class="mermaid">
 sequenceDiagram
-    participant Hook as useDeviceReachability
-    participant SS as sessionStorage
-    participant BC as BroadcastChannel
-    participant Device as Panel on LAN
-    participant Hook2 as Hook in other tab
+    actor NewUser as New crew member
+    participant Login as /login/join
+    participant SA as joinProject server action
+    participant DB as Database
 
-    Note over Hook: on mount
-    Hook->>SS: read cache (TTL 10s)
-    alt fresh
-        Hook->>Hook: hydrate from cache
+    NewUser->>Login: Open with QR (or type PIN)
+    Login->>Login: Pre-fill PIN from query
+    NewUser->>Login: Type first + last name then Join
+
+    Login->>SA: joinProject({ projectPin, firstName, lastName })
+    SA->>DB: SELECT Project WHERE pin = ?
+    alt Existing user matches by name
+        SA->>DB: UPSERT ProjectMember (user)
+        SA-->>Login: { existingUser: true }
+        Login->>NewUser: Redirect to /login (sign in with personal PIN)
+    else New user
+        SA->>DB: INSERT User (pin: null)
+        SA->>DB: INSERT ProjectMember (user)
+        SA-->>Login: { needsPin: true, userId }
+        Login->>NewUser: Prompt Create personal PIN
+        NewUser->>Login: Type PIN twice then Confirm
+        Login->>SA: setInitialPin(userId, pin)
+        SA->>DB: UPDATE User.pin = bcrypt(pin)
+        SA-->>Login: ok
+        Login->>NewUser: Redirect to /login then signed in
     end
-
-    Hook->>BC: subscribe to device-reachability
-
-    Hook->>Hook: checkAll
-    loop per device
-        Hook->>Device: fetch HTTPS HTTP no-cors
-        alt response 25ms+
-            Device-->>Hook: any response
-            Hook->>Hook: mark reachable
-        else under 25ms
-            Note right of Hook: likely network reject - discard
-        else timeout
-            Hook->>Hook: mark unreachable
-        end
-    end
-
-    Hook->>SS: write cache
-    Hook->>BC: postMessage results
-
-    BC-->>Hook2: other tab gets broadcast
-    Hook2->>Hook2: adopt results - skip own probe
 </pre>
 </div>
 
@@ -253,6 +217,8 @@ sequenceDiagram
       primaryTextColor: '#eee',
       primaryBorderColor: '#0178a3',
       lineColor: '#666',
+      secondaryColor: '#313131',
+      tertiaryColor: '#1a1a1a',
     },
   })
 </script>

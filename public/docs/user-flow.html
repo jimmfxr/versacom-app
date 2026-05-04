@@ -35,7 +35,7 @@
 
 <a class="back" href="index.html">‹ Docs</a>
 <h1><img src="/clair_logo_white.png" alt="Clair" class="logo" /> Nodal Control — User Flow</h1>
-<p class="note">Updated 2026-04-17. End-user navigation and action flows for the current app.</p>
+<p class="note">Updated 2026-05-03. End-user navigation and action flows for the current app.</p>
 
 <h2>1. Top-level entry + landing by role</h2>
 <div class="diagram">
@@ -68,29 +68,36 @@ flowchart TD
 <div class="diagram">
 <pre class="mermaid">
 flowchart LR
-    DASH[Dashboard] --> NAV{Navbar}
+    DASH[Dashboard + project switcher] --> NAV{Navbar}
 
+    NAV --> TASKS[Tasks - admin or crew - polled badge]
     NAV --> PROJECTS[Projects]
     NAV --> MYEQ_OPT[My Equipment]
-    NAV --> TASKS[Tasks - admin with badge]
 
-    PROJECTS --> PLIST[Projects list]
+    PROJECTS --> PLIST[Projects list - admin all, others own]
     PLIST -->|click card| PDETAIL[Project detail page]
 
     PDETAIL --> TABS{Tabs}
     TABS --> EQ_TAB[Equipment]
-    TABS --> TEAM_TAB[Team]
-    TABS --> PL_TAB[Pick List]
+    TABS --> TEAM_TAB[Team - admin/manager]
+    TABS --> PL_TAB[Pick List - admin/manager]
+    TABS --> PLOTS_TAB[Plots]
+    TABS --> MYEQ_TAB[My Equipment - crew only]
 
     EQ_TAB -->|click panel card| PS[Panel Studio]
-    TEAM_TAB -->|click Show QR| QRCARD[Show QR card]
+    TEAM_TAB -->|click Show QR| QRCARD[QR card inline]
+    PDETAIL -->|kiosk button| KIOSK[Project kiosk]
 
-    PS -->|back arrow| PDETAIL
-    PDETAIL -->|back arrow| PROJECTS
+    MYEQ_OPT -->|admin/manager| BROWSE_REDIRECT[redirect to Panel Studio with from=my-equipment]
+    MYEQ_OPT -->|crew| MYEQ_CARDS[Equipment cards]
+    MYEQ_CARDS -->|tap card| PS
+
+    BROWSE_REDIRECT --> PS_BROWSE[Panel Studio - browse mode]
 
     TASKS --> TASKS_LIST{Task cards}
-    TASKS_LIST --> CR_CARD[Change request]
-    TASKS_LIST --> LOCK_CARD[Lockout]
+    TASKS_LIST -->|admin| CR_CARD[Change request]
+    TASKS_LIST -->|admin| LOCK_CARD[Lockout]
+    TASKS_LIST -->|crew| DEPLOY_CARD[Deploy / Return]
 
     CR_CARD -->|click Review| PS_REVIEW[Panel Studio review mode]
     LOCK_CARD -->|click Unlock| UNLOCK[Unlock user action]
@@ -117,7 +124,45 @@ flowchart TD
 </pre>
 </div>
 
-<h2>4. Change request round-trip</h2>
+<h2>4. Admin / Manager browse loop (My Equipment → Panel Studio)</h2>
+<p class="note">The unified My Equipment surface for anyone with admin or manager on any project. The cards-list page is skipped — /my-equipment redirects directly into Panel Studio with from=my-equipment.</p>
+<div class="diagram">
+<pre class="mermaid">
+flowchart TD
+    ENTER[/my-equipment/] --> RESOLVE{Resolve project + member}
+    RESOLVE -->|URL project + member| PICK
+    RESOLVE -->|cookie lastBrowseProject + lastBrowseMember| PICK
+    RESOLVE -->|fall back| FIRST[First admin/mgr project + first member with gear]
+    FIRST --> PICK
+    PICK[Selected project + member] --> REDIR[server redirect to Panel Studio with from=my-equipment]
+
+    REDIR --> PS[Panel Studio in browse mode]
+
+    PS --> HEADER[Browse Header - Show, User, prev/next]
+    PS --> SIBROW[Sibling-gear row - only when user has multiple pieces]
+    PS --> EDIT[Admin: Save direct - Manager: Submit for approval - Copy/Paste next to Save]
+
+    HEADER -->|pick different show| SHOW_NEW[set lastBrowseProject cookie]
+    HEADER -->|pick different user| USER_NEW[set lastBrowseMember cookie]
+    HEADER -->|type-to-filter then Enter| FIRST_MATCH[First match selected]
+    HEADER -->|prev / next chevron| ADJ[Adjacent user]
+
+    SIBROW -->|click sibling card| SAME_USER_DIFF_GEAR[Same user, next piece - still from=my-equipment]
+
+    SHOW_NEW --> REDIR
+    USER_NEW --> REDIR
+    ADJ --> REDIR
+    FIRST_MATCH --> REDIR
+    SAME_USER_DIFF_GEAR --> PS
+
+    EDIT --> NEXT{Done with this user?}
+    NEXT -->|yes| HEADER
+    NEXT -->|leave app| LATER[/my-equipment later]
+    LATER -->|cookies hydrate| RESOLVE
+</pre>
+</div>
+
+<h2>5. Change request round-trip</h2>
 <div class="diagram">
 <pre class="mermaid">
 flowchart TD
@@ -149,7 +194,30 @@ flowchart TD
 </pre>
 </div>
 
-<h2>5. Pick List / Equipment bulk-add</h2>
+<h2>6. Panel Copy / Paste between users</h2>
+<div class="diagram">
+<pre class="mermaid">
+flowchart LR
+    SRC[Panel Studio source user PNL 3] --> COPY[Click Copy]
+    COPY --> SS[(sessionStorage panel-clipboard)]
+    COPY --> SYS[(System clipboard - plain-text snapshot)]
+    COPY --> TOAST1[Toast: Copied N keys]
+
+    SS --> NEXT[Browse to next user via Browse Header]
+    NEXT --> DEST[Panel Studio dest user PNL 4]
+
+    DEST --> PASTE_BTN[Paste button visible since clipboard non-empty]
+    PASTE_BTN --> PASTE[Click Paste]
+    PASTE --> MATCH[Match each entry by keyIndex + page + expansion]
+    MATCH --> OVERWRITE[Overwrite matching slots]
+    OVERWRITE --> TOAST2[Toast: Pasted N keys from sourceLabel]
+    OVERWRITE --> SAVE_OR_REQ{Edit mode}
+    SAVE_OR_REQ -->|admin own/global| SAVE[Save direct]
+    SAVE_OR_REQ -->|else| REQ[Submit as change request]
+</pre>
+</div>
+
+<h2>7. Pick List / Equipment bulk-add</h2>
 <div class="diagram">
 <pre class="mermaid">
 flowchart TD
@@ -176,7 +244,7 @@ flowchart TD
 </pre>
 </div>
 
-<h2>6. Mobile nav gesture</h2>
+<h2>8. Mobile nav gesture</h2>
 <div class="diagram">
 <pre class="mermaid">
 flowchart LR
@@ -197,7 +265,7 @@ flowchart LR
 </pre>
 </div>
 
-<h2>7. Device reachability probing</h2>
+<h2>9. Device reachability probing</h2>
 <div class="diagram">
 <pre class="mermaid">
 flowchart TD

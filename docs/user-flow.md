@@ -1,6 +1,6 @@
 # Nodal Control — User Flow
 
-**Updated:** 2026-04-17
+**Updated:** 2026-05-03
 
 End-user navigation and action flows for the current app. Each role starts at a different landing and unlocks different paths.
 
@@ -41,34 +41,39 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    DASH[Dashboard] --> NAV{Navbar}
+    DASH[Dashboard<br/>+ project switcher] --> NAV{Navbar}
 
+    NAV --> TASKS[/admin or /tasks<br/>with polled badge]
     NAV --> PROJECTS[/projects/]
-    NAV --> MYEQ_OPT[/my-equipment/<br/>crew only]
-    NAV --> TASKS[/admin/<br/>admin only - with badge]
+    NAV --> MYEQ_OPT[/my-equipment/]
 
-    PROJECTS --> PLIST[Projects list]
+    PROJECTS --> PLIST[Projects list<br/>admin: all · others: own]
     PLIST -->|click card| PDETAIL[/projects/ID/]
 
     PDETAIL --> TABS{Tabs}
-    TABS --> EQ_TAB[Equipment tab]
-    TABS --> TEAM_TAB[Team tab]
-    TABS --> PL_TAB[Pick List tab]
-    TABS --> MYEQ_TAB[My Equipment tab<br/>crew only]
+    TABS --> EQ_TAB[Equipment]
+    TABS --> TEAM_TAB[Team<br/>admin/manager]
+    TABS --> PL_TAB[Pick List<br/>admin/manager]
+    TABS --> PLOTS_TAB[Plots]
+    TABS --> MYEQ_TAB[My Equipment<br/>crew only]
 
     EQ_TAB -->|click panel card| PS[/projects/ID/panel/EQID/]
-    TEAM_TAB -->|click Show QR| QRCARD[Show-QR card inline]
-    MYEQ_TAB -->|click panel card| PS
+    TEAM_TAB -->|click Show QR| QRCARD[QR card inline]
+    PDETAIL -->|kiosk button| KIOSK[/projects/ID/kiosk/]
 
-    PS -->|back arrow| PDETAIL
-    PDETAIL -->|back arrow| PROJECTS
+    MYEQ_OPT -->|admin/manager| BROWSE_REDIRECT[redirect to<br/>/projects/X/panel/Y?from=my-equipment]
+    MYEQ_OPT -->|crew| MYEQ_CARDS[Equipment cards]
+    MYEQ_CARDS -->|tap card| PS
+
+    BROWSE_REDIRECT --> PS_BROWSE[Panel Studio<br/>browse mode]
 
     TASKS --> TASKS_LIST{Task cards}
-    TASKS_LIST --> CR_CARD[Change request card]
-    TASKS_LIST --> LOCK_CARD[Lockout card]
+    TASKS_LIST -->|admin| CR_CARD[Change request]
+    TASKS_LIST -->|admin| LOCK_CARD[Lockout]
+    TASKS_LIST -->|crew| DEPLOY_CARD[Deploy / Return]
 
     CR_CARD -->|click Review| PS_REVIEW[/projects/ID/panel/EQID/?review=MID/]
-    LOCK_CARD -->|click Unlock| UNLOCK[Unlock user server action]
+    LOCK_CARD -->|click Unlock| UNLOCK[Unlock user action]
 ```
 
 ---
@@ -99,7 +104,49 @@ flowchart TD
 
 ---
 
-## 4. Change request — crew submits, admin resolves
+## 4. Admin / Manager browse loop (My Equipment → Panel Studio)
+
+The unified My Equipment surface for anyone with `admin` or `manager` on any project. The cards-list page is skipped entirely — `/my-equipment` redirects directly into Panel Studio with `?from=my-equipment`.
+
+```mermaid
+flowchart TD
+    ENTER[/my-equipment/] --> RESOLVE{Resolve project + member}
+    RESOLVE -->|URL ?project= ?member=| PICK
+    RESOLVE -->|cookie lastBrowseProject<br/>+ lastBrowseMember| PICK
+    RESOLVE -->|fall back| FIRST[First admin/mgr project<br/>+ first member with gear]
+    FIRST --> PICK
+    PICK[Selected project + member] --> REDIR[server redirect to<br/>/projects/X/panel/Y?from=my-equipment]
+
+    REDIR --> PS[Panel Studio in browse mode]
+
+    PS --> HEADER[Browse Header<br/>Show ▼ · User ▼ · ◄ ►]
+    PS --> SIBROW[Sibling-gear row<br/>only when user has multiple pieces]
+    PS --> EDIT[Admin: Save direct<br/>Manager: Submit for approval<br/>Copy / Paste next to Save]
+
+    HEADER -->|pick different show| SHOW_NEW[set lastBrowseProject cookie]
+    HEADER -->|pick different user| USER_NEW[set lastBrowseMember cookie]
+    HEADER -->|type-to-filter then Enter| FIRST_MATCH[First match selected]
+    HEADER -->|◄ ►| ADJ[Prev / next user]
+
+    SIBROW -->|click sibling card| SAME_USER_DIFF_GEAR[Same user, next piece<br/>still ?from=my-equipment]
+
+    SHOW_NEW --> REDIR
+    USER_NEW --> REDIR
+    ADJ --> REDIR
+    FIRST_MATCH --> REDIR
+    SAME_USER_DIFF_GEAR --> PS
+
+    EDIT --> NEXT{Done with this user?}
+    NEXT -->|yes| HEADER
+    NEXT -->|leave app| LATER[/my-equipment/ later]
+    LATER -->|cookies hydrate| RESOLVE
+```
+
+Nav highlight: while `?from=my-equipment` is in the URL, the navbar marks **My Equipment** as current even though the path is `/projects/X/panel/Y`.
+
+---
+
+## 5. Change request — crew submits, admin resolves
 
 The most important flow in the app. Diagram is from both sides.
 
@@ -150,7 +197,33 @@ flowchart TD
 
 ---
 
-## 5. Pick List + Equipment add flows
+## 6. Panel Copy / Paste between users
+
+Admin or manager (or any global admin) cloning a panel's keys onto another user.
+
+```mermaid
+flowchart LR
+    SRC[Panel Studio<br/>source user PNL 3] --> COPY[Click Copy]
+    COPY --> SS[(sessionStorage<br/>panel-clipboard)]
+    COPY --> SYS[(System clipboard<br/>plain-text snapshot)]
+    COPY --> TOAST1[Toast: Copied N keys]
+
+    SS --> NEXT[Browse to next user<br/>via Browse Header dropdown]
+    NEXT --> DEST[Panel Studio<br/>dest user PNL 4]
+
+    DEST --> PASTE_BTN[Paste button visible<br/>since clipboard non-empty]
+    PASTE_BTN --> PASTE[Click Paste]
+    PASTE --> MATCH[Match each entry by<br/>keyIndex + page + expansion]
+    MATCH --> OVERWRITE[Overwrite matching slots]
+    OVERWRITE --> TOAST2[Toast: Pasted N keys<br/>from {sourceLabel}]
+    OVERWRITE --> SAVE_OR_REQ{Edit mode}
+    SAVE_OR_REQ -->|admin own/global| SAVE[Save direct]
+    SAVE_OR_REQ -->|else| REQ[Submit as change request]
+```
+
+---
+
+## 7. Pick List + Equipment add flows
 
 Both follow the same pattern: an inline `<Card>` opens above the list with the input form, the user fills it, it posts to a server action, the list refreshes.
 
@@ -181,7 +254,7 @@ flowchart TD
 
 ---
 
-## 6. Mobile nav flow
+## 8. Mobile nav flow
 
 ```mermaid
 flowchart LR
@@ -203,7 +276,7 @@ flowchart LR
 
 ---
 
-## 7. Device reachability indicators
+## 9. Device reachability indicators
 
 On pages showing equipment with IPs (Equipment tab, Panel Studio header), IP addresses are colored to show if the device is reachable on the current network.
 

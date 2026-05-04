@@ -19,6 +19,7 @@
   td.yes { color: #10b981; text-align: center; }
   td.no { color: #666; text-align: center; }
   td.view { color: #22a7d3; text-align: center; }
+  code { background: #2a2a2a; padding: 2px 6px; border-radius: 4px; font-family: ui-monospace, monospace; font-size: 0.9em; }
   .mermaid { display: flex; justify-content: center; }
   .mermaid svg { max-width: 100%; height: auto; }
   @media (max-width: 640px) {
@@ -27,9 +28,6 @@
     h1 img.logo { height: 28px; }
     h2 { font-size: 1.05em; margin-top: 32px; }
     .diagram { padding: 12px; border-radius: 8px; margin-bottom: 24px; }
-    .card { padding: 14px 16px; }
-    .card h3 { font-size: 1em; }
-    .card p { font-size: 0.85em; }
     table { font-size: 0.8em; }
     th, td { padding: 6px 8px; }
     pre.mermaid { font-size: 12px; }
@@ -40,13 +38,13 @@
 
 <a class="back" href="index.html">‹ Docs</a>
 <h1><img src="/clair_logo_white.png" alt="Clair" class="logo" /> Nodal Control — Use Cases by Role</h1>
-<p class="note">Updated 2026-04-17. What each role can do in the current build.</p>
+<p class="note">Updated 2026-05-03. Roles are per-project (<code>ProjectMember.role</code>); a user with <code>admin</code> on any project is promoted to "global admin" for the whole app.</p>
 
 <h2>1. Use case diagram</h2>
 <div class="diagram">
 <pre class="mermaid">
 flowchart LR
-    Admin((Admin))
+    Admin((Admin / Global Admin))
     Manager((Manager))
     Crew((Crew))
     User((User))
@@ -54,21 +52,22 @@ flowchart LR
     subgraph ProjectMgmt [Project Management]
         UC1[Create project]
         UC2[Archive project]
-        UC3[Edit project details]
+        UC3[Edit project details + return phase toggle]
+        UC22[Browse any project - global admin only]
     end
 
     subgraph TeamMgmt [Team Management]
         UC4[Add team member]
         UC5[Edit member role]
         UC6[Remove member]
-        UC7[Show Join QR]
+        UC7[Show Join QR / open Kiosk]
     end
 
     subgraph EquipmentMgmt [Equipment]
         UC8[Add equipment bulk]
         UC9[Assign equipment to member]
         UC10[Change deploy status]
-        UC11[Edit equipment details]
+        UC11[Edit equipment details + panel misc accessories]
     end
 
     subgraph PickListMgmt [Pick List]
@@ -78,21 +77,25 @@ flowchart LR
     end
 
     subgraph PanelStudio [Panel Studio]
-        UC15[Edit keys directly - no approval]
+        UC15[Edit own keys directly - no approval]
         UC16[Submit key changes for approval]
         UC17[View own panel read-only]
         UC18[Review and resolve change requests]
+        UC23[Browse mode - cycle users via dropdown / chevron]
+        UC24[Panel-level Copy / Paste between users]
     end
 
-    subgraph Monitoring [Admin Tasks]
-        UC19[See change-request queue]
+    subgraph TasksPage [Tasks]
+        UC19[Admin tasks: CR queue + lockouts]
         UC20[Approve or deny per key]
         UC21[Unlock locked user]
+        UC25[Crew tasks: deploy + return queue]
     end
 
     Admin --> UC1
     Admin --> UC2
     Admin --> UC3
+    Admin --> UC22
     Admin --> UC4
     Admin --> UC5
     Admin --> UC6
@@ -106,6 +109,8 @@ flowchart LR
     Admin --> UC14
     Admin --> UC15
     Admin --> UC18
+    Admin --> UC23
+    Admin --> UC24
     Admin --> UC19
     Admin --> UC20
     Admin --> UC21
@@ -120,6 +125,8 @@ flowchart LR
     Manager --> UC14
     Manager --> UC16
     Manager --> UC17
+    Manager --> UC23
+    Manager --> UC24
 
     Crew --> UC7
     Crew --> UC8
@@ -128,6 +135,7 @@ flowchart LR
     Crew --> UC11
     Crew --> UC16
     Crew --> UC17
+    Crew --> UC25
 
     User --> UC16
     User --> UC17
@@ -141,24 +149,32 @@ flowchart LR
     <tr><th>Action</th><th>Admin</th><th>Manager</th><th>Crew</th><th>User</th></tr>
   </thead>
   <tbody>
-    <tr><td>View Projects list</td><td class="yes">✅</td><td class="yes">✅</td><td class="yes">✅</td><td class="no">❌</td></tr>
-    <tr><td>View Project detail</td><td class="yes">✅</td><td class="yes">✅</td><td class="yes">✅</td><td class="no">❌</td></tr>
+    <tr><td>See every project (global)</td><td class="yes">✅ admin on any = global</td><td class="no">❌ memberships only</td><td class="no">❌</td><td class="no">❌</td></tr>
+    <tr><td>View Projects list</td><td class="yes">✅ all</td><td class="yes">✅ own</td><td class="yes">✅ own</td><td class="no">❌</td></tr>
+    <tr><td>View Project detail</td><td class="yes">✅ any</td><td class="yes">✅ own</td><td class="yes">✅ own</td><td class="no">❌</td></tr>
     <tr><td>Create / rename / archive project</td><td class="yes">✅</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td></tr>
+    <tr><td>Edit project details + Return phase toggle</td><td class="yes">✅</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td></tr>
     <tr><td>Edit Team tab</td><td class="yes">✅</td><td class="yes">✅</td><td class="no">❌</td><td class="no">❌</td></tr>
     <tr><td>Edit Pick List</td><td class="yes">✅</td><td class="yes">✅</td><td class="no">❌</td><td class="no">❌</td></tr>
     <tr><td>Edit Equipment</td><td class="yes">✅</td><td class="no">❌</td><td class="yes">✅</td><td class="no">❌</td></tr>
     <tr><td>Change deploy status</td><td class="yes">✅</td><td class="view">👁</td><td class="yes">✅</td><td class="no">❌</td></tr>
     <tr><td>Edit own Panel Studio</td><td class="yes">✅</td><td class="yes">✅</td><td class="yes">✅</td><td class="yes">✅</td></tr>
     <tr><td>Edit someone else's panel</td><td class="yes">✅</td><td class="yes">✅</td><td class="no">❌</td><td class="no">❌</td></tr>
-    <tr><td>Submit keys directly (no approval)</td><td class="yes">✅</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td></tr>
+    <tr><td>Save keys directly (no approval)</td><td class="yes">✅</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td></tr>
     <tr><td>Submit keys via approval flow</td><td class="no">N/A</td><td class="yes">✅</td><td class="yes">✅</td><td class="yes">✅</td></tr>
     <tr><td>Review & approve change requests</td><td class="yes">✅</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td></tr>
-    <tr><td>See Admin Tasks page</td><td class="yes">✅</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td></tr>
+    <tr><td>Browse mode (Show + User dropdowns)</td><td class="yes">✅</td><td class="yes">✅</td><td class="no">❌</td><td class="no">❌</td></tr>
+    <tr><td>Panel-level Copy / Paste</td><td class="yes">✅</td><td class="yes">✅</td><td class="no">❌</td><td class="no">❌</td></tr>
+    <tr><td>Per-key Copy / Paste (Cmd-C / Cmd-V)</td><td class="yes">✅</td><td class="yes">✅</td><td class="yes">✅</td><td class="yes">✅</td></tr>
+    <tr><td>See Admin Tasks page (<code>/admin</code>)</td><td class="yes">✅</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td></tr>
+    <tr><td>See Crew Tasks page (<code>/tasks</code>)</td><td class="no">❌</td><td class="no">❌</td><td class="yes">✅</td><td class="no">❌</td></tr>
     <tr><td>Unlock a locked-out account</td><td class="yes">✅</td><td class="no">❌</td><td class="no">❌</td><td class="no">❌</td></tr>
-    <tr><td>See Show QR button</td><td class="yes">✅</td><td class="yes">✅</td><td class="yes">✅</td><td class="no">❌</td></tr>
+    <tr><td>See Show QR / Kiosk button</td><td class="yes">✅</td><td class="yes">✅</td><td class="yes">✅</td><td class="no">❌</td></tr>
     <tr><td>See Add Member button</td><td class="yes">✅</td><td class="yes">✅</td><td class="no">❌</td><td class="no">❌</td></tr>
   </tbody>
 </table>
+
+<p class="note">Global admin is computed as <code>session.memberships.some((m) =&gt; m.role === 'admin')</code>. Removing the last admin membership demotes the user back to whatever scoped roles remain.</p>
 
 <script>
   mermaid.initialize({

@@ -1,7 +1,7 @@
 # Nodal Control — Product Requirements Document
 
-**Version:** 2.0 (current-state rewrite)
-**Updated:** 2026-04-17
+**Version:** 2.1 (current-state rewrite)
+**Updated:** 2026-05-03
 **Author:** Jimmy Xiloj / Versacom (ATK / Clair Global)
 **Status:** Living document — describes what is actually built and shipping, not future phases.
 
@@ -16,14 +16,17 @@ Nodal Control is a web-based intercom management platform for live production sh
 **What's built today (v2):**
 
 - PIN-based auth with project PIN + personal PIN flow
-- Three operational pages: **Projects list**, **Project detail** (Equipment/Team/Pick List tabs), **Panel Studio** (per-equipment key editor)
-- **Dashboard** and **My Equipment** (role-specific landings)
-- **Admin Tasks** page with lockout + change-request review inbox
-- Four roles: `admin`, `manager`, `crew`, `user` — each with specific permissions
+- Operational pages: **Projects list**, **Project detail** (Equipment/Team/Pick List/Plots/My Equipment tabs), **Panel Studio** (per-equipment key editor)
+- **Dashboard** with project switcher, **My Equipment** unified across roles (admin/manager browse mode redirects directly into Panel Studio)
+- **Tasks** page — `/admin` for admins (CR review + lockouts), `/tasks` for crew (deploy + return tasks). Both surface a polled badge in the navbar.
+- Four roles: `admin`, `manager`, `crew`, `user` — each with specific permissions; **`admin` on any project promotes the user to "global admin"** (sees every project)
 - Change-request approval workflow for panel key edits (submitted → applied/rejected)
-- QR code generation for project join links
+- **Panel-level Copy / Paste** clipboard (sessionStorage) for cloning a panel's keys onto another user
+- **Per-key clipboard** (Cmd/Ctrl-C / V) for copying one key's assignment + trigger mode
+- QR code generation for project join links + crew kiosk page (`/projects/[id]/kiosk`)
 - Mobile-first nav with drag-to-dismiss gesture
 - Device reachability probing with caching + cross-tab sync
+- Admin-toggled **Return phase** — when active, crew see "done" gear as Return tasks alongside Deploy tasks
 
 **What's not built:**
 
@@ -99,6 +102,17 @@ Untested at scale: multiple concurrent shows, hundreds of crew, live event stres
 
 Role is **per-project** (`ProjectMember.role`). A person can be an `admin` on one project and a `user` on another.
 
+### 3.0 Global admin promotion
+
+Holding `role === 'admin'` on **any** membership makes the user a "global admin" for the whole app. Global admins:
+
+- See every project in `/projects` (the list query skips the `memberId in [...]` filter when `isAdmin` is true — see `src/app/projects/page.tsx`)
+- Can open any project detail page even on shows where they have no membership row
+- Get the Tasks nav item (badge fed by `/api/admin/task-count`)
+- Can act as admin on any project's Panel Studio (`isAdminGlobal` is plumbed into `panel-studio.tsx` and unlocks Copy / Paste + direct-save behavior)
+
+`manager` / `crew` / `user` roles are scoped to their memberships only — they only see projects they're a member of, and per-page role checks gate everything else. A user with **only** `user` memberships is "user-only" and gets the locked-down experience described in §3.3.
+
 ### 3.1 Role definitions
 
 | Role | Shorthand | Typical person |
@@ -151,21 +165,24 @@ Every authenticated page is wrapped by `AppShell` (navbar + toast container). No
 | `/login` | Sign in with name + personal PIN | Everyone |
 | `/login/join` | Join a project with the project PIN | Everyone (accepts `?pin=` for QR pre-fill) |
 | `/login/forgot-pin` | Recovery flow (limited — contact admin) | Everyone |
-| `/` (Dashboard) | Summary of a selected project | admin / manager / crew (not user-only) |
-| `/projects` | List of projects accessible to the viewer | admin (all) / manager / crew (own) |
-| `/projects/[id]` | Project detail with tabs (Equipment / Team / Pick List / My Equipment) | Any member of the project |
-| `/projects/[id]/panel/[equipmentId]` | Panel Studio — key editor for a specific panel | Members per role rules |
-| `/my-equipment` | Equipment assigned to the current user | Everyone |
-| `/admin` | Tasks inbox (lockouts + change requests) | admin only — non-admins redirected to `/` |
+| `/` (Dashboard) | Summary of a selected project; project switcher in the header | admin / manager / crew (not user-only) |
+| `/projects` | List of projects accessible to the viewer | admin (global, sees all) / manager / crew (own only) |
+| `/projects/[id]` | Project detail with tabs (Equipment / Team / Pick List / Plots / My Equipment) | Any member of the project; global admins also allowed |
+| `/projects/[id]/panel/[equipmentId]` | Panel Studio — key editor for a specific panel; `?from=my-equipment` puts it in browse mode | Members per role rules |
+| `/projects/[id]/kiosk` | Self-serve "join the show" page for a roving tablet (admins/managers print the QR) | Open per project PIN |
+| `/my-equipment` | Crew/user-only: equipment cards. Admin/manager: redirects straight to Panel Studio with `?from=my-equipment`. | Everyone |
+| `/admin` | Tasks inbox (lockouts + change requests) | admin only — non-admins redirected to `/tasks` or `/` |
 | `/admin/lockouts` | Drill-down view of all locked users | admin |
+| `/tasks` | Crew task list (deploy + optional return queue) | crew |
 
 ### 4.1 Project detail tabs
 
 | Tab | Shows | Who sees it |
 |---|---|---|
-| **Equipment** | Auto-named gear (`PNL 1`, `WLBP 3`, `SW 2`, …) with hardware type, assignee, IP, deploy status | admin / manager / crew |
-| **Team** | Members with role, position, assigned equipment, expansion count, first-login status (Active/Pending) | admin / manager / crew |
-| **Pick List** | CONF / IFB / Audio_IO / GRP communication functions. Usage display shows who has each item on their panel. | admin / manager / crew |
+| **Equipment** | Auto-named gear (`PNL 1`, `WLBP 3`, `SW 2`, …) with hardware type, assignee, IP, deploy status, panel misc accessories (gooseneck, footswitches, speakers) | admin / manager / crew |
+| **Team** | Members with role, position, assigned equipment, expansion count, first-login status (Active/Pending) | admin / manager (crew see Equipment + My Equipment + Plots only) |
+| **Pick List** | CONF / IFB / Audio_IO / GRP communication functions. Usage display shows who has each item on their panel. | admin / manager |
+| **Plots** | Stage-plot PDFs uploaded for the show (currently mock state) | All members |
 | **My Equipment** (nested) | Shows ONLY when the current user is `crew` on this project — surfaces just the gear assigned to them | crew |
 
 ### 4.2 Panel Studio modes
@@ -176,8 +193,16 @@ Same route (`/projects/[id]/panel/[equipmentId]`) renders different modes:
 |---|---|---|
 | **Own panel, crew/user/manager** | Default when viewing a panel assigned to you | Edit keys → submit for approval |
 | **Own panel, admin** | Admin viewing a panel assigned to them | Edit keys → applied immediately (no approval) |
-| **Others' panel, admin/manager** | Navigating to a panel not assigned to you | Edit keys → changes require admin approval (manager = endorsement) |
+| **Others' panel, admin/manager (or global admin)** | Navigating to a panel not assigned to you | Edit keys → changes require admin approval (manager = endorsement); admin/global admin saves directly. Copy / Paste buttons show next to Save. |
+| **Browse mode** | URL has `?from=my-equipment` (admin/manager landed here from `/my-equipment`) | Adds the **Browse Header** at the top — show + user dropdowns with type-to-filter, prev/next chevrons, and a sibling-gear row when the user has multiple pieces. The "My Equipment" page-title is rendered above the header. Nav highlight flips to "My Equipment". |
 | **Review mode** | URL has `?review={memberId}` (admin clicks Review on a Tasks card) | Shows the submitted changes, allows per-key approve/deny |
+
+### 4.3 My Equipment surfaces
+
+`/my-equipment` is unified entry but the rendered surface depends on role:
+
+- **Crew / user-only**: cards-list view of every piece of gear assigned to them, grouped by project. Each card links into Panel Studio.
+- **Admin / manager (on any project)**: server immediately `redirect()`s to `/projects/{id}/panel/{equipmentId}?from=my-equipment`. There is no intermediate cards page for them. The first project + first member with gear is picked unless `?project=` / `?member=` (or the `lastBrowseProject` / `lastBrowseMember` cookies) say otherwise. Returning to `/my-equipment` lands on the same user they were last looking at.
 
 ---
 
@@ -287,7 +312,48 @@ Same model applied to **Pick List**: ID field + Quantity field, with Name field 
 - Name blank + ID blank → auto-gen with type prefix (`C1, C2, …` for CONF, `IF1, IF2, …` for IFB, etc.)
 - Name blank + ID filled → sequence from user's start; each item's name defaults to its code (rename later)
 
-### 5.4 HWBP exclusion from PTP picker
+### 5.4 Admin/manager browse loop (My Equipment → Panel Studio)
+
+Designed so an admin can audit a whole crew without losing their place:
+
+```
+/my-equipment
+   │  redirect (server) →
+   ▼
+/projects/A/panel/EQ?from=my-equipment
+   │
+   │ Browse Header (top of page):
+   │   [Show ▼]    [User ▼]   ◄ ►
+   │   type-to-filter on each dropdown,
+   │   Enter picks first match, Esc closes
+   │
+   │ Sibling gear row (only when current user has >1 piece):
+   │   [PNL 1] [WLBP 3]  ← clickable cards switch piece without leaving browse mode
+   │
+   │ Edits on someone else's panel: admin saves directly (Save) or
+   │ uses Copy / Paste to clone keys from another panel.
+   │
+   ▼  user picks next person from dropdown / chevron
+/projects/A/panel/EQ2?from=my-equipment   (nav stays "My Equipment")
+   │
+   ▼  navigates away & comes back → cookies remember last project + member
+/my-equipment → redirect → same panel
+```
+
+### 5.5 Panel-level Copy / Paste between users
+
+Two clipboards live on Panel Studio simultaneously:
+
+| Scope | Holds | Storage | Trigger | Visible to |
+|---|---|---|---|---|
+| **Per-key clipboard** | One key's `pickListItemId` + trigger mode | React state (`clipboard`) | Cmd/Ctrl-C on a selected key, paste with Cmd/Ctrl-V | Anyone editing |
+| **Panel-level clipboard** | Every key on the panel (main + shift + every expansion) tagged with a source label like `"PNL 3 · Jane Doe"` | `sessionStorage` key `panel-clipboard` (survives navigation) | **Copy** button next to Save snapshots; **Paste** button appears when clipboard has content | admin / manager / global admin |
+
+**Paste** matches each entry by `(keyIndex, page, expansion)` and overwrites the matching slot on the current panel. A toast reports `Pasted N keys from {sourceLabel}`. The plain-text panel snapshot is also pushed to the system clipboard so it can be dropped into Slack / a sheet for a paper trail.
+
+Selection clears whenever the inspector closes (X / scrim tap / Esc) so the next click on a key opens it cleanly. Picker-list drag-and-drop **keeps the picker open** after a drop so admins can drag item-after-item onto multiple keys without reopening it.
+
+### 5.6 HWBP exclusion from PTP picker
 
 Panel Studio picker's PTP section lists members as callable targets. Members whose only equipment is `hardwire_bp` are **excluded** because PTP'ing to a hardwire beltpack requires more studio resources than typically available. Members with HWBP + any other gear (panel / wireless BP) stay in the list — the PTP rings their non-HWBP device. Logic in `panel/[equipmentId]/page.tsx`:
 
@@ -299,14 +365,15 @@ const onlyHwbp = m.equipment.every((e) => e.category === 'hardwire_bp')
 
 ## 6. Data Model Summary
 
-13 models total. See `uml-erd.md` for the diagram.
+14 models total. See `uml-erd.md` for the diagram.
 
 ### Phase 1 models (built + in use)
 
 | Model | Purpose | Notable fields |
 |---|---|---|
 | `User` | Person with a login | `firstName`, `lastName`, `pin` (nullable until first-login setup), `failedAttempts`, `lockedUntil` |
-| `Project` | A show | `name`, `pin` (4-digit join code), `status`, `createdById` |
+| `Project` | A show | `name`, `pin` (4-digit join code), `status`, `createdById`; manager-set "brought to show" totals: `goosenecksBrought`, `footswitchesBrought`, `speakersBrought`, `quarterXlrmBrought`, `db9XlrfBrought`, `rj45XlrmfBrought`; `returnPhaseActive` toggle |
+| `ProjectHeadsetInventory` | Per-project headset-type "brought" totals | `(projectId, headsetType)` unique, `brought` count |
 | `ProjectMember` | User's membership in a project | `role`, `position`, `location`, `hardwareType` (legacy — equipment carries this now), `deployStatus` (per-member, less-used now) |
 | `PickListItem` | A named comm function | `code`, `name`, `type` (PTP/CONF/IFB/Audio_IO/GRP) |
 | `PanelKey` | One physical key on someone's panel | `keyIndex`, `page` (main/shift), `expansion` (0-N), `pickListItemId`, `triggerMode` |
@@ -367,7 +434,7 @@ This means the crew doesn't need to manually reload to see admin's approval (or 
 
 ### 7.5 Polling + cache (Tasks badge)
 
-`src/components/app-shell.tsx` fetches `/api/admin/task-count` every 5s (only if current user is admin) and displays the count next to the Tasks nav item. Count is cached in `sessionStorage` keyed `task-count-cache` so navigating between pages doesn't flash the badge back to 0 while the next fetch is in flight. The cache is hydrated inside a `useEffect` (not `useState` initializer) to avoid SSR hydration mismatch.
+`src/components/app-shell.tsx` polls every 5s — admins hit `/api/admin/task-count` (CR + lockout queue), crew hit `/api/tasks/count` (deploy + return queue when `returnPhaseActive`). The count is cached in `sessionStorage` (`task-count-cache` for admin, `crew-task-count-cache` for crew) so navigating between pages doesn't flash the badge back to 0 while the next fetch is in flight. Cache is hydrated inside a `useEffect` (not `useState` initializer) to avoid SSR hydration mismatch.
 
 ### 7.6 Device reachability caching (`src/hooks/use-device-reachability.ts`)
 

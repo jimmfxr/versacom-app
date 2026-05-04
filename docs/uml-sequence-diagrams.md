@@ -1,52 +1,107 @@
-## Change Request Flow
+# Nodal Control — Sequence Diagrams
+
+**Updated:** 2026-05-03
+
+## Change Request Flow (current implementation)
+
+The crew submits, the admin reviews directly. There is no separate manager approval step in code today — manager endorsement is a CR status (`mgr_endorsed`) but the admin is still the final and only resolver. Communication is server actions + 5-second polling, not a REST PATCH endpoint.
 
 ```mermaid
 sequenceDiagram
     actor Crew
-    participant UI as Panel Studio
-    participant API as REST API
+    participant UI as Panel Studio (crew)
+    participant SA as Server actions
     participant DB as Database
-    actor Manager
     actor Admin
+    participant AdminUI as Tasks / Panel Studio (review)
 
     Note over Crew,UI: Phase 1 — Key Editing
-    Crew->>UI: Tap Key → Assign Function
-    UI->>UI: Key turns YELLOW (Draft)
+    Crew->>UI: Tap key → pick item from picker
+    UI->>UI: Key turns YELLOW (changed)
     Crew->>UI: Edit more keys
-    UI->>UI: Each edited key turns YELLOW
 
-    Note over Crew,API: Submission
-    Crew->>UI: Tap Submit Changes
-    UI->>API: POST /change-requests
-    API->>DB: Create ChangeRequest
-    API->>DB: Create ChangeRequestItems (per key)
-    API->>DB: Create KeyDrafts (status: submitted)
-    API-->>UI: 201 Created
-    UI->>UI: Keys turn GREEN (Submitted)
+    Note over Crew,DB: Submission
+    Crew->>UI: Tap Submit changes
+    UI->>SA: submitChangeRequest(panelId, edits)
+    SA->>DB: INSERT ChangeRequest (status: submitted)
+    SA->>DB: INSERT ChangeRequestItem rows (per key)
+    SA->>DB: INSERT KeyDraft rows (status: submitted)
+    SA-->>UI: { ok: true }
+    UI->>UI: Keys turn GREEN (submitted)
 
-    Note over Manager,DB: Tier 1 Approval
-    Manager->>API: GET /inbox/change-requests
-    API->>DB: Query pending requests
-    API-->>Manager: List of requests
-    Manager->>API: PATCH /change-requests/:id
-    Note right of Manager: {status: mgr_approved}
-    API->>DB: Update CR status
-    API-->>Manager: 200 OK
+    Note over UI,SA: Polling — both sides
+    loop every 5s while submitted
+        UI->>SA: router.refresh()
+        SA->>DB: SELECT PanelKey, recentResolutions
+        SA-->>UI: page data
+        UI->>UI: compute fingerprint; no change → skip
+    end
 
-    Note over Admin,DB: Final Approval
-    Admin->>API: GET /inbox/change-requests
-    API-->>Admin: List (mgr_approved)
-    Admin->>API: PATCH /change-requests/:id
-    Note right of Admin: {status: approved}
-    API->>DB: Update CR status → approved
-    API->>DB: Write KeyDraft values → PanelKey (live)
-    API->>DB: Delete KeyDrafts
-    API-->>Admin: 200 OK
+    Note over Admin,AdminUI: Resolution
+    AdminUI->>SA: GET /api/admin/task-count (5s poll)
+    SA-->>AdminUI: { count: N }
+    AdminUI->>AdminUI: Tasks badge = N
+    Admin->>AdminUI: Click Tasks → Review
+    AdminUI->>AdminUI: Navigate /projects/X/panel/Y?review=MID
+    Admin->>AdminUI: Per-key toggle Approve / Deny
+    Admin->>SA: resolveChangeRequests(crIds, approvedKeys)
+    SA->>DB: UPDATE PanelKey for approved items
+    SA->>DB: UPDATE ChangeRequest.status = applied or rejected
+    SA->>DB: DELETE KeyDraft(submitted) rows
+    SA-->>AdminUI: { ok: true }
+    AdminUI->>AdminUI: router.replace /admin
 
-    Note over UI: Next poll / refresh
-    UI->>API: GET /panels/:memberId/keys
-    API-->>UI: Updated live keys
-    UI->>UI: Keys turn CLEAR (Live)
+    Note over UI: Crew picks up next poll
+    UI->>SA: router.refresh()
+    SA-->>UI: PanelKey + recentResolutions
+    UI->>UI: fingerprint changed → setKeys(initializeKeys(...))
+    UI->>UI: For each resolution item:<br/>currentPanelKey == newValue ⇒ approved<br/>else ⇒ denied
+    UI->>UI: Toast: "Your panel changes are live" (approved)
+    UI->>UI: Toast: "Keys X, Y denied" (denied)
+```
+
+---
+
+## Panel Copy / Paste between users
+
+```mermaid
+sequenceDiagram
+    actor Admin
+    participant Src as Panel Studio (source user)
+    participant SS as sessionStorage
+    participant Sys as System clipboard
+    participant Dst as Panel Studio (dest user)
+    participant SA as Server actions
+    participant DB as Database
+
+    Admin->>Src: Click Copy (next to Save)
+    Src->>SS: setItem('panel-clipboard', { sourceLabel, entries[] })
+    Src->>Sys: writeText(plain-text snapshot)
+    Src-->>Admin: Toast "Copied N keys"
+
+    Admin->>Src: Use Browse Header to switch user
+    Src->>Dst: Navigate to /projects/X/panel/Y2?from=my-equipment
+    Dst->>SS: getItem('panel-clipboard')
+    SS-->>Dst: clipboard payload
+    Dst->>Dst: Render Paste button (clipboard non-empty)
+
+    Admin->>Dst: Click Paste
+    loop each entry in clipboard
+        Dst->>Dst: find key by (keyIndex, page, expansion)
+        Dst->>Dst: updateKey(target, entry)
+    end
+    Dst-->>Admin: Toast "Pasted N keys from {sourceLabel}"
+
+    alt admin / global admin (own or any panel)
+        Admin->>Dst: Click Save
+        Dst->>SA: savePanel(memberId, keys)
+        SA->>DB: UPSERT PanelKey rows
+        SA-->>Dst: { ok: true }
+    else manager / crew on someone else's panel
+        Admin->>Dst: Click Submit changes
+        Dst->>SA: submitChangeRequest(memberId, edits)
+        SA->>DB: INSERT ChangeRequest + items + drafts
+    end
 ```
 
 ---
@@ -56,107 +111,79 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Admin
-    participant Dist as Distribution Page
-    participant API as REST API
+    participant Eq as Equipment tab
+    participant SA as Server actions
     participant DB as Database
     actor Crew
-    actor Shop
+    participant Tasks as Crew /tasks
 
-    Note over Admin,DB: Show Planning
-    Admin->>Dist: Add Equipment Entry
-    Dist->>API: POST /equipment
-    API->>DB: Create Equipment (status: planning)
-    API-->>Dist: 201 Created
+    Note over Admin,DB: Show planning
+    Admin->>Eq: Add equipment (bulk form)
+    Eq->>SA: bulkCreateEquipment(rows)
+    SA->>DB: INSERT Equipment (deployStatus: na)
+    SA-->>Eq: { count }
 
-    Admin->>Dist: Assign to Person + Location
-    Dist->>API: PATCH /equipment/:id
-    Note right of Admin: {assignedTo, position, location}
-    API->>DB: Update Equipment (status: holding)
-    API-->>Dist: 200 OK
+    Admin->>Eq: Assign to member + location
+    Eq->>SA: updateEquipment(id, { assignedToId, location })
+    SA->>DB: UPDATE Equipment
 
-    Admin->>Dist: Import CSV Batch
-    Dist->>API: POST /equipment/import
-    API->>DB: Bulk create Equipment entries
-    API-->>Dist: Import summary
+    Note over Crew,Tasks: On site
+    Crew->>Tasks: Open /tasks
+    Tasks->>SA: list tasks
+    SA->>DB: SELECT Equipment WHERE deployStatus IN (deploy queue)
+    SA-->>Tasks: deploy-task list
 
-    Note over Crew,DB: On-Site Deployment
-    Crew->>Dist: Open Distribution Page
-    Dist->>API: GET /equipment?project=:id
-    API-->>Dist: Equipment list with statuses
+    Crew->>Tasks: Mark deployed
+    Tasks->>SA: updateDeployStatus(id, deployed)
+    SA->>DB: UPDATE Equipment.deployStatus = deployed
 
-    Crew->>Dist: Mark device as Deployed
-    Dist->>API: PATCH /equipment/:id/status
-    Note right of Crew: {status: deployed}
-    API->>DB: Update status → deployed
-    API-->>Dist: 200 OK
-
-    alt Device Works Fine
-        Note over Crew,DB: Show Wraps
-        Crew->>Dist: Mark as Done
-        Dist->>API: PATCH /equipment/:id/status
-        API->>DB: Status → done
-    else Device Fails
-        Crew->>Dist: Flag as NFG
-        Dist->>API: POST /equipment/:id/nfg
-        Note right of Crew: {notes: "crackling audio ch2"}
-        API->>DB: Status → nfg
-        API->>DB: Create NFGReport
-        API-->>Dist: NFG Report created
-
-        Note over Shop: Shop sees NFG reports
-        Shop->>API: GET /nfg-reports
-        API-->>Shop: List of flagged devices
-        Shop->>API: PATCH /nfg-reports/:id
-        Note right of Shop: {status: acknowledged}
+    alt Show wraps and admin activates Return phase
+        Admin->>Eq: Toggle Project.returnPhaseActive = true
+        Eq->>SA: setReturnPhase(projectId, true)
+        SA->>DB: UPDATE Project
+        Note over Tasks: Crew /tasks now also includes Return queue (status = done)
+        Crew->>Tasks: Mark returned
+        Tasks->>SA: updateDeployStatus(id, returned)
+        SA->>DB: UPDATE Equipment.deployStatus = returned
+    else Device fails
+        Crew->>Eq: Mark damaged
+        Eq->>SA: updateDeployStatus(id, damaged)
+        SA->>DB: UPDATE Equipment
     end
-
-    Note over Crew,DB: Gear Return
-    Crew->>Dist: Mark as Returned
-    Dist->>API: PATCH /equipment/:id/status
-    API->>DB: Status → returned
 ```
 
 ---
 
-## Join Project + Access Request Flow
+## Join Project (current behavior)
+
+The original AccessRequest gating step is not used. The project PIN is the gate — anyone with it joins immediately, then sets a personal PIN.
 
 ```mermaid
 sequenceDiagram
-    actor NewUser as New User
-    participant Login as Login Screen
-    participant API as REST API
+    actor NewUser as New crew member
+    participant Login as /login/join
+    participant SA as joinProject server action
     participant DB as Database
-    actor Admin
 
-    NewUser->>Login: Tap "Join Project"
-    Login->>Login: Show Join Project Screen
-    NewUser->>Login: Enter Name + Project Code
-    Login->>API: POST /access-requests
-    API->>DB: Create AccessRequest (status: pending)
-    API-->>Login: 201 Pending
-    Login->>Login: Show "Request Pending" Screen
+    NewUser->>Login: Open with QR (or type PIN)
+    Login->>Login: Pre-fill PIN from ?pin=
+    NewUser->>Login: Type first + last name → Join
 
-    Note over Admin,DB: Admin reviews
-    Admin->>API: GET /inbox/access-requests
-    API-->>Admin: List of pending requests
-
-    alt Approved
-        Admin->>API: PATCH /access-requests/:id
-        Note right of Admin: {status: approved, role: crew}
-        API->>DB: Update AccessRequest → approved
-        API->>DB: Create ProjectMember record
-        API->>DB: Generate PIN for user
-        API-->>Admin: 200 OK
-
-        Note over NewUser: User returns to login
-        NewUser->>Login: Enter PIN
-        Login->>API: POST /auth/login
-        API->>DB: Validate PIN
-        API-->>Login: Auth token + project data
-        Login->>Login: Navigate to Dashboard
-    else Rejected
-        Admin->>API: PATCH /access-requests/:id
-        Note right of Admin: {status: rejected}
-        API->>DB: Update AccessRequest → rejected
+    Login->>SA: joinProject({ projectPin, firstName, lastName })
+    SA->>DB: SELECT Project WHERE pin = ?
+    alt Existing user with same name
+        SA->>DB: UPSERT ProjectMember (role: user)
+        SA-->>Login: { existingUser: true }
+        Login->>NewUser: Redirect to /login (sign in with personal PIN)
+    else New user
+        SA->>DB: INSERT User (pin: null)
+        SA->>DB: INSERT ProjectMember (role: user)
+        SA-->>Login: { needsPin: true, userId }
+        Login->>NewUser: Prompt "Create personal PIN"
+        NewUser->>Login: Type PIN twice → Confirm
+        Login->>SA: setInitialPin(userId, pin)
+        SA->>DB: UPDATE User.pin = bcrypt(pin)
+        SA-->>Login: { ok: true }
+        Login->>NewUser: Redirect to /login → signed in
     end
 ```

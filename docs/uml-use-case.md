@@ -1,90 +1,149 @@
+# Nodal Control — Use Cases by Role
+
+**Updated:** 2026-05-03
+
+What each role can actually do in the current build. Roles are per-project (`ProjectMember.role`), but a user with `admin` on **any** project is promoted to "global admin" for the whole app.
+
+---
+
+## 1. Use case diagram
+
 ```mermaid
 flowchart LR
-    %% ===== ACTORS =====
-    ADMIN(["Admin"])
-    MGR(["Manager"])
-    CREW(["Crew"])
-    USR(["User"])
-    SHOP(["Shop"])
+    Admin((Admin / Global Admin))
+    Manager((Manager))
+    Crew((Crew))
+    User((User))
 
-    %% ===== DISTRIBUTION PAGE =====
-    subgraph DIST["Distribution Page"]
-        direction TB
-        D1["Create / Edit Equipment"]
-        D2["Assign Equipment to Person"]
-        D3["Import / Export CSV"]
-        D4["Update Deploy Status"]
-        D5["View Distribution"]
-        D6["Flag Device as NFG"]
-        D7["Manage Rack Templates"]
-        D8["View NFG Reports"]
+    subgraph ProjectMgmt [Project Management]
+        UC1[Create project]
+        UC2[Archive project]
+        UC3[Edit project details + return phase toggle]
+        UC22[Browse any project - global admin only]
     end
 
-    %% ===== PANEL STUDIO =====
-    subgraph PANEL["Panel Studio"]
-        direction TB
-        P1["Edit Any User Panel"]
-        P2["Edit Assigned Panels"]
-        P3["Edit Own Panel"]
-        P4["Submit Change Request"]
-        P5["View Own Panel"]
-        P6["Approve Changes — Tier 1 (Soft)"]
-        P7["Approve Changes — Final"]
+    subgraph TeamMgmt [Team Management]
+        UC4[Add team member]
+        UC5[Edit member role]
+        UC6[Remove member]
+        UC7[Show Join QR / open Kiosk]
     end
 
-    %% ===== INBOX =====
-    subgraph INB["Inbox"]
-        direction TB
-        I1["Approve All Requests"]
-        I2["Approve Assigned Requests (Soft)"]
-        I3["View Own Requests"]
-        I4["Manage Access Requests"]
+    subgraph EquipmentMgmt [Equipment]
+        UC8[Add equipment bulk]
+        UC9[Assign equipment to member]
+        UC10[Change deploy status]
+        UC11[Edit equipment details + panel misc accessories]
     end
 
-    %% ===== MONITORING =====
-    subgraph MON["Monitoring"]
-        direction TB
-        M1["Full Dashboard Access"]
-        M2["View Assigned Devices"]
-        M3["View Device Health"]
+    subgraph PickListMgmt [Pick List]
+        UC12[Add function single or bulk]
+        UC13[Edit or rename function]
+        UC14[Delete function]
     end
 
-    %% ===== ADMIN LINKS =====
-    ADMIN --> D1
-    ADMIN --> D2
-    ADMIN --> D3
-    ADMIN --> D4
-    ADMIN --> D5
-    ADMIN --> D7
-    ADMIN --> P1
-    ADMIN --> P7
-    ADMIN --> I1
-    ADMIN --> I4
-    ADMIN --> M1
+    subgraph PanelStudio [Panel Studio]
+        UC15[Edit own keys directly - no approval]
+        UC16[Submit key changes for approval]
+        UC17[View own panel read-only]
+        UC18[Review and resolve change requests]
+        UC23[Browse mode - cycle users via dropdown / chevron]
+        UC24[Panel-level Copy / Paste between users]
+    end
 
-    %% ===== MANAGER LINKS =====
-    MGR --> D5
-    MGR --> P2
-    MGR --> P6
-    MGR --> I2
-    MGR --> M2
+    subgraph TasksPage [Tasks]
+        UC19[Admin tasks: CR queue + lockouts]
+        UC20[Approve or deny per key]
+        UC21[Unlock locked user]
+        UC25[Crew tasks: deploy + return queue]
+    end
 
-    %% ===== CREW LINKS =====
-    CREW --> D4
-    CREW --> D5
-    CREW --> D6
-    CREW --> P3
-    CREW --> P4
-    CREW --> I3
-    CREW --> M2
+    Admin --> UC1
+    Admin --> UC2
+    Admin --> UC3
+    Admin --> UC22
+    Admin --> UC4
+    Admin --> UC5
+    Admin --> UC6
+    Admin --> UC7
+    Admin --> UC8
+    Admin --> UC9
+    Admin --> UC10
+    Admin --> UC11
+    Admin --> UC12
+    Admin --> UC13
+    Admin --> UC14
+    Admin --> UC15
+    Admin --> UC18
+    Admin --> UC23
+    Admin --> UC24
+    Admin --> UC19
+    Admin --> UC20
+    Admin --> UC21
 
-    %% ===== USER LINKS =====
-    USR --> P5
-    USR --> P4
-    USR --> I3
+    Manager --> UC3
+    Manager --> UC4
+    Manager --> UC5
+    Manager --> UC6
+    Manager --> UC7
+    Manager --> UC12
+    Manager --> UC13
+    Manager --> UC14
+    Manager --> UC16
+    Manager --> UC17
+    Manager --> UC23
+    Manager --> UC24
 
-    %% ===== SHOP LINKS =====
-    SHOP --> D5
-    SHOP --> D8
-    SHOP --> M3
+    Crew --> UC7
+    Crew --> UC8
+    Crew --> UC9
+    Crew --> UC10
+    Crew --> UC11
+    Crew --> UC16
+    Crew --> UC17
+    Crew --> UC25
+
+    User --> UC16
+    User --> UC17
 ```
+
+---
+
+## 2. Permission matrix
+
+Legend: ✅ can do · 👁 view only · ❌ cannot
+
+| Action | Admin | Manager | Crew | User |
+|---|---|---|---|---|
+| **See every project (global)** | ✅ admin on any project = global | ❌ memberships only | ❌ | ❌ |
+| View Projects list | ✅ all | ✅ own | ✅ own | ❌ |
+| View Project detail | ✅ any | ✅ own | ✅ own | ❌ (proxy redirects to /my-equipment) |
+| Create / rename / archive project | ✅ | ❌ | ❌ | ❌ |
+| Edit project details + Return phase toggle | ✅ | ❌ | ❌ | ❌ |
+| Edit Team tab | ✅ | ✅ | ❌ | ❌ |
+| Edit Pick List | ✅ | ✅ | ❌ | ❌ |
+| Edit Equipment | ✅ | ❌ | ✅ | ❌ |
+| Change deploy status | ✅ | 👁 | ✅ | ❌ |
+| Edit own Panel Studio | ✅ | ✅ | ✅ | ✅ |
+| Edit someone else's panel | ✅ | ✅ | ❌ | ❌ |
+| Save keys directly (no approval) | ✅ | ❌ | ❌ | ❌ |
+| Submit keys via approval flow | N/A | ✅ | ✅ | ✅ |
+| Review & approve change requests | ✅ | ❌ | ❌ | ❌ |
+| Browse mode (project + user dropdowns on Panel Studio) | ✅ | ✅ | ❌ | ❌ |
+| Panel-level Copy / Paste | ✅ | ✅ | ❌ | ❌ |
+| Per-key Copy / Paste (Cmd-C / Cmd-V) | ✅ | ✅ | ✅ | ✅ |
+| See Admin Tasks page (`/admin`) | ✅ | ❌ | ❌ | ❌ |
+| See Crew Tasks page (`/tasks`) | ❌ | ❌ | ✅ | ❌ |
+| Unlock a locked-out account | ✅ | ❌ | ❌ | ❌ |
+| See Show QR / Kiosk button | ✅ | ✅ | ✅ | ❌ |
+| See Add Member button | ✅ | ✅ | ❌ | ❌ |
+
+### Note on global admin
+
+`isGlobalAdmin` is computed in every page that needs it as `session.memberships.some((m) => m.role === 'admin')`. When true, the user gets:
+
+- The unfiltered Projects list query (`src/app/projects/page.tsx`)
+- Direct save (no change-request flow) on any panel they open (`isAdminGlobal` plumbed into `panel-studio.tsx`)
+- The Tasks navbar item with the polled `/api/admin/task-count` badge
+
+Removing the user's last admin membership demotes them back to whatever scoped roles remain.

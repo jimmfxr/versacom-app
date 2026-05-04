@@ -1,6 +1,6 @@
 # Nodal Control — Entity Relationship Diagram
 
-**Updated:** 2026-04-17
+**Updated:** 2026-05-03
 **Source of truth:** `prisma/schema.prisma`. Regenerate this diagram when the schema changes.
 
 ---
@@ -22,6 +22,7 @@ erDiagram
     Project ||--o{ AccessRequest : "receives"
     Project ||--o{ Equipment : "owns"
     Project ||--o{ RackTemplate : "scoped to"
+    Project ||--o{ ProjectHeadsetInventory : "headset totals"
 
     ProjectMember ||--o{ PanelKey : "has keys"
     ProjectMember ||--o{ Equipment : "assigned to"
@@ -59,7 +60,22 @@ erDiagram
         string pin UK "4-digit join code"
         string status "active or archived"
         int createdById FK
+        int goosenecksBrought "panel misc inventory"
+        int footswitchesBrought
+        int speakersBrought
+        int quarterXlrmBrought "1/4-XLRM cables"
+        int db9XlrfBrought "DB9-XLRF cables"
+        int rj45XlrmfBrought "RJ45-XLRM/F cables"
+        boolean returnPhaseActive "drives crew /tasks Return queue"
         datetime createdAt
+        datetime updatedAt
+    }
+
+    ProjectHeadsetInventory {
+        int id PK
+        int projectId FK
+        string headsetType
+        int brought
         datetime updatedAt
     }
 
@@ -149,6 +165,9 @@ erDiagram
         string deployStatus "na deployed done returned not-needed damaged"
         string notes
         int assetId FK
+        boolean gooseneck "panel misc accessory"
+        int footswitches
+        int speakers
     }
 
     Asset {
@@ -225,6 +244,7 @@ erDiagram
 | `ProjectMember` | `(userId, projectId)` | A user isn't on the same project twice |
 | `PanelKey` | `(projectMemberId, keyIndex, page, expansion)` | One physical key position per member |
 | `Asset` | `qrCode` | Every physical asset has a unique QR |
+| `ProjectHeadsetInventory` | `(projectId, headsetType)` | One brought-total row per headset type per project |
 
 ---
 
@@ -232,7 +252,7 @@ erDiagram
 
 ### Phase 1 — Pick List / Panels / Change Requests (in use)
 
-`User`, `Project`, `ProjectMember`, `PickListItem`, `PanelKey`, `KeyDraft`, `ChangeRequest`, `ChangeRequestItem`, `AccessRequest`
+`User`, `Project`, `ProjectHeadsetInventory`, `ProjectMember`, `PickListItem`, `PanelKey`, `KeyDraft`, `ChangeRequest`, `ChangeRequestItem`, `AccessRequest`
 
 ### Phase 2-4 — Equipment / Assets / Racks / NFG
 

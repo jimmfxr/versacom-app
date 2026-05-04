@@ -1,6 +1,6 @@
 # Nodal Control — State Diagrams
 
-**Updated:** 2026-04-17
+**Updated:** 2026-05-03
 
 Describes the state machines driving the app's key workflows: panel-key editing, change-request resolution, and equipment deploy status. The **Panel key** states below are the client-side visual states used in Panel Studio; the actual DB model is `PanelKey` + `KeyDraft`.
 
@@ -150,6 +150,8 @@ stateDiagram-v2
         Purple badge.
     end note
 ```
+
+When `Project.returnPhaseActive` is true, crew see `done` gear surfaced as Return tasks in `/tasks` alongside the existing Deploy tasks (anything still `na`). The status field itself is unchanged — the toggle just decides which states the task list pulls.
 
 ---
 

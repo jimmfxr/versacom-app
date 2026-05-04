@@ -35,7 +35,7 @@
 
 <a class="back" href="index.html">‹ Docs</a>
 <h1><img src="/clair_logo_white.png" alt="Clair" class="logo" /> Nodal Control — State Diagrams</h1>
-<p class="note">Updated 2026-04-17.</p>
+<p class="note">Updated 2026-05-03.</p>
 
 <h2>1. Panel Key (client-side visual state)</h2>
 <p>The state a key can be in while the crew is editing Panel Studio.</p>
@@ -122,6 +122,7 @@ stateDiagram-v2
     note right of damaged : purple badge
 </pre>
 </div>
+<p class="note">When <code>Project.returnPhaseActive</code> is true, crew see <code>done</code> gear surfaced as Return tasks in <code>/tasks</code> alongside the existing Deploy tasks (anything still <code>na</code>). The deploy-status field itself is unchanged — the toggle only decides which states the task list pulls.</p>
 
 <h2>4. User first-login status</h2>
 <p>Drives the Team tab Active/Pending indicator. Derived from <code>User.pin</code> being null or not.</p>
