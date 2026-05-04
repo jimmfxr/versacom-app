@@ -9,6 +9,12 @@
   "theme_color": "#202020",
   "icons": [
     {
+      "src": "/favicon-64.png",
+      "sizes": "64x64",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "/favicon.png",
       "sizes": "640x640",
       "type": "image/png",

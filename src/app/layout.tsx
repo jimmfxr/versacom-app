@@ -17,7 +17,12 @@ export const metadata: Metadata = {
   title: "Nodal Control",
   description: "Communication solutions for the modern world",
   icons: {
-    icon: "/favicon.png",
+    // Browser tab icon — small variant so Chrome / Safari render it crisp
+    // without downscaling the 640×640 PWA artwork.
+    icon: [
+      { url: "/favicon-64.png", sizes: "64x64", type: "image/png" },
+      { url: "/favicon.png", sizes: "640x640", type: "image/png" },
+    ],
     apple: "/favicon.png", // iOS uses this when "Add to Home Screen"
   },
   manifest: "/manifest.json",
