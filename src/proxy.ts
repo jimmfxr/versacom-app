@@ -11,6 +11,7 @@ export function proxy(request: NextRequest) {
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
     pathname.startsWith('/favicon') ||
+    pathname === '/apple-touch-icon.png' ||
     pathname === '/manifest.json' ||
     pathname === '/sw.js'
   ) {

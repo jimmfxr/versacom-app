@@ -27,8 +27,10 @@ export const metadata: Metadata = {
     ],
     // iOS home-screen icon must have a solid background (Apple ignores
     // transparency and fills it with black, which can clip dark logos).
-    // Use the dark-bg PWA icon so the install looks intentional.
-    apple: "/pwa-maskable.png",
+    // 180x180 is the size current iOS hardware actually uses; iOS Chrome
+    // is finicky and falls back to a letter-avatar if it doesn't get
+    // exactly this size at the canonical /apple-touch-icon.png path.
+    apple: { url: "/apple-touch-icon.png", sizes: "180x180" },
   },
   manifest: "/manifest.json",
   appleWebApp: {
