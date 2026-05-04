@@ -35,6 +35,45 @@ export function KioskClient({
     router.push(`/projects/${projectId}`)
   }
 
+  // Poll fresh pending data every 4s. Without this the kiosk only
+  // refreshes when the QR view times out (20s) or a form submits, so a
+  // person who completed signup on their phone keeps showing in the
+  // pending list until then.
+  useEffect(() => {
+    const interval = setInterval(() => router.refresh(), 4000)
+    return () => clearInterval(interval)
+  }, [router])
+
+  // Auto-dismiss the QR card the moment the person we're showing it for
+  // disappears from pending — i.e. they set their PIN on their phone.
+  // Way better UX than always waiting for the 20-second timer.
+  //
+  // Guard: a brand-new member submitted from the form might not show up
+  // in the polled `pending` array yet (server data is up to ~4s stale).
+  // Only auto-dismiss after we've SEEN them in pending at least once —
+  // that proves the polling caught up and their subsequent absence
+  // really means "they finished signing up".
+  const sawInPendingRef = useRef(false)
+  useEffect(() => {
+    if (view.kind !== 'qr') {
+      sawInPendingRef.current = false
+      return
+    }
+    const matches = (m: PendingMember) =>
+      m.firstName.toLowerCase() === view.firstName.toLowerCase() &&
+      m.lastName.toLowerCase() === view.lastName.toLowerCase()
+    const stillPending = pending.some(matches)
+    if (stillPending) {
+      sawInPendingRef.current = true
+      return
+    }
+    // Not in pending right now — only auto-dismiss if we previously saw
+    // them there. Otherwise the polling just hasn't caught up yet.
+    if (sawInPendingRef.current) {
+      setView({ kind: 'form' })
+    }
+  }, [view, pending])
+
   return (
     <div className="relative min-h-screen bg-[#202020] px-4 py-10 sm:py-16">
       {/* Close (returns to project Team tab) */}

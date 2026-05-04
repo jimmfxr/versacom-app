@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
 
@@ -6,20 +7,40 @@ export const dynamic = 'force-dynamic'
 
 /**
  * Returns the number of pending task cards for the current admin —
- * scoped to projects they're admin on, matching what /admin actually shows.
+ * scoped to a SINGLE project (the one the user is filtering to via the
+ * project dropdown), matching what /admin actually shows.
+ *
+ * Resolution: selectedProject cookie → first admin project alphabetically.
+ * Keeps the badge in sync with the page's default filter so the count
+ * never disagrees with what the user sees on screen.
  *
  * Tasks = grouped change requests (one card per submitter + target member
- * combo) + active lockouts. Counted to match the cards on the page exactly.
+ * combo) + active lockouts.
  */
 export async function GET() {
   const session = await getSession()
   if (!session) return NextResponse.json({ count: 0 })
 
-  const adminProjectIds = session.memberships
+  const adminProjects = session.memberships
     .filter((m) => m.role === 'admin')
-    .map((m) => m.project.id)
+    .map((m) => m.project)
+  if (adminProjects.length === 0) return NextResponse.json({ count: 0 })
 
-  if (adminProjectIds.length === 0) return NextResponse.json({ count: 0 })
+  // De-dup (a user can have multiple memberships per project) and sort so
+  // the fallback matches /admin's default-project pick.
+  const projectMap = new Map<number, { id: number; name: string }>()
+  for (const p of adminProjects) if (!projectMap.has(p.id)) projectMap.set(p.id, p)
+  const sortedAdminProjects = Array.from(projectMap.values()).sort((a, b) =>
+    a.name.localeCompare(b.name),
+  )
+
+  const cookieStore = await cookies()
+  const cookieRaw = cookieStore.get('selectedProject')?.value
+  const cookieId = cookieRaw ? parseInt(cookieRaw, 10) : NaN
+  const scopedProjectId =
+    Number.isFinite(cookieId) && projectMap.has(cookieId)
+      ? cookieId
+      : sortedAdminProjects[0].id
 
   const now = new Date()
 
@@ -27,7 +48,7 @@ export async function GET() {
     prisma.changeRequest.findMany({
       where: {
         status: { in: ['submitted', 'mgr_endorsed'] },
-        projectId: { in: adminProjectIds },
+        projectId: scopedProjectId,
       },
       select: { submittedById: true, targetMemberId: true },
       distinct: ['submittedById', 'targetMemberId'],
@@ -35,7 +56,7 @@ export async function GET() {
     prisma.user.count({
       where: {
         lockedUntil: { gt: now },
-        memberships: { some: { projectId: { in: adminProjectIds } } },
+        memberships: { some: { projectId: scopedProjectId } },
       },
     }),
   ])
