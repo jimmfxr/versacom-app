@@ -129,25 +129,25 @@ flowchart TD
 <div class="diagram">
 <pre class="mermaid">
 flowchart TD
-    ENTER[/my-equipment/] --> RESOLVE{Resolve project + member}
+    ENTER["/my-equipment"] --> RESOLVE{Resolve project + member}
     RESOLVE -->|URL project + member| PICK
     RESOLVE -->|cookie lastBrowseProject + lastBrowseMember| PICK
-    RESOLVE -->|fall back| FIRST[First admin/mgr project + first member with gear]
+    RESOLVE -->|fall back| FIRST["First admin/mgr project + first member with gear"]
     FIRST --> PICK
-    PICK[Selected project + member] --> REDIR[server redirect to Panel Studio with from=my-equipment]
+    PICK["Selected project + member"] --> REDIR["server redirect to Panel Studio with from=my-equipment"]
 
-    REDIR --> PS[Panel Studio in browse mode]
+    REDIR --> PS["Panel Studio in browse mode"]
 
-    PS --> HEADER[Browse Header - Show, User, prev/next]
-    PS --> SIBROW[Sibling-gear row - only when user has multiple pieces]
-    PS --> EDIT[Admin: Save direct - Manager: Submit for approval - Copy/Paste next to Save]
+    PS --> HEADER["Browse Header - Show, User, prev/next"]
+    PS --> SIBROW["Sibling-gear row - only when user has multiple pieces"]
+    PS --> EDIT["Admin: Save direct - Manager: Submit for approval - Copy/Paste next to Save"]
 
-    HEADER -->|pick different show| SHOW_NEW[set lastBrowseProject cookie]
-    HEADER -->|pick different user| USER_NEW[set lastBrowseMember cookie]
-    HEADER -->|type-to-filter then Enter| FIRST_MATCH[First match selected]
-    HEADER -->|prev / next chevron| ADJ[Adjacent user]
+    HEADER -->|pick different show| SHOW_NEW["set lastBrowseProject cookie"]
+    HEADER -->|pick different user| USER_NEW["set lastBrowseMember cookie"]
+    HEADER -->|type-to-filter then Enter| FIRST_MATCH["First match selected"]
+    HEADER -->|prev or next chevron| ADJ["Adjacent user"]
 
-    SIBROW -->|click sibling card| SAME_USER_DIFF_GEAR[Same user, next piece - still from=my-equipment]
+    SIBROW -->|click sibling card| SAME_USER_DIFF_GEAR["Same user, next piece - still from=my-equipment"]
 
     SHOW_NEW --> REDIR
     USER_NEW --> REDIR
@@ -157,7 +157,7 @@ flowchart TD
 
     EDIT --> NEXT{Done with this user?}
     NEXT -->|yes| HEADER
-    NEXT -->|leave app| LATER[/my-equipment later]
+    NEXT -->|leave app| LATER["/my-equipment later"]
     LATER -->|cookies hydrate| RESOLVE
 </pre>
 </div>

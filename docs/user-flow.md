@@ -110,7 +110,7 @@ The unified My Equipment surface for anyone with `admin` or `manager` on any pro
 
 ```mermaid
 flowchart TD
-    ENTER[/my-equipment/] --> RESOLVE{Resolve project + member}
+    ENTER["/my-equipment"] --> RESOLVE{Resolve project + member}
     RESOLVE -->|URL ?project= ?member=| PICK
     RESOLVE -->|cookie lastBrowseProject<br/>+ lastBrowseMember| PICK
     RESOLVE -->|fall back| FIRST[First admin/mgr project<br/>+ first member with gear]
@@ -138,7 +138,7 @@ flowchart TD
 
     EDIT --> NEXT{Done with this user?}
     NEXT -->|yes| HEADER
-    NEXT -->|leave app| LATER[/my-equipment/ later]
+    NEXT -->|leave app| LATER["/my-equipment later"]
     LATER -->|cookies hydrate| RESOLVE
 ```
 
