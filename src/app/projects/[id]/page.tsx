@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { ProjectPage } from './project-page'
@@ -133,7 +133,11 @@ export default async function ProjectDetailPage({
     }),
   ])
 
-  if (!project) notFound()
+  // Project deleted (or stale lastProject cookie pointing nowhere). Bounce
+  // back to /projects so the user can pick a valid one — clicking a real
+  // project will overwrite the cookie and the Projects nav button stops
+  // 404-ing.
+  if (!project) redirect('/projects')
 
   // Distinct lists for the Add Member autocomplete dropdowns.
   const firstNameSuggestions = Array.from(
@@ -189,8 +193,10 @@ export default async function ProjectDetailPage({
   const isAdmin = session?.memberships.some((m) => m.role === 'admin') ?? false
   const isUserOnly = session ? session.memberships.every((m) => m.role === 'user') : false
 
-  // Non-admins can only view projects they belong to
-  if (!isAdmin && !currentMembership) notFound()
+  // Non-admins can only view projects they belong to. If they hit a project
+  // they were removed from (stale cookie or shared link), redirect to the
+  // list rather than 404 — same self-healing rationale as the deleted case.
+  if (!isAdmin && !currentMembership) redirect('/projects')
 
   return (
     <ProjectPage
