@@ -16,7 +16,7 @@
     },
     {
       "src": "/favicon.png",
-      "sizes": "275x318",
+      "sizes": "256x256",
       "type": "image/png",
       "purpose": "any"
     },
@@ -25,6 +25,21 @@
       "sizes": "640x640",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/dashboard.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Project dashboard with deployment status"
+    },
+    {
+      "src": "/screenshots/my-equipment-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "label": "My Equipment view on mobile"
     }
   ]
 }
