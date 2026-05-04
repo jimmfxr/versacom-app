@@ -588,6 +588,41 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
   const quarterXlrmTracked = miscInventory.quarterXlrmBrought > 0
   const db9XlrfTracked = miscInventory.db9XlrfBrought > 0
   const rj45XlrmfTracked = miscInventory.rj45XlrmfBrought > 0
+
+  // Per-accessory deployed/done/returned breakdown so the misc BarRow
+  // overlays match the colored stack on the headset rows. We follow each
+  // accessory's per-panel rule (1 per gooseneck flag, sum of footswitches,
+  // 1 per panel-with-footswitches, etc.) and bucket by the host panel's
+  // deployStatus.
+  const miscByStatus = (() => {
+    const init = () => ({ deployed: 0, done: 0, returned: 0 })
+    const goosenecks = init()
+    const footswitches = init()
+    const speakers = init()
+    const quarterXlrm = init()
+    const db9Xlrf = init()
+    const rj45Xlrmf = init()
+    for (const e of allPanels) {
+      const bucket =
+        e.deployStatus === 'deployed' ? 'deployed' :
+        e.deployStatus === 'done' ? 'done' :
+        e.deployStatus === 'returned' ? 'returned' : null
+      if (!bucket) continue
+      if (e.gooseneck) goosenecks[bucket] += 1
+      const fs = e.footswitches || 0
+      if (fs > 0) {
+        footswitches[bucket] += fs
+        quarterXlrm[bucket] += fs   // 1 per footswitch
+        db9Xlrf[bucket] += 1        // 1 per panel with footswitches
+      }
+      const sp = e.speakers || 0
+      if (sp > 0) {
+        speakers[bucket] += sp
+        rj45Xlrmf[bucket] += sp     // 1 per speaker
+      }
+    }
+    return { goosenecks, footswitches, speakers, quarterXlrm, db9Xlrf, rj45Xlrmf }
+  })()
   const goosenecksBrought = goosenecksTracked ? miscInventory.goosenecksBrought : goosenecksNeeded
   const footswitchesBrought = footswitchesTracked ? miscInventory.footswitchesBrought : footswitchesNeeded
   const speakersBrought = speakersTracked ? miscInventory.speakersBrought : speakersNeeded
@@ -756,6 +791,9 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
                               count={goosenecksNeeded}
                               total={Math.max(goosenecksBrought, 1)}
                               tagOverride={`${goosenecksNeeded} / ${goosenecksBrought}`}
+                              deployed={miscByStatus.goosenecks.deployed}
+                              done={miscByStatus.goosenecks.done}
+                              returned={miscByStatus.goosenecks.returned}
                             />
                           )}
                           {(footswitchesNeeded > 0 || footswitchesTracked) && (
@@ -764,6 +802,9 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
                               count={footswitchesNeeded}
                               total={Math.max(footswitchesBrought, 1)}
                               tagOverride={`${footswitchesNeeded} / ${footswitchesBrought}`}
+                              deployed={miscByStatus.footswitches.deployed}
+                              done={miscByStatus.footswitches.done}
+                              returned={miscByStatus.footswitches.returned}
                             />
                           )}
                           {(speakersNeeded > 0 || speakersTracked) && (
@@ -772,6 +813,9 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
                               count={speakersNeeded}
                               total={Math.max(speakersBrought, 1)}
                               tagOverride={`${speakersNeeded} / ${speakersBrought}`}
+                              deployed={miscByStatus.speakers.deployed}
+                              done={miscByStatus.speakers.done}
+                              returned={miscByStatus.speakers.returned}
                             />
                           )}
                           {(quarterXlrmNeeded > 0 || quarterXlrmTracked) && (
@@ -780,6 +824,9 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
                               count={quarterXlrmNeeded}
                               total={Math.max(quarterXlrmBrought, 1)}
                               tagOverride={`${quarterXlrmNeeded} / ${quarterXlrmBrought}`}
+                              deployed={miscByStatus.quarterXlrm.deployed}
+                              done={miscByStatus.quarterXlrm.done}
+                              returned={miscByStatus.quarterXlrm.returned}
                             />
                           )}
                           {(db9XlrfNeeded > 0 || db9XlrfTracked) && (
@@ -788,6 +835,9 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
                               count={db9XlrfNeeded}
                               total={Math.max(db9XlrfBrought, 1)}
                               tagOverride={`${db9XlrfNeeded} / ${db9XlrfBrought}`}
+                              deployed={miscByStatus.db9Xlrf.deployed}
+                              done={miscByStatus.db9Xlrf.done}
+                              returned={miscByStatus.db9Xlrf.returned}
                             />
                           )}
                           {(rj45XlrmfNeeded > 0 || rj45XlrmfTracked) && (
@@ -796,6 +846,9 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
                               count={rj45XlrmfNeeded}
                               total={Math.max(rj45XlrmfBrought, 1)}
                               tagOverride={`${rj45XlrmfNeeded} / ${rj45XlrmfBrought}`}
+                              deployed={miscByStatus.rj45Xlrmf.deployed}
+                              done={miscByStatus.rj45Xlrmf.done}
+                              returned={miscByStatus.rj45Xlrmf.returned}
                             />
                           )}
                         </>
