@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { HeadsetInventoryEditor } from '@/components/headset-inventory-editor'
 import { SwipeCarousel } from '@/components/swipe-carousel'
 
 /* ─── Types ─── */
@@ -448,42 +447,15 @@ function StatusHero({
 /* ─── Main component ─── */
 
 export function ProjectDashboard({ projectId, equipment, headsetInventory, miscInventory, canEditInventory }: ProjectDashboardProps) {
-  const [editingInventory, setEditingInventory] = useState(false)
+  // Inventory editing was removed from the dashboard — it now lives under
+  // the project's Equipment tab (Add Equipment card → Inventory tab). The
+  // canEditInventory prop and projectId are retained on the props type for
+  // backwards compatibility with the server caller and a possible future
+  // "edit inventory" link from this card.
+  void canEditInventory
+  void projectId
   const [headsetsCollapsed, setHeadsetsCollapsed] = useState(false)
   const [miscCollapsed, setMiscCollapsed] = useState(false)
-  const editorMobileRef = useRef<HTMLDivElement>(null)
-  const editorDesktopRef = useRef<HTMLDivElement>(null)
-  const savedScrollY = useRef<number | null>(null)
-
-  // When entering edit mode, remember where we were and scroll the editor into
-  // view. The headsets card is rendered twice (mobile carousel + desktop grid);
-  // we measure whichever copy is currently visible, then scroll the page so the
-  // editor's bottom (Save/Cancel buttons) lands in view. On exit, restore.
-  useEffect(() => {
-    if (editingInventory) {
-      savedScrollY.current = window.scrollY
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          // Pick whichever copy actually has dimensions (the visible one).
-          const candidates = [editorDesktopRef.current, editorMobileRef.current]
-          const editor = candidates.find((el) => el && el.getBoundingClientRect().height > 0)
-          if (!editor) return
-          const rect = editor.getBoundingClientRect()
-          const editorBottom = rect.bottom + window.scrollY
-          const viewportBottom = window.scrollY + window.innerHeight
-          if (editorBottom > viewportBottom) {
-            window.scrollTo({
-              top: editorBottom - window.innerHeight + 24,
-              behavior: 'smooth',
-            })
-          }
-        })
-      })
-    } else if (savedScrollY.current != null) {
-      window.scrollTo({ top: savedScrollY.current, behavior: 'smooth' })
-      savedScrollY.current = null
-    }
-  }, [editingInventory])
   /* Deployment status — gear that's actually expected to deploy */
   const deployEligible = equipment.filter((e) => {
     if (e.category === 'wireless_bp') return false // wireless excluded
@@ -741,7 +713,7 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
               {headsetRows.length === 0 && !hasAnyMisc ? (
                 <EmptyRow>
                   {canEditInventory
-                    ? 'No headsets tracked yet. Tap "Manage" to record what you packed.'
+                    ? 'No headsets tracked yet. Open Equipment → Inventory to record what you packed.'
                     : 'No headsets assigned to any equipment in this project'}
                 </EmptyRow>
               ) : (
@@ -832,53 +804,17 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
                   )}
                 </>
               )}
-              {canEditInventory && (
-                <div className="mt-auto flex justify-end pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setEditingInventory(true)}
-                    className="rounded-md bg-[#0178a3] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#019bc7]"
-                  >
-                    {headsetsBrought > 0 ? 'Edit' : 'Manage'}
-                  </button>
-                </div>
-              )}
+              {/* Edit button + inline inventory editor moved to the
+                  project's Equipment tab (Add Equipment card → Inventory
+                  tab). The dashboard card stays read-only. */}
             </>
           )
 
-          // Build the headsets card. Same JSX, but attaches a different editor
-          // ref depending on which copy this is (mobile carousel vs desktop grid)
-          // so the auto-scroll effect can find the visible one.
-          const buildHeadsetsCard = (editorRef: React.RefObject<HTMLDivElement | null>) => (
+          // Build the headsets card. Now read-only on the dashboard — the
+          // editor lives under the project's Equipment tab.
+          const buildHeadsetsCard = () => (
             <div className={`${cardClass} relative`}>
-              {editingInventory && canEditInventory ? (
-                <>
-                  {/* Display "ghost" — invisible on desktop, hidden on mobile */}
-                  <div className="invisible hidden sm:block" aria-hidden="true">
-                    {headsetsDisplay}
-                  </div>
-                  {/* Editor: inline on mobile, absolute overlay on desktop */}
-                  <div ref={editorRef} className="sm:absolute sm:inset-x-0 sm:top-0 sm:z-10 sm:min-h-full sm:rounded-2xl sm:bg-[#2a2a2a] sm:p-5 sm:shadow-2xl sm:shadow-black/50">
-                    <HeadsetInventoryEditor
-                      projectId={projectId}
-                      initial={headsetInventory}
-                      needed={headsetNeededByType}
-                      miscInitial={miscInventory}
-                      miscNeeded={{
-                        goosenecks: goosenecksNeeded,
-                        footswitches: footswitchesNeeded,
-                        speakers: speakersNeeded,
-                        quarterXlrm: quarterXlrmNeeded,
-                        db9Xlrf: db9XlrfNeeded,
-                        rj45Xlrmf: rj45XlrmfNeeded,
-                      }}
-                      onDone={() => setEditingInventory(false)}
-                    />
-                  </div>
-                </>
-              ) : (
-                headsetsDisplay
-              )}
+              {headsetsDisplay}
             </div>
           )
 
@@ -888,15 +824,13 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
               <SwipeCarousel>
                 {assignmentCard}
                 {utilizationCard}
-                {buildHeadsetsCard(editorMobileRef)}
+                {buildHeadsetsCard()}
               </SwipeCarousel>
-              {/* Desktop: 3-column grid, all cards equal height. The headsets
-                  editor renders absolutely so it can grow downward beyond the
-                  row without stretching the other two cards. */}
+              {/* Desktop: 3-column grid, all cards equal height. */}
               <div className="hidden items-stretch gap-4 sm:grid sm:grid-cols-3">
                 {assignmentCard}
                 {utilizationCard}
-                {buildHeadsetsCard(editorDesktopRef)}
+                {buildHeadsetsCard()}
               </div>
             </>
           )

@@ -139,105 +139,111 @@ export function HeadsetInventoryEditor({ projectId, initial, needed, miscInitial
         </div>
       </div>
 
-      <div className="-mx-1 pr-1">
+      {/* Two-column layout on desktop: Headsets left, Misc right. Stacks
+          back to a single column on mobile. */}
+      <div className="-mx-1 grid gap-x-6 pr-1 sm:grid-cols-2">
         {/* Headsets section */}
-        <SectionHeader
-          collapsed={headsetsCollapsed}
-          onToggle={() => setHeadsetsCollapsed((v) => !v)}
-        >
-          Headsets
-        </SectionHeader>
-        {!headsetsCollapsed && HEADSET_TYPES.map((type) => {
-          const v = counts[type] ?? 0
-          const need = needed[type] ?? 0
-          const short = v > 0 && v < need
-          return (
-            <div
-              key={type}
-              className="flex items-center justify-between gap-3 border-b border-white/[0.04] py-2 last:border-b-0"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium text-white">{type}</div>
-                {need > 0 && (
-                  <div className={`text-[11px] ${short ? 'text-rose-400' : 'text-gray-500'}`}>
-                    {need} needed{short ? ` · short ${need - v}` : ''}
-                  </div>
-                )}
+        <div>
+          <SectionHeader
+            collapsed={headsetsCollapsed}
+            onToggle={() => setHeadsetsCollapsed((v) => !v)}
+          >
+            Headsets
+          </SectionHeader>
+          {!headsetsCollapsed && HEADSET_TYPES.map((type) => {
+            const v = counts[type] ?? 0
+            const need = needed[type] ?? 0
+            const short = v > 0 && v < need
+            return (
+              <div
+                key={type}
+                className="flex items-center justify-between gap-3 border-b border-white/[0.04] py-2 last:border-b-0"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-white">{type}</div>
+                  {need > 0 && (
+                    <div className={`text-[11px] ${short ? 'text-rose-400' : 'text-gray-500'}`}>
+                      {need} needed{short ? ` · short ${need - v}` : ''}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button type="button" onClick={() => bump(type, -1)} disabled={v <= 0 || pending}
+                    className="flex size-8 items-center justify-center rounded-md bg-white/[0.05] text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
+                    aria-label={`Decrease ${type}`}>−</button>
+                  <input type="number" inputMode="numeric" min={0} max={9999} value={v}
+                    onChange={(e) => setExact(type, e.target.value)} disabled={pending}
+                    className="w-14 rounded-md border border-white/10 bg-[#1f1f1f] py-1 text-center text-sm font-semibold text-white outline-none focus:border-[#0178a3]" />
+                  <button type="button" onClick={() => bump(type, 1)} disabled={pending}
+                    className="flex size-8 items-center justify-center rounded-md bg-white/[0.05] text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
+                    aria-label={`Increase ${type}`}>+</button>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <button type="button" onClick={() => bump(type, -1)} disabled={v <= 0 || pending}
-                  className="flex size-8 items-center justify-center rounded-md bg-white/[0.05] text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
-                  aria-label={`Decrease ${type}`}>−</button>
-                <input type="number" inputMode="numeric" min={0} max={9999} value={v}
-                  onChange={(e) => setExact(type, e.target.value)} disabled={pending}
-                  className="w-14 rounded-md border border-white/10 bg-[#1f1f1f] py-1 text-center text-sm font-semibold text-white outline-none focus:border-[#0178a3]" />
-                <button type="button" onClick={() => bump(type, 1)} disabled={pending}
-                  className="flex size-8 items-center justify-center rounded-md bg-white/[0.05] text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
-                  aria-label={`Increase ${type}`}>+</button>
-              </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
 
         {/* Misc section */}
-        <SectionHeader
-          collapsed={miscCollapsed}
-          onToggle={() => setMiscCollapsed((v) => !v)}
-        >
-          Misc
-        </SectionHeader>
-        {!miscCollapsed && (
-          <>
-            <MiscRow
-              label="Goosenecks"
-              needed={miscNeeded.goosenecks}
-              value={misc.goosenecksBrought}
-              onBump={(d) => bumpMisc('goosenecksBrought', d)}
-              onSet={(raw) => setMiscExact('goosenecksBrought', raw)}
-              pending={pending}
-            />
-            <MiscRow
-              label="Footswitches"
-              needed={miscNeeded.footswitches}
-              value={misc.footswitchesBrought}
-              onBump={(d) => bumpMisc('footswitchesBrought', d)}
-              onSet={(raw) => setMiscExact('footswitchesBrought', raw)}
-              pending={pending}
-            />
-            <MiscRow
-              label="Speakers"
-              needed={miscNeeded.speakers}
-              value={misc.speakersBrought}
-              onBump={(d) => bumpMisc('speakersBrought', d)}
-              onSet={(raw) => setMiscExact('speakersBrought', raw)}
-              pending={pending}
-            />
-            <MiscRow
-              label="1/4-XLRM"
-              needed={miscNeeded.quarterXlrm}
-              value={misc.quarterXlrmBrought}
-              onBump={(d) => bumpMisc('quarterXlrmBrought', d)}
-              onSet={(raw) => setMiscExact('quarterXlrmBrought', raw)}
-              pending={pending}
-            />
-            <MiscRow
-              label="DB9-XLRF"
-              needed={miscNeeded.db9Xlrf}
-              value={misc.db9XlrfBrought}
-              onBump={(d) => bumpMisc('db9XlrfBrought', d)}
-              onSet={(raw) => setMiscExact('db9XlrfBrought', raw)}
-              pending={pending}
-            />
-            <MiscRow
-              label="RJ45-XLRMF"
-              needed={miscNeeded.rj45Xlrmf}
-              value={misc.rj45XlrmfBrought}
-              onBump={(d) => bumpMisc('rj45XlrmfBrought', d)}
-              onSet={(raw) => setMiscExact('rj45XlrmfBrought', raw)}
-              pending={pending}
-            />
-          </>
-        )}
+        <div>
+          <SectionHeader
+            collapsed={miscCollapsed}
+            onToggle={() => setMiscCollapsed((v) => !v)}
+          >
+            Misc
+          </SectionHeader>
+          {!miscCollapsed && (
+            <>
+              <MiscRow
+                label="Goosenecks"
+                needed={miscNeeded.goosenecks}
+                value={misc.goosenecksBrought}
+                onBump={(d) => bumpMisc('goosenecksBrought', d)}
+                onSet={(raw) => setMiscExact('goosenecksBrought', raw)}
+                pending={pending}
+              />
+              <MiscRow
+                label="Footswitches"
+                needed={miscNeeded.footswitches}
+                value={misc.footswitchesBrought}
+                onBump={(d) => bumpMisc('footswitchesBrought', d)}
+                onSet={(raw) => setMiscExact('footswitchesBrought', raw)}
+                pending={pending}
+              />
+              <MiscRow
+                label="Speakers"
+                needed={miscNeeded.speakers}
+                value={misc.speakersBrought}
+                onBump={(d) => bumpMisc('speakersBrought', d)}
+                onSet={(raw) => setMiscExact('speakersBrought', raw)}
+                pending={pending}
+              />
+              <MiscRow
+                label="1/4-XLRM"
+                needed={miscNeeded.quarterXlrm}
+                value={misc.quarterXlrmBrought}
+                onBump={(d) => bumpMisc('quarterXlrmBrought', d)}
+                onSet={(raw) => setMiscExact('quarterXlrmBrought', raw)}
+                pending={pending}
+              />
+              <MiscRow
+                label="DB9-XLRF"
+                needed={miscNeeded.db9Xlrf}
+                value={misc.db9XlrfBrought}
+                onBump={(d) => bumpMisc('db9XlrfBrought', d)}
+                onSet={(raw) => setMiscExact('db9XlrfBrought', raw)}
+                pending={pending}
+              />
+              <MiscRow
+                label="RJ45-XLRMF"
+                needed={miscNeeded.rj45Xlrmf}
+                value={misc.rj45XlrmfBrought}
+                onBump={(d) => bumpMisc('rj45XlrmfBrought', d)}
+                onSet={(raw) => setMiscExact('rj45XlrmfBrought', raw)}
+                pending={pending}
+              />
+            </>
+          )}
+        </div>
       </div>
 
       {err && <div className="mt-3 shrink-0 text-xs text-rose-400">{err}</div>}

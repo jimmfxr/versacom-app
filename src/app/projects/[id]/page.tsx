@@ -14,7 +14,7 @@ export default async function ProjectDetailPage({
   const projectId = parseInt(id, 10)
   if (isNaN(projectId)) notFound()
 
-  const [project, equipment, memberRows, pickListItems, panelKeyUsage, expansionRows, allUsers, distinctPositions] = await Promise.all([
+  const [project, equipment, memberRows, pickListItems, panelKeyUsage, expansionRows, allUsers, distinctPositions, headsetInventory] = await Promise.all([
     prisma.project.findUnique({
       where: { id: projectId },
       select: {
@@ -24,6 +24,14 @@ export default async function ProjectDetailPage({
         status: true,
         createdAt: true,
         returnPhaseActive: true,
+        // Misc-accessory "brought" counts — needed by the inventory editor
+        // we render under the Equipment tab.
+        goosenecksBrought: true,
+        footswitchesBrought: true,
+        speakersBrought: true,
+        quarterXlrmBrought: true,
+        db9XlrfBrought: true,
+        rj45XlrmfBrought: true,
         createdBy: { select: { id: true, firstName: true, lastName: true } },
         members: {
           select: {
@@ -116,6 +124,12 @@ export default async function ProjectDetailPage({
       where: { position: { not: null } },
       select: { position: true },
       distinct: ['position'],
+    }),
+    // Per-project headset inventory counts — drives the new Inventory tab
+    // inside the Add Equipment card.
+    prisma.projectHeadsetInventory.findMany({
+      where: { projectId },
+      select: { headsetType: true, brought: true },
     }),
   ])
 
@@ -240,6 +254,15 @@ export default async function ProjectDetailPage({
           a.localeCompare(b),
         ),
       }))}
+      headsetInventory={headsetInventory}
+      miscInventory={{
+        goosenecksBrought: project.goosenecksBrought,
+        footswitchesBrought: project.footswitchesBrought,
+        speakersBrought: project.speakersBrought,
+        quarterXlrmBrought: project.quarterXlrmBrought,
+        db9XlrfBrought: project.db9XlrfBrought,
+        rj45XlrmfBrought: project.rj45XlrmfBrought,
+      }}
     />
   )
 }

@@ -20,6 +20,7 @@ import { SearchableSelect } from '@/components/searchable-select'
 import { ComboboxInput } from '@/components/combobox-input'
 import { FilterBar, Chip } from '@/components/filter-bar'
 import { LocationSummary } from '@/components/location-summary'
+import { HeadsetInventoryEditor } from '@/components/headset-inventory-editor'
 import { usePersistentState } from '@/lib/use-persistent-state'
 import { updateProject, deleteProject, setReturnPhase } from './actions'
 import { bulkCreateEquipment, updateEquipment, deleteEquipment } from './distribution/actions'
@@ -290,6 +291,15 @@ export function ProjectPage({
   firstNameSuggestions = [],
   lastNameSuggestions = [],
   positionSuggestions = [],
+  headsetInventory = [],
+  miscInventory = {
+    goosenecksBrought: 0,
+    footswitchesBrought: 0,
+    speakersBrought: 0,
+    quarterXlrmBrought: 0,
+    db9XlrfBrought: 0,
+    rj45XlrmfBrought: 0,
+  },
 }: {
   project: Project
   equipment: EquipmentItem[]
@@ -303,6 +313,15 @@ export function ProjectPage({
   firstNameSuggestions?: string[]
   lastNameSuggestions?: string[]
   positionSuggestions?: string[]
+  headsetInventory?: Array<{ headsetType: string; brought: number }>
+  miscInventory?: {
+    goosenecksBrought: number
+    footswitchesBrought: number
+    speakersBrought: number
+    quarterXlrmBrought: number
+    db9XlrfBrought: number
+    rj45XlrmfBrought: number
+  }
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -380,6 +399,10 @@ export function ProjectPage({
   )
   const [eqChipsExpanded, setEqChipsExpanded] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
+  // Which tab inside the open Add Equipment card is active. Default = the
+  // gear-add form; flip to 'inventory' to manage headset / misc counts that
+  // used to live under the Edit button on the Dashboard headsets card.
+  const [addTab, setAddTab] = useState<'equipment' | 'inventory'>('equipment')
   const [addEquipmentId, setAddEquipmentId] = useState('')
   const [addCategory, setAddCategory] = useState('panels')
   const [addHardwareType, setAddHardwareType] = useState('')
@@ -728,6 +751,25 @@ export function ProjectPage({
   const usedEquipmentCategories = CATEGORIES.filter((c) =>
     equipment.some((e) => e.category === c.value),
   )
+
+  // ── Inventory tab data: needed counts derived from equipment ──
+  // Mirrors the dashboard's derivation so HeadsetInventoryEditor sees the
+  // same "X needed" numbers in either location.
+  const headsetNeededByType: Record<string, number> = {}
+  for (const e of equipment) {
+    if (!e.headsetType) continue
+    headsetNeededByType[e.headsetType] = (headsetNeededByType[e.headsetType] ?? 0) + 1
+  }
+  const allPanels = equipment.filter((e) => e.category === 'panels')
+  const goosenecksNeeded = allPanels.filter((e) => e.gooseneck).length
+  const footswitchesNeeded = allPanels.reduce((s, e) => s + (e.footswitches || 0), 0)
+  const speakersNeeded = allPanels.reduce((s, e) => s + (e.speakers || 0), 0)
+  // Cable accessories follow the same per-panel derivation as Dashboard:
+  //   1/4-XLRM = 1 per footswitch, DB9-XLRF = 1 per panel with footswitches,
+  //   RJ45-XLRMF = 1 per speaker.
+  const quarterXlrmNeeded = footswitchesNeeded
+  const db9XlrfNeeded = allPanels.filter((e) => (e.footswitches || 0) > 0).length
+  const rj45XlrmfNeeded = speakersNeeded
 
   const filteredMembers = project.members
     .filter((m) => {
@@ -1132,45 +1174,91 @@ export function ProjectPage({
                 </Card>
               )}
 
-              {/* Bulk add form */}
+              {/* Bulk add card — two tabs:
+                    1. Add Equipment (default) — bulk-add gear form
+                    2. Headset & Misc Inventory — sets per-show packed counts
+                       for headsets, goosenecks, footswitches, etc. Replaces
+                       the Edit button that used to live on the Dashboard
+                       Headsets / Misc card. */}
               {canAddEquipment && showAdd && (
                 <Card>
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-white">Add Equipment</h3>
+                  <div className="flex items-center justify-between gap-2">
+                    {/* Tab strip — both render as Buttons so the choice
+                        reads as "this OR that". Active tab = primary cyan,
+                        inactive = secondary so it still looks tappable. */}
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        variant={addTab === 'equipment' ? 'primary' : 'secondary'}
+                        onClick={() => setAddTab('equipment')}
+                      >
+                        Add Equipment
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={addTab === 'inventory' ? 'primary' : 'secondary'}
+                        onClick={() => setAddTab('inventory')}
+                      >
+                        Add Headsets &amp; Misc
+                      </Button>
+                    </div>
                     <IconButton onClick={() => { setShowAdd(false); setAddError('') }}><CloseIcon /></IconButton>
                   </div>
-                  <p className="mt-2 text-xs text-gray-500">Add equipment. Each item auto-IDs by category (<span className="font-mono">PNL 1</span>, <span className="font-mono">WLBP 1</span>…). Type an ID to customize.</p>
-                  <form onSubmit={(e) => { e.preventDefault(); handleBulkAdd() }}>
-                    <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                      <FormInput
-                        label="ID"
-                        type="text"
-                        placeholder="Auto"
-                        value={addEquipmentId}
-                        onChange={(e) => setAddEquipmentId(e.target.value)}
+
+                  {addTab === 'equipment' ? (
+                    <>
+                      <p className="mt-2 text-xs text-gray-500">Add equipment. Each item auto-IDs by category (<span className="font-mono">PNL 1</span>, <span className="font-mono">WLBP 1</span>…). Type an ID to customize.</p>
+                      <form onSubmit={(e) => { e.preventDefault(); handleBulkAdd() }}>
+                        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                          <FormInput
+                            label="ID"
+                            type="text"
+                            placeholder="Auto"
+                            value={addEquipmentId}
+                            onChange={(e) => setAddEquipmentId(e.target.value)}
+                          />
+                          <SearchableSelect
+                            label="Category"
+                            value={addCategory}
+                            placeholder="Select..."
+                            options={CATEGORIES.map((c) => ({ value: c.value, label: c.label }))}
+                            onChange={(v) => setAddCategory(v)}
+                          />
+                          <SearchableSelect
+                            label="Hardware type"
+                            value={addHardwareType}
+                            placeholder="None"
+                            options={[{ value: '', label: 'None' }, ...(HARDWARE_TYPES[addCategory] || []).map((ht) => ({ value: ht, label: ht }))]}
+                            onChange={(v) => setAddHardwareType(v)}
+                          />
+                          <FormInput label="Quantity" type="text" inputMode="numeric" pattern="[0-9]*" value={addQuantity}
+                            onChange={(e) => { const val = e.target.value.replace(/\D/g, ''); setAddQuantity(val) }} />
+                        </div>
+                        <div className="mt-4 flex justify-end">
+                          <Button type="submit" disabled={isPending}>{isPending ? 'Adding...' : 'Add'}</Button>
+                        </div>
+                        {addError && <p className="mt-3 text-sm text-red-400">{addError}</p>}
+                      </form>
+                    </>
+                  ) : (
+                    <div className="mt-3">
+                      <HeadsetInventoryEditor
+                        projectId={project.id}
+                        initial={headsetInventory}
+                        needed={headsetNeededByType}
+                        miscInitial={miscInventory}
+                        miscNeeded={{
+                          goosenecks: goosenecksNeeded,
+                          footswitches: footswitchesNeeded,
+                          speakers: speakersNeeded,
+                          quarterXlrm: quarterXlrmNeeded,
+                          db9Xlrf: db9XlrfNeeded,
+                          rj45Xlrmf: rj45XlrmfNeeded,
+                        }}
+                        onDone={() => setShowAdd(false)}
                       />
-                      <SearchableSelect
-                        label="Category"
-                        value={addCategory}
-                        placeholder="Select..."
-                        options={CATEGORIES.map((c) => ({ value: c.value, label: c.label }))}
-                        onChange={(v) => setAddCategory(v)}
-                      />
-                      <SearchableSelect
-                        label="Hardware type"
-                        value={addHardwareType}
-                        placeholder="None"
-                        options={[{ value: '', label: 'None' }, ...(HARDWARE_TYPES[addCategory] || []).map((ht) => ({ value: ht, label: ht }))]}
-                        onChange={(v) => setAddHardwareType(v)}
-                      />
-                      <FormInput label="Quantity" type="text" inputMode="numeric" pattern="[0-9]*" value={addQuantity}
-                        onChange={(e) => { const val = e.target.value.replace(/\D/g, ''); setAddQuantity(val) }} />
                     </div>
-                    <div className="mt-4 flex justify-end">
-                      <Button type="submit" disabled={isPending}>{isPending ? 'Adding...' : 'Add'}</Button>
-                    </div>
-                    {addError && <p className="mt-3 text-sm text-red-400">{addError}</p>}
-                  </form>
+                  )}
                 </Card>
               )}
 
