@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { TasksClient } from './tasks-client'
@@ -39,13 +40,20 @@ export default async function TasksPage({
   }
   const userProjects = Array.from(adminProjectsMap.values()).sort((a, b) => a.name.localeCompare(b.name))
 
-  // ?project= filter — defaults to the first project if absent or invalid.
+  // ?project= filter — falls back to the shared selectedProject cookie
+  // (written by ProjectSwitcher on Dashboard / Tasks) so the chosen project
+  // carries between pages, then to the first project when nothing is set.
   const params = await searchParams
-  const requestedId = params.project ? parseInt(params.project, 10) : null
+  const urlId = params.project ? parseInt(params.project, 10) : NaN
+  const cookieStore = await cookies()
+  const cookieRaw = cookieStore.get('selectedProject')?.value
+  const cookieId = cookieRaw ? parseInt(cookieRaw, 10) : NaN
   const selectedProjectId =
-    requestedId != null && adminProjectsMap.has(requestedId)
-      ? requestedId
-      : userProjects[0].id
+    Number.isFinite(urlId) && adminProjectsMap.has(urlId)
+      ? urlId
+      : Number.isFinite(cookieId) && adminProjectsMap.has(cookieId)
+        ? cookieId
+        : userProjects[0].id
   const adminProjectIds = [selectedProjectId]
 
   const [users, changeRequests] = await Promise.all([
