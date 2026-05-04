@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { AppShell } from '@/components/app-shell'
@@ -29,9 +30,19 @@ export default async function TasksPage({
   if (!session) redirect('/login')
 
   const params = await searchParams
-  const selectedProjectId = params.project ? parseInt(params.project, 10) : null
-  const filteredProjectId =
-    selectedProjectId && Number.isFinite(selectedProjectId) ? selectedProjectId : null
+  const urlProjectId = params.project ? parseInt(params.project, 10) : NaN
+  // Fall back to the shared `selectedProject` cookie that ProjectSwitcher
+  // writes from Dashboard / Tasks so picking a project on one page carries
+  // over to the other. Without this, Tasks always defaulted to the first
+  // alphabetical project regardless of what the user picked on Dashboard.
+  const cookieStore = await cookies()
+  const cookieRaw = cookieStore.get('selectedProject')?.value
+  const cookieProjectId = cookieRaw ? parseInt(cookieRaw, 10) : NaN
+  const filteredProjectId = Number.isFinite(urlProjectId)
+    ? urlProjectId
+    : Number.isFinite(cookieProjectId)
+      ? cookieProjectId
+      : null
 
   const userName = `${session.user.firstName} ${session.user.lastName}`
   const isAdmin = session.memberships.some((m) => m.role === 'admin')
