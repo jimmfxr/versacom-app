@@ -17,13 +17,17 @@ export const metadata: Metadata = {
   title: "Nodal Control",
   description: "Communication solutions for the modern world",
   icons: {
-    // Browser tab icon — small variant so Chrome / Safari render it crisp
-    // without downscaling the 640×640 PWA artwork.
+    // Browser tab icon — transparent Clair logo so it sits cleanly in
+    // browser chrome without a colored box. Small variant first so Chrome
+    // doesn't downscale the larger source.
     icon: [
       { url: "/favicon-64.png", sizes: "64x64", type: "image/png" },
-      { url: "/favicon.png", sizes: "640x640", type: "image/png" },
+      { url: "/favicon.png", sizes: "275x318", type: "image/png" },
     ],
-    apple: "/favicon.png", // iOS uses this when "Add to Home Screen"
+    // iOS home-screen icon must have a solid background (Apple ignores
+    // transparency and fills it with black, which can clip dark logos).
+    // Use the dark-bg PWA icon so the install looks intentional.
+    apple: "/pwa-maskable.png",
   },
   manifest: "/manifest.json",
   appleWebApp: {

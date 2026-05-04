@@ -16,12 +16,12 @@
     },
     {
       "src": "/favicon.png",
-      "sizes": "640x640",
+      "sizes": "275x318",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/favicon.png",
+      "src": "/pwa-maskable.png",
       "sizes": "640x640",
       "type": "image/png",
       "purpose": "maskable"
