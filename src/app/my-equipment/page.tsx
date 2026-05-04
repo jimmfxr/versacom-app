@@ -49,6 +49,11 @@ export default async function MyEquipmentPage({
   // right where they left off.
   const params = await searchParams
   const cookieStore = await cookies()
+  // Prefer the shared `selectedProject` cookie (set by ProjectSwitcher on
+  // Dashboard / Tasks / Admin) so picking a project anywhere carries here.
+  // Fall back to `lastBrowseProject` for legacy session state written by
+  // panel-studio when navigating between users in browse mode.
+  const selectedProjectCookie = cookieStore.get('selectedProject')?.value
   const lastProjectCookie = cookieStore.get('lastBrowseProject')?.value
   const lastMemberCookie = cookieStore.get('lastBrowseMember')?.value
   const parseId = (raw: string | undefined | null) => {
@@ -56,7 +61,10 @@ export default async function MyEquipmentPage({
     return Number.isFinite(n) ? n : null
   }
   const requestedProjectId =
-    parseId(params.project) ?? parseId(lastProjectCookie) ?? null
+    parseId(params.project) ??
+    parseId(selectedProjectCookie) ??
+    parseId(lastProjectCookie) ??
+    null
   const requestedMemberId =
     parseId(params.member) ?? parseId(lastMemberCookie) ?? null
 

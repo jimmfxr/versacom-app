@@ -394,6 +394,9 @@ export function PanelStudio({
     const maxAge = 60 * 60 * 24 * 30 // 30 days
     document.cookie = `lastBrowseProject=${project.id};path=/;max-age=${maxAge}`
     document.cookie = `lastBrowseMember=${member.id};path=/;max-age=${maxAge}`
+    // Also write the shared `selectedProject` cookie so Dashboard / Tasks /
+    // Admin land on the same project the admin was just browsing here.
+    document.cookie = `selectedProject=${project.id};path=/;max-age=${60 * 60 * 24 * 365}`
   }, [isBrowseMode, project.id, member])
 
   const [reviewProcessing, setReviewProcessing] = useState(false)
@@ -1297,47 +1300,56 @@ export function PanelStudio({
             {/* Back link — pinned to the very top of the workspace.
                 User-only accounts can't access the project page (proxy
                 blocks it), so route them back to My Equipment instead. */}
-            <div className="flex-shrink-0 mx-auto w-full max-w-7xl flex flex-wrap items-center justify-between gap-3 pt-3 px-4 sm:px-6 lg:px-8">
-              {/* The back button is only useful when the admin/manager came
-                  in from a project tab or an admin review. Browse mode and
-                  the user-only role both treat panel studio as the entire
-                  My Equipment experience, so the back button would just
-                  reload the same page — hide it. */}
-              {!isBrowseMode && !isUserOnly && (
-                <button
-                  onClick={() => {
-                    const dest = isReviewMode ? '/admin' : `/projects/${project.id}`
-                    router.push(dest)
-                  }}
-                  className="inline-flex items-center gap-1 text-sm text-gray-400 transition-colors hover:text-white"
-                >
-                  <ChevronLeftIcon className="size-4" />
-                  <span>{isReviewMode ? 'Tasks' : 'Project'}</span>
-                </button>
-              )}
+            {!isBrowseMode && (
+              <div className="flex-shrink-0 mx-auto w-full max-w-7xl flex flex-wrap items-center justify-between gap-3 pt-3 px-4 sm:px-6 lg:px-8">
+                {/* The back button is only useful when the admin/manager came
+                    in from a project tab or an admin review. User-only role
+                    treats panel studio as the entire My Equipment experience,
+                    so the back button would just reload the same page. */}
+                {!isUserOnly && (
+                  <button
+                    onClick={() => {
+                      const dest = isReviewMode ? '/admin' : `/projects/${project.id}`
+                      router.push(dest)
+                    }}
+                    className="inline-flex items-center gap-1 text-sm text-gray-400 transition-colors hover:text-white"
+                  >
+                    <ChevronLeftIcon className="size-4" />
+                    <span>{isReviewMode ? 'Tasks' : 'Project'}</span>
+                  </button>
+                )}
+              </div>
+            )}
 
-              {/* Browse-mode title — matches Dashboard / Tasks page heading
-                  so admin/manager get a consistent "My Equipment" anchor. */}
-              {isBrowseMode && (
-                <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-                  My Equipment
-                </h1>
-              )}
-
-              {/* Browse-mode controls — project + user dropdowns and prev/next.
-                  ml-auto pushes them to the far right even when the back
-                  button next to them is hidden. */}
-              {isBrowseMode && browseProjects && browseMembers && (
-                <div className="w-full sm:ml-auto sm:w-auto">
-                  <BrowseHeader
-                    project={project}
-                    member={member}
-                    browseProjects={browseProjects}
-                    browseMembers={browseMembers}
-                  />
+            {/* Browse-mode header bar.
+                Mobile: title row, then project full-width, then user
+                full-width — three stacked rows.
+                Desktop: 3-column grid — title left, user dropdown centered,
+                project dropdown far right. */}
+            {isBrowseMode && browseProjects && browseMembers && (
+              <div className="flex-shrink-0 mx-auto w-full max-w-7xl px-4 pt-3 sm:px-6 lg:px-8">
+                {/* Mobile layout */}
+                <div className="flex flex-col gap-2 sm:hidden">
+                  <h1 className="text-2xl font-bold tracking-tight text-white">
+                    My Equipment
+                  </h1>
+                  <BrowseProjectDropdown project={project} browseProjects={browseProjects} />
+                  <BrowseMemberSwitcher project={project} member={member} browseMembers={browseMembers} />
                 </div>
-              )}
-            </div>
+                {/* Desktop layout */}
+                <div className="hidden grid-cols-3 items-center gap-3 sm:grid">
+                  <h1 className="justify-self-start text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                    My Equipment
+                  </h1>
+                  <div className="justify-self-center">
+                    <BrowseMemberSwitcher project={project} member={member} browseMembers={browseMembers} />
+                  </div>
+                  <div className="justify-self-end">
+                    <BrowseProjectDropdown project={project} browseProjects={browseProjects} />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Sibling-gear card row — every piece of equipment for the
                 current member on this project. Click to switch panels
@@ -1905,15 +1917,121 @@ const CAT_SHORT: Record<string, string> = {
  * Browse-mode header bar: project switcher + user switcher + prev/next.
  * Same look as the controls on /my-equipment so the experience flows.
  */
-function BrowseHeader({
+/**
+ * Project picker for browse mode. Standalone so the parent layout can place
+ * it independently of the user switcher (e.g. far right on desktop).
+ */
+function BrowseProjectDropdown({
   project,
-  member,
   browseProjects,
-  browseMembers,
+  className = '',
 }: {
   project: { id: number; name: string }
-  member: { id: number } | null
   browseProjects: Array<{ id: number; name: string }>
+  className?: string
+}) {
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    if (open) document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [open])
+
+  useEffect(() => {
+    if (open) {
+      setQuery('')
+      inputRef.current?.focus()
+    }
+  }, [open])
+
+  const filtered = query.trim()
+    ? browseProjects.filter((p) => p.name.toLowerCase().includes(query.trim().toLowerCase()))
+    : browseProjects
+
+  function navigateToProject(nextId: number) {
+    if (nextId === project.id) return
+    router.push(`/my-equipment?project=${nextId}`)
+  }
+
+  return (
+    <div ref={ref} className={`relative w-full sm:w-auto ${className}`}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium text-gray-200 transition-colors sm:w-auto sm:justify-start ${
+          open
+            ? 'border-[#22a7d3]/50 bg-white/[0.04]'
+            : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04]'
+        }`}
+      >
+        <span className="truncate sm:max-w-[160px]">{project.name}</span>
+        <svg className="size-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-30 mt-1 flex max-h-[320px] min-w-[240px] flex-col rounded-lg border border-white/10 bg-[#2a2a2a] shadow-2xl">
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && filtered.length > 0) {
+                e.preventDefault()
+                setOpen(false)
+                navigateToProject(filtered[0].id)
+              } else if (e.key === 'Escape') {
+                setOpen(false)
+              }
+            }}
+            placeholder="Search shows…"
+            className="m-1 rounded-md border border-white/10 bg-[#202020] px-2.5 py-1.5 text-[12px] text-gray-200 placeholder:text-gray-500 focus:border-[#22a7d3]/50 focus:outline-none"
+          />
+          <div className="overflow-y-auto p-1 pt-0">
+            {filtered.map((p) => {
+              const isActive = p.id === project.id
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => { setOpen(false); navigateToProject(p.id) }}
+                  className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left transition-colors ${
+                    isActive ? 'bg-[#22a7d3]/10' : 'hover:bg-white/[0.06]'
+                  }`}
+                >
+                  <span className={`text-[12px] font-medium ${isActive ? 'text-[#22a7d3]' : 'text-gray-200'}`}>{p.name}</span>
+                </button>
+              )
+            })}
+            {filtered.length === 0 && (
+              <div className="px-3 py-2 text-[12px] text-gray-500">No shows match</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * User switcher for browse mode — prev / next chevrons flanking a search-
+ * filterable dropdown. Standalone so the parent layout can place it (e.g.
+ * centered between the title and the project picker on desktop).
+ */
+function BrowseMemberSwitcher({
+  project,
+  member,
+  browseMembers,
+  className = '',
+}: {
+  project: { id: number }
+  member: { id: number } | null
   browseMembers: Array<{
     id: number
     firstName: string
@@ -1922,47 +2040,33 @@ function BrowseHeader({
     displayName: string
     equipmentId: number | null
   }>
+  className?: string
 }) {
   const router = useRouter()
-  const [open, setOpen] = useState<'project' | 'member' | null>(null)
-  const [projectQuery, setProjectQuery] = useState('')
-  const [memberQuery, setMemberQuery] = useState('')
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
   const ref = useRef<HTMLDivElement>(null)
-  const projectInputRef = useRef<HTMLInputElement>(null)
-  const memberInputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(null)
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
     }
     if (open) document.addEventListener('mousedown', onMouseDown)
     return () => document.removeEventListener('mousedown', onMouseDown)
   }, [open])
 
-  // Reset filter and focus the input every time a dropdown opens so the user
-  // can start typing immediately to narrow shows / users.
   useEffect(() => {
-    if (open === 'project') {
-      setProjectQuery('')
-      projectInputRef.current?.focus()
-    } else if (open === 'member') {
-      setMemberQuery('')
-      memberInputRef.current?.focus()
+    if (open) {
+      setQuery('')
+      inputRef.current?.focus()
     }
   }, [open])
 
-  const filteredProjects = projectQuery.trim()
-    ? browseProjects.filter((p) =>
-        p.name.toLowerCase().includes(projectQuery.trim().toLowerCase()),
-      )
-    : browseProjects
-  const filteredMembers = memberQuery.trim()
+  const filtered = query.trim()
     ? browseMembers.filter((m) => {
-        const q = memberQuery.trim().toLowerCase()
-        return (
-          m.displayName.toLowerCase().includes(q) ||
-          (m.position ?? '').toLowerCase().includes(q)
-        )
+        const q = query.trim().toLowerCase()
+        return m.displayName.toLowerCase().includes(q) || (m.position ?? '').toLowerCase().includes(q)
       })
     : browseMembers
 
@@ -1982,156 +2086,90 @@ function BrowseHeader({
     router.push(`/projects/${project.id}/panel/${target.equipmentId}?from=my-equipment`)
   }
 
-  function jumpToMemberByOffset(offset: number) {
+  function jumpByOffset(offset: number) {
     if (browseMembers.length === 0 || currentMemberIndex < 0) return
     const wrapped = ((currentMemberIndex + offset) % browseMembers.length + browseMembers.length) % browseMembers.length
     navigateToMember(browseMembers[wrapped].id)
   }
 
-  function navigateToProject(nextId: number) {
-    if (nextId === project.id) return
-    // Land on /my-equipment for the new project — no specific equipment yet.
-    router.push(`/my-equipment?project=${nextId}`)
-  }
-
   return (
-    <div ref={ref} className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
-      {/* Project dropdown */}
-      <div className="relative w-full sm:w-auto">
+    <div ref={ref} className={`flex w-full items-center gap-1 sm:w-auto ${className}`}>
+      <button
+        type="button"
+        onClick={() => jumpByOffset(-1)}
+        aria-label="Previous user"
+        className="flex h-[38px] w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
+      >
+        <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+      </button>
+      <div className="relative flex-1 sm:flex-initial">
         <button
           type="button"
-          onClick={() => setOpen(open === 'project' ? null : 'project')}
+          onClick={() => setOpen((o) => !o)}
           className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium text-gray-200 transition-colors sm:w-auto sm:justify-start ${
-            open === 'project'
+            open
               ? 'border-[#22a7d3]/50 bg-white/[0.04]'
               : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04]'
           }`}
         >
-          <span className="truncate sm:max-w-[160px]">{project.name}</span>
+          <span className="truncate sm:max-w-[200px]">{memberLabel}</span>
           <svg className="size-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
         </button>
-        {open === 'project' && (
-          <div className="absolute right-0 top-full z-30 mt-1 flex max-h-[320px] min-w-[240px] flex-col rounded-lg border border-white/10 bg-[#2a2a2a] shadow-2xl">
+        {open && (
+          <div className="absolute left-1/2 top-full z-30 mt-1 flex max-h-[360px] min-w-[280px] -translate-x-1/2 flex-col rounded-lg border border-white/10 bg-[#2a2a2a] shadow-2xl">
             <input
-              ref={projectInputRef}
+              ref={inputRef}
               type="text"
-              value={projectQuery}
-              onChange={(e) => setProjectQuery(e.target.value)}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && filteredProjects.length > 0) {
-                  e.preventDefault()
-                  setOpen(null)
-                  navigateToProject(filteredProjects[0].id)
+                if (e.key === 'Enter') {
+                  const first = filtered.find((m) => m.equipmentId != null)
+                  if (first) {
+                    e.preventDefault()
+                    setOpen(false)
+                    navigateToMember(first.id)
+                  }
                 } else if (e.key === 'Escape') {
-                  setOpen(null)
+                  setOpen(false)
                 }
               }}
-              placeholder="Search shows…"
+              placeholder="Search users…"
               className="m-1 rounded-md border border-white/10 bg-[#202020] px-2.5 py-1.5 text-[12px] text-gray-200 placeholder:text-gray-500 focus:border-[#22a7d3]/50 focus:outline-none"
             />
             <div className="overflow-y-auto p-1 pt-0">
-              {filteredProjects.map((p) => {
-                const isActive = p.id === project.id
+              {filtered.map((m) => {
+                const isActive = currentMember?.id === m.id
+                const label = m.position ? `${m.displayName} · ${m.position}` : m.displayName
                 return (
                   <button
-                    key={p.id}
+                    key={m.id}
                     type="button"
-                    onClick={() => { setOpen(null); navigateToProject(p.id) }}
-                    className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left transition-colors ${
+                    onClick={() => { setOpen(false); navigateToMember(m.id) }}
+                    disabled={m.equipmentId == null}
+                    className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left transition-colors disabled:opacity-40 ${
                       isActive ? 'bg-[#22a7d3]/10' : 'hover:bg-white/[0.06]'
                     }`}
                   >
-                    <span className={`text-[12px] font-medium ${isActive ? 'text-[#22a7d3]' : 'text-gray-200'}`}>{p.name}</span>
+                    <span className={`text-[12px] font-medium ${isActive ? 'text-[#22a7d3]' : 'text-gray-200'}`}>{label}</span>
                   </button>
                 )
               })}
-              {filteredProjects.length === 0 && (
-                <div className="px-3 py-2 text-[12px] text-gray-500">No shows match</div>
+              {filtered.length === 0 && (
+                <div className="px-3 py-2 text-[12px] text-gray-500">No users match</div>
               )}
             </div>
           </div>
         )}
       </div>
-
-      {/* User dropdown + prev/next */}
-      <div className="flex w-full items-center gap-1 sm:w-auto">
-        <button
-          type="button"
-          onClick={() => jumpToMemberByOffset(-1)}
-          aria-label="Previous user"
-          className="flex h-[38px] w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
-        >
-          <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
-        </button>
-        <div className="relative flex-1 sm:flex-initial">
-          <button
-            type="button"
-            onClick={() => setOpen(open === 'member' ? null : 'member')}
-            className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium text-gray-200 transition-colors sm:w-auto sm:justify-start ${
-              open === 'member'
-                ? 'border-[#22a7d3]/50 bg-white/[0.04]'
-                : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04]'
-            }`}
-          >
-            <span className="truncate sm:max-w-[200px]">{memberLabel}</span>
-            <svg className="size-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
-          </button>
-          {open === 'member' && (
-            <div className="absolute right-0 top-full z-30 mt-1 flex max-h-[360px] min-w-[280px] flex-col rounded-lg border border-white/10 bg-[#2a2a2a] shadow-2xl">
-              <input
-                ref={memberInputRef}
-                type="text"
-                value={memberQuery}
-                onChange={(e) => setMemberQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    const first = filteredMembers.find((m) => m.equipmentId != null)
-                    if (first) {
-                      e.preventDefault()
-                      setOpen(null)
-                      navigateToMember(first.id)
-                    }
-                  } else if (e.key === 'Escape') {
-                    setOpen(null)
-                  }
-                }}
-                placeholder="Search users…"
-                className="m-1 rounded-md border border-white/10 bg-[#202020] px-2.5 py-1.5 text-[12px] text-gray-200 placeholder:text-gray-500 focus:border-[#22a7d3]/50 focus:outline-none"
-              />
-              <div className="overflow-y-auto p-1 pt-0">
-                {filteredMembers.map((m) => {
-                  const isActive = currentMember?.id === m.id
-                  const label = m.position ? `${m.displayName} · ${m.position}` : m.displayName
-                  return (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => { setOpen(null); navigateToMember(m.id) }}
-                      disabled={m.equipmentId == null}
-                      className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left transition-colors disabled:opacity-40 ${
-                        isActive ? 'bg-[#22a7d3]/10' : 'hover:bg-white/[0.06]'
-                      }`}
-                    >
-                      <span className={`text-[12px] font-medium ${isActive ? 'text-[#22a7d3]' : 'text-gray-200'}`}>{label}</span>
-                    </button>
-                  )
-                })}
-                {filteredMembers.length === 0 && (
-                  <div className="px-3 py-2 text-[12px] text-gray-500">No users match</div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={() => jumpToMemberByOffset(1)}
-          aria-label="Next user"
-          className="flex h-[38px] w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
-        >
-          <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => jumpByOffset(1)}
+        aria-label="Next user"
+        className="flex h-[38px] w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
+      >
+        <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+      </button>
     </div>
   )
 }
