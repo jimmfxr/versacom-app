@@ -59,6 +59,11 @@ const IP_PREFIX_BY_HARDWARE: Record<string, string> = {
   'RSP-2318': '10.240.',
   'DSP-1216': '10.240.',
   'DSP-2312': '10.240.',
+  // Bolero antennas share the same Riedel network — same 10.240.x.x prefix.
+  // (Wireless beltpacks of the same hardware name don't render an IP field
+  // at all, so this only fires when the row is in the antennas category.)
+  'Bolero 1.9': '10.240.',
+  'Bolero 2.4': '10.240.',
   // Cisco-style network switches we manage live on 10.249.x.x.
   '26P+4F': '10.249.',
   '40P+4F': '10.249.',
