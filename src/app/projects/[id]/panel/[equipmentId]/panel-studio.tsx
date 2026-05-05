@@ -1669,7 +1669,7 @@ export function PanelStudio({
                             canDrag={canEditKeys}
                             isActive={isActive}
                             onClick={() => selectedKeyId && assignPickerItem(selectedKeyId, item)}
-                            className={`inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-[colors,transform] active:scale-95 ${
+                            className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-semibold transition-[colors,transform] active:scale-95 ${
                               isActive
                                 ? 'border-[#0178a3] bg-[#0178a3] text-white'
                                 : 'border-white/10 bg-[#202020] text-gray-300 hover:border-white/20 hover:bg-[#2a2a2a] hover:text-white'
@@ -1677,7 +1677,7 @@ export function PanelStudio({
                           >
                             <span className="overflow-hidden text-ellipsis whitespace-nowrap">{item.name}</span>
                             {item.code && (
-                              <span className={`font-mono text-[9px] ${isActive ? 'text-white/70' : 'text-gray-500'}`}>{item.code}</span>
+                              <span className={`font-mono text-[10px] ${isActive ? 'text-white/70' : 'text-gray-500'}`}>{item.code}</span>
                             )}
                           </PickerItemDraggable>
                         )
@@ -2341,10 +2341,10 @@ export function PanelStudio({
           follows the cursor freely across the chassis. */}
       <DragOverlay dropAnimation={null}>
         {activeDragChip ? (
-          <div className="pointer-events-none inline-flex items-center gap-1 rounded-md border border-[#0178a3] bg-[#0178a3] px-2 py-0.5 text-[11px] font-semibold text-white shadow-2xl">
+          <div className="pointer-events-none inline-flex items-center gap-1.5 rounded-lg border border-[#0178a3] bg-[#0178a3] px-3 py-1.5 text-sm font-semibold text-white shadow-2xl">
             <span className="overflow-hidden text-ellipsis whitespace-nowrap">{activeDragChip.name}</span>
             {activeDragChip.code && (
-              <span className="font-mono text-[9px] text-white/70">{activeDragChip.code}</span>
+              <span className="font-mono text-[10px] text-white/70">{activeDragChip.code}</span>
             )}
           </div>
         ) : null}
