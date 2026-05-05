@@ -1769,22 +1769,19 @@ export function PanelStudio({
                     autoComplete="off"
                     spellCheck={false}
                   />
-                  {/* Filter chips */}
-                  <div className="flex w-full bg-[#2a2a2a] p-1 rounded-lg">
+                  {/* Function type filter — dropdown so the long type list
+                      doesn't squeeze into 6 chips on narrow viewports. */}
+                  <select
+                    value={pickerFilter}
+                    onChange={(e) => setPickerFilter(e.target.value)}
+                    className="w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white outline-none transition-[border-color] hover:border-white/20 focus:border-[#0178a3]"
+                  >
                     {filterTypes.map((type) => (
-                      <button
-                        key={type}
-                        onClick={() => setPickerFilter(type)}
-                        className={`flex-1 min-w-0 border-none px-1.5 py-[7px] rounded-md text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap overflow-hidden text-ellipsis ${
-                          pickerFilter === type
-                            ? 'bg-[#0178a3] text-white'
-                            : 'bg-transparent text-gray-500 hover:text-gray-300'
-                        }`}
-                      >
-                        {type}
-                      </button>
+                      <option key={type} value={type}>
+                        {type === 'All' ? 'All function types' : type === 'Audio' ? 'Audio I/O' : type}
+                      </option>
                     ))}
-                  </div>
+                  </select>
                 </div>
 
                 {/* Picker list */}
