@@ -128,14 +128,17 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
   }
 
   return (
-    <div className="min-h-full bg-[#202020]">
+    // Viewport-locked flex column on all screen sizes so pages can
+    // implement kiosk-style inner scroll regions (header / tabs / chips
+    // fixed, only the list scrolls).
+    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[#202020]">
       <Navbar
         navigation={getNavigation(pathname, isAdmin, isUserOnly, showMyEquipment, lastProjectId, taskCount, inMyEquipmentBrowse)}
         user={navUser}
         userNavigation={userNavigation}
         onSignOut={handleSignOut}
       />
-      {children}
+      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
       <ToastContainer />
       <ScrollToTop />
     </div>

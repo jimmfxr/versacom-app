@@ -140,6 +140,7 @@ export function TasksClient({
       <PageLayout
         title="Tasks"
         titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
+        stickyHeader
         action={
           userProjects.length > 1 ? (
             <ProjectSwitcher
@@ -156,7 +157,10 @@ export function TasksClient({
         {totalTasks === 0 ? (
           <EmptyState icon={<CheckIcon />} title="Inbox zero" message="No pending tasks. All users are active and operational." />
         ) : (
-          <div className="space-y-4">
+          // Desktop: scrollable list region inside the kiosk-style flex
+          // chain. Mobile: page-level scroll, this div is just a normal
+          // space-y-4 container.
+          <div className="space-y-4 sm:flex-1 sm:overflow-y-auto sm:overscroll-none sm:pt-1 sm:pb-4">
             {/* Change Request cards */}
             {changeRequestTasks.length > 0 && (
               <div className="space-y-2">

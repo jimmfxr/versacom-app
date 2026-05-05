@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import { useState, useEffect, useRef, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { PencilIcon, XMarkIcon, ChevronLeftIcon } from '@heroicons/react/24/outline'
 import { QRCodeSVG } from 'qrcode.react'
@@ -19,6 +19,7 @@ import { FormInput, FormSelect } from '@/components/form-field'
 import { SearchableSelect } from '@/components/searchable-select'
 import { ComboboxInput } from '@/components/combobox-input'
 import { FilterBar, Chip } from '@/components/filter-bar'
+import { ChipScroller } from '@/components/chip-scroller'
 import { LocationSummary } from '@/components/location-summary'
 import { HeadsetInventoryEditor } from '@/components/headset-inventory-editor'
 import { usePersistentState } from '@/lib/use-persistent-state'
@@ -884,6 +885,7 @@ export function ProjectPage({
         title={project.name}
         titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
         inlineAction
+        stickyHeader
         before={
           <button
             type="button"
@@ -897,19 +899,17 @@ export function ProjectPage({
         action={
           canSeeSettings && (
             <Button
+              size="sm"
               variant="secondary"
               onClick={() => setShowSettings(!showSettings)}
               aria-label={showSettings ? 'Close settings' : 'Edit project'}
             >
-              <span className="sm:hidden inline-flex items-center">
-                {showSettings ? <XMarkIcon className="size-5" /> : <PencilIcon className="size-5" />}
-              </span>
-              <span className="hidden sm:inline">{showSettings ? 'Close' : 'Edit'}</span>
+              {showSettings ? 'Close' : 'Edit'}
             </Button>
           )
         }
       >
-        <div className="space-y-4">
+        <div className="flex min-h-0 flex-1 flex-col space-y-3">
           {/* ─── Archived banner ─── */}
           {isArchived && (
             <div className="rounded-xl border border-gray-500/30 bg-gray-500/10 px-4 py-3 text-sm text-gray-300">
@@ -998,8 +998,13 @@ export function ProjectPage({
             </div>
           )}
 
-          {/* ─── Tab Switcher ─── */}
-          <div className="flex w-full overflow-x-auto rounded-lg bg-[#2a2a2a] p-1 scrollbar-none sm:overflow-x-visible">
+          {/* ─── Tab Switcher + per-tab toolbar (desktop) ─── */}
+          {/* On desktop the tab chips and the active tab's search+add
+              button sit on the same row (tabs left, toolbar right).
+              Mobile keeps the existing per-tab sticky search bar below. */}
+          <div className="flex-shrink-0 pt-4 sm:flex sm:items-center sm:gap-3 sm:pb-4">
+          <div className="sm:min-w-0 sm:flex-1">
+          <ChipScroller ariaLabel="tabs">
             {(() => {
               const myEqCount = equipment.filter((e) => e.assignedMemberId === currentMemberId).length
               if (isUser) {
@@ -1022,26 +1027,93 @@ export function ProjectPage({
             })().map((tab) => (
               <button
                 key={tab.key}
+                type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 whitespace-nowrap rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
+                className={`shrink-0 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
                   activeTab === tab.key
                     ? 'bg-[#0178a3] text-white'
-                    : 'text-gray-500 hover:text-gray-300'
+                    : 'border border-white/[0.10] bg-[#2a2a2a] text-gray-300 hover:bg-[#313131]'
                 }`}
               >
                 {tab.label}
                 <span className="ml-1.5 text-xs opacity-70">{tab.count}</span>
               </button>
             ))}
+          </ChipScroller>
+          </div>{/* /tab strip wrapper */}
+
+          {/* Desktop-only per-tab toolbar (search + add). Mobile renders
+              the same controls inside each tab branch (sticky on scroll). */}
+          <div className="hidden sm:flex sm:flex-shrink-0 sm:items-center sm:gap-3">
+            {activeTab === 'equipment' && (
+              <>
+                <input
+                  type="text"
+                  placeholder="Search equipment..."
+                  value={eqSearch}
+                  onChange={(e) => setEqSearch(e.target.value)}
+                  className="w-64 rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
+                />
+                {canAddEquipment && !showAdd && <Button onClick={() => setShowAdd(true)}>Add Equipment</Button>}
+                {!canAddEquipment && isCrew && !showTeamQr && <Button onClick={() => setShowTeamQr(true)}>Show QR</Button>}
+              </>
+            )}
+            {activeTab === 'team' && (
+              <>
+                <input
+                  type="text"
+                  placeholder="Search team..."
+                  value={teamSearch}
+                  onChange={(e) => setTeamSearch(e.target.value)}
+                  className="w-64 rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
+                />
+                {canEditTeam && !showAddMember && <Button onClick={() => setShowAddMember(true)}>Add Member</Button>}
+                {!canEditTeam && isCrew && !showTeamQr && <Button onClick={() => setShowTeamQr(true)}>Show QR</Button>}
+              </>
+            )}
+            {activeTab === 'picklist' && (
+              <>
+                <input
+                  type="text"
+                  placeholder="Search functions..."
+                  value={plSearch}
+                  onChange={(e) => setPlSearch(e.target.value)}
+                  className="w-64 rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
+                />
+                {canEditPickList && !showAddPl && <Button onClick={() => setShowAddPl(true)}>Add Function</Button>}
+              </>
+            )}
+            {activeTab === 'stage-plots' && (
+              <>
+                <input
+                  type="text"
+                  placeholder="Search plots..."
+                  value={plotSearch}
+                  onChange={(e) => setPlotSearch(e.target.value)}
+                  className="w-64 rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
+                />
+                {isAdmin && !showAddPlot && <Button onClick={() => setShowAddPlot(true)}>Add Plot</Button>}
+              </>
+            )}
           </div>
+          </div>{/* /tab + toolbar row */}
+
+          {/* Desktop divider — sits in the breathing room between the
+              tab+toolbar row and the per-tab content. Mobile hides it
+              since the per-tab sticky bundle already provides separation. */}
+          {/* Desktop divider — sits below the tab+toolbar row. Mobile
+              renders its own divider INSIDE each per-tab sticky bundle
+              (below the search bar) since the toolbar isn't on this row
+              on mobile. */}
+          <div className="hidden sm:block h-0.5 bg-white/[0.12] mb-4 flex-shrink-0" />
 
           {/* ═══════════════════════════════ EQUIPMENT TAB ═══════════════════════════════ */}
           {activeTab === 'equipment' && (
-            <>
-              {/* Sticky bundle: search + filter chips ride together so both
-                  stay in view as the equipment list scrolls underneath. */}
-              <div className="sticky top-16 z-20 -mx-4 bg-[#202020] px-4 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-                <div className="flex items-center gap-3 pb-3">
+            <div className="flex min-h-0 flex-1 flex-col">
+              {/* Mobile-only sticky bundle: search + filter chips ride
+                  together. Desktop search+add is in the top toolbar. */}
+              <div className="flex-shrink-0 -mx-4 bg-[#202020] px-4 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+                <div className="flex items-center gap-3 pb-4 sm:hidden">
                   <div className="flex-1">
                     <input
                       type="text"
@@ -1051,111 +1123,58 @@ export function ProjectPage({
                       className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
                     />
                   </div>
-                  {canAddEquipment && !showAdd && <Button onClick={() => setShowAdd(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Equipment</span></Button>}
-                  {!canAddEquipment && isCrew && !showTeamQr && <Button onClick={() => setShowTeamQr(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Show QR</span></Button>}
+                  {canAddEquipment && !showAdd && (
+                    <button type="button" onClick={() => setShowAdd(true)} aria-label="Add Equipment" className="flex shrink-0 items-center justify-center rounded-lg bg-[#0178a3] px-4 py-2.5 text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
+                  )}
+                  {!canAddEquipment && isCrew && !showTeamQr && (
+                    <button type="button" onClick={() => setShowTeamQr(true)} aria-label="Show QR" className="flex shrink-0 items-center justify-center rounded-lg bg-[#0178a3] px-4 py-2.5 text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
+                  )}
                 </div>
+                {/* Mobile-only divider line — sits between the search row
+                    and the filter chips (matches the desktop divider's
+                    role of separating toolbar from per-tab content). */}
+                <div className="h-0.5 bg-white/[0.12] mb-4 flex-shrink-0 sm:hidden" />
 
-              {/* Filter chips (admin/manager only) — categories + locations
-                  share a single All button that resets both filters. Mobile
-                  uses a +N more overflow so the row never wraps. */}
-              {(usedEquipmentCategories.length > 0 || equipmentLocations.length > 0) && (() => {
-                type ChipDef = { key: string; kind: 'cat' | 'loc'; label: string; active: boolean; onClick: () => void }
-                const chips: ChipDef[] = [
-                  ...usedEquipmentCategories.map((c): ChipDef => ({
-                    key: `cat:${c.value}`,
-                    kind: 'cat',
-                    label: c.label,
-                    active: eqCategoryFilter === c.value,
-                    onClick: () => setEqCategoryFilter(eqCategoryFilter === c.value ? null : c.value),
-                  })),
-                  ...equipmentLocations.map((loc): ChipDef => ({
-                    key: `loc:${loc}`,
-                    kind: 'loc',
-                    label: loc,
-                    active: eqLocationFilter === loc,
-                    onClick: () => setEqLocationFilter(eqLocationFilter === loc ? null : loc),
-                  })),
-                ]
-                const VISIBLE_MOBILE = 3
-
-                // limit = null means "show every chip, no +N more button" —
-                // used on desktop where flex-wrap can spill onto extra rows
-                // without looking cramped.
-                const renderRow = (limit: number | null) => {
-                  const overflow = limit != null && chips.length > limit
-                  const visible = limit == null || eqChipsExpanded ? chips : chips.slice(0, limit)
-                  return (
-                    <>
+              {/* Filter chips — All + categories + locations in a single
+                  horizontally-scrollable row. ChipScroller adds prev/next
+                  chevrons only when the row overflows the container. */}
+              {(usedEquipmentCategories.length > 0 || equipmentLocations.length > 0) && (
+                <div className="pb-3">
+                  <ChipScroller>
+                    <Chip
+                      active={!eqCategoryFilter && !eqLocationFilter}
+                      onClick={() => {
+                        setEqCategoryFilter(null)
+                        setEqLocationFilter(null)
+                      }}
+                    >
+                      All
+                    </Chip>
+                    {usedEquipmentCategories.map((c) => (
                       <Chip
-                        active={!eqCategoryFilter && !eqLocationFilter}
-                        onClick={() => {
-                          setEqCategoryFilter(null)
-                          setEqLocationFilter(null)
-                        }}
+                        key={`cat:${c.value}`}
+                        active={eqCategoryFilter === c.value}
+                        onClick={() => setEqCategoryFilter(eqCategoryFilter === c.value ? null : c.value)}
                       >
-                        All
+                        {c.label}
                       </Chip>
-                      {visible.map((c, i) => {
-                        const prev = visible[i - 1]
-                        const showDivider = prev && prev.kind === 'cat' && c.kind === 'loc'
-                        return (
-                          <span key={c.key} className="contents">
-                            {showDivider && (
-                              <span aria-hidden className="flex shrink-0 items-center px-1 text-2xl font-bold leading-none text-[#22a7d3]">·</span>
-                            )}
-                            <Chip active={c.active} onClick={c.onClick}>
-                              {c.label}
-                            </Chip>
-                          </span>
-                        )
-                      })}
-                      {overflow && (
-                        <button
-                          type="button"
-                          onClick={() => setEqChipsExpanded((v) => !v)}
-                          className="rounded-md border border-white/[0.10] bg-[#2a2a2a] px-3 py-1.5 text-xs font-semibold text-gray-300 transition-colors hover:bg-[#313131]"
-                        >
-                          {eqChipsExpanded ? 'Show less' : `+${chips.length - (limit as number)} more`}
-                        </button>
-                      )}
-                    </>
-                  )
-                }
-
-                return (
-                  <div className="pb-3">
-                    {/* Mobile: stays on a single line — `+N more` handles
-                        anything that won't fit. Tap to expand and the chips
-                        wrap onto multiple rows. */}
-                    <div className={`gap-2 sm:hidden ${eqChipsExpanded ? 'flex flex-wrap' : 'flex flex-nowrap overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'}`}>
-                      {renderRow(VISIBLE_MOBILE)}
-                    </div>
-                    {/* Desktop: show every chip in one row; flex-wrap allows
-                        natural overflow onto a second row when truly needed. */}
-                    <div className="hidden flex-wrap gap-2 sm:flex">{renderRow(null)}</div>
-                  </div>
-                )
-              })()}
-              </div>{/* /sticky bundle */}
-
-              {/* Location summary — same card as the crew /tasks page */}
-              {eqLocationFilter && (
-                <LocationSummary
-                  location={eqLocationFilter}
-                  allGear={equipment.map((e) => ({
-                    id: e.id,
-                    name: e.name,
-                    category: e.category,
-                    hardwareType: e.hardwareType,
-                    headsetType: e.headsetType,
-                    effectiveLocation: effectiveLocation(e),
-                    gooseneck: e.gooseneck,
-                    footswitches: e.footswitches,
-                    speakers: e.speakers,
-                    deployStatus: e.deployStatus,
-                  }))}
-                />
+                    ))}
+                    {usedEquipmentCategories.length > 0 && equipmentLocations.length > 0 && (
+                      <span aria-hidden className="flex shrink-0 items-center px-1 text-2xl font-bold leading-none text-[#22a7d3]">·</span>
+                    )}
+                    {equipmentLocations.map((loc) => (
+                      <Chip
+                        key={`loc:${loc}`}
+                        active={eqLocationFilter === loc}
+                        onClick={() => setEqLocationFilter(eqLocationFilter === loc ? null : loc)}
+                      >
+                        {loc}
+                      </Chip>
+                    ))}
+                  </ChipScroller>
+                </div>
               )}
+              </div>{/* /sticky bundle */}
 
               {/* Crew-only: standalone join-QR card on Equipment tab */}
               {isCrew && showTeamQr && (
@@ -1267,11 +1286,33 @@ export function ProjectPage({
                 </Card>
               )}
 
-              <p className="text-xs text-gray-500">
+              {/* Count text — pinned above the scroll on desktop. */}
+              <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
                 {filteredEquipment.length} of {equipment.length} items
                 {eqSearch && ` matching "${eqSearch}"`}
               </p>
 
+              {/* Scrollable list region. The Pull List card lives INSIDE
+                  the scroll so picking a location doesn't pin a tall card
+                  above the cards on mobile. */}
+              <div className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto overscroll-none pt-2 pb-4">
+              {eqLocationFilter && (
+                <LocationSummary
+                  location={eqLocationFilter}
+                  allGear={equipment.map((e) => ({
+                    id: e.id,
+                    name: e.name,
+                    category: e.category,
+                    hardwareType: e.hardwareType,
+                    headsetType: e.headsetType,
+                    effectiveLocation: effectiveLocation(e),
+                    gooseneck: e.gooseneck,
+                    footswitches: e.footswitches,
+                    speakers: e.speakers,
+                    deployStatus: e.deployStatus,
+                  }))}
+                />
+              )}
               {filteredEquipment.length === 0 ? (
                 <EmptyState icon={<WrenchIcon />} title={eqSearch ? 'No matches found' : 'No equipment yet'} message={eqSearch ? 'Try a different search term.' : 'Add equipment using the button above.'} />
               ) : (
@@ -1502,15 +1543,16 @@ export function ProjectPage({
                   })}
                 </div>
               )}
-            </>
+              </div>
+            </div>
           )}
 
           {/* ═══════════════════════════════ TEAM TAB ═══════════════════════════════ */}
           {activeTab === 'team' && (
-            <>
-              {/* Sticky bundle: search bar + filter chips. */}
-              <div className="sticky top-16 z-20 -mx-4 bg-[#202020] px-4 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-                <div className="flex items-center gap-3 pb-3">
+            <div className="flex min-h-0 flex-1 flex-col">
+              {/* Mobile-only sticky bundle: search + filter chips. */}
+              <div className="flex-shrink-0 -mx-4 bg-[#202020] px-4 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+                <div className="flex items-center gap-3 pb-4 sm:hidden">
                   <div className="flex-1">
                     <input
                       type="text"
@@ -1520,9 +1562,15 @@ export function ProjectPage({
                       className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
                     />
                   </div>
-                  {canEditTeam && !showAddMember && <Button onClick={() => setShowAddMember(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Member</span></Button>}
-                  {!canEditTeam && isCrew && !showTeamQr && <Button onClick={() => setShowTeamQr(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Show QR</span></Button>}
+                  {canEditTeam && !showAddMember && (
+                    <button type="button" onClick={() => setShowAddMember(true)} aria-label="Add Member" className="flex shrink-0 items-center justify-center rounded-lg bg-[#0178a3] px-4 py-2.5 text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
+                  )}
+                  {!canEditTeam && isCrew && !showTeamQr && (
+                    <button type="button" onClick={() => setShowTeamQr(true)} aria-label="Show QR" className="flex shrink-0 items-center justify-center rounded-lg bg-[#0178a3] px-4 py-2.5 text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
+                  )}
                 </div>
+                {/* Mobile-only divider line below the search row. */}
+                <div className="h-0.5 bg-white/[0.12] mb-4 flex-shrink-0 sm:hidden" />
 
                 {/* Filter chips: assignable equipment categories (Panels /
                     Wireless BP / Hardwire BP) plus an A–Z sort toggle on the
@@ -1535,23 +1583,25 @@ export function ProjectPage({
                   const cats = usedEquipmentCategories.filter((c) => c.assignable)
                   if (cats.length === 0) return null
                   return (
-                    <div className="flex flex-wrap gap-2 pb-3">
-                      <Chip active={teamCategoryFilter === null} onClick={() => setTeamCategoryFilter(null)}>
-                        All
-                      </Chip>
-                      {cats.map((c) => (
-                        <Chip
-                          key={c.value}
-                          active={teamCategoryFilter === c.value}
-                          onClick={() => setTeamCategoryFilter(teamCategoryFilter === c.value ? null : c.value)}
-                        >
-                          {c.label}
+                    <div className="pb-3">
+                      <ChipScroller>
+                        <Chip active={teamCategoryFilter === null} onClick={() => setTeamCategoryFilter(null)}>
+                          All
                         </Chip>
-                      ))}
-                      <span aria-hidden className="flex shrink-0 items-center px-1 text-2xl font-bold leading-none text-[#22a7d3]">·</span>
-                      <Chip active={teamSortAbc} onClick={() => setTeamSortAbc(!teamSortAbc)}>
-                        A–Z
-                      </Chip>
+                        {cats.map((c) => (
+                          <Chip
+                            key={c.value}
+                            active={teamCategoryFilter === c.value}
+                            onClick={() => setTeamCategoryFilter(teamCategoryFilter === c.value ? null : c.value)}
+                          >
+                            {c.label}
+                          </Chip>
+                        ))}
+                        <span aria-hidden className="flex shrink-0 items-center px-1 text-2xl font-bold leading-none text-[#22a7d3]">·</span>
+                        <Chip active={teamSortAbc} onClick={() => setTeamSortAbc(!teamSortAbc)}>
+                          A–Z
+                        </Chip>
+                      </ChipScroller>
                     </div>
                   )
                 })()}
@@ -1680,11 +1730,14 @@ export function ProjectPage({
                 </Card>
               )}
 
-              <p className="text-xs text-gray-500">
+              {/* Count text — pinned above the scroll on desktop. */}
+              <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
                 {filteredMembers.length} of {project.members.length} members
                 {teamSearch && ` matching "${teamSearch}"`}
               </p>
 
+              {/* Scrollable list region (desktop). */}
+              <div className="space-y-3 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto overscroll-none pt-2 pb-4">
               {filteredMembers.length === 0 ? (
                 <EmptyState icon={<UsersIcon />} title={teamSearch ? 'No matches found' : 'No team members yet'} message={teamSearch ? 'Try a different search term.' : 'Members join via the project PIN.'} />
               ) : (
@@ -1770,15 +1823,16 @@ export function ProjectPage({
                   })}
                 </div>
               )}
-            </>
+              </div>
+            </div>
           )}
 
           {/* ═══════════════════════════════ PICK LIST TAB ═══════════════════════════════ */}
           {activeTab === 'picklist' && (
-            <>
-              {/* Sticky bundle: search bar + filter chips. */}
-              <div className="sticky top-16 z-20 -mx-4 bg-[#202020] px-4 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-                <div className="flex items-center gap-3 pb-3">
+            <div className="flex min-h-0 flex-1 flex-col">
+              {/* Mobile-only sticky bundle: search + filter chips. */}
+              <div className="flex-shrink-0 -mx-4 bg-[#202020] px-4 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+                <div className="flex items-center gap-3 pb-4 sm:hidden">
                   <div className="flex-1">
                     <input
                       type="text"
@@ -1788,31 +1842,37 @@ export function ProjectPage({
                       className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
                     />
                   </div>
-                  {canEditPickList && !showAddPl && <Button onClick={() => setShowAddPl(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Function</span></Button>}
+                  {canEditPickList && !showAddPl && (
+                    <button type="button" onClick={() => setShowAddPl(true)} aria-label="Add Function" className="flex shrink-0 items-center justify-center rounded-lg bg-[#0178a3] px-4 py-2.5 text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
+                  )}
                 </div>
+                {/* Mobile-only divider line below the search row. */}
+                <div className="h-0.5 bg-white/[0.12] mb-4 flex-shrink-0 sm:hidden" />
 
                 {/* Filter chips: All / function types · A–Z sort toggle.
                     Function-type filter chips on the left, then a cyan dot
                     divider, then the A–Z toggle (same chip styling) on the
                     right. Mirrors the equipment tab's category-then-location
                     pattern. */}
-                <div className="flex flex-wrap gap-2 pb-3">
-                  <Chip active={plTypeFilter === null} onClick={() => setPlTypeFilter(null)}>
-                    All
-                  </Chip>
-                  {FUNCTION_TYPES.map((t) => (
-                    <Chip
-                      key={t}
-                      active={plTypeFilter === t}
-                      onClick={() => setPlTypeFilter(plTypeFilter === t ? null : t)}
-                    >
-                      {FUNCTION_TYPE_LABELS[t] || t}
+                <div className="pb-3">
+                  <ChipScroller>
+                    <Chip active={plTypeFilter === null} onClick={() => setPlTypeFilter(null)}>
+                      All
                     </Chip>
-                  ))}
-                  <span aria-hidden className="flex shrink-0 items-center px-1 text-2xl font-bold leading-none text-[#22a7d3]">·</span>
-                  <Chip active={plSortAbc} onClick={() => setPlSortAbc(!plSortAbc)}>
-                    A–Z
-                  </Chip>
+                    {FUNCTION_TYPES.map((t) => (
+                      <Chip
+                        key={t}
+                        active={plTypeFilter === t}
+                        onClick={() => setPlTypeFilter(plTypeFilter === t ? null : t)}
+                      >
+                        {FUNCTION_TYPE_LABELS[t] || t}
+                      </Chip>
+                    ))}
+                    <span aria-hidden className="flex shrink-0 items-center px-1 text-2xl font-bold leading-none text-[#22a7d3]">·</span>
+                    <Chip active={plSortAbc} onClick={() => setPlSortAbc(!plSortAbc)}>
+                      A–Z
+                    </Chip>
+                  </ChipScroller>
                 </div>
               </div>{/* /sticky bundle */}
 
@@ -1860,10 +1920,14 @@ export function ProjectPage({
                 </Card>
               )}
 
-              <p className="text-xs text-gray-500">
+              {/* Count text — pinned above the scroll on desktop. */}
+              <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
                 {filteredPickList.length} of {pickListItems.filter((p) => p.type !== 'PTP').length} functions
                 {plSearch && ` matching "${plSearch}"`}
               </p>
+
+              {/* Scrollable list region (desktop). */}
+              <div className="space-y-3 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto overscroll-none pt-2 pb-4">
 
               {filteredPickList.length === 0 ? (
                 <EmptyState icon={<ListIcon />} title={plSearch ? 'No matches found' : 'No functions yet'} message={plSearch ? 'Try a different search term.' : 'Add communication functions using the button above.'} />
@@ -1925,14 +1989,16 @@ export function ProjectPage({
                   })}
                 </div>
               )}
-            </>
+              </div>
+            </div>
           )}
 
           {/* ═══════════════════════════════ STAGE PLOTS TAB ═══════════════════════════════ */}
           {activeTab === 'stage-plots' && (
-            <>
-              {/* Search + Add bar */}
-              <div className="sticky top-16 z-20 -mx-4 flex items-center gap-3 bg-[#202020] px-4 pb-3 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+            <div className="flex min-h-0 flex-1 flex-col">
+              {/* Mobile-only sticky search + Add. Desktop has these
+                  in the top toolbar next to the tab strip. */}
+              <div className="flex-shrink-0 -mx-4 flex items-center gap-3 bg-[#202020] px-4 pb-4 pt-3 sm:hidden">
                 <div className="flex-1">
                   <input
                     type="text"
@@ -1943,12 +2009,11 @@ export function ProjectPage({
                   />
                 </div>
                 {isAdmin && !showAddPlot && (
-                  <Button onClick={() => setShowAddPlot(true)}>
-                    <span className="sm:hidden">+</span>
-                    <span className="hidden sm:inline">Add Plot</span>
-                  </Button>
+                  <button type="button" onClick={() => setShowAddPlot(true)} aria-label="Add Plot" className="flex shrink-0 items-center justify-center rounded-lg bg-[#0178a3] px-4 py-2.5 text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
                 )}
               </div>
+              {/* Mobile-only divider line below the search row. */}
+              <div className="h-0.5 bg-white/[0.12] mb-4 flex-shrink-0 sm:hidden -mx-4" />
 
               {/* Add plot form */}
               {isAdmin && showAddPlot && (
@@ -2017,10 +2082,14 @@ export function ProjectPage({
                 </Card>
               )}
 
-              <p className="text-xs text-gray-500">
+              {/* Count text — pinned above the scroll on desktop. */}
+              <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
                 {filteredPlots.length} of {mockPlots.length} {mockPlots.length === 1 ? 'plot' : 'plots'}
                 {plotSearch && ` matching "${plotSearch}"`}
               </p>
+
+              {/* Scrollable list region (desktop). */}
+              <div className="space-y-3 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto overscroll-none pt-2 pb-4">
 
               {filteredPlots.length === 0 ? (
                 <EmptyState
@@ -2119,7 +2188,8 @@ export function ProjectPage({
                   })}
                 </div>
               )}
-            </>
+              </div>
+            </div>
           )}
 
           {/* ═══════════════════════════════ MY EQUIPMENT TAB (User role) ═══════════════════════════════ */}
@@ -2127,11 +2197,14 @@ export function ProjectPage({
             const myEquipment = equipment.filter((e) => e.assignedMemberId === currentMemberId)
             const isPanelType = (cat: string) => ['panels', 'hardwire_bp', 'wireless_bp'].includes(cat)
             return (
-              <>
-                <p className="text-xs text-gray-500">
+              <div className="flex min-h-0 flex-1 flex-col">
+                {/* Count text — pinned above the scroll on desktop. */}
+                <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
                   {myEquipment.length} item{myEquipment.length !== 1 ? 's' : ''} assigned to you
                 </p>
 
+                {/* Scrollable list region (desktop). */}
+                <div className="space-y-3 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto overscroll-none pt-2 pb-4">
                 {myEquipment.length === 0 ? (
                   <EmptyState icon={<WrenchIcon />} title="No equipment assigned" message="You don't have any equipment assigned to you yet." />
                 ) : (
@@ -2168,7 +2241,8 @@ export function ProjectPage({
                     ))}
                   </div>
                 )}
-              </>
+                </div>
+              </div>
             )
           })()}
         </div>

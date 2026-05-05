@@ -54,6 +54,13 @@ type LocationSummaryData = {
   }>
   headsets: Array<{ type: string; count: number }>
   cables: Array<{ label: string; count: number }>
+  /** Number of panels at this location with a gooseneck — also a physical
+   *  pack item, so counted separately from the panel itself. */
+  goosenecks: number
+  /** Total speakers required across all panels at this location. */
+  speakers: number
+  /** Total physical items to pack: equipment rows + headsets + cables +
+   *  goosenecks + speakers. Drives the badge in the card header. */
   totalGear: number
 }
 
@@ -143,7 +150,18 @@ export function buildLocationSummary(
     .map(([label, count]) => ({ label, count }))
     .sort((a, b) => cableOrder.indexOf(a.label) - cableOrder.indexOf(b.label))
 
-  return { byCategory, headsets, cables, totalGear: atLocation.length }
+  // Panel-only accessories that are separate physical pack items.
+  const panels = atLocation.filter((g) => g.category === 'panels')
+  const goosenecks = panels.filter((p) => p.gooseneck).length
+  const speakers = panels.reduce((s, p) => s + (p.speakers ?? 0), 0)
+
+  // Total = equipment rows + every separate physical pack item.
+  const headsetsTotal = headsets.reduce((s, h) => s + h.count, 0)
+  const cablesTotal = cables.reduce((s, c) => s + c.count, 0)
+  const totalGear =
+    atLocation.length + headsetsTotal + cablesTotal + goosenecks + speakers
+
+  return { byCategory, headsets, cables, goosenecks, speakers, totalGear }
 }
 
 /**
@@ -286,6 +304,35 @@ export function LocationSummary({
                 </div>
               )}
             </div>
+
+            {/* Panel-only physical accessories that aren't equipment rows
+                of their own — listed so crew know how many extras to grab
+                from the truck. */}
+            {(summary.goosenecks > 0 || summary.speakers > 0) && (
+              <div>
+                <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                  Misc accessories
+                </div>
+                <div className="space-y-1">
+                  {summary.goosenecks > 0 && (
+                    <div className="flex items-baseline gap-2 text-sm">
+                      <span className="font-mono font-semibold tabular-nums text-[#22a7d3]">
+                        {summary.goosenecks}×
+                      </span>
+                      <span className="text-gray-200">Goosenecks</span>
+                    </div>
+                  )}
+                  {summary.speakers > 0 && (
+                    <div className="flex items-baseline gap-2 text-sm">
+                      <span className="font-mono font-semibold tabular-nums text-[#22a7d3]">
+                        {summary.speakers}×
+                      </span>
+                      <span className="text-gray-200">Speakers</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Cable totals derived from each panel's footswitch + speaker
                 accessories at this location. Hidden entirely when no panel

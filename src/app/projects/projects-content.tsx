@@ -108,6 +108,7 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
         title="Projects"
         titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
         inlineAction
+        stickyHeader
         action={!showForm ? (
           <Button onClick={() => setShowForm(true)}>
             <span className="sm:hidden">+</span>
@@ -152,9 +153,10 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
           </Card>
         )}
 
-        {/* Search bar */}
+        {/* Search bar — sticky on mobile (page scroll), flex-shrink-0
+            on desktop (sits above the scrollable list). */}
         {projects.length > 0 && (
-          <div className="sticky top-16 z-20 -mx-4 bg-[#202020] px-4 pb-3 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+          <div className="sticky top-16 z-20 -mx-4 bg-[#202020] px-4 pb-3 pt-3 sm:static sm:top-auto sm:z-auto sm:flex-shrink-0 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
             <input
               type="text"
               placeholder="Search projects..."
@@ -179,7 +181,9 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
             message="Try a different search term."
           />
         ) : (
-          <div className="space-y-2">
+          // Scrollable region (desktop): card list scrolls inside this
+          // div while the search bar above stays put.
+          <div className="space-y-2 sm:flex-1 sm:overflow-y-auto sm:overscroll-none sm:pt-1 sm:pb-4">
             {filteredProjects.map((project) => {
               const isArchived = project.status === 'archived'
               return (

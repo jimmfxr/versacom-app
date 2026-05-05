@@ -79,7 +79,7 @@ export function KioskClient({
     // accounts for iOS Safari's collapsible chrome). Children flex to
     // consume remaining space so the pending list scroll region grows
     // dynamically — fits 5 cards on a small screen, 13 on iPad Pro.
-    <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-[#202020] px-4 py-10 sm:py-16">
+    <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-[#202020] px-4 pb-0 pt-6 sm:pt-10">
       {/* Close (returns to project Team tab) */}
       <button
         type="button"
@@ -153,6 +153,7 @@ function FormView({
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [error, setError] = useState<string | null>(null)
+
   const [pending2, startTransition] = useTransition()
   const [pendingSearch, setPendingSearch] = useState('')
 
@@ -266,11 +267,12 @@ function FormView({
                 No matches for &ldquo;{pendingSearch}&rdquo;.
               </p>
             ) : (
-              // flex-1 + min-h-0 + overflow-y-auto: takes whatever vertical
-              // space the form/divider/header didn't claim, and scrolls
-              // when there's more content than fits. Dynamic — fills the
-              // page on iPad portrait, smaller on a phone.
-              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+              // flex-initial: container hugs its content when there's
+              // room (no partial card cut). min-h-0 still lets it
+              // shrink below content size when too many cards, at which
+              // point overflow-y-auto kicks in. pb-4 matches the inner
+              // scroll padding used on project / tasks pages.
+              <div className="min-h-0 flex-initial space-y-2 overflow-y-auto overscroll-none pb-4 pr-1">
                 {filteredPending.map((m) => (
                   <button
                     key={m.id}

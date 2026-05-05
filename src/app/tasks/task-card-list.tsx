@@ -210,7 +210,7 @@ export function TaskCardList({
       })
 
   const SearchBar = (
-    <div className="sticky top-16 z-20 -mx-4 mb-3 bg-[#202020] px-4 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+    <div className="flex-shrink-0 -mx-4 mb-3 bg-[#202020] px-4 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
       <div className="flex items-center gap-3 pb-3">
         <div className="flex-1">
           <input
@@ -236,10 +236,11 @@ export function TaskCardList({
 
   if (visible.length === 0) {
     return (
-      <>
+      <div className="flex min-h-0 flex-1 flex-col">
         {SearchBar}
-        {selectedLocation && <LocationSummary location={selectedLocation} allGear={allGear} />}
-        <div className="flex flex-col items-center rounded-2xl bg-[#2a2a2a] px-6 py-12 text-center">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-none pb-4 pt-1">
+          {selectedLocation && <LocationSummary location={selectedLocation} allGear={allGear} />}
+          <div className="flex flex-col items-center rounded-2xl bg-[#2a2a2a] px-6 py-12 text-center">
           <svg className="size-12 text-green-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
           </svg>
@@ -249,8 +250,9 @@ export function TaskCardList({
           <div className="mt-1 text-xs text-gray-500">
             {q.length > 0 ? 'No tasks match your search.' : 'All deployed. Nice work.'}
           </div>
+          </div>
         </div>
-      </>
+      </div>
     )
   }
 
@@ -269,16 +271,19 @@ export function TaskCardList({
   }
 
   return (
-    <>
+    <div className="flex min-h-0 flex-1 flex-col">
       {SearchBar}
-      {selectedLocation && (
-        <LocationSummary
-          location={selectedLocation}
-          allGear={allGear}
-          label={returnVisible.length > 0 && deployVisible.length === 0 ? 'Return list' : 'Pull list'}
-        />
-      )}
-      <div className="space-y-8">
+      {/* Single scroll region for everything below the search: Pull List
+          card + Deploy / Return sections all scroll together so the
+          Pull List doesn't pin and steal vertical space on mobile. */}
+      <div className="min-h-0 flex-1 space-y-8 overflow-y-auto overscroll-none pb-4 pt-1">
+        {selectedLocation && (
+          <LocationSummary
+            location={selectedLocation}
+            allGear={allGear}
+            label={returnVisible.length > 0 && deployVisible.length === 0 ? 'Return list' : 'Pull list'}
+          />
+        )}
         <TaskSection
           title="Deploy"
           cards={deployVisible}
@@ -298,7 +303,7 @@ export function TaskCardList({
           groupByProject={groupByProject}
         />
       </div>
-    </>
+    </div>
   )
 }
 

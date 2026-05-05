@@ -186,6 +186,7 @@ export default async function TasksPage({
       <PageLayout
         title="Tasks"
         titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
+        stickyHeader
         action={
           userProjects.length > 1 && validFilteredId != null ? (
             <ProjectSwitcher

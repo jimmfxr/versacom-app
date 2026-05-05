@@ -10,3 +10,13 @@ html {
   touch-action: manipulation;
 }
 
+/* Kill the macOS / Chrome elastic overscroll bounce on the document
+   itself. Without this, scrolling past the top of any inner overflow
+   container can still drag the whole page (and the sticky header /
+   tabs / chips with it) before snapping back. Belt-and-suspenders with
+   the overscroll-none on the actual scroll container in PageLayout. */
+html,
+body {
+  overscroll-behavior: none;
+}
+
