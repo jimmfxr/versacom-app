@@ -355,6 +355,84 @@ function ListIcon() {
   )
 }
 
+/**
+ * Renders the assigned-users line on a pick-list card.
+ * - Desktop (sm+): always shows every user, wrapping to as many rows as needed.
+ * - Mobile: clamped to 2 rows by default. If the full text overflows, a
+ *   "+N more" button appears that expands to show all users; tapping
+ *   "Show less" collapses again.
+ *
+ * The N is computed visually: we render an offscreen full list, measure how
+ * many users fit in 2 rows, and the rest become "+N more".
+ */
+function PickListUsers({ users }: { users: string[] }) {
+  const [expanded, setExpanded] = useState(false)
+  const measureRef = useRef<HTMLSpanElement | null>(null)
+  const [hiddenCount, setHiddenCount] = useState(0)
+
+  // Recompute hidden count whenever the list or viewport changes. We
+  // render every user as its own inline-block span, then walk them and
+  // count how many fit on the first two lines (offsetTop transitions).
+  useEffect(() => {
+    function recompute() {
+      const root = measureRef.current
+      if (!root) return
+      // Desktop: show all, no truncation.
+      if (window.matchMedia('(min-width: 640px)').matches) {
+        setHiddenCount(0)
+        return
+      }
+      const spans = Array.from(root.querySelectorAll<HTMLElement>('[data-user]'))
+      if (spans.length === 0) { setHiddenCount(0); return }
+      const firstTop = spans[0].offsetTop
+      let rowCount = 1
+      let lastRowTop = firstTop
+      let visible = 0
+      for (const s of spans) {
+        if (s.offsetTop !== lastRowTop) {
+          rowCount += 1
+          lastRowTop = s.offsetTop
+          if (rowCount > 2) break
+        }
+        visible += 1
+      }
+      setHiddenCount(Math.max(0, spans.length - visible))
+    }
+    recompute()
+    window.addEventListener('resize', recompute)
+    return () => window.removeEventListener('resize', recompute)
+  }, [users])
+
+  // Desktop always shows all; mobile shows all when expanded or when
+  // nothing's hidden. Otherwise we let the visual clamp do its job.
+  const showAll = expanded || hiddenCount === 0
+
+  return (
+    <div className="mt-1.5 text-xs">
+      <span
+        ref={measureRef}
+        className={showAll ? 'text-[#22a7d3]' : 'line-clamp-2 text-[#22a7d3] sm:line-clamp-none'}
+      >
+        {users.map((u, i) => (
+          <span key={i} data-user>
+            {u}
+            {i < users.length - 1 ? ', ' : ''}
+          </span>
+        ))}
+      </span>
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v) }}
+          className="mt-1 text-gray-400 hover:text-white sm:hidden"
+        >
+          {expanded ? 'Show less' : `+${hiddenCount} more`}
+        </button>
+      )}
+    </div>
+  )
+}
+
 /* ─── Main Component ─── */
 
 export function ProjectPage({
@@ -2044,12 +2122,7 @@ export function ProjectPage({
                                 <span className="rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-medium text-gray-300">{FUNCTION_TYPE_LABELS[item.type] || item.type}</span>
                               </div>
                               {item.users.length > 0 ? (
-                                <div className="mt-1.5 text-xs">
-                                  <span className="text-[#22a7d3]">{item.users.slice(0, 3).join(', ')}</span>
-                                  {item.users.length > 3 && (
-                                    <span className="text-gray-500"> +{item.users.length - 3} more</span>
-                                  )}
-                                </div>
+                                <PickListUsers users={item.users} />
                               ) : (
                                 <div className="mt-1.5 text-xs italic text-gray-500">Unused</div>
                               )}
