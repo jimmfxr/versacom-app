@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { ChevronLeftIcon } from '@heroicons/react/24/outline'
 import {
   DndContext,
+  DragOverlay,
+  MeasuringStrategy,
   MouseSensor,
   TouchSensor,
   KeyboardSensor,
@@ -14,7 +16,36 @@ import {
   useDroppable,
   type DragEndEvent,
   type DragStartEvent,
+  type Modifier,
 } from '@dnd-kit/core'
+
+/* dnd-kit modifier: pin the centre of the dragged chip to the cursor.
+ * Without this the chip floats at whatever offset the user clicked,
+ * which on a small chip looks like the preview is "lagging" off to
+ * the side. Centre-snap makes the preview feel attached to the
+ * pointer regardless of where on the chip the user grabbed. */
+const snapCenterToCursor: Modifier = ({ activatorEvent, draggingNodeRect, transform }) => {
+  if (!activatorEvent || !draggingNodeRect) return transform
+  let pointerX = 0
+  let pointerY = 0
+  const ev = activatorEvent as PointerEvent | MouseEvent | TouchEvent
+  if ('touches' in ev && ev.touches.length > 0) {
+    pointerX = ev.touches[0].clientX
+    pointerY = ev.touches[0].clientY
+  } else if ('clientX' in ev) {
+    pointerX = (ev as MouseEvent).clientX
+    pointerY = (ev as MouseEvent).clientY
+  } else {
+    return transform
+  }
+  const offsetX = pointerX - draggingNodeRect.left
+  const offsetY = pointerY - draggingNodeRect.top
+  return {
+    ...transform,
+    x: transform.x + offsetX - draggingNodeRect.width / 2,
+    y: transform.y + offsetY - draggingNodeRect.height / 2,
+  }
+}
 import { AppShell } from '@/components/app-shell'
 import { Button } from '@/components/button'
 import { showToast } from '@/components/toast'
@@ -291,7 +322,26 @@ export function PanelStudio({
   const [activePage, setActivePage] = useState<'main' | 'shift'>('main')
   const [selectedKeyId, setSelectedKeyId] = useState<string | null>(null)
   const [inspectorOpen, setInspectorOpen] = useState(false)
+  // Persist the picker card's open/closed state across panel navigations
+  // (e.g. when the user uses the BrowseMemberSwitcher to jump between
+  // equipment) so an admin who opened the picker on one user keeps it
+  // open on the next, instead of having to re-open it every time. Uses
+  // sessionStorage so the preference resets per browser session. We
+  // initialise to `false` and sync from storage in an effect to avoid
+  // a hydration mismatch between server (no window) and client.
+  const PICKER_OPEN_STORAGE_KEY = 'panelStudio:pickerOpen'
   const [pickerMode, setPickerMode] = useState(false)
+  // Read the stored value once on mount.
+  useEffect(() => {
+    try {
+      if (window.sessionStorage.getItem(PICKER_OPEN_STORAGE_KEY) === '1') setPickerMode(true)
+    } catch {}
+  }, [])
+  // Write back whenever it changes.
+  useEffect(() => {
+    try { window.sessionStorage.setItem(PICKER_OPEN_STORAGE_KEY, pickerMode ? '1' : '0') }
+    catch {}
+  }, [pickerMode])
   const [keys, setKeys] = useState<KeyState[]>(() => initializeKeys(initialPanelKeys, keyCount))
   const [clipboard, setClipboard] = useState<{ pickListItemId: number | null; pickListItemName: string | null; pickListItemType: string | null; triggerMode: string } | null>(null)
   const [flashingKey, setFlashingKey] = useState<{ id: string; color: string } | null>(null)
@@ -477,6 +527,10 @@ export function PanelStudio({
   const approvedCount = totalReviewKeys - rejectedCount
 
   const inspectorRef = useRef<HTMLElement>(null)
+  // Kept as a ref but no longer measured — header + picker card both
+  // use a fixed max-w-7xl container now (the chassisWidth-tracked
+  // alignment caused tiny chassis sizes to scatter the header content
+  // and squeeze chips).
   const chassisRef = useRef<HTMLDivElement>(null)
 
   /* ─── Initialize keys from server data ─── */
@@ -549,12 +603,23 @@ export function PanelStudio({
 
   /* ─── Key selection ─── */
   function selectKey(id: string) {
-    setSelectedKeyId(id)
     const key = getKey(id)
-    if (key) {
-      setInspectorOpen(true)
-      setPickerMode(false)
+    if (!key) return
+    // Toggle: tapping the already-selected key closes the picker (or
+    // detail view) — a single key click should be able to dismiss the
+    // UI it just opened, not just reopen it.
+    if (selectedKeyId === id && (pickerMode || inspectorOpen)) {
+      closeInspector()
+      return
     }
+    setSelectedKeyId(id)
+    // canEditKeys: jump straight into picker mode so the picker card
+    // (desktop) or picker view inside the inspector (mobile) is what
+    // the user sees first — no intermediate "key details" step.
+    // Read-only viewers still get the detail view since they have
+    // nothing to pick.
+    setInspectorOpen(true)
+    setPickerMode(canEditKeys)
   }
 
   function deselectAll() {
@@ -650,7 +715,11 @@ export function PanelStudio({
       triggerMode: 'momentary',
       status: isRequestMode ? 'changed' : 'assigned',
     })
-    setPickerMode(false)
+    // Stay in picker mode after assigning so the user can keep
+    // tapping chips to fill more keys without the picker collapsing
+    // back to the old detail-view modal. To exit, click the X on the
+    // card or tap the same key again. Drop-to-assign in handleDndEnd
+    // already follows this same "stay open" pattern.
     flashKey(id, '#10b981')
   }
 
@@ -991,9 +1060,18 @@ export function PanelStudio({
      KeyboardSensor stays for a11y. */
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 500, tolerance: 5 } }),
+    // iPad-tuned: 250ms feels responsive without false-firing during a
+    // scroll swipe (which moves > 8px well within that window). 8px
+    // tolerance is forgiving for a finger that can't sit perfectly
+    // still while pressing.
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
     useSensor(KeyboardSensor)
   )
+
+  // Currently-dragged picker item — used by the DragOverlay below so a
+  // chip dragged out of its scroll-column doesn't get clipped (the
+  // overlay renders outside the column at the document root).
+  const [activeDragChip, setActiveDragChip] = useState<PickerItem | null>(null)
 
   function handleDndStart(event: DragStartEvent) {
     if (!canEditKeys) return
@@ -1002,8 +1080,10 @@ export function PanelStudio({
     if (data.kind === 'key') {
       setDragSourceId(data.sourceId)
       selectKey(data.sourceId)
+      setActiveDragChip(null)
     } else if (data.kind === 'picklist') {
       setDragSourceId(null)
+      setActiveDragChip(data.item)
     }
   }
 
@@ -1055,10 +1135,12 @@ export function PanelStudio({
     }
 
     setDragSourceId(null)
+    setActiveDragChip(null)
   }
 
   function handleDndCancel() {
     setDragSourceId(null)
+    setActiveDragChip(null)
   }
 
   /* ─── Build picker items (PickList + PTP) ─── */
@@ -1184,7 +1266,12 @@ export function PanelStudio({
 
         if (isSelected) keyClasses += ' !border-[#22a7d3] !shadow-[0_0_16px_rgba(34,167,211,0.5)] -translate-y-1'
         if (isDragging) keyClasses += ' opacity-30 scale-[0.92]'
-        if (isDragOver) keyClasses += ' !border-[#22a7d3] !shadow-[0_0_20px_rgba(34,167,211,0.6)] -translate-y-[3px] !bg-[rgba(34,167,211,0.08)]'
+        // Scale + glow gives a clear "you're dropping here" cue. The
+        // DndContext above is configured with MeasuringStrategy.Always
+        // so the droppable rect re-measures every frame and the
+        // larger scaled rect is what dnd-kit checks against — no
+        // missed drops at the edge.
+        if (isDragOver) keyClasses += ' !border-[#22a7d3] !shadow-[0_0_28px_rgba(34,167,211,0.85)] !bg-[rgba(34,167,211,0.18)] !scale-125 z-10'
         if (!isSelected && !isDragging && !isDragOver && !hasReviewChange) keyClasses += ' hover:-translate-y-[2px] hover:border-[#4a4a4a]'
         if (hasReviewChange) keyClasses += ' hover:scale-[0.96] active:scale-[0.92]'
         return keyClasses
@@ -1342,6 +1429,18 @@ export function PanelStudio({
       <DndContext
         id="panel-studio-dnd"
         sensors={sensors}
+        // Snap the chip's centre to the cursor for both visual AND
+        // collision detection. (Same modifier on DragOverlay alone
+        // would only shift the visual, leaving collision behind at
+        // the click-offset position — drops would miss the target the
+        // user is visually hovering.)
+        modifiers={activeDragChip ? [snapCenterToCursor] : []}
+        // Re-measure droppable rects continuously while dragging so a
+        // drop target that grows visually on hover (scale-125) keeps
+        // its collision rect in sync with what the user sees. Without
+        // this, dnd-kit caches the rect at drag start and drops near
+        // the edge land outside the cached rect.
+        measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
         onDragStart={handleDndStart}
         onDragEnd={handleDndEnd}
         onDragCancel={handleDndCancel}
@@ -1416,190 +1515,385 @@ export function PanelStudio({
               />
             )}
 
-            <div className="relative flex flex-col items-center justify-center flex-1 min-h-0">
+            <div className={`relative flex flex-col items-center flex-1 min-h-0 ${pickerMode && canEditKeys ? 'justify-center sm:justify-start' : 'justify-center'}`}>
 
-              {/* ─── Floating picker card (desktop only) ───
-                  Anchored top-left of the chassis area. Houses three
-                  controls: function-type filter, trigger-mode for the
-                  selected key, and a one-tap Unassign button. Mirrors
-                  the controls that live inside the right-side picker
-                  panel on mobile — on desktop those are hidden so the
-                  card is the single source of truth. */}
+              {/* ─── Inline picker card (desktop only) ───
+                  Sits at the very top of the studio workspace, between
+                  the project/member dropdown row above and the user-
+                  name strip below. Houses everything the picker needs:
+                  function-type filter, trigger-mode for the selected
+                  key, an Unassign button, search, and pick-list items
+                  rendered as tab-style chips that wrap so many fit per
+                  row. Function-type filter dictates which chips appear.
+                  A close X in the top-right collapses the card. The
+                  right-side inspector picker is hidden on desktop so
+                  this card is the only picker UI; mobile keeps the
+                  inspector picker untouched. */}
               {pickerMode && canEditKeys && (
-                <div className="absolute left-4 top-4 z-20 hidden w-[260px] flex-col gap-2.5 rounded-xl border border-white/10 bg-[#2a2a2a] p-3.5 shadow-2xl sm:flex">
-                  <div className="flex flex-col gap-1.5">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Function Type</div>
-                    <div className="relative w-full">
-                      <select
-                        value={pickerFilter}
-                        onChange={(e) => setPickerFilter(e.target.value)}
-                        className="block w-full appearance-none rounded-lg border border-white/10 bg-[#202020] px-3 py-2 pr-9 text-[13px] text-white outline-none transition-[border-color] hover:border-white/20 focus:border-[#0178a3]"
-                      >
-                        {filterTypes.map((type) => (
-                          <option key={type} value={type}>
-                            {type === 'All' ? 'All function types' : type === 'Audio' ? 'Audio I/O' : type}
-                          </option>
-                        ))}
-                      </select>
-                      <svg
-                        className="pointer-events-none absolute right-3 top-1/2 size-3 -translate-y-1/2 text-gray-400"
-                        viewBox="0 0 20 20"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <polyline points="5 8 10 13 15 8" />
-                      </svg>
-                    </div>
-                  </div>
+                // Outer wrapper matches the chassis scrollable's
+                // padding so vertical alignment looks right. Inner
+                // wrapper sets its width to the measured chassis
+                // width via ResizeObserver above — that guarantees the
+                // card's left/right edges line up with the chassis
+                // even as keys / expansions change the chassis size.
+                // flex-shrink + min-h-0 lets the card give space back
+                // to the chassis when expansions are active so both
+                // fit in the viewport without page scroll.
+                <div className="hidden min-h-0 w-full flex-shrink justify-center overflow-hidden px-4 pt-3 lg:flex lg:px-10 lg:pt-4">
+                  <div
+                    // Picker card holds its own comfortable width
+                    // (max-w-7xl) regardless of how small the chassis
+                    // is — the chassisWidth match was making chips
+                    // squeeze unreadably on narrow panels (e.g. a
+                    // 16-key beltpack). The card is a separate visual
+                    // unit from the chassis; only the studio header
+                    // still tracks chassis width to keep the identity
+                    // text "contained with the logo".
+                    className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col border-b border-white/10 pb-4"
+                  >
+                    {/* Top row: 3 controls + search + close — separated
+                        from the chip grid below by the same border style
+                        as the divider between the two chip columns. */}
+                    <div className="flex flex-wrap items-end gap-3 border-b border-white/10 pb-3.5">
+                      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Function Type</div>
+                        <div className="relative w-full">
+                          <select
+                            value={pickerFilter}
+                            onChange={(e) => setPickerFilter(e.target.value)}
+                            className="block w-full appearance-none rounded-lg border border-white/10 bg-[#202020] px-3 py-2 pr-9 text-[13px] text-white outline-none transition-[border-color] hover:border-white/20 focus:border-[#0178a3]"
+                          >
+                            {filterTypes.map((type) => (
+                              <option key={type} value={type}>
+                                {type === 'All' ? 'All function types' : type === 'Audio' ? 'Audio I/O' : type}
+                              </option>
+                            ))}
+                          </select>
+                          <svg className="pointer-events-none absolute right-3 top-1/2 size-3 -translate-y-1/2 text-gray-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="5 8 10 13 15 8" />
+                          </svg>
+                        </div>
+                      </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Trigger Mode</div>
-                    <div className="relative w-full">
-                      <select
-                        value={selectedKey?.triggerMode || 'latch'}
-                        onChange={(e) => selectedKeyId && setTriggerMode(selectedKeyId, e.target.value)}
-                        className="block w-full appearance-none rounded-lg border border-white/10 bg-[#202020] px-3 py-2 pr-9 text-[13px] text-white outline-none transition-[border-color] hover:border-white/20 focus:border-[#0178a3]"
-                      >
-                        <option value="auto">Auto</option>
-                        <option value="latch">Latching</option>
-                        <option value="momentary">Momentary</option>
-                      </select>
-                      <svg
-                        className="pointer-events-none absolute right-3 top-1/2 size-3 -translate-y-1/2 text-gray-400"
-                        viewBox="0 0 20 20"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <polyline points="5 8 10 13 15 8" />
-                      </svg>
-                    </div>
-                  </div>
+                      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Trigger Mode</div>
+                        <div className="relative w-full">
+                          <select
+                            value={selectedKey?.triggerMode || 'latch'}
+                            onChange={(e) => selectedKeyId && setTriggerMode(selectedKeyId, e.target.value)}
+                            className="block w-full appearance-none rounded-lg border border-white/10 bg-[#202020] px-3 py-2 pr-9 text-[13px] text-white outline-none transition-[border-color] hover:border-white/20 focus:border-[#0178a3]"
+                          >
+                            <option value="auto">Auto</option>
+                            <option value="latch">Latching</option>
+                            <option value="momentary">Momentary</option>
+                          </select>
+                          <svg className="pointer-events-none absolute right-3 top-1/2 size-3 -translate-y-1/2 text-gray-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="5 8 10 13 15 8" />
+                          </svg>
+                        </div>
+                      </div>
 
-                  {(() => {
-                    const isUnassignedActive = !selectedKey?.pickListItemId
-                    return (
+                      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500">&nbsp;</div>
+                        {(() => {
+                          const isUnassignedActive = !selectedKey?.pickListItemId
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                // Haptic blip on supported devices (iOS
+                                // Safari has no Vibration API yet, but
+                                // it's a no-op there). Fires regardless
+                                // of whether the key was already empty —
+                                // the user's tapped a button and should
+                                // feel something.
+                                try { navigator.vibrate?.(15) } catch {}
+                                if (selectedKeyId) clearKey(selectedKeyId)
+                              }}
+                              className={`flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-[13px] font-semibold transition-colors ${
+                                isUnassignedActive
+                                  ? 'border-[rgba(34,167,211,0.5)] bg-[rgba(34,167,211,0.12)] text-[#22a7d3]'
+                                  : 'border-white/10 bg-[#202020] text-gray-300 hover:border-white/20 hover:bg-white/[0.06] hover:text-white'
+                              }`}
+                            >
+                              Clear Key
+                            </button>
+                          )
+                        })()}
+                      </div>
+
+                      <div className="min-w-[200px] flex-1">
+                        <input
+                          type="text"
+                          placeholder="Search by name or code..."
+                          value={pickerSearch}
+                          onChange={(e) => setPickerSearch(e.target.value)}
+                          className="block w-full rounded-lg border border-white/10 bg-[#202020] px-3.5 py-2 text-[13px] text-white outline-none transition-[border-color] placeholder:text-gray-500 hover:border-white/20 focus:border-[#0178a3]"
+                          autoCapitalize="off"
+                          autoCorrect="off"
+                          autoComplete="off"
+                          spellCheck={false}
+                        />
+                      </div>
+
+                      {/* Close X — top-right of the card. Closes the
+                          inspector too so we don't fall back into the
+                          old detail-view modal on desktop. */}
                       <button
                         type="button"
-                        onClick={() => {
-                          if (selectedKeyId) clearKey(selectedKeyId)
-                          setPickerMode(false)
-                        }}
-                        className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-[12px] font-semibold transition-colors ${
-                          isUnassignedActive
-                            ? 'border-[rgba(34,167,211,0.5)] bg-[rgba(34,167,211,0.12)] text-[#22a7d3]'
-                            : 'border-white/10 bg-white/[0.03] text-gray-300 hover:border-white/20 hover:bg-white/[0.06] hover:text-white'
-                        }`}
+                        onClick={() => { closeInspector() }}
+                        aria-label="Close picker"
+                        className="flex size-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-white/[0.06] hover:text-white"
                       >
-                        <svg className="size-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                         </svg>
-                        Unassigned · Clear key
                       </button>
-                    )
-                  })()}
+                    </div>
+
+                    {/* Items as tab-style chips, split into two columns:
+                        left = everything except PTP (CONF, IFB, Audio,
+                        GRP) grouped by type, right = PTP (panels &
+                        beltpacks). Each column scrolls independently
+                        so a long PTP list doesn't push the rest off
+                        screen. min-h-0 + flex-1 lets the whole grid
+                        auto-shrink so the chassis below stays in view
+                        when expansions are active. */}
+                    {(() => {
+                      const renderChip = (item: PickerItem) => {
+                        const isActive = selectedKey?.pickListItemId === item.id
+                        return (
+                          <PickerItemDraggable
+                            key={`${item.type}-${item.id}`}
+                            item={item}
+                            canDrag={canEditKeys}
+                            isActive={isActive}
+                            onClick={() => selectedKeyId && assignPickerItem(selectedKeyId, item)}
+                            className={`inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-[colors,transform] active:scale-95 ${
+                              isActive
+                                ? 'border-[#0178a3] bg-[#0178a3] text-white'
+                                : 'border-white/10 bg-[#202020] text-gray-300 hover:border-white/20 hover:bg-[#2a2a2a] hover:text-white'
+                            }`}
+                          >
+                            <span className="overflow-hidden text-ellipsis whitespace-nowrap">{item.name}</span>
+                            {item.code && (
+                              <span className={`font-mono text-[9px] ${isActive ? 'text-white/70' : 'text-gray-500'}`}>{item.code}</span>
+                            )}
+                          </PickerItemDraggable>
+                        )
+                      }
+                      const renderGroup = (type: string, items: PickerItem[]) => (
+                        <div key={type} className="flex flex-col gap-1.5">
+                          {pickerFilter === 'All' && (
+                            <div className="px-1 text-[10px] font-extrabold uppercase tracking-wider text-gray-500">
+                              {typeLabels[type] || type} &middot; {items.length}
+                              {type === 'PTP' && (
+                                <span className="font-semibold normal-case opacity-60"> (panels & beltpacks)</span>
+                              )}
+                            </div>
+                          )}
+                          <div className="flex flex-wrap gap-1.5">
+                            {items.map(renderChip)}
+                          </div>
+                        </div>
+                      )
+                      const otherEntries = Object.entries(groupedItems).filter(([t]) => t !== 'PTP')
+                      const ptpItems = groupedItems.PTP ?? []
+                      if (Object.keys(groupedItems).length === 0) {
+                        return <div className="py-8 text-center text-sm text-gray-500">No items found</div>
+                      }
+                      return (
+                        <div className="grid min-h-0 flex-1 grid-cols-2 gap-4 overflow-hidden pt-3.5">
+                          <div className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-2">
+                            {otherEntries.length === 0 ? (
+                              <div className="py-4 text-center text-xs text-gray-500">Nothing in this filter</div>
+                            ) : (
+                              otherEntries.map(([type, items]) => renderGroup(type, items))
+                            )}
+                          </div>
+                          <div className="flex min-h-0 flex-col gap-3 overflow-y-auto border-l border-white/10 pl-4">
+                            {ptpItems.length === 0 ? (
+                              <div className="py-4 text-center text-xs text-gray-500">No PTP in this filter</div>
+                            ) : (
+                              renderGroup('PTP', ptpItems)
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })()}
+                  </div>
                 </div>
               )}
 
-              {/* ─── Header (pinned) ─── */}
-              <div className="flex-shrink-0 w-full px-5 pt-2 pb-2 text-center lg:pt-3 lg:pb-4">
-                <div className="flex items-baseline gap-3.5 flex-wrap justify-center mb-1">
-                  {/* Equipment ID (e.g. "PNL 1") sits to the left of the
-                      user name so admins always see which panel they're
-                      editing first. Cyan to match the row-card ID styling. */}
+              {/* ─── Header (pinned) ───
+                  Single layout for all viewports: identity info pushed
+                  far-left, legend + expansion controls pushed far-right
+                  via `justify-between`. Constrained to max-w-7xl
+                  regardless of chassis size — tiny panels (2-key,
+                  4-key) used to make the header track chassisWidth and
+                  squeeze identity text into a stack of lines, while
+                  the picker card stayed wide. Now header + picker share
+                  the same comfortable container width so things stay
+                  visually aligned no matter how small the chassis. */}
+              <div className="flex w-full flex-shrink-0 px-4 pt-2 pb-2 lg:px-10 lg:pt-3 lg:pb-3">
+                <div className="mx-auto flex w-full max-w-7xl flex-nowrap items-center justify-between gap-3">
+                {/* Left: ID · name · meta · ip · project · hardware · key count
+                    All separated by middle dots. Wraps via flex-wrap so
+                    a long identity line doesn't push the right group
+                    off-screen on narrow viewports — but the parent is
+                    flex-nowrap so the two GROUPS stay on one row. */}
+                <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-1 overflow-hidden">
                   {equipment.name && (
-                    <div className="text-[22px] font-bold text-[#22a7d3] font-mono">{equipment.name}</div>
+                    <span className="text-[18px] font-bold text-[#22a7d3] font-mono lg:text-[22px]">{equipment.name}</span>
                   )}
-                  <div className="text-[22px] font-bold text-white">{memberName}</div>
-                  {memberMeta && <div className="text-[13px] text-gray-400">{memberMeta}</div>}
-                  {showIpAddress && equipment.ipAddress && (
-                    <a
-                      href={`http://${equipment.ipAddress}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[13px] text-[#22a7d3] font-mono hover:underline"
-                    >
-                      {equipment.ipAddress}
-                    </a>
+                  {equipment.name && (
+                    <span className="text-xs text-[#3a3a3a]">&middot;</span>
                   )}
-                </div>
-                <div className="text-xs text-gray-500 mb-3.5 text-center">
-                  {project.name}
-                  <span className="mx-2 text-[#3a3a3a]">&middot;</span>
-                  {equipment.hardwareType || 'Unknown'}
-                  <span className="text-gray-500"> &middot; {keyCount}-Key</span>
-                </div>
-
-                {/* Review mode banner */}
-                {isReviewMode && (
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#f59e0b]/10 border border-[#f59e0b]/30 mb-2">
-                    <svg className="size-4 text-[#f59e0b]" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-                    </svg>
-                    <span className="text-xs font-semibold text-[#f59e0b]">Reviewing change request</span>
-                  </div>
-                )}
-
-                {/* Legend + Expansion controls */}
-                <div className="flex gap-4 flex-wrap justify-center">
-                  <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                    <span className="w-[9px] h-[9px] rounded-sm bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
-                    Assigned
-                  </div>
-                  {isRequestMode && (
+                  <span className="text-[18px] font-bold text-white truncate lg:text-[22px]">{memberName}</span>
+                  {memberMeta && (
                     <>
-                      <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                        <span className="w-[9px] h-[9px] rounded-sm bg-[#f59e0b] shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
-                        Changed (draft)
-                      </div>
-                      <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                        <span className="w-[9px] h-[9px] rounded-sm bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.4)] border border-[#10b981]" />
-                        Submitted
-                      </div>
+                      <span className="text-xs text-[#3a3a3a]">&middot;</span>
+                      <span className="text-[13px] text-gray-400">{memberMeta}</span>
                     </>
                   )}
-                  <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                    <span className="w-[9px] h-[9px] rounded-sm border border-dashed border-gray-600 bg-transparent" />
-                    Unassigned
+                  {showIpAddress && equipment.ipAddress && (
+                    <>
+                      <span className="text-xs text-[#3a3a3a]">&middot;</span>
+                      <a
+                        href={`http://${equipment.ipAddress}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[13px] text-[#22a7d3] font-mono hover:underline"
+                      >
+                        {equipment.ipAddress}
+                      </a>
+                    </>
+                  )}
+                  <span className="text-xs text-[#3a3a3a]">&middot;</span>
+                  <span className="text-xs text-gray-500">{project.name}</span>
+                  <span className="text-xs text-[#3a3a3a]">&middot;</span>
+                  <span className="text-xs text-gray-500">{equipment.hardwareType || 'Unknown'}</span>
+                  <span className="text-xs text-[#3a3a3a]">&middot;</span>
+                  <span className="text-xs text-gray-500">{keyCount}-Key</span>
+                  {isReviewMode && (
+                    <span className="ml-2 inline-flex items-center gap-2 rounded-lg border border-[#f59e0b]/30 bg-[#f59e0b]/10 px-3 py-1">
+                      <svg className="size-3.5 text-[#f59e0b]" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                      </svg>
+                      <span className="text-[11px] font-semibold text-[#f59e0b]">Reviewing change request</span>
+                    </span>
+                  )}
+                </div>
+
+                {/* Right: on desktop = legend chips + expansion +/- +
+                    Copy/Save. On mobile = Copy/Save only (the legend
+                    and expansion controls move to the footer next to
+                    the Main/Shift toggle so the header stays compact
+                    on small screens). */}
+                <div className="flex flex-shrink-0 items-center gap-3">
+                  {/* Legend + expansion — desktop only (lg+) */}
+                  <div className="hidden flex-wrap items-center gap-x-2 gap-y-1 lg:flex">
+                    <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                      <span className="w-[9px] h-[9px] rounded-sm bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
+                      Assigned
+                    </div>
+                    {isRequestMode && (
+                      <>
+                        <span className="text-xs text-[#3a3a3a]">&middot;</span>
+                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                          <span className="w-[9px] h-[9px] rounded-sm bg-[#f59e0b] shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
+                          Changed (draft)
+                        </div>
+                        <span className="text-xs text-[#3a3a3a]">&middot;</span>
+                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                          <span className="w-[9px] h-[9px] rounded-sm bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.4)] border border-[#10b981]" />
+                          Submitted
+                        </div>
+                      </>
+                    )}
+                    <span className="text-xs text-[#3a3a3a]">&middot;</span>
+                    <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                      <span className="w-[9px] h-[9px] rounded-sm border border-dashed border-gray-600 bg-transparent" />
+                      Unassigned
+                    </div>
+                    {canManageExpansions && isExpandable && (
+                      <>
+                        <span className="text-xs text-[#3a3a3a]">&middot;</span>
+                        <div className="inline-flex items-center gap-2 text-xs text-gray-300">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Expansions</span>
+                          <span className="font-semibold text-white">{expansionCount}</span>
+                          <div className="inline-flex gap-1.5">
+                            {expansionCount > 0 && (
+                              <button
+                                onClick={handleRemoveExpansion}
+                                disabled={saving}
+                                className="w-7 h-7 rounded-lg border border-white/[0.14] bg-transparent text-red-500 text-lg font-bold flex items-center justify-center hover:bg-red-500/[0.08] hover:border-red-500/40 disabled:opacity-50"
+                              >
+                                &minus;
+                              </button>
+                            )}
+                            {expansionCount < 6 && (
+                              <button
+                                onClick={handleAddExpansion}
+                                disabled={saving}
+                                className="w-7 h-7 rounded-lg border border-white/[0.14] bg-transparent text-[#22a7d3] text-lg font-bold flex items-center justify-center hover:bg-[rgba(34,167,211,0.08)] hover:border-[rgba(34,167,211,0.4)] disabled:opacity-50"
+                              >
+                                +
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
 
-                  {canManageExpansions && isExpandable && (
-                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 text-xs text-gray-300">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Expansions</span>
-                      <span className="font-semibold text-white">{expansionCount}</span>
-                      <div className="inline-flex gap-1.5 ml-1">
-                        {expansionCount > 0 && (
+                  {/* Copy / Paste / Save — moved here from the footer.
+                      Always visible (mobile + desktop) since the user
+                      asked for them on the header right on every
+                      viewport. Hidden in review mode (deny / approve
+                      buttons live in the footer in that mode). */}
+                  {canEditKeys && !isReviewMode && (
+                    <div className="flex items-center gap-2">
+                      {(_currentUserRole === 'admin' || _currentUserRole === 'manager' || isAdminGlobal) && (
+                        <>
                           <button
-                            onClick={handleRemoveExpansion}
-                            disabled={saving}
-                            className="w-7 h-7 rounded-lg border border-white/[0.14] bg-transparent text-red-500 text-lg font-bold flex items-center justify-center hover:bg-red-500/[0.08] hover:border-red-500/40 disabled:opacity-50"
+                            type="button"
+                            onClick={handleCopyPanel}
+                            className="rounded-lg border border-white/10 bg-[#2a2a2a] px-4 py-2 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
                           >
-                            &minus;
+                            Copy
                           </button>
-                        )}
-                        {expansionCount < 6 && (
-                          <button
-                            onClick={handleAddExpansion}
-                            disabled={saving}
-                            className="w-7 h-7 rounded-lg border border-white/[0.14] bg-transparent text-[#22a7d3] text-lg font-bold flex items-center justify-center hover:bg-[rgba(34,167,211,0.08)] hover:border-[rgba(34,167,211,0.4)] disabled:opacity-50"
-                          >
-                            +
-                          </button>
-                        )}
-                      </div>
+                          {panelClipboard && panelClipboard.entries.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={handlePastePanel}
+                              title={`Paste from ${panelClipboard.sourceLabel}`}
+                              className="rounded-lg border border-white/10 bg-[#2a2a2a] px-4 py-2 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                            >
+                              Paste
+                            </button>
+                          )}
+                        </>
+                      )}
+                      {!isRequestMode && (
+                        <button
+                          type="button"
+                          onClick={handleSave}
+                          disabled={saving}
+                          className="rounded-lg bg-[#0178a3] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {saving ? 'Saving...' : 'Save'}
+                        </button>
+                      )}
                     </div>
                   )}
+                </div>
                 </div>
               </div>
 
               {/* ─── Scrollable panel content ─── */}
               <div
-                className={`flex-[0_1_auto] min-h-0 w-full overflow-auto p-4 lg:p-5 lg:px-10 flex transition-[padding-right] duration-300 ${inspectorOpen ? 'xl:pr-[420px] 2xl:pr-10' : ''}`}
+                className={`flex-[0_1_auto] min-h-0 w-full overflow-auto p-4 lg:p-5 lg:px-10 flex transition-[padding-right] duration-300 ${inspectorOpen && !(pickerMode && canEditKeys) ? 'xl:pr-[420px] 2xl:pr-10' : ''}`}
               >
                 <div className="min-w-min mx-auto" ref={chassisRef}>
                   {/* Single chassis card containing expansions + main panel */}
@@ -1625,8 +1919,14 @@ export function PanelStudio({
                 </div>
               </div>
 
-              {/* ─── Footer (pinned) ─── */}
-              <div className="flex-shrink-0 px-4 pb-3 pt-2 flex flex-col items-center gap-3 w-full lg:px-5 lg:pb-5 lg:pt-3">
+
+              {/* ─── Footer (pinned) ───
+                  Mobile: Main/Shift toggle on the left and the
+                  legend + expansion controls on the right (since
+                  Copy/Save now live in the header). Desktop:
+                  centered Main/Shift only — the legend + Copy/Save
+                  already sit in the header right group. */}
+              <div className="flex-shrink-0 w-full px-4 pb-3 pt-2 lg:px-5 lg:pb-5 lg:pt-3 flex flex-wrap items-center justify-between gap-3 lg:justify-center">
                 {isReviewMode ? (
                   <>
                     {/* Review mode summary */}
@@ -1668,7 +1968,7 @@ export function PanelStudio({
                 ) : (
                   <>
                     {/* Main/Shift toggle (panels only) */}
-                    {hasShiftPage && (
+                    {hasShiftPage ? (
                       <div className="inline-flex bg-[#2a2a2a] p-1 rounded-[10px] border border-white/[0.06]">
                         <button
                           onClick={() => { setActivePage('main'); deselectAll() }}
@@ -1683,47 +1983,66 @@ export function PanelStudio({
                           Shift
                         </button>
                       </div>
-                    )}
+                    ) : <span /> /* spacer keeps justify-between balanced on mobile when no shift page */}
 
-                    {/* Save/Submit button */}
-                    {canEditKeys && (
-                      <div className="flex items-center gap-2">
-                        {(_currentUserRole === 'admin' || _currentUserRole === 'manager' || isAdminGlobal) && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={handleCopyPanel}
-                              className="rounded-lg border border-white/10 bg-[#2a2a2a] px-4 py-2 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
-                            >
-                              Copy
-                            </button>
-                            {panelClipboard && panelClipboard.entries.length > 0 && (
-                              <button
-                                type="button"
-                                onClick={handlePastePanel}
-                                title={`Paste from ${panelClipboard.sourceLabel}`}
-                                className="rounded-lg border border-white/10 bg-[#2a2a2a] px-4 py-2 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
-                              >
-                                Paste
-                              </button>
-                            )}
-                          </>
-                        )}
-                        {!isRequestMode && (
-                          // Sized to match the Copy / Paste buttons next
-                          // to it (px-4 py-2 text-xs) instead of the
-                          // smaller default Button size="sm".
-                          <button
-                            type="button"
-                            onClick={handleSave}
-                            disabled={saving}
-                            className="rounded-lg bg-[#0178a3] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {saving ? 'Saving...' : 'Save'}
-                          </button>
-                        )}
+                    {/* Mobile-only legend + expansion (sits to the right
+                        of the Main/Shift toggle). Hidden on desktop —
+                        same content already lives in the header right
+                        group there. */}
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 lg:hidden">
+                      <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                        <span className="w-[9px] h-[9px] rounded-sm bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
+                        Assigned
                       </div>
-                    )}
+                      {isRequestMode && (
+                        <>
+                          <span className="text-xs text-[#3a3a3a]">&middot;</span>
+                          <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                            <span className="w-[9px] h-[9px] rounded-sm bg-[#f59e0b] shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
+                            Changed (draft)
+                          </div>
+                          <span className="text-xs text-[#3a3a3a]">&middot;</span>
+                          <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                            <span className="w-[9px] h-[9px] rounded-sm bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.4)] border border-[#10b981]" />
+                            Submitted
+                          </div>
+                        </>
+                      )}
+                      <span className="text-xs text-[#3a3a3a]">&middot;</span>
+                      <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                        <span className="w-[9px] h-[9px] rounded-sm border border-dashed border-gray-600 bg-transparent" />
+                        Unassigned
+                      </div>
+                      {canManageExpansions && isExpandable && (
+                        <>
+                          <span className="text-xs text-[#3a3a3a]">&middot;</span>
+                          <div className="inline-flex items-center gap-2 text-xs text-gray-300">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Expansions</span>
+                            <span className="font-semibold text-white">{expansionCount}</span>
+                            <div className="inline-flex gap-1.5">
+                              {expansionCount > 0 && (
+                                <button
+                                  onClick={handleRemoveExpansion}
+                                  disabled={saving}
+                                  className="w-7 h-7 rounded-lg border border-white/[0.14] bg-transparent text-red-500 text-lg font-bold flex items-center justify-center hover:bg-red-500/[0.08] hover:border-red-500/40 disabled:opacity-50"
+                                >
+                                  &minus;
+                                </button>
+                              )}
+                              {expansionCount < 6 && (
+                                <button
+                                  onClick={handleAddExpansion}
+                                  disabled={saving}
+                                  className="w-7 h-7 rounded-lg border border-white/[0.14] bg-transparent text-[#22a7d3] text-lg font-bold flex items-center justify-center hover:bg-[rgba(34,167,211,0.08)] hover:border-[rgba(34,167,211,0.4)] disabled:opacity-50"
+                                >
+                                  +
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </>
                 )}
               </div>
@@ -1738,7 +2057,16 @@ export function PanelStudio({
             />
           )}
 
-          {/* ─── Inspector ─── */}
+          {/* ─── Inspector ───
+              When picker mode is on for an editor, the desktop UI is
+              the inline picker card at the top of the workspace —
+              this aside should NOT show on lg+. The wrapper below
+              uses `display: contents` normally so the aside lays out
+              as if there were no wrapper, but flips to `lg:hidden`
+              while picker+edit is active so the whole sub-tree (incl.
+              the aside) is hidden on lg. Below lg the bottom-sheet
+              inspector is still the picker UI on mobile/tablet. */}
+          <div className={`contents ${pickerMode && canEditKeys ? 'lg:hidden' : ''}`}>
           <aside
             ref={inspectorRef}
             className={`
@@ -1847,9 +2175,11 @@ export function PanelStudio({
               </div>
             )}
 
-            {/* Picker view */}
+            {/* Picker view — mobile only. On desktop the floating
+                picker card on top of the chassis is the single source
+                of truth, so hide this in-inspector picker view there. */}
             {pickerMode && (
-              <div className="flex flex-col flex-1 min-h-0">
+              <div className="flex flex-col flex-1 min-h-0 sm:hidden">
                 {/* Picker controls */}
                 <div className="px-[18px] py-3.5 border-b border-white/[0.06] flex flex-col gap-2.5 flex-shrink-0">
                   <input
@@ -2002,8 +2332,23 @@ export function PanelStudio({
               </div>
             )}
           </aside>
+          </div>
         </div>
       </div>
+      {/* Floating drag preview for picker chips. Without this the
+          dragged chip is clipped by its scroll-column's overflow:auto;
+          DragOverlay renders at the document root so the preview
+          follows the cursor freely across the chassis. */}
+      <DragOverlay dropAnimation={null}>
+        {activeDragChip ? (
+          <div className="pointer-events-none inline-flex items-center gap-1 rounded-md border border-[#0178a3] bg-[#0178a3] px-2 py-0.5 text-[11px] font-semibold text-white shadow-2xl">
+            <span className="overflow-hidden text-ellipsis whitespace-nowrap">{activeDragChip.name}</span>
+            {activeDragChip.code && (
+              <span className="font-mono text-[9px] text-white/70">{activeDragChip.code}</span>
+            )}
+          </div>
+        ) : null}
+      </DragOverlay>
       </DndContext>
     </AppShell>
   )
@@ -2044,11 +2389,20 @@ function PanelKeyTile({
   // so the browser is free to handle quick taps as clicks and quick
   // swipes as native scroll. Hold still on a key for half a second
   // to start a drag.
+  // Inline `scale` CSS property when being dragged over — Tailwind v4's
+  // class-generated `scale-125` may not include this exact size on
+  // initial JIT scan and the inline style guarantees the visual cue
+  // applies. CSS `scale` is independent of `transform: translate`, so
+  // the selected-state's translate-y still works alongside this.
+  const inlineStyle: React.CSSProperties = {
+    ...flashStyle,
+    ...(droppable.isOver ? { scale: '1.25', zIndex: 10 } : {}),
+  }
   return (
     <div
       ref={setRef}
       className={buildClassName(droppable.isOver)}
-      style={flashStyle}
+      style={inlineStyle}
       onClick={onClick}
       {...(canDrag ? draggable.listeners : {})}
       {...(canDrag ? draggable.attributes : {})}
