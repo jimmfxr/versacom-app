@@ -1579,7 +1579,7 @@ export function PanelStudio({
                           <select
                             value={pickerFilter}
                             onChange={(e) => setPickerFilter(e.target.value)}
-                            className="block w-full appearance-none rounded-lg border border-white/10 bg-[#202020] px-3 py-2 pr-9 text-[13px] text-white outline-none transition-[border-color] hover:border-white/20 focus:border-[#0178a3]"
+                            className="block w-full appearance-none rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 pr-9 text-sm text-white outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
                           >
                             {filterTypes.map((type) => (
                               <option key={type} value={type}>
@@ -1599,7 +1599,7 @@ export function PanelStudio({
                           <select
                             value={selectedKey?.triggerMode || 'latch'}
                             onChange={(e) => selectedKeyId && setTriggerMode(selectedKeyId, e.target.value)}
-                            className="block w-full appearance-none rounded-lg border border-white/10 bg-[#202020] px-3 py-2 pr-9 text-[13px] text-white outline-none transition-[border-color] hover:border-white/20 focus:border-[#0178a3]"
+                            className="block w-full appearance-none rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 pr-9 text-sm text-white outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
                           >
                             <option value="auto">Auto</option>
                             <option value="latch">Latching</option>
@@ -1628,10 +1628,10 @@ export function PanelStudio({
                                 try { navigator.vibrate?.(15) } catch {}
                                 if (selectedKeyId) clearKey(selectedKeyId)
                               }}
-                              className={`flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-[13px] font-semibold transition-colors ${
+                              className={`flex w-full items-center justify-center gap-2 rounded-lg border px-3.5 py-2 text-sm font-semibold transition-colors ${
                                 isUnassignedActive
                                   ? 'border-[rgba(34,167,211,0.5)] bg-[rgba(34,167,211,0.12)] text-[#22a7d3]'
-                                  : 'border-white/10 bg-[#202020] text-gray-300 hover:border-white/20 hover:bg-white/[0.06] hover:text-white'
+                                  : 'border-white/10 bg-[#2a2a2a] text-gray-300 hover:border-white/20 hover:bg-white/[0.06] hover:text-white'
                               }`}
                             >
                               Clear Key
@@ -1646,7 +1646,7 @@ export function PanelStudio({
                           placeholder="Search by name or code..."
                           value={pickerSearch}
                           onChange={(e) => setPickerSearch(e.target.value)}
-                          className="block w-full rounded-lg border border-white/10 bg-[#202020] px-3.5 py-2 text-[13px] text-white outline-none transition-[border-color] placeholder:text-gray-500 hover:border-white/20 focus:border-[#0178a3]"
+                          className="block w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white outline-none transition-colors placeholder:text-gray-500 hover:border-white/20 focus:border-[#0178a3]"
                           autoCapitalize="off"
                           autoCorrect="off"
                           autoComplete="off"
