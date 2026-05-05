@@ -280,6 +280,11 @@ export function PanelStudio({
   const layout = getBlockLayout(equipment.hardwareType)
   const hasShiftPage = SHIFT_PAGE_CATEGORIES.has(equipment.category)
   const isExpandable = EXPANDABLE_DEVICES.has(equipment.hardwareType ?? '')
+  // expKeyCount must be hoisted above the useState that calls
+  // initializeKeys — otherwise the lazy initializer hits the const in
+  // its temporal dead zone and crashes with "Cannot access … before
+  // initialization" on first render.
+  const expKeyCount = getExpansionKeyCount(equipment.hardwareType)
 
   /* ─── State ─── */
   const [activePage, setActivePage] = useState<'main' | 'shift'>('main')
@@ -474,7 +479,8 @@ export function PanelStudio({
   const chassisRef = useRef<HTMLDivElement>(null)
 
   /* ─── Initialize keys from server data ─── */
-  const expKeyCount = getExpansionKeyCount(equipment.hardwareType)
+  // (expKeyCount is declared above the useState block — it's referenced
+  // by initializeKeys' lazy initializer.)
 
   function initializeKeys(
     serverKeys: PanelStudioProps['panelKeys'],
@@ -1323,7 +1329,11 @@ export function PanelStudio({
 
   return (
     <AppShell userName={userName} isAdmin={isAdminGlobal} isUserOnly={isUserOnly} showMyEquipment={isCrew}>
+      {/* Stable id avoids the SSR / client hydration mismatch on
+          dnd-kit's auto-generated aria-describedby IDs (counter starts
+          fresh on each side without one). */}
       <DndContext
+        id="panel-studio-dnd"
         sensors={sensors}
         onDragStart={handleDndStart}
         onDragEnd={handleDndEnd}
