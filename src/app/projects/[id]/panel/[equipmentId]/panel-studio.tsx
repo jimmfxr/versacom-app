@@ -1575,40 +1575,27 @@ export function PanelStudio({
                     <div className="flex flex-wrap items-end gap-3 border-b border-white/10 pb-3.5">
                       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                         <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Function Type</div>
-                        <div className="relative w-full">
-                          <select
-                            value={pickerFilter}
-                            onChange={(e) => setPickerFilter(e.target.value)}
-                            className="block w-full appearance-none rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 pr-9 text-sm text-white outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
-                          >
-                            {filterTypes.map((type) => (
-                              <option key={type} value={type}>
-                                {type === 'All' ? 'All function types' : type === 'Audio' ? 'Audio I/O' : type}
-                              </option>
-                            ))}
-                          </select>
-                          <svg className="pointer-events-none absolute right-3 top-1/2 size-3 -translate-y-1/2 text-gray-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="5 8 10 13 15 8" />
-                          </svg>
-                        </div>
+                        <PickerSelect
+                          value={pickerFilter}
+                          onChange={setPickerFilter}
+                          options={filterTypes.map((t) => ({
+                            value: t,
+                            label: t === 'All' ? 'All function types' : t === 'Audio' ? 'Audio I/O' : t,
+                          }))}
+                        />
                       </div>
 
                       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                         <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Trigger Mode</div>
-                        <div className="relative w-full">
-                          <select
-                            value={selectedKey?.triggerMode || 'latch'}
-                            onChange={(e) => selectedKeyId && setTriggerMode(selectedKeyId, e.target.value)}
-                            className="block w-full appearance-none rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 pr-9 text-sm text-white outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
-                          >
-                            <option value="auto">Auto</option>
-                            <option value="latch">Latching</option>
-                            <option value="momentary">Momentary</option>
-                          </select>
-                          <svg className="pointer-events-none absolute right-3 top-1/2 size-3 -translate-y-1/2 text-gray-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="5 8 10 13 15 8" />
-                          </svg>
-                        </div>
+                        <PickerSelect
+                          value={selectedKey?.triggerMode || 'latch'}
+                          onChange={(v) => { if (selectedKeyId) setTriggerMode(selectedKeyId, v) }}
+                          options={[
+                            { value: 'auto', label: 'Auto' },
+                            { value: 'latch', label: 'Latching' },
+                            { value: 'momentary', label: 'Momentary' },
+                          ]}
+                        />
                       </div>
 
                       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
@@ -2369,6 +2356,82 @@ export function PanelStudio({
       </DragOverlay>
       </DndContext>
     </AppShell>
+  )
+}
+
+/* ─── Custom select for the picker card top row.
+   Native <select> shows its options as a browser-styled popup menu;
+   we want a panel that matches our app's dropdown look (BrowseProject,
+   Tabs mobile, etc.) — same width as the trigger, drops down below
+   it, overlays the chip grid instead of pushing it down. */
+function PickerSelect({
+  value,
+  options,
+  onChange,
+}: {
+  value: string
+  options: Array<{ value: string; label: string }>
+  onChange: (v: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    if (open) document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [open])
+
+  const current = options.find((o) => o.value === value) ?? options[0]
+
+  return (
+    <div ref={ref} className="relative w-full">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3.5 py-2 text-left text-sm text-white outline-none transition-colors ${
+          open ? 'border-[#22a7d3]/50 bg-white/[0.04]' : 'border-white/10 bg-[#2a2a2a] hover:border-white/20'
+        }`}
+      >
+        <span className="truncate">{current?.label}</span>
+        <svg
+          className={`size-3 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="5 8 10 13 15 8" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-[260px] overflow-y-auto rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl">
+          {options.map((o) => {
+            const isActive = o.value === value
+            return (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => {
+                  onChange(o.value)
+                  setOpen(false)
+                }}
+                className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors ${
+                  isActive ? 'bg-[#22a7d3]/10 text-[#22a7d3]' : 'text-gray-200 hover:bg-white/[0.06] hover:text-white'
+                }`}
+              >
+                <span className="truncate">{o.label}</span>
+                {isActive && <span className="text-xs">✓</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }
 
