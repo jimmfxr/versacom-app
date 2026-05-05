@@ -3,10 +3,28 @@
 import { useState, useEffect, useCallback, useRef, useTransition, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronLeftIcon } from '@heroicons/react/24/outline'
+import {
+  DndContext,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  useDraggable,
+  useDroppable,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
 import { AppShell } from '@/components/app-shell'
 import { Button } from '@/components/button'
 import { showToast } from '@/components/toast'
 import { saveKeys, saveDraftKeys, submitChanges, addExpansion, removeExpansion, resolveChangeRequests } from './actions'
+
+/** Drag payload shapes attached via dnd-kit `data` so the drop handler can
+ *  branch between picklist drops and key swaps without keeping its own
+ *  parallel state. */
+type KeyDragData = { kind: 'key'; sourceId: string }
+type PicklistDragData = { kind: 'picklist'; item: PickerItem }
+type DragData = KeyDragData | PicklistDragData
 
 /* ═══════════════════════════════════════════════════════════════
    Types
@@ -274,10 +292,10 @@ export function PanelStudio({
   const [saving, setSaving] = useState(false)
   const [pickerSearch, setPickerSearch] = useState('')
   const [pickerFilter, setPickerFilter] = useState<string>('All')
+  // Active drag source — driven by dnd-kit's onDragStart so the chassis can
+  // dim the source key during a key→key swap. Drop-target highlights come
+  // from dnd-kit's per-tile `isOver`, so we don't track them here.
   const [dragSourceId, setDragSourceId] = useState<string | null>(null)
-  const [dragOverId, setDragOverId] = useState<string | null>(null)
-  const [dragType, setDragType] = useState<'key' | 'picklist' | null>(null)
-  const [dragPickData, setDragPickData] = useState<PickerItem | null>(null)
   const [expansionCount, setExpansionCount] = useState(() => {
     const maxExp = initialPanelKeys.reduce((max, k) => Math.max(max, k.expansion), 0)
     return maxExp
@@ -954,85 +972,80 @@ export function PanelStudio({
     setSaving(false)
   }
 
-  /* ─── Drag handlers ─── */
-  function handleKeyDragStart(id: string) {
+  /* ─── Drag handlers (dnd-kit) ───
+     Sensors: PointerSensor with a 10px activation distance so a touch
+     scroll on the chassis doesn't get mistaken for a drag. KeyboardSensor
+     comes along for free a11y. PointerSensor already covers mouse + touch
+     + pen via Pointer Events, so we don't need a separate TouchSensor. */
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 10 } }),
+    useSensor(KeyboardSensor)
+  )
+
+  function handleDndStart(event: DragStartEvent) {
     if (!canEditKeys) return
-    const key = getKey(id)
-    if (!key || key.status === 'empty') return
-    setDragSourceId(id)
-    setDragType('key')
-    selectKey(id)
+    const data = event.active.data.current as DragData | undefined
+    if (!data) return
+    if (data.kind === 'key') {
+      setDragSourceId(data.sourceId)
+      selectKey(data.sourceId)
+    } else if (data.kind === 'picklist') {
+      setDragSourceId(null)
+    }
   }
 
-  function handlePickDragStart(item: PickerItem) {
-    if (!canEditKeys) return
-    setDragType('picklist')
-    setDragPickData(item)
-    setDragSourceId(null)
-  }
+  function handleDndEnd(event: DragEndEvent) {
+    const activeData = event.active.data.current as DragData | undefined
+    const overData = event.over?.data.current as { kind: 'key'; keyId: string } | undefined
+    const targetId = overData?.kind === 'key' ? overData.keyId : null
 
-  function handleDragOver(e: React.DragEvent, id: string) {
-    if (dragType === 'key' && id === dragSourceId) return
-    e.preventDefault()
-    e.dataTransfer.dropEffect = dragType === 'key' ? 'move' : 'copy'
-    setDragOverId(id)
-  }
-
-  function handleDragLeave(id: string) {
-    if (dragOverId === id) setDragOverId(null)
-  }
-
-  function handleDrop(e: React.DragEvent, targetId: string) {
-    e.preventDefault()
-    setDragOverId(null)
-
-    if (dragType === 'key' && dragSourceId && targetId !== dragSourceId) {
-      const sourceKey = getKey(dragSourceId)
-      if (sourceKey) {
-        // Overwrite: source content -> target, source becomes empty
+    if (activeData && targetId) {
+      if (activeData.kind === 'key' && targetId !== activeData.sourceId) {
+        const sourceKey = getKey(activeData.sourceId)
+        if (sourceKey) {
+          // Overwrite: source content -> target, source becomes empty
+          updateKey(targetId, {
+            pickListItemId: sourceKey.pickListItemId,
+            pickListItemName: sourceKey.pickListItemName,
+            pickListItemType: sourceKey.pickListItemType,
+            triggerMode: sourceKey.triggerMode,
+            status: isRequestMode ? 'changed' : (sourceKey.pickListItemId ? 'assigned' : 'empty'),
+          })
+          updateKey(activeData.sourceId, {
+            pickListItemId: null,
+            pickListItemName: null,
+            pickListItemType: null,
+            triggerMode: 'latch',
+            status: isRequestMode ? 'changed' : 'empty',
+          })
+          selectKey(targetId)
+          flashKey(targetId, '#10b981')
+        }
+      } else if (activeData.kind === 'picklist') {
+        const item = activeData.item
         updateKey(targetId, {
-          pickListItemId: sourceKey.pickListItemId,
-          pickListItemName: sourceKey.pickListItemName,
-          pickListItemType: sourceKey.pickListItemType,
-          triggerMode: sourceKey.triggerMode,
-          status: isRequestMode ? 'changed' : (sourceKey.pickListItemId ? 'assigned' : 'empty'),
+          pickListItemId: item.id,
+          pickListItemName: item.name,
+          pickListItemType: item.type,
+          // Pick-list drops default to momentary (push-to-talk) — matches
+          // assignPickerItem so tap-to-assign and drag-to-assign behave
+          // the same.
+          triggerMode: 'momentary',
+          status: isRequestMode ? 'changed' : 'assigned',
         })
-        updateKey(dragSourceId, {
-          pickListItemId: null,
-          pickListItemName: null,
-          pickListItemType: null,
-          triggerMode: 'latch',
-          status: isRequestMode ? 'changed' : 'empty',
-        })
-        selectKey(targetId)
+        // Don't call selectKey() here — that closes the picker. Keeping the
+        // picker open lets the user drag item after item without having to
+        // re-open "Pick destination" between drops. Just flash the target
+        // so they get visual confirmation the drop landed.
         flashKey(targetId, '#10b981')
       }
-    } else if (dragType === 'picklist' && dragPickData) {
-      updateKey(targetId, {
-        pickListItemId: dragPickData.id,
-        pickListItemName: dragPickData.name,
-        pickListItemType: dragPickData.type,
-        // Match assignPickerItem — pick-list drops default to momentary.
-        triggerMode: 'momentary',
-        status: isRequestMode ? 'changed' : 'assigned',
-      })
-      // Don't call selectKey() here — that closes the picker. Keeping the
-      // picker open lets the user drag item after item without having to
-      // re-open "Pick destination" between drops. Just flash the target
-      // so they get visual confirmation the drop landed.
-      flashKey(targetId, '#10b981')
     }
 
     setDragSourceId(null)
-    setDragType(null)
-    setDragPickData(null)
   }
 
-  function handleDragEnd() {
+  function handleDndCancel() {
     setDragSourceId(null)
-    setDragOverId(null)
-    setDragType(null)
-    setDragPickData(null)
   }
 
   /* ─── Build picker items (PickList + PTP) ─── */
@@ -1120,7 +1133,6 @@ export function PanelStudio({
       const id = keyId(keyState.keyIndex, keyState.page, keyState.expansion)
       const isSelected = selectedKeyId === id
       const isDragging = dragSourceId === id
-      const isDragOver = dragOverId === id
       const isFlashing = flashingKey?.id === id
       const isEmpty = keyState.status === 'empty'
       const isAssigned = keyState.status === 'assigned'
@@ -1132,47 +1144,43 @@ export function PanelStudio({
       const hasReviewChange = !!reviewChange
       const isRejected = hasReviewChange && rejectedKeyIds.has(id)
 
-      let keyClasses = 'group relative flex flex-col cursor-pointer transition-all duration-[180ms]'
-      keyClasses += ' w-16 h-16 rounded-md border-2'
-      keyClasses += ' bg-[#202020] shadow-[0_4px_6px_rgba(0,0,0,0.3)]'
+      const canDrag = !isReviewMode && !isEmpty && canEditKeys
+      const canDrop = !isReviewMode && canEditKeys
 
-      // State classes
-      if (isRejected) {
-        keyClasses += ' border-red-500 shadow-[0_0_12px_rgba(239,68,68,0.5)] bg-[rgba(239,68,68,0.08)]'
-      } else if (hasReviewChange) {
-        keyClasses += ' border-[#f59e0b] shadow-[0_0_12px_rgba(245,158,11,0.5)] bg-[rgba(245,158,11,0.06)]'
-      } else if (isAssigned) keyClasses += ' border-[#3a3a3a]'
-      else if (isChanged) keyClasses += ' border-[#f59e0b] shadow-[0_0_12px_rgba(245,158,11,0.4)]'
-      else if (isSubmitted) keyClasses += ' border-[#10b981] shadow-[0_0_12px_rgba(16,185,129,0.4)]'
-      else keyClasses += ' border-[#3a3a3a]'
+      const onTileClick = () => {
+        if (isReviewMode && hasReviewChange) {
+          toggleRejectKey(id)
+        } else if (!isReviewMode) {
+          selectKey(id)
+        }
+      }
 
-      if (isSelected) keyClasses += ' !border-[#22a7d3] !shadow-[0_0_16px_rgba(34,167,211,0.5)] -translate-y-1'
-      if (isDragging) keyClasses += ' opacity-30 scale-[0.92]'
-      if (isDragOver) keyClasses += ' !border-[#22a7d3] !shadow-[0_0_20px_rgba(34,167,211,0.6)] -translate-y-[3px] !bg-[rgba(34,167,211,0.08)]'
-      if (!isSelected && !isDragging && !isDragOver && !hasReviewChange) keyClasses += ' hover:-translate-y-[2px] hover:border-[#4a4a4a]'
-      if (hasReviewChange) keyClasses += ' hover:scale-[0.96] active:scale-[0.92]'
+      const buildClassName = (isDragOver: boolean) => {
+        let keyClasses = 'group relative flex flex-col cursor-pointer transition-all duration-[180ms]'
+        keyClasses += ' w-16 h-16 rounded-md border-2'
+        keyClasses += ' bg-[#202020] shadow-[0_4px_6px_rgba(0,0,0,0.3)]'
+
+        if (isRejected) {
+          keyClasses += ' border-red-500 shadow-[0_0_12px_rgba(239,68,68,0.5)] bg-[rgba(239,68,68,0.08)]'
+        } else if (hasReviewChange) {
+          keyClasses += ' border-[#f59e0b] shadow-[0_0_12px_rgba(245,158,11,0.5)] bg-[rgba(245,158,11,0.06)]'
+        } else if (isAssigned) keyClasses += ' border-[#3a3a3a]'
+        else if (isChanged) keyClasses += ' border-[#f59e0b] shadow-[0_0_12px_rgba(245,158,11,0.4)]'
+        else if (isSubmitted) keyClasses += ' border-[#10b981] shadow-[0_0_12px_rgba(16,185,129,0.4)]'
+        else keyClasses += ' border-[#3a3a3a]'
+
+        if (isSelected) keyClasses += ' !border-[#22a7d3] !shadow-[0_0_16px_rgba(34,167,211,0.5)] -translate-y-1'
+        if (isDragging) keyClasses += ' opacity-30 scale-[0.92]'
+        if (isDragOver) keyClasses += ' !border-[#22a7d3] !shadow-[0_0_20px_rgba(34,167,211,0.6)] -translate-y-[3px] !bg-[rgba(34,167,211,0.08)]'
+        if (!isSelected && !isDragging && !isDragOver && !hasReviewChange) keyClasses += ' hover:-translate-y-[2px] hover:border-[#4a4a4a]'
+        if (hasReviewChange) keyClasses += ' hover:scale-[0.96] active:scale-[0.92]'
+        return keyClasses
+      }
 
       const flashStyle = isFlashing ? { boxShadow: `0 0 20px ${flashingKey.color}80` } : undefined
 
-      return (
-        <div
-          key={id}
-          className={keyClasses}
-          style={flashStyle}
-          draggable={!isReviewMode && !isEmpty && canEditKeys}
-          onClick={() => {
-            if (isReviewMode && hasReviewChange) {
-              toggleRejectKey(id)
-            } else if (!isReviewMode) {
-              selectKey(id)
-            }
-          }}
-          onDragStart={() => handleKeyDragStart(id)}
-          onDragOver={(e) => handleDragOver(e, id)}
-          onDragLeave={() => handleDragLeave(id)}
-          onDrop={(e) => handleDrop(e, id)}
-          onDragEnd={handleDragEnd}
-        >
+      const tileBody = (
+        <>
           {/* Tally */}
           <div className="mx-auto mt-1.5 h-1 w-[60%] rounded-sm"
             style={{
@@ -1236,11 +1244,25 @@ export function PanelStudio({
               L
             </div>
           )}
-        </div>
+        </>
+      )
+
+      return (
+        <PanelKeyTile
+          key={id}
+          id={id}
+          canDrag={canDrag}
+          canDrop={canDrop}
+          buildClassName={buildClassName}
+          flashStyle={flashStyle}
+          onClick={onTileClick}
+        >
+          {tileBody}
+        </PanelKeyTile>
       )
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedKeyId, dragSourceId, dragOverId, flashingKey, canEditKeys, isRequestMode, isReviewMode, reviewChangesMap, rejectedKeyIds, keys]
+    [selectedKeyId, dragSourceId, flashingKey, canEditKeys, isRequestMode, isReviewMode, reviewChangesMap, rejectedKeyIds, keys]
   )
 
   /* ─── Render a panel block (2D grid: cols × rows within one block) ─── */
@@ -1301,6 +1323,12 @@ export function PanelStudio({
 
   return (
     <AppShell userName={userName} isAdmin={isAdminGlobal} isUserOnly={isUserOnly} showMyEquipment={isCrew}>
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDndStart}
+        onDragEnd={handleDndEnd}
+        onDragCancel={handleDndCancel}
+      >
       <div className="flex flex-col" style={{ height: 'calc(100dvh - 56px)' }}>
         <div className="flex flex-1 overflow-hidden relative min-h-0">
 
@@ -1794,15 +1822,11 @@ export function PanelStudio({
                       {items.map((item) => {
                         const isActive = selectedKey?.pickListItemId === item.id
                         return (
-                          <div
+                          <PickerItemDraggable
                             key={`${item.type}-${item.id}`}
-                            draggable={canEditKeys}
-                            onDragStart={(e) => {
-                              e.dataTransfer.effectAllowed = 'copy'
-                              e.dataTransfer.setData('text/plain', '')
-                              handlePickDragStart(item)
-                            }}
-                            onDragEnd={handleDragEnd}
+                            item={item}
+                            canDrag={canEditKeys}
+                            isActive={isActive}
                             onClick={() => selectedKeyId && assignPickerItem(selectedKeyId, item)}
                             className={`rounded-[10px] px-3.5 py-2.5 flex items-center gap-2.5 cursor-pointer transition-all border ${
                               isActive
@@ -1833,7 +1857,7 @@ export function PanelStudio({
                             {isActive && (
                               <span className="text-[#22a7d3] font-bold text-sm ml-1">&check;</span>
                             )}
-                          </div>
+                          </PickerItemDraggable>
                         )
                       })}
                     </div>
@@ -1865,7 +1889,98 @@ export function PanelStudio({
           </aside>
         </div>
       </div>
+      </DndContext>
     </AppShell>
+  )
+}
+
+/* ─── Tile component: combines useDraggable + useDroppable on a single
+   chassis key. We render an outer droppable wrapper and let the same
+   element act as the draggable handle when the key isn't empty. The two
+   refs are merged. ─── */
+function PanelKeyTile({
+  id,
+  canDrag,
+  canDrop,
+  buildClassName,
+  flashStyle,
+  onClick,
+  children,
+}: {
+  id: string
+  canDrag: boolean
+  canDrop: boolean
+  buildClassName: (isOver: boolean) => string
+  flashStyle: React.CSSProperties | undefined
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  const dragData: KeyDragData = { kind: 'key', sourceId: id }
+  const draggable = useDraggable({ id: `key-${id}`, data: dragData, disabled: !canDrag })
+  const droppable = useDroppable({ id: `drop-${id}`, data: { kind: 'key', keyId: id }, disabled: !canDrop })
+
+  // Merge the two refs — both hooks need to attach to the same DOM node.
+  const setRef = (node: HTMLDivElement | null) => {
+    draggable.setNodeRef(node)
+    droppable.setNodeRef(node)
+  }
+
+  // touch-action: none tells the browser "JS handles touch on this
+  // element" so dnd-kit gets pointer events immediately. Without it,
+  // iOS Safari waits ~250ms to decide between scroll and drag, which
+  // feels like a long press is required before drag activates.
+  return (
+    <div
+      ref={setRef}
+      className={`${buildClassName(droppable.isOver)} touch-none`}
+      style={flashStyle}
+      onClick={onClick}
+      {...(canDrag ? draggable.listeners : {})}
+      {...(canDrag ? draggable.attributes : {})}
+    >
+      {children}
+    </div>
+  )
+}
+
+/* ─── Picker draggable wrapper. Same idea but draggable-only. ─── */
+function PickerItemDraggable({
+  item,
+  canDrag,
+  isActive,
+  className,
+  onClick,
+  children,
+}: {
+  item: PickerItem
+  canDrag: boolean
+  isActive: boolean
+  className: string
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  const dragData: PicklistDragData = { kind: 'picklist', item }
+  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
+    id: `pick-${item.type}-${item.id}`,
+    data: dragData,
+    disabled: !canDrag,
+  })
+  void isActive
+  const style = isDragging ? { opacity: 0.4 } : undefined
+  // touch-action: none — same rationale as PanelKeyTile. Skips iOS
+  // Safari's scroll-vs-drag delay so picker items become draggable
+  // the moment a finger moves on them.
+  return (
+    <div
+      ref={setNodeRef}
+      className={`${className} touch-none`}
+      style={style}
+      onClick={onClick}
+      {...(canDrag ? listeners : {})}
+      {...(canDrag ? attributes : {})}
+    >
+      {children}
+    </div>
   )
 }
 
