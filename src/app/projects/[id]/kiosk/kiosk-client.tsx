@@ -75,56 +75,64 @@ export function KioskClient({
   }, [view, pending])
 
   return (
-    <div className="relative min-h-screen bg-[#202020] px-4 py-10 sm:py-16">
+    // h-[100dvh] + flex column locks the kiosk to the viewport (dvh
+    // accounts for iOS Safari's collapsible chrome). Children flex to
+    // consume remaining space so the pending list scroll region grows
+    // dynamically — fits 5 cards on a small screen, 13 on iPad Pro.
+    <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-[#202020] px-4 py-10 sm:py-16">
       {/* Close (returns to project Team tab) */}
       <button
         type="button"
         onClick={close}
         aria-label="Close kiosk"
-        className="absolute right-4 top-4 rounded-md p-2 text-gray-400 transition-colors hover:bg-white/[0.06] hover:text-white sm:right-6 sm:top-6"
+        className="absolute right-4 top-4 z-10 rounded-md p-2 text-gray-400 transition-colors hover:bg-white/[0.06] hover:text-white sm:right-6 sm:top-6"
       >
         <svg className="size-6" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
 
-      {/* Logo */}
-      <div className="mb-10 flex justify-center">
+      {/* Logo — fixed height */}
+      <div className="mb-10 flex flex-shrink-0 justify-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/clair_logo_white.png" alt="Clair" className="h-16 w-auto" />
       </div>
 
-      {view.kind === 'form' && (
-        <FormView
-          projectId={projectId}
-          projectName={projectName}
-          onCreated={(r) => setView({ kind: 'qr', ...r })}
-          pending={pending}
-          onPickPending={(m) => setView({ kind: 'edit', member: m })}
-        />
-      )}
+      {/* View slot — fills remaining vertical space. min-h-0 lets the
+          inner scroll containers actually size against this. */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {view.kind === 'form' && (
+          <FormView
+            projectId={projectId}
+            projectName={projectName}
+            onCreated={(r) => setView({ kind: 'qr', ...r })}
+            pending={pending}
+            onPickPending={(m) => setView({ kind: 'edit', member: m })}
+          />
+        )}
 
-      {view.kind === 'edit' && (
-        <EditView
-          member={view.member}
-          onSaved={(r) => setView({ kind: 'qr', ...r })}
-          onCancel={() => setView({ kind: 'form' })}
-        />
-      )}
+        {view.kind === 'edit' && (
+          <EditView
+            member={view.member}
+            onSaved={(r) => setView({ kind: 'qr', ...r })}
+            onCancel={() => setView({ kind: 'form' })}
+          />
+        )}
 
-      {view.kind === 'qr' && (
-        <QrView
-          firstName={view.firstName}
-          lastName={view.lastName}
-          joinUrl={view.joinUrl}
-          onDone={() => {
-            setView({ kind: 'form' })
-            // Refresh pending list so the just-added/just-edited member moves
-            // out (or appears) without a manual reload.
-            router.refresh()
-          }}
-        />
-      )}
+        {view.kind === 'qr' && (
+          <QrView
+            firstName={view.firstName}
+            lastName={view.lastName}
+            joinUrl={view.joinUrl}
+            onDone={() => {
+              setView({ kind: 'form' })
+              // Refresh pending list so the just-added/just-edited member
+              // moves out (or appears) without a manual reload.
+              router.refresh()
+            }}
+          />
+        )}
+      </div>
     </div>
   )
 }
@@ -173,9 +181,12 @@ function FormView({
   }
 
   return (
-    <>
-      {/* Add form — same width + style as login */}
-      <div className="mx-auto w-full max-w-sm">
+    // Flex column so the pending list section can grow with flex-1 and
+    // its inner scroll region fills whatever vertical space the form
+    // didn't claim.
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Add form — same width + style as login. Fixed height. */}
+      <div className="mx-auto w-full max-w-sm flex-shrink-0">
         <h2 className="mb-1 text-center text-xl font-semibold text-white">Add Crew</h2>
         <p className="mb-6 text-center text-xs text-gray-500">{projectName}</p>
         <form onSubmit={submit} className="space-y-4">
@@ -220,12 +231,14 @@ function FormView({
         </form>
       </div>
 
-      {/* Divider */}
-      <div className="mx-auto my-10 max-w-3xl border-t border-white/[0.08]" />
+      {/* Divider — fixed */}
+      <div className="mx-auto my-10 w-full max-w-3xl flex-shrink-0 border-t border-white/[0.08]" />
 
-      {/* Pending — full width container, capped wider for readability */}
-      <div className="mx-auto w-full max-w-3xl">
-        <h3 className="mb-4 text-center text-sm font-semibold uppercase tracking-wider text-gray-400">
+      {/* Pending — full width container, capped wider for readability.
+          flex-1 + min-h-0 so the inner scroll container can size against
+          remaining viewport height. */}
+      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
+        <h3 className="mb-4 flex-shrink-0 text-center text-sm font-semibold uppercase tracking-wider text-gray-400">
           Pending Check-ins
           {pending.length > 0 && (
             <span className="ml-2 text-xs font-normal text-gray-600">{pending.length}</span>
@@ -236,8 +249,10 @@ function FormView({
             No one waiting. Add a crew member above to begin.
           </p>
         ) : (
-          <>
-            <div className="mb-3">
+          // Inner flex column so the search input is fixed and the scroll
+          // region grows to fill remaining height.
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="mb-3 flex-shrink-0">
               <input
                 type="text"
                 placeholder="Search pending check-ins..."
@@ -251,7 +266,11 @@ function FormView({
                 No matches for &ldquo;{pendingSearch}&rdquo;.
               </p>
             ) : (
-              <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
+              // flex-1 + min-h-0 + overflow-y-auto: takes whatever vertical
+              // space the form/divider/header didn't claim, and scrolls
+              // when there's more content than fits. Dynamic — fills the
+              // page on iPad portrait, smaller on a phone.
+              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                 {filteredPending.map((m) => (
                   <button
                     key={m.id}
@@ -274,10 +293,10 @@ function FormView({
                 ))}
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
-    </>
+    </div>
   )
 }
 
