@@ -1050,7 +1050,7 @@ export function ProjectPage({
         action={
           canSeeSettings && (
             <Button
-              size="sm"
+              size="md"
               variant="secondary"
               onClick={() => setShowSettings(!showSettings)}
               aria-label={showSettings ? 'Close settings' : 'Edit project'}
@@ -1192,7 +1192,7 @@ export function ProjectPage({
                         className={`shrink-0 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
                           activeTab === tab.key
                             ? 'bg-[#0178a3] text-white'
-                            : 'border border-white/[0.10] bg-[#2a2a2a] text-gray-300 hover:bg-[#313131]'
+                            : 'text-gray-400 hover:text-white'
                         }`}
                       >
                         {tab.label}
