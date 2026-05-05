@@ -1416,7 +1416,95 @@ export function PanelStudio({
               />
             )}
 
-            <div className="flex flex-col items-center justify-center flex-1 min-h-0">
+            <div className="relative flex flex-col items-center justify-center flex-1 min-h-0">
+
+              {/* ─── Floating picker card (desktop only) ───
+                  Anchored top-left of the chassis area. Houses three
+                  controls: function-type filter, trigger-mode for the
+                  selected key, and a one-tap Unassign button. Mirrors
+                  the controls that live inside the right-side picker
+                  panel on mobile — on desktop those are hidden so the
+                  card is the single source of truth. */}
+              {pickerMode && canEditKeys && (
+                <div className="absolute left-4 top-4 z-20 hidden w-[260px] flex-col gap-2.5 rounded-xl border border-white/10 bg-[#2a2a2a] p-3.5 shadow-2xl sm:flex">
+                  <div className="flex flex-col gap-1.5">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Function Type</div>
+                    <div className="relative w-full">
+                      <select
+                        value={pickerFilter}
+                        onChange={(e) => setPickerFilter(e.target.value)}
+                        className="block w-full appearance-none rounded-lg border border-white/10 bg-[#202020] px-3 py-2 pr-9 text-[13px] text-white outline-none transition-[border-color] hover:border-white/20 focus:border-[#0178a3]"
+                      >
+                        {filterTypes.map((type) => (
+                          <option key={type} value={type}>
+                            {type === 'All' ? 'All function types' : type === 'Audio' ? 'Audio I/O' : type}
+                          </option>
+                        ))}
+                      </select>
+                      <svg
+                        className="pointer-events-none absolute right-3 top-1/2 size-3 -translate-y-1/2 text-gray-400"
+                        viewBox="0 0 20 20"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="5 8 10 13 15 8" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Trigger Mode</div>
+                    <div className="relative w-full">
+                      <select
+                        value={selectedKey?.triggerMode || 'latch'}
+                        onChange={(e) => selectedKeyId && setTriggerMode(selectedKeyId, e.target.value)}
+                        className="block w-full appearance-none rounded-lg border border-white/10 bg-[#202020] px-3 py-2 pr-9 text-[13px] text-white outline-none transition-[border-color] hover:border-white/20 focus:border-[#0178a3]"
+                      >
+                        <option value="auto">Auto</option>
+                        <option value="latch">Latching</option>
+                        <option value="momentary">Momentary</option>
+                      </select>
+                      <svg
+                        className="pointer-events-none absolute right-3 top-1/2 size-3 -translate-y-1/2 text-gray-400"
+                        viewBox="0 0 20 20"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="5 8 10 13 15 8" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  {(() => {
+                    const isUnassignedActive = !selectedKey?.pickListItemId
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (selectedKeyId) clearKey(selectedKeyId)
+                          setPickerMode(false)
+                        }}
+                        className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-[12px] font-semibold transition-colors ${
+                          isUnassignedActive
+                            ? 'border-[rgba(34,167,211,0.5)] bg-[rgba(34,167,211,0.12)] text-[#22a7d3]'
+                            : 'border-white/10 bg-white/[0.03] text-gray-300 hover:border-white/20 hover:bg-white/[0.06] hover:text-white'
+                        }`}
+                      >
+                        <svg className="size-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                        Unassigned · Clear key
+                      </button>
+                    )
+                  })()}
+                </div>
+              )}
 
               {/* ─── Header (pinned) ─── */}
               <div className="flex-shrink-0 w-full px-5 pt-2 pb-2 text-center lg:pt-3 lg:pb-4">
@@ -1776,12 +1864,10 @@ export function PanelStudio({
                     autoComplete="off"
                     spellCheck={false}
                   />
-                  {/* Function type filter — dropdown so the long type list
-                      doesn't squeeze into 6 chips on narrow viewports.
-                      appearance-none + manual chevron so the trigger
-                      renders at the full container width on every
-                      browser (native iOS selects otherwise hug content). */}
-                  <div className="relative w-full">
+                  {/* Function type filter — mobile only. On desktop this
+                      same control lives on the floating picker card so
+                      we don't render two of them. */}
+                  <div className="relative w-full sm:hidden">
                     <select
                       value={pickerFilter}
                       onChange={(e) => setPickerFilter(e.target.value)}
@@ -1809,10 +1895,9 @@ export function PanelStudio({
 
                 {/* Picker list */}
                 <div className="px-[18px] py-3.5 overflow-y-auto flex-1 flex flex-col gap-[18px]">
-                  {/* "Unassigned" — always at the top so mobile users have a
-                      one-tap way to clear a key (no backspace on touch).
-                      Styled to match the other picker items, including the
-                      cyan-active state when the key is currently empty. */}
+                  {/* "Unassigned" — mobile-only one-tap key-clear. On
+                      desktop the same action lives on the floating
+                      picker card, so this row is hidden there. */}
                   {canEditKeys && (() => {
                     const isUnassignedActive = !selectedKey?.pickListItemId
                     return (
@@ -1824,7 +1909,7 @@ export function PanelStudio({
                           // empty (clearKey is a no-op in that case).
                           setPickerMode(false)
                         }}
-                        className={`rounded-[10px] px-3.5 py-2.5 flex items-center gap-2.5 cursor-pointer transition-all border ${
+                        className={`rounded-[10px] px-3.5 py-2.5 flex items-center gap-2.5 cursor-pointer transition-all border sm:hidden ${
                           isUnassignedActive
                             ? 'bg-[rgba(34,167,211,0.12)] border-[rgba(34,167,211,0.5)]'
                             : 'bg-white/[0.03] border-transparent hover:bg-white/[0.06] hover:border-white/10'
