@@ -60,7 +60,7 @@ export default function ForgotPinPage() {
                     value={firstName}
                     onChange={(e) => { setFirstName(e.target.value); setError('') }}
                     disabled={isPending}
-                    className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-3 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3] disabled:opacity-50"
+                    className="w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3] disabled:opacity-50"
                   />
                 </div>
                 <div>
@@ -74,7 +74,7 @@ export default function ForgotPinPage() {
                     value={lastName}
                     onChange={(e) => { setLastName(e.target.value); setError('') }}
                     disabled={isPending}
-                    className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-3 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3] disabled:opacity-50"
+                    className="w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3] disabled:opacity-50"
                   />
                 </div>
               </div>

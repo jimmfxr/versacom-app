@@ -203,7 +203,7 @@ function FormView({
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 disabled={pending2}
-                className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-3 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3] disabled:opacity-50"
+                className="w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3] disabled:opacity-50"
               />
             </div>
             <div>
@@ -217,7 +217,7 @@ function FormView({
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 disabled={pending2}
-                className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-3 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3] disabled:opacity-50"
+                className="w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3] disabled:opacity-50"
               />
             </div>
           </div>
@@ -259,7 +259,7 @@ function FormView({
                 placeholder="Search pending check-ins..."
                 value={pendingSearch}
                 onChange={(e) => setPendingSearch(e.target.value)}
-                className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
+                className="w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
               />
             </div>
             {filteredPending.length === 0 ? (
@@ -346,7 +346,7 @@ function EditView({
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               disabled={pending}
-              className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-3 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3] disabled:opacity-50"
+              className="w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3] disabled:opacity-50"
             />
           </div>
           <div>
@@ -356,7 +356,7 @@ function EditView({
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               disabled={pending}
-              className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-3 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3] disabled:opacity-50"
+              className="w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3] disabled:opacity-50"
             />
           </div>
         </div>
@@ -368,7 +368,7 @@ function EditView({
             value={position}
             onChange={(e) => setPosition(e.target.value)}
             disabled={pending}
-            className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-3 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3] disabled:opacity-50"
+            className="w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3] disabled:opacity-50"
           />
         </div>
         {error && <p className="text-sm text-rose-400">{error}</p>}

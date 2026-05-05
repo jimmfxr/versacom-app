@@ -1052,7 +1052,7 @@ export function ProjectPage({
                   placeholder="Search equipment..."
                   value={eqSearch}
                   onChange={(e) => setEqSearch(e.target.value)}
-                  className="w-64 rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
+                  className="w-64 rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
                 />
                 {canAddEquipment && !showAdd && <Button onClick={() => setShowAdd(true)}>Add Equipment</Button>}
                 {!canAddEquipment && isCrew && !showTeamQr && <Button onClick={() => setShowTeamQr(true)}>Show QR</Button>}
@@ -1065,7 +1065,7 @@ export function ProjectPage({
                   placeholder="Search team..."
                   value={teamSearch}
                   onChange={(e) => setTeamSearch(e.target.value)}
-                  className="w-64 rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
+                  className="w-64 rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
                 />
                 {canEditTeam && !showAddMember && <Button onClick={() => setShowAddMember(true)}>Add Member</Button>}
                 {!canEditTeam && isCrew && !showTeamQr && <Button onClick={() => setShowTeamQr(true)}>Show QR</Button>}
@@ -1078,7 +1078,7 @@ export function ProjectPage({
                   placeholder="Search functions..."
                   value={plSearch}
                   onChange={(e) => setPlSearch(e.target.value)}
-                  className="w-64 rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
+                  className="w-64 rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
                 />
                 {canEditPickList && !showAddPl && <Button onClick={() => setShowAddPl(true)}>Add Function</Button>}
               </>
@@ -1090,7 +1090,7 @@ export function ProjectPage({
                   placeholder="Search plots..."
                   value={plotSearch}
                   onChange={(e) => setPlotSearch(e.target.value)}
-                  className="w-64 rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
+                  className="w-64 rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
                 />
                 {isAdmin && !showAddPlot && <Button onClick={() => setShowAddPlot(true)}>Add Plot</Button>}
               </>
@@ -1120,7 +1120,7 @@ export function ProjectPage({
                       placeholder="Search equipment..."
                       value={eqSearch}
                       onChange={(e) => setEqSearch(e.target.value)}
-                      className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
+                      className="w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
                     />
                   </div>
                   {canAddEquipment && !showAdd && (
@@ -1554,7 +1554,7 @@ export function ProjectPage({
                       placeholder="Search by name, position, role, equipment, or status..."
                       value={teamSearch}
                       onChange={(e) => setTeamSearch(e.target.value)}
-                      className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
+                      className="w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
                     />
                   </div>
                   {canEditTeam && !showAddMember && (
@@ -1828,7 +1828,7 @@ export function ProjectPage({
                       placeholder="Search by name, type, or user..."
                       value={plSearch}
                       onChange={(e) => setPlSearch(e.target.value)}
-                      className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
+                      className="w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
                     />
                   </div>
                   {canEditPickList && !showAddPl && (
@@ -1992,7 +1992,7 @@ export function ProjectPage({
                     placeholder="Search stage plots..."
                     value={plotSearch}
                     onChange={(e) => setPlotSearch(e.target.value)}
-                    className="w-full rounded-lg border-2 border-white/10 bg-[#2a2a2a] px-4 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors focus:border-[#0178a3]"
+                    className="w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
                   />
                 </div>
                 {isAdmin && !showAddPlot && (

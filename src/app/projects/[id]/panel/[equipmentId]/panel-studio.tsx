@@ -1762,7 +1762,7 @@ export function PanelStudio({
                     placeholder="Search by name or code..."
                     value={pickerSearch}
                     onChange={(e) => setPickerSearch(e.target.value)}
-                    className="w-full bg-[#2a2a2a] text-white border-2 border-white/10 px-4 py-2.5 rounded-lg text-base outline-none transition-[border-color] placeholder:text-gray-500 focus:border-[#0178a3]"
+                    className="w-full bg-[#2a2a2a] text-white border border-white/10 px-3.5 py-2 rounded-lg text-sm outline-none transition-[border-color] placeholder:text-gray-500 hover:border-white/20 focus:border-[#0178a3]"
                     autoFocus
                     autoCapitalize="off"
                     autoCorrect="off"
