@@ -43,11 +43,13 @@ export default async function KioskPage({
       id: true,
       position: true,
       user: { select: { firstName: true, lastName: true } },
+      equipment: { select: { name: true } },
     },
   })
 
-  // Natural-number sort so "Spot 1" comes before "Spot 2" before "Spot 10".
-  // Plain alphabetical would put "Spot 10" right after "Spot 1".
+  // Natural-number sort so "100A" comes before "100B" before "200A".
+  // Plain alphabetical would put "100B" right after "100A". Same collator
+  // also applied to first/last name as a tiebreaker.
   const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
   const pending = pendingMembers
     .map((m) => ({
@@ -55,8 +57,22 @@ export default async function KioskPage({
       firstName: m.user.firstName,
       lastName: m.user.lastName,
       position: m.position,
+      // Sort equipment names naturally so "100A, 100B, 200A" reads in order.
+      equipmentNames: m.equipment
+        .map((e) => e.name)
+        .sort((a, b) => collator.compare(a, b)),
     }))
+    // Primary sort: first equipment ID (natural collation). Members
+    // without equipment fall to the bottom, then tiebreak by name.
     .sort((a, b) => {
+      const aId = a.equipmentNames[0] ?? ''
+      const bId = b.equipmentNames[0] ?? ''
+      if (aId && !bId) return -1
+      if (!aId && bId) return 1
+      if (aId && bId) {
+        const byId = collator.compare(aId, bId)
+        if (byId !== 0) return byId
+      }
       const byFirst = collator.compare(a.firstName, b.firstName)
       if (byFirst !== 0) return byFirst
       return collator.compare(a.lastName, b.lastName)

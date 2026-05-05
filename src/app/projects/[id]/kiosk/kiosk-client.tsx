@@ -12,6 +12,7 @@ type PendingMember = {
   firstName: string
   lastName: string
   position: string | null
+  equipmentNames: string[]
 }
 
 type KioskView =
@@ -161,7 +162,7 @@ function FormView({
     const q = pendingSearch.trim().toLowerCase()
     if (!q) return pending
     return pending.filter((m) => {
-      const haystack = `${m.firstName} ${m.lastName} ${m.position ?? ''}`.toLowerCase()
+      const haystack = `${m.firstName} ${m.lastName} ${m.position ?? ''} ${m.equipmentNames.join(' ')}`.toLowerCase()
       return haystack.includes(q)
     })
   })()
@@ -281,8 +282,15 @@ function FormView({
                     className="flex w-full items-center justify-between gap-4 rounded-2xl bg-[#2a2a2a] px-5 py-4 text-left transition-colors hover:bg-[#313131]"
                   >
                     <div className="min-w-0">
-                      <div className="text-base font-semibold text-white">
-                        {m.firstName} {m.lastName}
+                      <div className="flex items-center gap-2">
+                        {m.equipmentNames.length > 0 && (
+                          <span className="font-mono text-base font-bold text-[#22a7d3]">
+                            {m.equipmentNames.join(', ')}
+                          </span>
+                        )}
+                        <span className="text-base font-semibold text-white">
+                          {m.firstName} {m.lastName}
+                        </span>
                       </div>
                       {m.position && (
                         <div className="mt-0.5 text-sm text-[#22a7d3]">{m.position}</div>
