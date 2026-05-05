@@ -2123,7 +2123,7 @@ function BrowseProjectDropdown({
         <svg className="size-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-30 mt-1 flex max-h-[320px] min-w-[240px] flex-col rounded-lg border border-white/10 bg-[#2a2a2a] shadow-2xl">
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 flex max-h-[320px] flex-col rounded-lg border border-white/10 bg-[#2a2a2a] shadow-2xl sm:left-auto sm:min-w-[240px]">
           <input
             ref={inputRef}
             type="text"
@@ -2276,7 +2276,7 @@ function BrowseMemberSwitcher({
           <svg className="size-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
         </button>
         {open && (
-          <div className="absolute left-1/2 top-full z-30 mt-1 flex max-h-[360px] min-w-[280px] -translate-x-1/2 flex-col rounded-lg border border-white/10 bg-[#2a2a2a] shadow-2xl">
+          <div className="absolute left-0 right-0 top-full z-30 mt-1 flex max-h-[360px] flex-col rounded-lg border border-white/10 bg-[#2a2a2a] shadow-2xl sm:left-1/2 sm:right-auto sm:min-w-[280px] sm:-translate-x-1/2">
             <input
               ref={inputRef}
               type="text"
