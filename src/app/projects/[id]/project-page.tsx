@@ -1176,7 +1176,19 @@ export function ProjectPage({
               )}
               </div>{/* /sticky bundle */}
 
-              {/* Crew-only: standalone join-QR card on Equipment tab */}
+              {/* Count text — pinned above the scroll on desktop. */}
+              <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
+                {filteredEquipment.length} of {equipment.length} items
+                {eqSearch && ` matching "${eqSearch}"`}
+              </p>
+
+              {/* Scrollable list region. The Pull List card lives INSIDE
+                  the scroll so picking a location doesn't pin a tall card
+                  above the cards on mobile. */}
+              <div data-scroll-container className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto overscroll-none pt-2 pb-4 sm:pb-20">
+              {/* Crew-only: standalone join-QR card. Lives INSIDE the
+                  scroll so the QR doesn't pin above the equipment list
+                  and steal vertical space. */}
               {isCrew && showTeamQr && (
                 <Card>
                   <div className="flex items-center justify-between">
@@ -1197,17 +1209,6 @@ export function ProjectPage({
                   })()}
                 </Card>
               )}
-
-              {/* Count text — pinned above the scroll on desktop. */}
-              <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
-                {filteredEquipment.length} of {equipment.length} items
-                {eqSearch && ` matching "${eqSearch}"`}
-              </p>
-
-              {/* Scrollable list region. The Pull List card lives INSIDE
-                  the scroll so picking a location doesn't pin a tall card
-                  above the cards on mobile. */}
-              <div data-scroll-container className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto overscroll-none pt-2 pb-4 sm:pb-20">
               {/* Bulk add card lives INSIDE the scroll so the form
                   doesn't pin above the list and steal vertical space —
                   scrolls naturally with the rest of the tab content.
@@ -1601,7 +1602,18 @@ export function ProjectPage({
                 })()}
               </div>{/* /sticky bundle */}
 
-              {/* Crew-only: standalone join-QR card */}
+              {/* Count text — pinned above the scroll on desktop. */}
+              <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
+                {filteredMembers.length} of {project.members.length} members
+                {teamSearch && ` matching "${teamSearch}"`}
+              </p>
+
+              {/* Scrollable list region (desktop). Add Member card lives
+                  INSIDE so it scrolls with the team list instead of
+                  pinning above and stealing vertical space. */}
+              <div data-scroll-container className="space-y-3 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto overscroll-none pt-2 pb-4 sm:pb-20">
+              {/* Crew-only: standalone join-QR card. Lives inside the
+                  scroll like the Add Member card. */}
               {isCrew && showTeamQr && (
                 <Card>
                   <div className="flex items-center justify-between">
@@ -1622,17 +1634,6 @@ export function ProjectPage({
                   })()}
                 </Card>
               )}
-
-              {/* Count text — pinned above the scroll on desktop. */}
-              <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
-                {filteredMembers.length} of {project.members.length} members
-                {teamSearch && ` matching "${teamSearch}"`}
-              </p>
-
-              {/* Scrollable list region (desktop). Add Member card lives
-                  INSIDE so it scrolls with the team list instead of
-                  pinning above and stealing vertical space. */}
-              <div data-scroll-container className="space-y-3 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto overscroll-none pt-2 pb-4 sm:pb-20">
               {canEditTeam && showAddMember && (
                 <Card>
                   <div className="flex items-center justify-between">
