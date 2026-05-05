@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { ChevronLeftIcon } from '@heroicons/react/24/outline'
 import {
   DndContext,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   KeyboardSensor,
   useSensor,
   useSensors,
@@ -979,12 +980,16 @@ export function PanelStudio({
   }
 
   /* ─── Drag handlers (dnd-kit) ───
-     Sensors: PointerSensor with a 10px activation distance so a touch
-     scroll on the chassis doesn't get mistaken for a drag. KeyboardSensor
-     comes along for free a11y. PointerSensor already covers mouse + touch
-     + pen via Pointer Events, so we don't need a separate TouchSensor. */
+     Press-and-hold activation (~500ms) on both mouse and touch. This
+     keeps clicks/taps free for selection AND lets quick gestures fall
+     through to the browser — so a user can click-drag the scrollbar on
+     desktop, or two-finger / edge-swipe scroll the wide panel on iPad,
+     without dnd-kit hijacking those gestures. Move beyond `tolerance`
+     before the delay elapses and the press is cancelled (treated as a
+     click/scroll, not a drag). KeyboardSensor stays for a11y. */
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 10 } }),
+    useSensor(MouseSensor, { activationConstraint: { delay: 500, tolerance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 500, tolerance: 5 } }),
     useSensor(KeyboardSensor)
   )
 
@@ -1932,14 +1937,14 @@ function PanelKeyTile({
     droppable.setNodeRef(node)
   }
 
-  // touch-action: none tells the browser "JS handles touch on this
-  // element" so dnd-kit gets pointer events immediately. Without it,
-  // iOS Safari waits ~250ms to decide between scroll and drag, which
-  // feels like a long press is required before drag activates.
+  // No touch-action override — sensors are press-and-hold (500ms),
+  // so the browser is free to handle quick taps as clicks and quick
+  // swipes as native scroll. Hold still on a key for half a second
+  // to start a drag.
   return (
     <div
       ref={setRef}
-      className={`${buildClassName(droppable.isOver)} touch-none`}
+      className={buildClassName(droppable.isOver)}
       style={flashStyle}
       onClick={onClick}
       {...(canDrag ? draggable.listeners : {})}
@@ -1974,13 +1979,13 @@ function PickerItemDraggable({
   })
   void isActive
   const style = isDragging ? { opacity: 0.4 } : undefined
-  // touch-action: none — same rationale as PanelKeyTile. Skips iOS
-  // Safari's scroll-vs-drag delay so picker items become draggable
-  // the moment a finger moves on them.
+  // Same rationale as PanelKeyTile — sensors use a 500ms hold so
+  // we don't need touch-action overrides; quick swipes still scroll
+  // natively, only a held press starts a drag.
   return (
     <div
       ref={setNodeRef}
-      className={`${className} touch-none`}
+      className={className}
       style={style}
       onClick={onClick}
       {...(canDrag ? listeners : {})}
