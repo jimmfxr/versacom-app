@@ -980,15 +980,17 @@ export function PanelStudio({
   }
 
   /* ─── Drag handlers (dnd-kit) ───
-     Press-and-hold activation (~500ms) on both mouse and touch. This
-     keeps clicks/taps free for selection AND lets quick gestures fall
-     through to the browser — so a user can click-drag the scrollbar on
-     desktop, or two-finger / edge-swipe scroll the wide panel on iPad,
-     without dnd-kit hijacking those gestures. Move beyond `tolerance`
-     before the delay elapses and the press is cancelled (treated as a
-     click/scroll, not a drag). KeyboardSensor stays for a11y. */
+     Split sensors so each input gets the right activation:
+     - Mouse: distance-based (8px). Desktop users expect click-and-
+       drag to start immediately; a quick click stays a click and
+       falls through to selection / scrollbar drag.
+     - Touch: delay-based (500ms / 5px tolerance). Quick taps and
+       swipes fall through to the browser so iPad keeps native
+       horizontal scroll on wide panels; hold half a second on a
+       key to start a drag.
+     KeyboardSensor stays for a11y. */
   const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { delay: 500, tolerance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 500, tolerance: 5 } }),
     useSensor(KeyboardSensor)
   )
