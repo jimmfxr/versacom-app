@@ -91,32 +91,39 @@ export default async function MyEquipmentPage({
         position: true,
         user: { select: { firstName: true, lastName: true } },
         equipment: {
-          select: { id: true, category: true },
+          // `name` is the human ID like "PNL 1" / "WLBP 3" — surfaced
+          // in the user dropdown so admins know which panel they're
+          // about to switch to without reading the URL.
+          select: { id: true, name: true, category: true },
           orderBy: [{ category: 'asc' }, { name: 'asc' }],
         },
       },
     })
 
     const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
+    // One entry per (member × panel-category equipment) — multi-device
+    // members appear once per device. Sorted by equipment ID so the
+    // dropdown reads "PNL 1, PNL 2, …, WLBP 1, …" naturally. Non-panel
+    // equipment categories are filtered out — the panel studio only
+    // renders panels / hardwire / wireless beltpacks.
     const orderedMembers = candidateMembers
-      .map((m) => {
-        const panel = m.equipment.find((e) => PANEL_CATEGORIES.includes(e.category))
-        const firstEq = panel ?? m.equipment[0]
-        return {
-          id: m.id,
-          firstName: m.user.firstName,
-          lastName: m.user.lastName,
-          position: m.position,
-          displayName: `${m.user.firstName} ${m.user.lastName}`.trim(),
-          equipmentId: firstEq?.id ?? null,
-        }
-      })
-      .filter((m) => m.equipmentId != null)
-      .sort((a, b) => {
-        const byName = collator.compare(a.displayName, b.displayName)
-        if (byName !== 0) return byName
-        return collator.compare(a.position ?? '', b.position ?? '')
-      })
+      .flatMap((m) =>
+        m.equipment
+          .filter((e) => PANEL_CATEGORIES.includes(e.category))
+          .map((e) => ({
+            // Use equipmentId as the entry's identity since each entry
+            // is unique to one device.
+            id: e.id,
+            memberId: m.id,
+            firstName: m.user.firstName,
+            lastName: m.user.lastName,
+            position: m.position,
+            displayName: `${m.user.firstName} ${m.user.lastName}`.trim(),
+            equipmentId: e.id,
+            equipmentName: e.name,
+          })),
+      )
+      .sort((a, b) => collator.compare(a.equipmentName ?? '', b.equipmentName ?? ''))
 
     if (orderedMembers.length === 0) {
       // Project genuinely has no gear-having members. Fall through to the
@@ -135,9 +142,13 @@ export default async function MyEquipmentPage({
       )
     }
 
+    // `requestedMemberId` from the URL still references projectMember.id
+    // (the legacy ?member=X param). Find any entry for that member.
+    // First match wins (entries are sorted by equipment ID, so a member's
+    // lowest-numbered panel takes precedence — usually their primary).
     const targetMember =
       (requestedMemberId != null
-        ? orderedMembers.find((m) => m.id === requestedMemberId)
+        ? orderedMembers.find((m) => m.memberId === requestedMemberId)
         : null) ?? orderedMembers[0]
 
     redirect(

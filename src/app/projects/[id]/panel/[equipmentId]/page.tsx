@@ -376,12 +376,14 @@ export default async function PanelStudioPage({
   let browseProjects: Array<{ id: number; name: string }> | undefined
   let browseMembers:
     | Array<{
-        id: number
+        id: number // entry id = equipmentId; one entry per panel-category device
+        memberId: number
         firstName: string
         lastName: string
         position: string | null
         displayName: string
-        equipmentId: number | null // first panel-or-any equipment id (for prev/next)
+        equipmentId: number | null
+        equipmentName: string | null // human ID like "PNL 1" — shown in dropdown
       }>
     | undefined
   let siblingGear:
@@ -415,9 +417,9 @@ export default async function PanelStudioPage({
       a.name.localeCompare(b.name),
     )
 
-    // Members with gear on THIS project, plus their first equipment id for
-    // prev/next navigation. Prefer a panel-category item; fall back to
-    // anything they have.
+    // One entry per panel-category device on THIS project — multi-device
+    // members appear once per device. Sorted by equipment name (natural
+    // numeric collation) so the dropdown reads "PNL 1, PNL 2, …, WLBP 1, …"
     const projMembers = await prisma.projectMember.findMany({
       where: { projectId, equipment: { some: {} } },
       select: {
@@ -432,23 +434,22 @@ export default async function PanelStudioPage({
     })
     const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
     browseMembers = projMembers
-      .map((m) => {
-        const panel = m.equipment.find((e) => PANEL_CATEGORIES.includes(e.category))
-        const firstEq = panel ?? m.equipment[0]
-        return {
-          id: m.id,
-          firstName: m.user.firstName,
-          lastName: m.user.lastName,
-          position: m.position,
-          displayName: `${m.user.firstName} ${m.user.lastName}`.trim(),
-          equipmentId: firstEq?.id ?? null,
-        }
-      })
-      .sort((a, b) => {
-        const byName = collator.compare(a.displayName, b.displayName)
-        if (byName !== 0) return byName
-        return collator.compare(a.position ?? '', b.position ?? '')
-      })
+      .flatMap((m) =>
+        m.equipment
+          .filter((e) => PANEL_CATEGORIES.includes(e.category))
+          .map((e) => ({
+            // entry id = equipmentId so each device row is unique.
+            id: e.id,
+            memberId: m.id,
+            firstName: m.user.firstName,
+            lastName: m.user.lastName,
+            position: m.position,
+            displayName: `${m.user.firstName} ${m.user.lastName}`.trim(),
+            equipmentId: e.id,
+            equipmentName: e.name,
+          })),
+      )
+      .sort((a, b) => collator.compare(a.equipmentName ?? '', b.equipmentName ?? ''))
 
     // Sibling gear — every equipment item assigned to the panel's
     // current member, scoped to THIS project. Drives the cards row.

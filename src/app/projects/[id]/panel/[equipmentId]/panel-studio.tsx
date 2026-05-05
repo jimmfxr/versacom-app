@@ -103,14 +103,18 @@ interface PanelStudioProps {
    *  rendered above the panel keys. */
   browseProjects?: Array<{ id: number; name: string }>
   browseMembers?: Array<{
+    /** Entry ID = equipmentId. Each row in the dropdown is one device,
+     *  so multi-device members appear once per device. */
     id: number
+    memberId: number
     firstName: string
     lastName: string
     position: string | null
     displayName: string
-    /** First panel-or-any equipment ID for this member, used to resolve
-     *  prev/next navigation. Null when the member has no equipment. */
     equipmentId: number | null
+    /** Human equipment name like "PNL 1" / "WLBP 3" — surfaced in the
+     *  dropdown and trigger so admins know what they're switching to. */
+    equipmentName: string | null
   }>
   siblingGear?: Array<{
     id: number
@@ -614,7 +618,11 @@ export function PanelStudio({
       pickListItemId: item.id,
       pickListItemName: item.name,
       pickListItemType: item.type,
-      triggerMode: 'latch',
+      // Pick-list assignments default to 'momentary' — most show comms
+      // talkback flows are momentary (push-to-talk style), so this saves
+      // an extra tap for the common case. Admins can flip to latch in
+      // the inspector after assignment.
+      triggerMode: 'momentary',
       status: isRequestMode ? 'changed' : 'assigned',
     })
     setPickerMode(false)
@@ -1004,7 +1012,8 @@ export function PanelStudio({
         pickListItemId: dragPickData.id,
         pickListItemName: dragPickData.name,
         pickListItemType: dragPickData.type,
-        triggerMode: 'latch',
+        // Match assignPickerItem — pick-list drops default to momentary.
+        triggerMode: 'momentary',
         status: isRequestMode ? 'changed' : 'assigned',
       })
       // Don't call selectKey() here — that closes the picker. Keeping the
@@ -1334,7 +1343,7 @@ export function PanelStudio({
                     My Equipment
                   </h1>
                   <BrowseProjectDropdown project={project} browseProjects={browseProjects} />
-                  <BrowseMemberSwitcher project={project} member={member} browseMembers={browseMembers} />
+                  <BrowseMemberSwitcher project={project} currentEquipmentId={equipment.id} browseMembers={browseMembers} />
                 </div>
                 {/* Desktop layout */}
                 <div className="hidden grid-cols-3 items-center gap-3 sm:grid">
@@ -1342,7 +1351,7 @@ export function PanelStudio({
                     My Equipment
                   </h1>
                   <div className="justify-self-center">
-                    <BrowseMemberSwitcher project={project} member={member} browseMembers={browseMembers} />
+                    <BrowseMemberSwitcher project={project} currentEquipmentId={equipment.id} browseMembers={browseMembers} />
                   </div>
                   <div className="justify-self-end">
                     <BrowseProjectDropdown project={project} browseProjects={browseProjects} />
@@ -1367,6 +1376,12 @@ export function PanelStudio({
               {/* ─── Header (pinned) ─── */}
               <div className="flex-shrink-0 w-full px-5 pt-2 pb-2 text-center lg:pt-3 lg:pb-4">
                 <div className="flex items-baseline gap-3.5 flex-wrap justify-center mb-1">
+                  {/* Equipment ID (e.g. "PNL 1") sits to the left of the
+                      user name so admins always see which panel they're
+                      editing first. Cyan to match the row-card ID styling. */}
+                  {equipment.name && (
+                    <div className="text-[22px] font-bold text-[#22a7d3] font-mono">{equipment.name}</div>
+                  )}
                   <div className="text-[22px] font-bold text-white">{memberName}</div>
                   {memberMeta && <div className="text-[13px] text-gray-400">{memberMeta}</div>}
                   {showIpAddress && equipment.ipAddress && (
@@ -1562,9 +1577,17 @@ export function PanelStudio({
                           </>
                         )}
                         {!isRequestMode && (
-                          <Button onClick={handleSave} disabled={saving} size="sm">
+                          // Sized to match the Copy / Paste buttons next
+                          // to it (px-4 py-2 text-xs) instead of the
+                          // smaller default Button size="sm".
+                          <button
+                            type="button"
+                            onClick={handleSave}
+                            disabled={saving}
+                            className="rounded-lg bg-[#0178a3] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
+                          >
                             {saving ? 'Saving...' : 'Save'}
-                          </Button>
+                          </button>
                         )}
                       </div>
                     )}
@@ -2026,19 +2049,23 @@ function BrowseProjectDropdown({
  */
 function BrowseMemberSwitcher({
   project,
-  member,
+  currentEquipmentId,
   browseMembers,
   className = '',
 }: {
   project: { id: number }
-  member: { id: number } | null
+  /** ID of the equipment the panel studio is currently showing — used
+   *  to find the matching dropdown row and drive prev/next navigation. */
+  currentEquipmentId: number
   browseMembers: Array<{
-    id: number
+    id: number // entry id = equipmentId
+    memberId: number
     firstName: string
     lastName: string
     position: string | null
     displayName: string
     equipmentId: number | null
+    equipmentName: string | null
   }>
   className?: string
 }) {
@@ -2066,22 +2093,30 @@ function BrowseMemberSwitcher({
   const filtered = query.trim()
     ? browseMembers.filter((m) => {
         const q = query.trim().toLowerCase()
-        return m.displayName.toLowerCase().includes(q) || (m.position ?? '').toLowerCase().includes(q)
+        return (
+          m.displayName.toLowerCase().includes(q) ||
+          (m.position ?? '').toLowerCase().includes(q) ||
+          (m.equipmentName ?? '').toLowerCase().includes(q)
+        )
       })
     : browseMembers
 
-  const currentMember = member ? browseMembers.find((m) => m.id === member.id) : null
-  const memberLabel = currentMember
-    ? currentMember.position
-      ? `${currentMember.displayName} · ${currentMember.position}`
-      : currentMember.displayName
+  // Each entry's id IS the equipmentId, so match against the panel
+  // studio's currently-showing equipment to find which row is "active".
+  const currentEntry = browseMembers.find((m) => m.id === currentEquipmentId) ?? null
+  // ID first (left of name) — admins read the panel ID first to know
+  // which one they're on. Then name, then optional position.
+  const memberLabel = currentEntry
+    ? [currentEntry.equipmentName, currentEntry.displayName, currentEntry.position]
+        .filter(Boolean)
+        .join(' · ')
     : '—'
-  const currentMemberIndex = currentMember
-    ? browseMembers.findIndex((m) => m.id === currentMember.id)
+  const currentMemberIndex = currentEntry
+    ? browseMembers.findIndex((m) => m.id === currentEntry.id)
     : -1
 
-  function navigateToMember(memberId: number) {
-    const target = browseMembers.find((m) => m.id === memberId)
+  function navigateToEntry(entryId: number) {
+    const target = browseMembers.find((m) => m.id === entryId)
     if (!target || target.equipmentId == null) return
     router.push(`/projects/${project.id}/panel/${target.equipmentId}?from=my-equipment`)
   }
@@ -2089,7 +2124,7 @@ function BrowseMemberSwitcher({
   function jumpByOffset(offset: number) {
     if (browseMembers.length === 0 || currentMemberIndex < 0) return
     const wrapped = ((currentMemberIndex + offset) % browseMembers.length + browseMembers.length) % browseMembers.length
-    navigateToMember(browseMembers[wrapped].id)
+    navigateToEntry(browseMembers[wrapped].id)
   }
 
   return (
@@ -2128,7 +2163,7 @@ function BrowseMemberSwitcher({
                   if (first) {
                     e.preventDefault()
                     setOpen(false)
-                    navigateToMember(first.id)
+                    navigateToEntry(first.id)
                   }
                 } else if (e.key === 'Escape') {
                   setOpen(false)
@@ -2139,13 +2174,16 @@ function BrowseMemberSwitcher({
             />
             <div className="overflow-y-auto p-1 pt-0">
               {filtered.map((m) => {
-                const isActive = currentMember?.id === m.id
-                const label = m.position ? `${m.displayName} · ${m.position}` : m.displayName
+                const isActive = currentEntry?.id === m.id
+                // ID left of name, then optional position. Matches the
+                // trigger button label so the dropdown rows read the
+                // same way.
+                const label = [m.equipmentName, m.displayName, m.position].filter(Boolean).join(' · ')
                 return (
                   <button
                     key={m.id}
                     type="button"
-                    onClick={() => { setOpen(false); navigateToMember(m.id) }}
+                    onClick={() => { setOpen(false); navigateToEntry(m.id) }}
                     disabled={m.equipmentId == null}
                     className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left transition-colors disabled:opacity-40 ${
                       isActive ? 'bg-[#22a7d3]/10' : 'hover:bg-white/[0.06]'

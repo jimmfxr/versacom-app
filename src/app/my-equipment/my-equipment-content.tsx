@@ -34,11 +34,17 @@ function WrenchIcon() {
 
 type BrowseProject = { id: number; name: string }
 type BrowseMember = {
+  /** Entry id = equipmentId. Each row is one device, so multi-device
+   *  members appear once per device in the dropdown. */
   id: number
+  memberId: number
   firstName: string
   lastName: string
   position: string | null
   displayName: string
+  /** Human equipment name like "PNL 1" / "WLBP 3" — surfaced in the
+   *  dropdown so admins know which panel each user is on. */
+  equipmentName?: string | null
 }
 
 export function MyEquipmentContent({
@@ -256,6 +262,16 @@ function MemberSwitcher({
     return () => document.removeEventListener('mousedown', onMouseDown)
   }, [open])
 
+  // Build the trigger label from the selected member so we get the same
+  // "ID · Name · Position" ordering as the dropdown rows. Falls back to
+  // the parent-provided selectedLabel if no match (e.g. before hydration).
+  const selectedMember = members.find((m) => m.id === selectedMemberId)
+  const triggerLabel = selectedMember
+    ? [selectedMember.equipmentName, selectedMember.displayName, selectedMember.position]
+        .filter(Boolean)
+        .join(' · ')
+    : selectedLabel
+
   return (
     <div ref={ref} className="relative w-full sm:inline-block sm:w-auto">
       <button
@@ -267,7 +283,7 @@ function MemberSwitcher({
             : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04]'
         }`}
       >
-        <span className="truncate">{selectedLabel}</span>
+        <span className="truncate">{triggerLabel}</span>
         <svg
           className={`size-3.5 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
           viewBox="0 0 20 20"
@@ -285,9 +301,12 @@ function MemberSwitcher({
         <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-[320px] min-w-[260px] overflow-y-auto rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl">
           {members.map((m) => {
             const isActive = m.id === selectedMemberId
-            const label = m.position
-              ? `${m.displayName} · ${m.position}`
-              : m.displayName
+            // Equipment ID first (left), then name, then optional
+            // position. Same ordering as the panel-studio browse member
+            // dropdown for consistency.
+            const label = [m.equipmentName, m.displayName, m.position]
+              .filter(Boolean)
+              .join(' · ')
             return (
               <button
                 key={m.id}
