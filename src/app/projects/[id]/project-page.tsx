@@ -274,6 +274,79 @@ function UsersIcon() {
   )
 }
 
+/**
+ * Mobile-only dropdown for the project-detail tab strip. On desktop the
+ * tabs render as a chip row (see ChipScroller usage above); on mobile
+ * we collapse them into a single dropdown to save horizontal space.
+ */
+function TabsMobileDropdown({
+  tabs,
+  activeTab,
+  onSelect,
+}: {
+  tabs: Array<{ key: Tab; label: string; count: number }>
+  activeTab: Tab
+  onSelect: (tab: Tab) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    if (open) document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [open])
+
+  const active = tabs.find((t) => t.key === activeTab) ?? tabs[0]
+
+  return (
+    <div ref={ref} className="relative w-full">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3.5 py-2.5 text-base font-medium text-gray-200 transition-colors ${
+          open
+            ? 'border-[#22a7d3]/50 bg-white/[0.04]'
+            : 'border-white/10 hover:border-white/20'
+        }`}
+      >
+        <span className="flex items-center gap-2">
+          <span>{active.label}</span>
+          <span className="text-xs text-gray-500">{active.count}</span>
+        </span>
+        <svg className="size-3 shrink-0 text-gray-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="5 8 10 13 15 8" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl">
+          {tabs.map((t) => {
+            const isActive = t.key === activeTab
+            return (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => {
+                  setOpen(false)
+                  onSelect(t.key)
+                }}
+                className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left transition-colors ${
+                  isActive ? 'bg-[#22a7d3]/10' : 'hover:bg-white/[0.06]'
+                }`}
+              >
+                <span className={`text-sm font-medium ${isActive ? 'text-[#22a7d3]' : 'text-gray-200'}`}>{t.label}</span>
+                <span className="text-xs text-gray-500">{t.count}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ListIcon() {
   return (
     <svg className="mx-auto size-12 text-gray-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -1004,42 +1077,55 @@ export function ProjectPage({
               Mobile keeps the existing per-tab sticky search bar below. */}
           <div className="flex-shrink-0 pt-4 sm:flex sm:items-center sm:gap-3 sm:pb-4">
           <div className="sm:min-w-0 sm:flex-1">
-          <ChipScroller ariaLabel="tabs">
-            {(() => {
-              const myEqCount = equipment.filter((e) => e.assignedMemberId === currentMemberId).length
-              if (isUser) {
-                return [{ key: 'my-equipment' as Tab, label: 'My Equipment', count: myEqCount }]
-              }
-              const tabs: { key: Tab; label: string; count: number }[] = [
-                { key: 'equipment', label: 'Equipment', count: equipment.length },
-              ]
-              if (isCrew && myEqCount > 0) {
-                tabs.push({ key: 'my-equipment', label: 'My Equipment', count: myEqCount })
-              }
-              // Crew only see Equipment + My Equipment + Plots. Team and
-              // Pick List are admin/manager surfaces.
-              if (!isCrew) {
-                tabs.push({ key: 'team', label: 'Team', count: project.members.length })
-                tabs.push({ key: 'picklist', label: 'Pick List', count: pickListItems.filter((p) => p.type !== 'PTP').length })
-              }
-              tabs.push({ key: 'stage-plots', label: 'Plots', count: mockPlots.length })
-              return tabs
-            })().map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setActiveTab(tab.key)}
-                className={`shrink-0 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
-                  activeTab === tab.key
-                    ? 'bg-[#0178a3] text-white'
-                    : 'border border-white/[0.10] bg-[#2a2a2a] text-gray-300 hover:bg-[#313131]'
-                }`}
-              >
-                {tab.label}
-                <span className="ml-1.5 text-xs opacity-70">{tab.count}</span>
-              </button>
-            ))}
-          </ChipScroller>
+          {(() => {
+            const myEqCount = equipment.filter((e) => e.assignedMemberId === currentMemberId).length
+            const tabs: { key: Tab; label: string; count: number }[] = isUser
+              ? [{ key: 'my-equipment' as Tab, label: 'My Equipment', count: myEqCount }]
+              : (() => {
+                  const list: { key: Tab; label: string; count: number }[] = [
+                    { key: 'equipment', label: 'Equipment', count: equipment.length },
+                  ]
+                  if (isCrew && myEqCount > 0) {
+                    list.push({ key: 'my-equipment', label: 'My Equipment', count: myEqCount })
+                  }
+                  // Crew only see Equipment + My Equipment + Plots.
+                  if (!isCrew) {
+                    list.push({ key: 'team', label: 'Team', count: project.members.length })
+                    list.push({ key: 'picklist', label: 'Pick List', count: pickListItems.filter((p) => p.type !== 'PTP').length })
+                  }
+                  list.push({ key: 'stage-plots', label: 'Plots', count: mockPlots.length })
+                  return list
+                })()
+            return (
+              <>
+                {/* Mobile: dropdown selector — saves the horizontal space
+                    the chip row was eating. */}
+                <div className="sm:hidden">
+                  <TabsMobileDropdown tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} />
+                </div>
+                {/* Desktop: keep the chip strip with chevron-on-overflow. */}
+                <div className="hidden sm:block">
+                  <ChipScroller ariaLabel="tabs">
+                    {tabs.map((tab) => (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => setActiveTab(tab.key)}
+                        className={`shrink-0 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
+                          activeTab === tab.key
+                            ? 'bg-[#0178a3] text-white'
+                            : 'border border-white/[0.10] bg-[#2a2a2a] text-gray-300 hover:bg-[#313131]'
+                        }`}
+                      >
+                        {tab.label}
+                        <span className="ml-1.5 text-xs opacity-70">{tab.count}</span>
+                      </button>
+                    ))}
+                  </ChipScroller>
+                </div>
+              </>
+            )
+          })()}
           </div>{/* /tab strip wrapper */}
 
           {/* Desktop-only per-tab toolbar (search + add). Mobile renders
