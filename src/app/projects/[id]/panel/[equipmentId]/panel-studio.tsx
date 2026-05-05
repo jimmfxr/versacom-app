@@ -527,11 +527,29 @@ export function PanelStudio({
   const approvedCount = totalReviewKeys - rejectedCount
 
   const inspectorRef = useRef<HTMLElement>(null)
-  // Kept as a ref but no longer measured — header + picker card both
-  // use a fixed max-w-7xl container now (the chassisWidth-tracked
-  // alignment caused tiny chassis sizes to scatter the header content
-  // and squeeze chips).
   const chassisRef = useRef<HTMLDivElement>(null)
+
+  // Measures the chassis width so the header layout can switch:
+  // wide chassis → identity left / legend+buttons right on a single
+  // row (justify-between). Narrow chassis (e.g. a 2- or 4-key panel)
+  // → stack the two groups into their own centered rows so the
+  // header doesn't run wider than the chassis below it.
+  const [chassisWidth, setChassisWidth] = useState<number | null>(null)
+  useEffect(() => {
+    const el = chassisRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width
+      if (w && w > 0) setChassisWidth(Math.round(w))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  // Threshold below which the header stacks into two centered rows.
+  // 720px lines up with roughly the smallest chassis that still fits
+  // the full identity strip (ID · name · meta · IP · project ·
+  // hardware · key count) on one line.
+  const stackHeader = chassisWidth !== null && chassisWidth < 720
 
   /* ─── Initialize keys from server data ─── */
   // (expKeyCount is declared above the useState block — it's referenced
@@ -1669,7 +1687,7 @@ export function PanelStudio({
                             canDrag={canEditKeys}
                             isActive={isActive}
                             onClick={() => selectedKeyId && assignPickerItem(selectedKeyId, item)}
-                            className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-semibold transition-[colors,transform] active:scale-95 ${
+                            className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold transition-[colors,transform] active:scale-95 ${
                               isActive
                                 ? 'border-[#0178a3] bg-[#0178a3] text-white'
                                 : 'border-white/10 bg-[#202020] text-gray-300 hover:border-white/20 hover:bg-[#2a2a2a] hover:text-white'
@@ -1736,13 +1754,13 @@ export function PanelStudio({
                   the same comfortable container width so things stay
                   visually aligned no matter how small the chassis. */}
               <div className="flex w-full flex-shrink-0 px-4 pt-2 pb-2 lg:px-10 lg:pt-3 lg:pb-3">
-                <div className="mx-auto flex w-full max-w-7xl flex-nowrap items-center justify-between gap-3">
+                <div className={`mx-auto flex w-full max-w-7xl items-center gap-3 ${stackHeader ? 'flex-col' : 'flex-nowrap justify-between'}`}>
                 {/* Left: ID · name · meta · ip · project · hardware · key count
                     All separated by middle dots. Wraps via flex-wrap so
                     a long identity line doesn't push the right group
                     off-screen on narrow viewports — but the parent is
                     flex-nowrap so the two GROUPS stay on one row. */}
-                <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-1 overflow-hidden">
+                <div className={`flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 overflow-hidden ${stackHeader ? 'justify-center' : 'flex-1'}`}>
                   {equipment.name && (
                     <span className="text-[18px] font-bold text-[#22a7d3] font-mono lg:text-[22px]">{equipment.name}</span>
                   )}
@@ -1790,7 +1808,7 @@ export function PanelStudio({
                     and expansion controls move to the footer next to
                     the Main/Shift toggle so the header stays compact
                     on small screens). */}
-                <div className="flex flex-shrink-0 items-center gap-3">
+                <div className={`flex flex-shrink-0 flex-wrap items-center gap-3 ${stackHeader ? 'justify-center' : ''}`}>
                   {/* Legend + expansion — desktop only (lg+) */}
                   <div className="hidden flex-wrap items-center gap-x-2 gap-y-1 lg:flex">
                     <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
@@ -2341,7 +2359,7 @@ export function PanelStudio({
           follows the cursor freely across the chassis. */}
       <DragOverlay dropAnimation={null}>
         {activeDragChip ? (
-          <div className="pointer-events-none inline-flex items-center gap-1.5 rounded-lg border border-[#0178a3] bg-[#0178a3] px-3 py-1.5 text-sm font-semibold text-white shadow-2xl">
+          <div className="pointer-events-none inline-flex items-center gap-1.5 rounded-md border border-[#0178a3] bg-[#0178a3] px-2.5 py-1 text-xs font-semibold text-white shadow-2xl">
             <span className="overflow-hidden text-ellipsis whitespace-nowrap">{activeDragChip.name}</span>
             {activeDragChip.code && (
               <span className="font-mono text-[10px] text-white/70">{activeDragChip.code}</span>
