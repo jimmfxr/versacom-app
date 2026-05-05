@@ -238,7 +238,7 @@ export function TaskCardList({
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         {SearchBar}
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-none pb-4 pt-1">
+        <div data-scroll-container className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-none pb-4 pt-1 sm:pb-20">
           {selectedLocation && <LocationSummary location={selectedLocation} allGear={allGear} />}
           <div className="flex flex-col items-center rounded-2xl bg-[#2a2a2a] px-6 py-12 text-center">
           <svg className="size-12 text-green-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -276,7 +276,7 @@ export function TaskCardList({
       {/* Single scroll region for everything below the search: Pull List
           card + Deploy / Return sections all scroll together so the
           Pull List doesn't pin and steal vertical space on mobile. */}
-      <div className="min-h-0 flex-1 space-y-8 overflow-y-auto overscroll-none pb-4 pt-1">
+      <div data-scroll-container className="min-h-0 flex-1 space-y-8 overflow-y-auto overscroll-none pb-4 pt-1 sm:pb-20">
         {selectedLocation && (
           <LocationSummary
             location={selectedLocation}

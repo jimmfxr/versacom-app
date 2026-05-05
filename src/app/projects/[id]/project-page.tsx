@@ -1198,18 +1198,23 @@ export function ProjectPage({
                 </Card>
               )}
 
-              {/* Bulk add card — two tabs:
-                    1. Add Equipment (default) — bulk-add gear form
-                    2. Headset & Misc Inventory — sets per-show packed counts
-                       for headsets, goosenecks, footswitches, etc. Replaces
-                       the Edit button that used to live on the Dashboard
-                       Headsets / Misc card. */}
+              {/* Count text — pinned above the scroll on desktop. */}
+              <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
+                {filteredEquipment.length} of {equipment.length} items
+                {eqSearch && ` matching "${eqSearch}"`}
+              </p>
+
+              {/* Scrollable list region. The Pull List card lives INSIDE
+                  the scroll so picking a location doesn't pin a tall card
+                  above the cards on mobile. */}
+              <div data-scroll-container className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto overscroll-none pt-2 pb-4 sm:pb-20">
+              {/* Bulk add card lives INSIDE the scroll so the form
+                  doesn't pin above the list and steal vertical space —
+                  scrolls naturally with the rest of the tab content.
+                  Two tabs: Add Equipment (default) + Headsets & Misc. */}
               {canAddEquipment && showAdd && (
                 <Card>
                   <div className="flex items-center justify-between gap-2">
-                    {/* Tab strip — both render as Buttons so the choice
-                        reads as "this OR that". Active tab = primary cyan,
-                        inactive = secondary so it still looks tappable. */}
                     <div className="flex flex-wrap gap-2">
                       <Button
                         size="sm"
@@ -1285,17 +1290,6 @@ export function ProjectPage({
                   )}
                 </Card>
               )}
-
-              {/* Count text — pinned above the scroll on desktop. */}
-              <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
-                {filteredEquipment.length} of {equipment.length} items
-                {eqSearch && ` matching "${eqSearch}"`}
-              </p>
-
-              {/* Scrollable list region. The Pull List card lives INSIDE
-                  the scroll so picking a location doesn't pin a tall card
-                  above the cards on mobile. */}
-              <div className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto overscroll-none pt-2 pb-4">
               {eqLocationFilter && (
                 <LocationSummary
                   location={eqLocationFilter}
@@ -1629,7 +1623,16 @@ export function ProjectPage({
                 </Card>
               )}
 
-              {/* Add member form */}
+              {/* Count text — pinned above the scroll on desktop. */}
+              <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
+                {filteredMembers.length} of {project.members.length} members
+                {teamSearch && ` matching "${teamSearch}"`}
+              </p>
+
+              {/* Scrollable list region (desktop). Add Member card lives
+                  INSIDE so it scrolls with the team list instead of
+                  pinning above and stealing vertical space. */}
+              <div data-scroll-container className="space-y-3 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto overscroll-none pt-2 pb-4 sm:pb-20">
               {canEditTeam && showAddMember && (
                 <Card>
                   <div className="flex items-center justify-between">
@@ -1638,9 +1641,6 @@ export function ProjectPage({
                   </div>
                   <p className="mt-2 text-xs text-gray-500">Members are added automatically when they join with the project PIN. You can also add members manually, or open the Kiosk for self-service crew check-in.</p>
                   <form onSubmit={(e) => { e.preventDefault(); handleAddMember() }}>
-                    {/* 5 inputs in one row on desktop; mobile 2-col grid keeps
-                        Role at the same width as everything else (with an
-                        empty cell on its right). */}
                     <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-5">
                       <ComboboxInput
                         id="add-member-first-name"
@@ -1696,9 +1696,6 @@ export function ProjectPage({
                         disabled={!addMemberData.firstName.trim() || !addMemberData.lastName.trim()}
                         onClick={() => {
                           const name = `${addMemberData.firstName.trim()} ${addMemberData.lastName.trim()}`
-                          // Always use the production URL for the QR / invite link so scanning
-                          // from a phone works regardless of where the admin is browsing from
-                          // (localhost dev, preview deploys, etc.).
                           const joinUrl = `https://versacom-app.vercel.app/login/join?pin=${project.pin}`
                           const text = `Hi ${name}, you've been accepted into ${project.name}! Scan or tap: ${joinUrl}`
                           navigator.clipboard.writeText(text).then(() => showToast('success', 'Invite message copied to clipboard'))
@@ -1729,15 +1726,6 @@ export function ProjectPage({
                   </form>
                 </Card>
               )}
-
-              {/* Count text — pinned above the scroll on desktop. */}
-              <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
-                {filteredMembers.length} of {project.members.length} members
-                {teamSearch && ` matching "${teamSearch}"`}
-              </p>
-
-              {/* Scrollable list region (desktop). */}
-              <div className="space-y-3 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto overscroll-none pt-2 pb-4">
               {filteredMembers.length === 0 ? (
                 <EmptyState icon={<UsersIcon />} title={teamSearch ? 'No matches found' : 'No team members yet'} message={teamSearch ? 'Try a different search term.' : 'Members join via the project PIN.'} />
               ) : (
@@ -1876,7 +1864,15 @@ export function ProjectPage({
                 </div>
               </div>{/* /sticky bundle */}
 
-              {/* Add function form */}
+              {/* Count text — pinned above the scroll on desktop. */}
+              <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
+                {filteredPickList.length} of {pickListItems.filter((p) => p.type !== 'PTP').length} functions
+                {plSearch && ` matching "${plSearch}"`}
+              </p>
+
+              {/* Scrollable list region (desktop). Add Function card lives
+                  INSIDE so it scrolls with the function list. */}
+              <div data-scroll-container className="space-y-3 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto overscroll-none pt-2 pb-4 sm:pb-20">
               {canEditPickList && showAddPl && (
                 <Card>
                   <div className="flex items-center justify-between">
@@ -1919,16 +1915,6 @@ export function ProjectPage({
                   </form>
                 </Card>
               )}
-
-              {/* Count text — pinned above the scroll on desktop. */}
-              <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
-                {filteredPickList.length} of {pickListItems.filter((p) => p.type !== 'PTP').length} functions
-                {plSearch && ` matching "${plSearch}"`}
-              </p>
-
-              {/* Scrollable list region (desktop). */}
-              <div className="space-y-3 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto overscroll-none pt-2 pb-4">
-
               {filteredPickList.length === 0 ? (
                 <EmptyState icon={<ListIcon />} title={plSearch ? 'No matches found' : 'No functions yet'} message={plSearch ? 'Try a different search term.' : 'Add communication functions using the button above.'} />
               ) : (
@@ -2015,7 +2001,16 @@ export function ProjectPage({
               {/* Mobile-only divider line below the search row. */}
               <div className="h-0.5 bg-white/[0.12] mb-4 flex-shrink-0 sm:hidden -mx-4" />
 
-              {/* Add plot form */}
+              {/* Count text — pinned above the scroll on desktop. */}
+              <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
+                {filteredPlots.length} of {mockPlots.length} {mockPlots.length === 1 ? 'plot' : 'plots'}
+                {plotSearch && ` matching "${plotSearch}"`}
+              </p>
+
+              {/* Scrollable list region (desktop). Add Plot card lives
+                  INSIDE so it scrolls with the plot list. */}
+              <div data-scroll-container className="space-y-3 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto overscroll-none pt-2 pb-4 sm:pb-20">
+
               {isAdmin && showAddPlot && (
                 <Card>
                   <div className="flex items-center justify-between">
@@ -2081,16 +2076,6 @@ export function ProjectPage({
                   </div>
                 </Card>
               )}
-
-              {/* Count text — pinned above the scroll on desktop. */}
-              <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
-                {filteredPlots.length} of {mockPlots.length} {mockPlots.length === 1 ? 'plot' : 'plots'}
-                {plotSearch && ` matching "${plotSearch}"`}
-              </p>
-
-              {/* Scrollable list region (desktop). */}
-              <div className="space-y-3 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto overscroll-none pt-2 pb-4">
-
               {filteredPlots.length === 0 ? (
                 <EmptyState
                   icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>}
@@ -2204,7 +2189,7 @@ export function ProjectPage({
                 </p>
 
                 {/* Scrollable list region (desktop). */}
-                <div className="space-y-3 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto overscroll-none pt-2 pb-4">
+                <div data-scroll-container className="space-y-3 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto overscroll-none pt-2 pb-4 sm:pb-20">
                 {myEquipment.length === 0 ? (
                   <EmptyState icon={<WrenchIcon />} title="No equipment assigned" message="You don't have any equipment assigned to you yet." />
                 ) : (

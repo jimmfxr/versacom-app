@@ -160,7 +160,7 @@ export function TasksClient({
           // Desktop: scrollable list region inside the kiosk-style flex
           // chain. Mobile: page-level scroll, this div is just a normal
           // space-y-4 container.
-          <div className="space-y-4 sm:flex-1 sm:overflow-y-auto sm:overscroll-none sm:pt-1 sm:pb-4">
+          <div data-scroll-container className="space-y-4 sm:flex-1 sm:overflow-y-auto sm:overscroll-none sm:pt-1 sm:pb-20">
             {/* Change Request cards */}
             {changeRequestTasks.length > 0 && (
               <div className="space-y-2">
