@@ -1775,18 +1775,34 @@ export function PanelStudio({
                     spellCheck={false}
                   />
                   {/* Function type filter — dropdown so the long type list
-                      doesn't squeeze into 6 chips on narrow viewports. */}
-                  <select
-                    value={pickerFilter}
-                    onChange={(e) => setPickerFilter(e.target.value)}
-                    className="w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white outline-none transition-[border-color] hover:border-white/20 focus:border-[#0178a3]"
-                  >
-                    {filterTypes.map((type) => (
-                      <option key={type} value={type}>
-                        {type === 'All' ? 'All function types' : type === 'Audio' ? 'Audio I/O' : type}
-                      </option>
-                    ))}
-                  </select>
+                      doesn't squeeze into 6 chips on narrow viewports.
+                      appearance-none + manual chevron so the trigger
+                      renders at the full container width on every
+                      browser (native iOS selects otherwise hug content). */}
+                  <div className="relative w-full">
+                    <select
+                      value={pickerFilter}
+                      onChange={(e) => setPickerFilter(e.target.value)}
+                      className="block w-full appearance-none rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 pr-9 text-sm text-white outline-none transition-[border-color] hover:border-white/20 focus:border-[#0178a3]"
+                    >
+                      {filterTypes.map((type) => (
+                        <option key={type} value={type}>
+                          {type === 'All' ? 'All function types' : type === 'Audio' ? 'Audio I/O' : type}
+                        </option>
+                      ))}
+                    </select>
+                    <svg
+                      className="pointer-events-none absolute right-3 top-1/2 size-3 -translate-y-1/2 text-gray-400"
+                      viewBox="0 0 20 20"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="5 8 10 13 15 8" />
+                    </svg>
+                  </div>
                 </div>
 
                 {/* Picker list */}
