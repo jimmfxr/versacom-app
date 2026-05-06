@@ -1661,7 +1661,20 @@ export function ProjectPage({
                                   />
                                 )}
                                 {hasField(item.category, 'ipAddress', editEqData.hardwareType as string | null) && (
-                                  <FormInput compact label="IP Address" type="text" value={(editEqData.ipAddress as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, ipAddress: e.target.value })} />
+                                  // inputMode="decimal" surfaces the
+                                  // numeric+dot keypad on iOS / Android
+                                  // for IP entry. pattern keeps the
+                                  // value to digits-and-dots only.
+                                  <FormInput
+                                    compact
+                                    label="IP Address"
+                                    type="text"
+                                    inputMode="decimal"
+                                    pattern="[0-9.]*"
+                                    autoComplete="off"
+                                    value={(editEqData.ipAddress as string) || ''}
+                                    onChange={(e) => setEditEqData({ ...editEqData, ipAddress: e.target.value })}
+                                  />
                                 )}
                                 {hasField(item.category, 'patch') && (
                                   <FormInput compact label="Patch" type="text" value={(editEqData.patch as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, patch: e.target.value })} />
@@ -1777,7 +1790,7 @@ export function ProjectPage({
                                   {item.location && <span><span className="text-xs text-gray-500">Location: </span>{item.location}</span>}
                                   {item.hardwareType && <span><span className="text-xs text-gray-500">Hardware: </span>{item.hardwareType}</span>}
                                   {item.headsetType && <span><span className="text-xs text-gray-500">Headset: </span>{item.headsetType}</span>}
-                                  {item.ipAddress && <span><span className="text-xs text-gray-500">IP: </span><a href={`http://${item.ipAddress}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[#22a7d3] underline decoration-[#22a7d3]/30 hover:decoration-[#22a7d3]">{item.ipAddress}</a></span>}
+                                  {item.ipAddress && <span><span className="text-xs text-gray-500">IP: </span><a href={`http://${item.ipAddress}`} target="_blank" rel="noopener noreferrer" className="text-[#22a7d3] hover:text-[#019bc7]">{item.ipAddress}</a></span>}
                                   {item.patch && <span><span className="text-xs text-gray-500">Patch: </span><span className="font-mono">{item.patch}</span></span>}
                                   {item.gooseneck && <span><span className="text-xs text-gray-500">Misc: </span>Gooseneck</span>}
                                   {item.footswitches > 0 && <span><span className="text-xs text-gray-500">FS: </span>{item.footswitches}</span>}
@@ -1788,7 +1801,7 @@ export function ProjectPage({
                                   {item.location && <><span className="text-xs text-gray-500">Location: </span><span>{item.location}</span><span className="text-gray-500">·</span></>}
                                   {item.hardwareType && <><span className="text-xs text-gray-500">Hardware: </span><span>{item.hardwareType}</span></>}
                                   {item.headsetType && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">Headset: </span><span>{item.headsetType}</span></>}
-                                  {item.ipAddress && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">IP: </span><a href={`http://${item.ipAddress}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[#22a7d3] underline decoration-[#22a7d3]/30 hover:decoration-[#22a7d3]">{item.ipAddress}</a></>}
+                                  {item.ipAddress && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">IP: </span><a href={`http://${item.ipAddress}`} target="_blank" rel="noopener noreferrer" className="text-[#22a7d3] hover:text-[#019bc7]">{item.ipAddress}</a></>}
                                   {item.patch && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">Patch: </span><span className="font-mono">{item.patch}</span></>}
                                   {item.gooseneck && <><span className="text-gray-500">·</span><span>Gooseneck</span></>}
                                   {item.footswitches > 0 && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">FS: </span><span>{item.footswitches}</span></>}
@@ -2599,7 +2612,7 @@ export function ProjectPage({
                             {item.location && <><span className="hidden sm:inline text-gray-500">Location: </span><span>{item.location}</span><span className="text-gray-500">·</span></>}
                             {item.hardwareType && <><span className="hidden sm:inline text-gray-500">Hardware: </span><span>{item.hardwareType}</span></>}
                             {item.headsetType && <><span className="text-gray-500">·</span><span className="hidden sm:inline text-gray-500">Headset: </span><span>{item.headsetType}</span></>}
-                            {item.ipAddress && <><span className="text-gray-500">·</span><span className="hidden sm:inline text-gray-500">IP: </span><a href={`http://${item.ipAddress}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[#22a7d3] underline decoration-[#22a7d3]/30 hover:decoration-[#22a7d3]" onClick={(e) => e.stopPropagation()}>{item.ipAddress}</a></>}
+                            {item.ipAddress && <><span className="text-gray-500">·</span><span className="hidden sm:inline text-gray-500">IP: </span><a href={`http://${item.ipAddress}`} target="_blank" rel="noopener noreferrer" className="text-[#22a7d3] hover:text-[#019bc7]" onClick={(e) => e.stopPropagation()}>{item.ipAddress}</a></>}
                           </div>
                         </div>
                         <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_BADGE_STYLES[item.deployStatus] || STATUS_BADGE_STYLES.na}`}>
