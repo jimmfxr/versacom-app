@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useBackgroundRefresh } from '@/hooks/use-background-refresh'
 import { SwipeCarousel } from '@/components/swipe-carousel'
 
 /* ─── Types ─── */
@@ -454,6 +455,10 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
   // "edit inventory" link from this card.
   void canEditInventory
   void projectId
+  // Auto-refresh deployment counts as crew check off gear from My
+  // Equipment / Tasks / project pages. No editing state to pause for —
+  // dashboard is read-only.
+  useBackgroundRefresh()
   const [headsetsCollapsed, setHeadsetsCollapsed] = useState(false)
   const [miscCollapsed, setMiscCollapsed] = useState(false)
   /* Deployment status — gear that's actually expected to deploy */

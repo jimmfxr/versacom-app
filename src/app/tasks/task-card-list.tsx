@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition } from 'react'
+import { useEffect, useRef, useState, useTransition, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useBackgroundRefresh } from '@/hooks/use-background-refresh'
 import { markDeployed, undoDeployed, markReturned, undoReturned } from './actions'
 import { LocationSummary } from '@/components/location-summary'
 import { FilterBar } from '@/components/filter-bar'
@@ -74,6 +75,13 @@ export function TaskCardList({
     'tasks-locationFilter',
     null,
   )
+
+  // Visibility-aware background refresh. Pauses while any card is
+  // mid-undo / mid-revert so we don't redraw under an active timer.
+  useBackgroundRefresh(6000, useCallback(
+    () => Object.values(stateById).some((s) => s !== 'idle'),
+    [stateById],
+  ))
 
   // Cleanup all timers on unmount so we don't leak intervals.
   useEffect(() => {

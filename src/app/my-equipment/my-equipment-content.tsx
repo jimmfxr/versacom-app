@@ -7,6 +7,7 @@ import { PageLayout } from '@/components/page-layout'
 import { EmptyState } from '@/components/empty-state'
 import { STATUS_BADGE_STYLES, getStatusLabel } from '@/lib/deploy-status'
 import { ProjectSwitcher } from '@/app/project-dashboard'
+import { useBackgroundRefresh } from '@/hooks/use-background-refresh'
 
 const PANEL_CATEGORIES = ['panels', 'hardwire_bp', 'wireless_bp']
 
@@ -88,13 +89,10 @@ export function MyEquipmentContent({
   // apply directly. Every role assigned a panel can open it for editing.
   const canEditPanel = (role: string) => ['user', 'crew', 'manager', 'admin'].includes(role)
 
-  // Auto-refresh to pick up approved changes
-  useEffect(() => {
-    const interval = setInterval(() => {
-      router.refresh()
-    }, 5000)
-    return () => clearInterval(interval)
-  }, [router])
+  // Auto-refresh to pick up approved changes — switched to the shared
+  // visibility-aware hook so the poll pauses when the tab isn't in the
+  // foreground.
+  useBackgroundRefresh(5000)
 
   return (
     <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={!isUserOnly}>

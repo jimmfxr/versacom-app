@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect, useRef, useTransition } from 'react'
+import { useState, useEffect, useRef, useTransition, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { PencilIcon, XMarkIcon, ChevronLeftIcon } from '@heroicons/react/24/outline'
 import { QRCodeSVG } from 'qrcode.react'
 import { STATUS_BADGE_STYLES, getStatusLabel } from '@/lib/deploy-status'
 import { DeployStatusSelect } from '@/components/deploy-status-select'
 import { useDeviceReachability } from '@/hooks/use-device-reachability'
+import { useBackgroundRefresh } from '@/hooks/use-background-refresh'
 import { Button } from '@/components/button'
 import { showToast } from '@/components/toast'
 import { AppShell } from '@/components/app-shell'
@@ -678,6 +679,17 @@ export function ProjectPage({
     }, 80)
     return () => window.clearTimeout(id)
   }, [chainTarget])
+
+  // Visibility-aware background refresh — keeps the page in sync with
+  // edits coming from other browsers / the kiosk / panel studio etc.
+  // Pause whenever the user is mid-edit so we don't redraw under their
+  // keystrokes, and during in-flight server actions.
+  useBackgroundRefresh(6000, useCallback(() => {
+    if (editingEqId !== null || editingMemberId !== null || editingPlId !== null || editingPlotId !== null) return true
+    if (isPending) return true
+    return false
+  }, [editingEqId, editingMemberId, editingPlId, editingPlotId, isPending]))
+
   const [mockPlots, setMockPlots] = useState([
     { id: 1, label: 'FOH', url: 'https://example.com/foh.pdf' },
     { id: 2, label: 'Stage Left', url: 'https://example.com/sl.pdf' },
