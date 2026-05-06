@@ -583,9 +583,32 @@ export function ProjectPage({
   // Crew users don't get the Add Member form but DO get a standalone QR
   // card they can pull up to show to end users during gear deployment.
   const [showTeamQr, setShowTeamQr] = useState(false)
-  const [addMemberData, setAddMemberData] = useState<{ firstName: string; lastName: string; position: string; quantity: string; role: string }>({ firstName: '', lastName: '', position: '', quantity: '1', role: 'user' })
+  const [addMemberData, setAddMemberData] = useState<{ firstName: string; lastName: string; position: string; quantity: string; role: string; equipmentId: string }>({ firstName: '', lastName: '', position: '', quantity: '1', role: 'user', equipmentId: '' })
   const [editingMemberId, setEditingMemberId] = useState<number | null>(null)
   const [editMemberData, setEditMemberData] = useState<{ firstName: string; lastName: string; position: string; role: string }>({ firstName: '', lastName: '', position: '', role: 'crew' })
+
+  /** Whether the Add Member form is in a blocking state because of the
+   *  Equipment ID preview — `true` when the user typed an unparseable ID
+   *  or when any of the resolved slots don't exist / are non-assignable.
+   *  Used by both the preview block (which colours the chips) and the
+   *  Add button (disabled while blocking). Recomputed inline because it
+   *  depends on the rendered preview's slot list. */
+  const addEquipmentBlocked = (() => {
+    const idRaw = addMemberData.equipmentId.trim()
+    if (!idRaw) return false
+    const m = idRaw.match(/^(.*?)(\d+)$/)
+    if (!m) return true
+    const prefix = m[1]
+    const startN = parseInt(m[2], 10)
+    const digitWidth = m[2].length
+    const qty = Math.max(1, Math.min(200, parseInt(addMemberData.quantity, 10) || 1))
+    for (let i = 0; i < qty; i++) {
+      const name = `${prefix}${String(startN + i).padStart(digitWidth, '0')}`
+      const eq = equipment.find((e) => e.name === name)
+      if (!eq || !isAssignable(eq.category)) return true
+    }
+    return false
+  })()
 
   // Pick list state
   const [plSearch, setPlSearch] = useState('')
@@ -758,32 +781,46 @@ export function ProjectPage({
   function handleAddMember() {
     if (!addMemberData.firstName.trim() || !addMemberData.lastName.trim()) return
     const qty = Math.max(1, Math.min(200, parseInt(addMemberData.quantity, 10) || 1))
+    const startEquipmentId = addMemberData.equipmentId.trim() || undefined
     startTransition(async () => {
-      // Single add uses createMember; quantity > 1 routes to the bulk action
-      // which generates incrementing names from the trailing integer in lastName.
+      // Single add (no equipment ID) uses createMember; everything else
+      // — quantity > 1 OR an equipment ID is set — routes to
+      // bulkCreateMembers which handles auto-assignment with replace
+      // semantics.
       const result =
-        qty === 1
+        qty === 1 && !startEquipmentId
           ? await createMember(project.id, addMemberData)
-          : await bulkCreateMembers(project.id, { ...addMemberData, quantity: qty })
+          : await bulkCreateMembers(project.id, { ...addMemberData, quantity: qty, startEquipmentId })
       if (result.error) { showToast('error', result.error); return }
       const fn = addMemberData.firstName.trim()
       const ln = addMemberData.lastName.trim()
-      if (qty === 1) {
+      if (qty === 1 && !startEquipmentId) {
         showToast('success', `${fn} ${ln} added`)
       } else {
-        const r = result as { created?: number; skipped?: number }
+        const r = result as {
+          created?: number
+          skipped?: number
+          replacedAssignments?: Array<{ equipmentName: string; memberName: string }>
+          slotsSkipped?: string[]
+        }
         const created = r.created ?? 0
         const skipped = r.skipped ?? 0
-        showToast(
-          'success',
-          skipped > 0
-            ? `Added ${created} (skipped ${skipped} duplicate${skipped === 1 ? '' : 's'})`
-            : `Added ${created}`,
-        )
+        const replaced = r.replacedAssignments ?? []
+        const slotsSkipped = r.slotsSkipped ?? []
+        const parts: string[] = [`Added ${created}`]
+        if (skipped > 0) parts.push(`skipped ${skipped} duplicate${skipped === 1 ? '' : 's'}`)
+        if (replaced.length > 0) {
+          const list = replaced.map((r) => `${r.memberName} from ${r.equipmentName}`).join(', ')
+          parts.push(`unassigned ${list}`)
+        }
+        if (slotsSkipped.length > 0) {
+          parts.push(`slots untouched: ${slotsSkipped.join(', ')}`)
+        }
+        showToast('success', parts.join(' · '))
       }
-      // Reset name + position fields, keep quantity + role for rapid entry.
-      // Card stays open and focus snaps back to First Name.
-      setAddMemberData((d) => ({ ...d, firstName: '', lastName: '', position: '' }))
+      // Reset name + position + equipment id fields, keep quantity + role
+      // for rapid entry. Card stays open and focus snaps back to First Name.
+      setAddMemberData((d) => ({ ...d, firstName: '', lastName: '', position: '', equipmentId: '' }))
       router.refresh()
       // Refocus First Name. requestAnimationFrame so React has flushed.
       requestAnimationFrame(() => {
@@ -1806,7 +1843,18 @@ export function ProjectPage({
                   </div>
                   <p className="mt-2 text-xs text-gray-500">Members are added automatically when they join with the project PIN. You can also add members manually, or open the Kiosk for self-service crew check-in.</p>
                   <form onSubmit={(e) => { e.preventDefault(); handleAddMember() }}>
-                    <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-5">
+                    <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+                      <ComboboxInput
+                        id="add-member-equipment-id"
+                        label="Equipment ID"
+                        value={addMemberData.equipmentId}
+                        // Suggest existing assignable equipment so admins
+                        // can pick a starting slot like "PNL1" or "WLBP3"
+                        // and watch the preview below light up.
+                        options={equipment.filter((e) => isAssignable(e.category)).map((e) => e.name).sort(naturalCompare)}
+                        placeholder="e.g. PNL1"
+                        onChange={(v) => setAddMemberData({ ...addMemberData, equipmentId: v })}
+                      />
                       <ComboboxInput
                         id="add-member-first-name"
                         label="First Name"
@@ -1846,6 +1894,71 @@ export function ProjectPage({
                         onChange={(v) => setAddMemberData({ ...addMemberData, role: v })}
                       />
                     </div>
+
+                    {/* ─── Live slot preview ───
+                        When Equipment ID is set we generate the target
+                        slot names by incrementing the trailing number,
+                        cross-reference each one against the project's
+                        equipment, and tag it as empty / replacing /
+                        missing / invalid. The Add button is disabled
+                        when ANY slot is missing or non-assignable so
+                        the user can't submit a partial range. */}
+                    {(() => {
+                      const idRaw = addMemberData.equipmentId.trim()
+                      if (!idRaw) return null
+                      const m = idRaw.match(/^(.*?)(\d+)$/)
+                      if (!m) {
+                        return (
+                          <p className="mt-3 text-xs text-red-400">
+                            Equipment ID must end with a number (e.g. PNL1, WLBP3).
+                          </p>
+                        )
+                      }
+                      const prefix = m[1]
+                      const startN = parseInt(m[2], 10)
+                      const digitWidth = m[2].length
+                      const qty = Math.max(1, Math.min(200, parseInt(addMemberData.quantity, 10) || 1))
+                      const slots = Array.from({ length: qty }, (_, i) => {
+                        const name = `${prefix}${String(startN + i).padStart(digitWidth, '0')}`
+                        const eq = equipment.find((e) => e.name === name)
+                        if (!eq) return { name, status: 'missing' as const }
+                        if (!isAssignable(eq.category)) return { name, status: 'invalid' as const }
+                        if (eq.assignedToId) return { name, status: 'replacing' as const, current: eq.assignedToName ?? '' }
+                        return { name, status: 'empty' as const }
+                      })
+                      return (
+                        <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs">
+                          {slots.map((s) => {
+                            const cls =
+                              s.status === 'empty'
+                                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                                : s.status === 'replacing'
+                                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                                  : 'border-red-500/40 bg-red-500/10 text-red-300'
+                            return (
+                              <span
+                                key={s.name}
+                                className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 font-mono ${cls}`}
+                                title={
+                                  s.status === 'empty' ? 'Empty — will be filled' :
+                                  s.status === 'replacing' ? `Replacing ${s.current}` :
+                                  s.status === 'invalid' ? 'Not an assignable category' :
+                                  "Doesn't exist in this project"
+                                }
+                              >
+                                {s.name}
+                                {s.status === 'empty' && <span className="text-[10px]">✓</span>}
+                                {s.status === 'replacing' && (
+                                  <span className="text-[10px] font-sans not-italic">→ {s.current}</span>
+                                )}
+                                {s.status === 'missing' && <span className="text-[10px]">missing</span>}
+                                {s.status === 'invalid' && <span className="text-[10px]">invalid</span>}
+                              </span>
+                            )
+                          })}
+                        </div>
+                      )
+                    })()}
                     <div className="mt-4 flex items-center justify-end gap-2">
                       <a
                         href={`/projects/${project.id}/kiosk`}
@@ -1875,7 +1988,7 @@ export function ProjectPage({
                       >
                         {showJoinQr ? 'Hide QR' : 'QR'}
                       </Button>
-                      <Button type="submit" disabled={isPending || !addMemberData.firstName.trim() || !addMemberData.lastName.trim()}>{isPending ? 'Adding...' : 'Add'}</Button>
+                      <Button type="submit" disabled={isPending || !addMemberData.firstName.trim() || !addMemberData.lastName.trim() || addEquipmentBlocked}>{isPending ? 'Adding...' : 'Add'}</Button>
                     </div>
                     {showJoinQr && (() => {
                       const joinUrl = `https://versacom-app.vercel.app/login/join?pin=${project.pin}`
