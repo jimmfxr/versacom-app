@@ -49,6 +49,7 @@ const snapCenterToCursor: Modifier = ({ activatorEvent, draggingNodeRect, transf
 import { AppShell } from '@/components/app-shell'
 import { Button } from '@/components/button'
 import { showToast } from '@/components/toast'
+import { VerticalScroller } from '@/components/vertical-scroller'
 import { saveKeys, saveDraftKeys, submitChanges, addExpansion, removeExpansion, resolveChangeRequests } from './actions'
 
 /** Drag payload shapes attached via dnd-kit `data` so the drop handler can
@@ -1567,7 +1568,15 @@ export function PanelStudio({
                     // unit from the chassis; only the studio header
                     // still tracks chassis width to keep the identity
                     // text "contained with the logo".
-                    className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col border-b border-white/10 pb-4"
+                    //
+                    // The card's height is capped so the chassis
+                    // (header strip + chassis card + footer) always
+                    // has room to render fully without forcing a
+                    // scroll. The chip grid inside the card scrolls
+                    // instead when its rows overflow. Pixel cap kicks
+                    // in on shorter laptop viewports where 35vh would
+                    // still squeeze a small (6-key) panel chassis.
+                    className="mx-auto flex max-h-[min(35vh,280px)] min-h-0 w-full max-w-7xl flex-1 flex-col border-b border-white/10 pb-4"
                   >
                     {/* Top row: 3 controls + search + close — separated
                         from the chip grid below by the same border style
@@ -1709,20 +1718,33 @@ export function PanelStudio({
                       }
                       return (
                         <div className="grid min-h-0 flex-1 grid-cols-2 gap-4 overflow-hidden pt-3.5">
-                          <div className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-2">
+                          {/* Each column wrapped in VerticalScroller so
+                              up/down chevrons appear on the right edge
+                              when there are more chips than fit. Same
+                              chevron styling as ChipScroller's left/
+                              right buttons elsewhere in the app. */}
+                          <VerticalScroller
+                            className="min-h-0"
+                            scrollClassName="flex h-full flex-col gap-3 overflow-y-auto pr-9"
+                            ariaLabel="functions"
+                          >
                             {otherEntries.length === 0 ? (
                               <div className="py-4 text-center text-xs text-gray-500">Nothing in this filter</div>
                             ) : (
                               otherEntries.map(([type, items]) => renderGroup(type, items))
                             )}
-                          </div>
-                          <div className="flex min-h-0 flex-col gap-3 overflow-y-auto border-l border-white/10 pl-4">
+                          </VerticalScroller>
+                          <VerticalScroller
+                            className="min-h-0 border-l border-white/10 pl-4"
+                            scrollClassName="flex h-full flex-col gap-3 overflow-y-auto pr-9"
+                            ariaLabel="point-to-point list"
+                          >
                             {ptpItems.length === 0 ? (
                               <div className="py-4 text-center text-xs text-gray-500">No PTP in this filter</div>
                             ) : (
                               renderGroup('PTP', ptpItems)
                             )}
-                          </div>
+                          </VerticalScroller>
                         </div>
                       )
                     })()}
@@ -1776,10 +1798,9 @@ export function PanelStudio({
                   )}
                   <span className="text-xs text-[#3a3a3a]">&middot;</span>
                   <span className="text-xs text-gray-500">{project.name}</span>
-                  <span className="text-xs text-[#3a3a3a]">&middot;</span>
-                  <span className="text-xs text-gray-500">{equipment.hardwareType || 'Unknown'}</span>
-                  <span className="text-xs text-[#3a3a3a]">&middot;</span>
-                  <span className="text-xs text-gray-500">{keyCount}-Key</span>
+                  {/* Hardware type + key count moved to the chassis card's
+                      top-right corner so they sit on the gear itself like
+                      a manufacturer label, not in the studio header. */}
                   {isReviewMode && (
                     <span className="ml-2 inline-flex items-center gap-2 rounded-lg border border-[#f59e0b]/30 bg-[#f59e0b]/10 px-3 py-1">
                       <svg className="size-3.5 text-[#f59e0b]" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -1852,13 +1873,14 @@ export function PanelStudio({
                     )}
                   </div>
 
-                  {/* Copy / Paste / Save — moved here from the footer.
-                      Always visible (mobile + desktop) since the user
-                      asked for them on the header right on every
-                      viewport. Hidden in review mode (deny / approve
-                      buttons live in the footer in that mode). */}
+                  {/* Copy / Paste / Save — desktop right header only.
+                      On mobile they live at the bottom of the footer
+                      (under the Main/Shift toggle), so we hide them
+                      here on small screens. Hidden entirely in review
+                      mode (deny / approve buttons take over the
+                      footer in that mode). */}
                   {canEditKeys && !isReviewMode && (
-                    <div className="flex items-center gap-2">
+                    <div className="hidden items-center gap-2 lg:flex">
                       {(_currentUserRole === 'admin' || _currentUserRole === 'manager' || isAdminGlobal) && (
                         <>
                           <button
@@ -1896,18 +1918,125 @@ export function PanelStudio({
                 </div>
               </div>
 
+              {/* ─── Mobile-only legend + expansion row ───
+                  Sits BELOW the user-name strip (between identity and
+                  the chassis) on mobile so the deploy-status legend
+                  and expansion controls are quick to scan without
+                  pushing the bigger identity text down. Hidden on
+                  desktop (lg+) — same content already lives in the
+                  studio header's right group there. */}
+              <div className="flex w-full flex-shrink-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 pb-2 lg:hidden">
+                <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                  <span className="w-[9px] h-[9px] rounded-sm bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
+                  Assigned
+                </div>
+                {isRequestMode && (
+                  <>
+                    <span className="text-xs text-[#3a3a3a]">&middot;</span>
+                    <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                      <span className="w-[9px] h-[9px] rounded-sm bg-[#f59e0b] shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
+                      Changed (draft)
+                    </div>
+                    <span className="text-xs text-[#3a3a3a]">&middot;</span>
+                    <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                      <span className="w-[9px] h-[9px] rounded-sm bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.4)] border border-[#10b981]" />
+                      Submitted
+                    </div>
+                  </>
+                )}
+                <span className="text-xs text-[#3a3a3a]">&middot;</span>
+                <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                  <span className="w-[9px] h-[9px] rounded-sm border border-dashed border-gray-600 bg-transparent" />
+                  Unassigned
+                </div>
+                {canManageExpansions && isExpandable && (
+                  <>
+                    <span className="text-xs text-[#3a3a3a]">&middot;</span>
+                    <div className="inline-flex items-center gap-2 text-xs text-gray-300">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Expansions</span>
+                      <span className="font-semibold text-white">{expansionCount}</span>
+                      <div className="inline-flex gap-1.5">
+                        {expansionCount > 0 && (
+                          <button
+                            onClick={handleRemoveExpansion}
+                            disabled={saving}
+                            className="w-7 h-7 rounded-lg border border-white/[0.14] bg-transparent text-red-500 text-lg font-bold flex items-center justify-center hover:bg-red-500/[0.08] hover:border-red-500/40 disabled:opacity-50"
+                          >
+                            &minus;
+                          </button>
+                        )}
+                        {expansionCount < 6 && (
+                          <button
+                            onClick={handleAddExpansion}
+                            disabled={saving}
+                            className="w-7 h-7 rounded-lg border border-white/[0.14] bg-transparent text-[#22a7d3] text-lg font-bold flex items-center justify-center hover:bg-[rgba(34,167,211,0.08)] hover:border-[rgba(34,167,211,0.4)] disabled:opacity-50"
+                          >
+                            +
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
               {/* ─── Scrollable panel content ─── */}
               <div
                 className={`flex-[0_1_auto] min-h-0 w-full overflow-auto p-4 lg:p-5 lg:px-10 flex transition-[padding-right] duration-300 ${inspectorOpen && !(pickerMode && canEditKeys) ? 'xl:pr-[420px] 2xl:pr-10' : ''}`}
               >
                 <div className="min-w-min mx-auto" ref={chassisRef}>
                   {/* Single chassis card containing expansions + main panel */}
-                  <div className="bg-[#2a2a2a] border border-white/[0.06] rounded-[14px] p-8 flex flex-col gap-4 items-center">
-                    {/* Expansion rows (rendered on top, reversed so newest is at top) */}
+                  <div className="relative bg-[#2a2a2a] border border-white/[0.06] rounded-[14px] p-8 flex flex-col gap-4 items-center">
+                    {/* Hardware type + key count, top-right corner of the
+                        chassis card itself — engraved silkscreen look so
+                        it sits on the gear like a manufacturer label,
+                        matching the look used for the expansion number. */}
+                    <div
+                      className="pointer-events-none absolute right-4 top-3 text-[10px] font-bold uppercase tracking-[0.18em] tabular-nums leading-none"
+                      style={{
+                        color: 'rgba(150,150,150,0.18)',
+                        textShadow: [
+                          '0 -1px 0 rgba(255,255,255,0.06)',
+                          '0 -2px 2px rgba(255,255,255,0.03)',
+                          '0 1px 0 rgba(0,0,0,0.6)',
+                          '0 2px 4px rgba(0,0,0,0.4)',
+                        ].join(', '),
+                      }}
+                    >
+                      {(equipment.hardwareType || 'Unknown')} · {keyCount}-Key
+                    </div>
+                    {/* Expansion rows (rendered on top, reversed so newest is at top).
+                        Number sits to the LEFT of the keys, vertically centered
+                        against the panel block, with an engraved silkscreen-style
+                        look — dark text on the dark chassis surface plus a hairline
+                        highlight at the bottom edge to suggest the label is carved
+                        into the chassis itself. */}
                     {Array.from({ length: expansionCount }, (_, i) => expansionCount - i).map((exp) => (
-                      <div key={`exp-${exp}`} className="flex flex-col gap-4 items-center">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-600">
-                          Expansion {exp}
+                      <div key={`exp-${exp}`} className="flex items-center gap-4">
+                        <div
+                          className="text-[18px] font-extrabold tabular-nums leading-none"
+                          style={{
+                            // Light gray fill (kept from the version the
+                            // user liked) but with the shadows flipped:
+                            //   • Highlight on TOP — like the original
+                            //     surface still catches light above the
+                            //     carved channel.
+                            //   • Stacked sharp + blurred shadows BELOW —
+                            //     reads as the channel dropping inward
+                            //     under the text, the shadow falling away
+                            //     into the recessed area.
+                            // Inverts the previous "popping out" feel into
+                            // a clear "pressed in" silkscreen look.
+                            color: 'rgba(150,150,150,0.18)',
+                            textShadow: [
+                              '0 -1px 0 rgba(255,255,255,0.06)',
+                              '0 -2px 2px rgba(255,255,255,0.03)',
+                              '0 1px 0 rgba(0,0,0,0.6)',
+                              '0 2px 4px rgba(0,0,0,0.4)',
+                            ].join(', '),
+                          }}
+                        >
+                          {exp}
                         </div>
                         {renderPanel(exp)}
                       </div>
@@ -1926,12 +2055,14 @@ export function PanelStudio({
 
 
               {/* ─── Footer (pinned) ───
-                  Mobile: Main/Shift toggle on the left and the
-                  legend + expansion controls on the right (since
-                  Copy/Save now live in the header). Desktop:
-                  centered Main/Shift only — the legend + Copy/Save
-                  already sit in the header right group. */}
-              <div className="flex-shrink-0 w-full px-4 pb-3 pt-2 lg:px-5 lg:pb-5 lg:pt-3 flex flex-wrap items-center justify-between gap-3 lg:justify-center">
+                  Mobile: Main/Shift toggle (centered) followed by
+                  Copy / Paste / Save in their own row underneath.
+                  Desktop: just the Main/Shift toggle, centered —
+                  legend, expansion, and Copy/Save all live in the
+                  studio header's right group on big screens.
+                  Legend + expansion now live ABOVE the user-name
+                  strip on mobile, not down here. */}
+              <div className="flex-shrink-0 w-full px-4 pb-3 pt-2 lg:px-5 lg:pb-5 lg:pt-3 flex flex-col items-center gap-3 lg:flex-row lg:justify-center">
                 {isReviewMode ? (
                   <>
                     {/* Review mode summary */}
@@ -1988,66 +2119,47 @@ export function PanelStudio({
                           Shift
                         </button>
                       </div>
-                    ) : <span /> /* spacer keeps justify-between balanced on mobile when no shift page */}
+                    ) : null}
 
-                    {/* Mobile-only legend + expansion (sits to the right
-                        of the Main/Shift toggle). Hidden on desktop —
-                        same content already lives in the header right
-                        group there. */}
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 lg:hidden">
-                      <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                        <span className="w-[9px] h-[9px] rounded-sm bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
-                        Assigned
+                    {/* Mobile-only Copy / Paste / Save row — sits below
+                        the Main/Shift toggle (or where it would be).
+                        Hidden on desktop because Copy/Save are in the
+                        studio header's right group there. */}
+                    {canEditKeys && (
+                      <div className="flex items-center gap-2 lg:hidden">
+                        {(_currentUserRole === 'admin' || _currentUserRole === 'manager' || isAdminGlobal) && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={handleCopyPanel}
+                              className="rounded-lg border border-white/10 bg-[#2a2a2a] px-4 py-2 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                            >
+                              Copy
+                            </button>
+                            {panelClipboard && panelClipboard.entries.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={handlePastePanel}
+                                title={`Paste from ${panelClipboard.sourceLabel}`}
+                                className="rounded-lg border border-white/10 bg-[#2a2a2a] px-4 py-2 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                              >
+                                Paste
+                              </button>
+                            )}
+                          </>
+                        )}
+                        {!isRequestMode && (
+                          <button
+                            type="button"
+                            onClick={handleSave}
+                            disabled={saving}
+                            className="rounded-lg bg-[#0178a3] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {saving ? 'Saving...' : 'Save'}
+                          </button>
+                        )}
                       </div>
-                      {isRequestMode && (
-                        <>
-                          <span className="text-xs text-[#3a3a3a]">&middot;</span>
-                          <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                            <span className="w-[9px] h-[9px] rounded-sm bg-[#f59e0b] shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
-                            Changed (draft)
-                          </div>
-                          <span className="text-xs text-[#3a3a3a]">&middot;</span>
-                          <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                            <span className="w-[9px] h-[9px] rounded-sm bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.4)] border border-[#10b981]" />
-                            Submitted
-                          </div>
-                        </>
-                      )}
-                      <span className="text-xs text-[#3a3a3a]">&middot;</span>
-                      <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                        <span className="w-[9px] h-[9px] rounded-sm border border-dashed border-gray-600 bg-transparent" />
-                        Unassigned
-                      </div>
-                      {canManageExpansions && isExpandable && (
-                        <>
-                          <span className="text-xs text-[#3a3a3a]">&middot;</span>
-                          <div className="inline-flex items-center gap-2 text-xs text-gray-300">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Expansions</span>
-                            <span className="font-semibold text-white">{expansionCount}</span>
-                            <div className="inline-flex gap-1.5">
-                              {expansionCount > 0 && (
-                                <button
-                                  onClick={handleRemoveExpansion}
-                                  disabled={saving}
-                                  className="w-7 h-7 rounded-lg border border-white/[0.14] bg-transparent text-red-500 text-lg font-bold flex items-center justify-center hover:bg-red-500/[0.08] hover:border-red-500/40 disabled:opacity-50"
-                                >
-                                  &minus;
-                                </button>
-                              )}
-                              {expansionCount < 6 && (
-                                <button
-                                  onClick={handleAddExpansion}
-                                  disabled={saving}
-                                  className="w-7 h-7 rounded-lg border border-white/[0.14] bg-transparent text-[#22a7d3] text-lg font-bold flex items-center justify-center hover:bg-[rgba(34,167,211,0.08)] hover:border-[rgba(34,167,211,0.4)] disabled:opacity-50"
-                                >
-                                  +
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
+                    )}
                   </>
                 )}
               </div>
