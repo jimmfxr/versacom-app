@@ -61,10 +61,13 @@ export function ComboboxInput({
     if (open) setHighlight(-1)
   }, [open, value])
 
-  // Filter suggestions by the current typed value (case-insensitive substring), then A–Z sort
+  // Filter suggestions by the current typed value (case-insensitive substring), then sort.
+  // `numeric: true` enables natural-number ordering so "WLBP 1, WLBP 2,
+  // WLBP 10, WLBP 100" sorts in human order instead of "WLBP 1, WLBP
+  // 10, WLBP 100, WLBP 2" (lexicographic).
   const filtered = options
     .filter((o) => !value || o.toLowerCase().includes(value.toLowerCase()))
-    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true }))
 
   // Keep the highlighted suggestion in view while arrow-keying.
   useEffect(() => {
@@ -132,6 +135,17 @@ export function ComboboxInput({
         type="text"
         id={id}
         autoFocus={autoFocus}
+        // Suppress the browser's native autocomplete dropdown so only
+        // our custom suggestion panel shows. Chrome ignores plain
+        // `off` for many fields, so we use a non-standard token —
+        // it's still "off" in spec terms, but Chrome treats unknown
+        // values as opt-out, plus we belt-and-brace with autoCorrect
+        // / spellCheck off so iOS / Safari don't pop their own
+        // suggestion bar above the keyboard.
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
         placeholder={placeholder}
         value={value}
         onChange={(e) => { onChange(e.target.value); setOpen(true) }}
