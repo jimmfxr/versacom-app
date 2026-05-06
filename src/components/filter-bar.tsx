@@ -20,6 +20,8 @@ type Props = {
    */
   visibleMobile?: number
   visibleDesktop?: number
+  /** Forwarded to ChipScroller so callers can center / restyle the chip row. */
+  containerClassName?: string
 }
 
 /**
@@ -32,12 +34,13 @@ export function FilterBar({
   selected,
   onSelect,
   allLabel = 'All',
+  containerClassName,
 }: Props) {
   if (options.length === 0) return null
 
   return (
     <div className="pb-3">
-      <ChipScroller>
+      <ChipScroller containerClassName={containerClassName}>
         <Chip active={selected === null} onClick={() => onSelect(null)}>
           {allLabel}
         </Chip>

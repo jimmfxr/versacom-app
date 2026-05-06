@@ -82,6 +82,7 @@ export default async function PanelStudioPage({
           page: true,
           expansion: true,
           triggerMode: true,
+          talkMode: true,
           pickListItemId: true,
           pickListItem: {
             select: { name: true, type: true },
@@ -98,6 +99,7 @@ export default async function PanelStudioPage({
     expansion: k.expansion,
     label: k.pickListItem?.name ?? '',
     triggerMode: k.triggerMode,
+    talkMode: k.talkMode,
     pickListItemId: k.pickListItemId,
     pickListItemName: k.pickListItem?.name ?? null,
     pickListItemType: k.pickListItem?.type ?? null,

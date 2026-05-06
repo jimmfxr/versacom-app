@@ -84,7 +84,7 @@ export function LockoutsClient({ users, userName, isAdmin }: { users: User[]; us
 
   return (
     <AppShell userName={userName} isAdmin={isAdmin}>
-      <PageLayout title="User Lockouts">
+      <PageLayout title="User Lockouts" bottomBorder>
         <div className="space-y-8">
           {/* Needs attention */}
           {actionableUsers.length > 0 && (

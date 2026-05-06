@@ -109,11 +109,27 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
         titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
         inlineAction
         stickyHeader
+        bottomBorder
         action={!showForm ? (
-          <Button onClick={() => setShowForm(true)}>
-            <span className="sm:hidden">+</span>
-            <span className="hidden sm:inline">New Project</span>
-          </Button>
+          <div className="flex items-center gap-3">
+            {/* Desktop-only inline search bar — sits left of the
+                New Project button so the whole top row is one strip
+                (search + create). Mobile keeps the standalone sticky
+                search below the title for thumb reach. */}
+            {projects.length > 0 && (
+              <input
+                type="text"
+                placeholder="Search projects..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="hidden w-64 rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3] sm:block"
+              />
+            )}
+            <Button onClick={() => setShowForm(true)}>
+              <span className="sm:hidden">+</span>
+              <span className="hidden sm:inline">New Project</span>
+            </Button>
+          </div>
         ) : undefined}
       >
         {/* Inline create form */}
@@ -153,10 +169,11 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
           </Card>
         )}
 
-        {/* Search bar — sticky on mobile (page scroll), flex-shrink-0
-            on desktop (sits above the scrollable list). */}
+        {/* Mobile-only sticky search bar. On desktop the search lives
+            inline in the page header (left of the New Project button)
+            so we hide this row at sm+. */}
         {projects.length > 0 && (
-          <div className="sticky top-16 z-20 -mx-4 bg-[#202020] px-4 pb-3 pt-3 sm:static sm:top-auto sm:z-auto sm:flex-shrink-0 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+          <div className="sticky top-16 z-20 -mx-4 bg-[#202020] px-4 pb-3 pt-3 sm:hidden">
             <input
               type="text"
               placeholder="Search projects..."

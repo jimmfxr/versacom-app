@@ -52,10 +52,17 @@ export function TaskCardList({
   tasks,
   allGear,
   locations,
+  searchValue,
+  onSearchChange,
 }: {
   tasks: TaskCard[]
   allGear: GearItem[]
   locations: string[]
+  /** Optional externally-controlled search. When provided, the internal
+   *  search input is hidden — the parent renders its own input (e.g. in
+   *  the page header) and feeds the value down through this prop. */
+  searchValue?: string
+  onSearchChange?: (v: string) => void
 }) {
   const router = useRouter()
   // Track per-card state so each card has its own independent undo timer.
@@ -70,7 +77,12 @@ export function TaskCardList({
   // because revalidatePath fires immediately when the deploy server action
   // completes — without these snapshots the card would vanish in <1s.
   const [frozenTasks, setFrozenTasks] = useState<Record<number, TaskCard>>({})
-  const [search, setSearch] = useState('')
+  const [internalSearch, setInternalSearch] = useState('')
+  const isExternalSearch = searchValue !== undefined
+  const search = isExternalSearch ? (searchValue ?? '') : internalSearch
+  const setSearch = isExternalSearch
+    ? (v: string) => onSearchChange?.(v)
+    : setInternalSearch
   const [selectedLocation, setSelectedLocation] = usePersistentState<string | null>(
     'tasks-locationFilter',
     null,
@@ -219,17 +231,22 @@ export function TaskCardList({
 
   const SearchBar = (
     <div className="flex-shrink-0 -mx-4 mb-3 bg-[#202020] px-4 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-      <div className="flex items-center gap-3 pb-3">
-        <div className="flex-1">
-          <input
-            type="text"
-            placeholder="Search by name, location, user, or model..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
-          />
+      {/* Internal search input — hidden when the parent supplies its
+          own search via the searchValue prop (e.g. the page-header
+          search on /tasks). */}
+      {!isExternalSearch && (
+        <div className="flex items-center gap-3 pb-3">
+          <div className="flex-1">
+            <input
+              type="text"
+              placeholder="Search by name, location, user, or model..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+            />
+          </div>
         </div>
-      </div>
+      )}
       {locations.length > 0 && (
         <FilterBar
           options={locations.map((loc) => ({ value: loc, label: loc }))}
@@ -237,6 +254,7 @@ export function TaskCardList({
           onSelect={(loc) => setSelectedLocation(loc)}
           visibleMobile={3}
           visibleDesktop={6}
+          containerClassName="flex flex-1 gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:justify-center"
         />
       )}
     </div>

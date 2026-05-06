@@ -379,6 +379,7 @@ export default async function HomePage({
       <PageLayout
         title="Dashboard"
         titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
+        bottomBorder
         action={
           <DashboardHeaderAction
             projectId={project.id}

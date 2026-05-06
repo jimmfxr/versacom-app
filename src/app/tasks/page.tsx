@@ -3,18 +3,7 @@ import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { AppShell } from '@/components/app-shell'
-import { PageLayout } from '@/components/page-layout'
-import { EmptyState } from '@/components/empty-state'
-import { TaskCardList } from './task-card-list'
-import { ProjectSwitcher } from '@/app/project-dashboard'
-
-function CheckIcon() {
-  return (
-    <svg className="size-12 text-green-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-    </svg>
-  )
-}
+import { TasksPageClient } from './tasks-page-client'
 
 export const dynamic = 'force-dynamic'
 
@@ -183,31 +172,14 @@ export default async function TasksPage({
 
   return (
     <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={showMyEquipment}>
-      <PageLayout
-        title="Tasks"
-        titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
-        stickyHeader
-        action={
-          userProjects.length > 1 && validFilteredId != null ? (
-            <ProjectSwitcher
-              projectId={validFilteredId}
-              projectName={userProjectsMap.get(validFilteredId)!.name}
-              userProjects={userProjects}
-              basePath="/tasks"
-            />
-          ) : null
-        }
-      >
-        {cards.length === 0 ? (
-          <EmptyState
-            icon={<CheckIcon />}
-            title="Inbox zero"
-            message="No equipment waiting to be deployed. New tasks show up here as gear gets assigned or located."
-          />
-        ) : (
-          <TaskCardList tasks={cards} allGear={allGear} locations={locations} />
-        )}
-      </PageLayout>
+      <TasksPageClient
+        cards={cards}
+        allGear={allGear}
+        locations={locations}
+        userProjects={userProjects}
+        validFilteredId={validFilteredId}
+        selectedProjectName={validFilteredId != null ? (userProjectsMap.get(validFilteredId)?.name ?? null) : null}
+      />
     </AppShell>
   )
 }

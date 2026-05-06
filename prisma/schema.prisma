@@ -121,6 +121,7 @@ model PanelKey {
   expansion       Int    @default(0) // 0 = main panel, 1-6 = expansion
   pickListItemId  Int?
   triggerMode     String @default("latch") // latch, momentary, auto
+  talkMode        String @default("tl") // tl = Talk/Listen, t = Talk only, l = Listen only
 
   // Relations
   projectMember      ProjectMember       @relation(fields: [projectMemberId], references: [id])
@@ -137,6 +138,7 @@ model KeyDraft {
   editedById     Int
   pickListItemId Int?
   triggerMode    String?
+  talkMode       String?
   status         String   @default("draft") // draft, submitted
   createdAt      DateTime @default(now())
 

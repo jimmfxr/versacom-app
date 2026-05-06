@@ -98,6 +98,7 @@ export function MyEquipmentContent({
     <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={!isUserOnly}>
       <PageLayout
         title="My Equipment"
+        bottomBorder
         action={
           browseMode && browseProjects && selectedProjectId != null ? (
             <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center">
@@ -216,7 +217,7 @@ export function MyEquipmentContent({
                         <>
                           <span className="text-gray-500">·</span>
                           <span className="hidden sm:inline text-gray-500">IP: </span>
-                          <a href={`http://${item.ipAddress}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[#22a7d3] underline decoration-[#22a7d3]/30 hover:decoration-[#22a7d3]" onClick={(e) => e.stopPropagation()}>{item.ipAddress}</a>
+                          <a href={`http://${item.ipAddress}${item.category === 'panels' ? '/remote-control/' : ''}`} target="_blank" rel="noopener noreferrer" className="text-[#22a7d3] hover:text-[#019bc7]" onClick={(e) => e.stopPropagation()}>{item.ipAddress}</a>
                         </>
                       )}
                     </div>

@@ -64,6 +64,7 @@ export async function saveKeys(
     expansion: number
     pickListItemId: number | null
     triggerMode: string
+    talkMode: string
   }>
 ) {
   const session = await getSession()
@@ -83,6 +84,7 @@ export async function saveKeys(
         update: {
           pickListItemId: key.pickListItemId,
           triggerMode: key.triggerMode,
+          talkMode: key.talkMode,
         },
         create: {
           projectMemberId,
@@ -91,6 +93,7 @@ export async function saveKeys(
           expansion: key.expansion,
           pickListItemId: key.pickListItemId,
           triggerMode: key.triggerMode,
+          talkMode: key.talkMode,
         },
       })
     }
@@ -115,6 +118,7 @@ export async function saveDraftKeys(
     expansion: number
     pickListItemId: number | null
     triggerMode: string
+    talkMode: string
   }>
 ) {
   const session = await getSession()
@@ -140,6 +144,7 @@ export async function saveDraftKeys(
           expansion: key.expansion,
           pickListItemId: null,
           triggerMode: 'latch',
+          talkMode: 'tl',
         },
       })
 
@@ -158,6 +163,7 @@ export async function saveDraftKeys(
           data: {
             pickListItemId: key.pickListItemId,
             triggerMode: key.triggerMode,
+            talkMode: key.talkMode,
           },
         })
       } else {
@@ -167,6 +173,7 @@ export async function saveDraftKeys(
             editedById: userId,
             pickListItemId: key.pickListItemId,
             triggerMode: key.triggerMode,
+            talkMode: key.talkMode,
           },
         })
       }
@@ -281,6 +288,7 @@ export async function addExpansion(
       page: string
       expansion: number
       triggerMode: string
+      talkMode: string
     }> = []
 
     for (const page of pages) {
@@ -291,6 +299,7 @@ export async function addExpansion(
           page,
           expansion: nextExpansion,
           triggerMode: 'latch',
+          talkMode: 'tl',
         })
       }
     }

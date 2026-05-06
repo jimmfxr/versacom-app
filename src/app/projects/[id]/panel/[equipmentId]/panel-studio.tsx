@@ -93,6 +93,7 @@ interface PanelStudioProps {
     expansion: number
     label: string
     triggerMode: string
+    talkMode: string
     pickListItemId: number | null
     pickListItemName: string | null
     pickListItemType: string | null
@@ -183,6 +184,7 @@ type KeyState = {
   pickListItemName: string | null
   pickListItemType: string | null
   triggerMode: string
+  talkMode: string
   status: 'empty' | 'assigned' | 'changed' | 'submitted'
 }
 
@@ -344,7 +346,7 @@ export function PanelStudio({
     catch {}
   }, [pickerMode])
   const [keys, setKeys] = useState<KeyState[]>(() => initializeKeys(initialPanelKeys, keyCount))
-  const [clipboard, setClipboard] = useState<{ pickListItemId: number | null; pickListItemName: string | null; pickListItemType: string | null; triggerMode: string } | null>(null)
+  const [clipboard, setClipboard] = useState<{ pickListItemId: number | null; pickListItemName: string | null; pickListItemType: string | null; triggerMode: string; talkMode: string } | null>(null)
   const [flashingKey, setFlashingKey] = useState<{ id: string; color: string } | null>(null)
   const [saving, setSaving] = useState(false)
   const [pickerSearch, setPickerSearch] = useState('')
@@ -371,6 +373,7 @@ export function PanelStudio({
     pickListItemName: string | null
     pickListItemType: string | null
     triggerMode: string
+    talkMode: string
   }
   type PanelClipboard = { sourceLabel: string; entries: PanelClipboardEntry[] }
   const [panelClipboard, setPanelClipboard] = useState<PanelClipboard | null>(null)
@@ -579,6 +582,7 @@ export function PanelStudio({
             pickListItemName: serverKey?.pickListItemName ?? null,
             pickListItemType: serverKey?.pickListItemType ?? null,
             triggerMode: serverKey?.triggerMode ?? 'latch',
+            talkMode: serverKey?.talkMode ?? 'tl',
             status: serverKey?.pickListItemId ? 'assigned' : 'empty',
           })
         }
@@ -675,6 +679,7 @@ export function PanelStudio({
       pickListItemName: null,
       pickListItemType: null,
       triggerMode: 'latch',
+      talkMode: 'tl',
       status: isRequestMode ? 'changed' : 'empty',
     })
     flashKey(id, '#ef4444')
@@ -688,6 +693,7 @@ export function PanelStudio({
       pickListItemName: key.pickListItemName,
       pickListItemType: key.pickListItemType,
       triggerMode: key.triggerMode,
+      talkMode: key.talkMode,
     })
     flashKey(id, '#22a7d3')
   }
@@ -701,12 +707,14 @@ export function PanelStudio({
       pickListItemName: key.pickListItemName,
       pickListItemType: key.pickListItemType,
       triggerMode: key.triggerMode,
+      talkMode: key.talkMode,
     })
     updateKey(id, {
       pickListItemId: null,
       pickListItemName: null,
       pickListItemType: null,
       triggerMode: 'latch',
+      talkMode: 'tl',
       status: isRequestMode ? 'changed' : 'empty',
     })
     flashKey(id, '#f59e0b')
@@ -730,8 +738,10 @@ export function PanelStudio({
       // Pick-list assignments default to 'momentary' — most show comms
       // talkback flows are momentary (push-to-talk style), so this saves
       // an extra tap for the common case. Admins can flip to latch in
-      // the inspector after assignment.
+      // the inspector after assignment. Talk default 'tl' (Talk +
+      // Listen) which matches the typical PTP behavior.
       triggerMode: 'momentary',
+      talkMode: 'tl',
       status: isRequestMode ? 'changed' : 'assigned',
     })
     // Stay in picker mode after assigning so the user can keep
@@ -752,6 +762,16 @@ export function PanelStudio({
     })
   }
 
+  function setTalkMode(id: string, mode: string) {
+    if (!canEditKeys) return
+    const key = getKey(id)
+    if (!key) return
+    updateKey(id, {
+      talkMode: mode,
+      status: key.status === 'empty' ? 'empty' : (isRequestMode ? 'changed' : key.status),
+    })
+  }
+
   /* ─── Keyboard shortcuts ─── */
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -759,13 +779,13 @@ export function PanelStudio({
       if (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA') return
 
       if (e.key === 'Escape') {
-        if (pickerMode) {
-          setPickerMode(false)
-        } else if (inspectorOpen) {
-          closeInspector()
-        } else {
-          deselectAll()
-        }
+        // Collapse everything in one shot — picker mode, inspector,
+        // AND the key highlight — so we never fall back to the old
+        // detail-view "ghost modal" mid-press. closeInspector() does
+        // all three: setInspectorOpen(false), setPickerMode(false),
+        // setSelectedKeyId(null). If nothing was open, this is a
+        // no-op apart from clearing the highlight.
+        closeInspector()
         return
       }
 
@@ -811,6 +831,7 @@ export function PanelStudio({
       pickListItemName: k.pickListItemName,
       pickListItemType: k.pickListItemType,
       triggerMode: k.triggerMode,
+      talkMode: k.talkMode,
     }))
     const payload: PanelClipboard = { sourceLabel, entries }
     setPanelClipboard(payload)
@@ -843,6 +864,7 @@ export function PanelStudio({
         pickListItemName: entry.pickListItemName,
         pickListItemType: entry.pickListItemType,
         triggerMode: entry.triggerMode,
+        talkMode: entry.talkMode ?? 'tl',
         status: isRequestMode ? 'changed' : (hasItem ? 'assigned' : 'empty'),
       })
       pasted++
@@ -867,6 +889,7 @@ export function PanelStudio({
         expansion: k.expansion,
         pickListItemId: k.pickListItemId,
         triggerMode: k.triggerMode,
+        talkMode: k.talkMode,
       }))
 
     try {
@@ -913,6 +936,7 @@ export function PanelStudio({
           expansion: k.expansion,
           pickListItemId: k.pickListItemId,
           triggerMode: k.triggerMode,
+          talkMode: k.talkMode,
         }))
 
       if (changedKeys.length === 0) {
@@ -1035,6 +1059,7 @@ export function PanelStudio({
               pickListItemName: null,
               pickListItemType: null,
               triggerMode: 'latch',
+              talkMode: 'tl',
               status: 'empty',
             })
           }
@@ -1121,6 +1146,7 @@ export function PanelStudio({
             pickListItemName: sourceKey.pickListItemName,
             pickListItemType: sourceKey.pickListItemType,
             triggerMode: sourceKey.triggerMode,
+            talkMode: sourceKey.talkMode,
             status: isRequestMode ? 'changed' : (sourceKey.pickListItemId ? 'assigned' : 'empty'),
           })
           updateKey(activeData.sourceId, {
@@ -1128,6 +1154,7 @@ export function PanelStudio({
             pickListItemName: null,
             pickListItemType: null,
             triggerMode: 'latch',
+            talkMode: 'tl',
             status: isRequestMode ? 'changed' : 'empty',
           })
           selectKey(targetId)
@@ -1141,14 +1168,20 @@ export function PanelStudio({
           pickListItemType: item.type,
           // Pick-list drops default to momentary (push-to-talk) — matches
           // assignPickerItem so tap-to-assign and drag-to-assign behave
-          // the same.
+          // the same. Talk default 'tl' (Talk + Listen).
           triggerMode: 'momentary',
+          talkMode: 'tl',
           status: isRequestMode ? 'changed' : 'assigned',
         })
-        // Don't call selectKey() here — that closes the picker. Keeping the
-        // picker open lets the user drag item after item without having to
-        // re-open "Pick destination" between drops. Just flash the target
-        // so they get visual confirmation the drop landed.
+        // Move the cyan highlight onto the just-dropped-on key so the
+        // user can see exactly where the chip landed — feels more
+        // intuitive than the highlight staying on whichever key
+        // originally opened the picker. We bypass selectKey() (which
+        // toggles closed when the same key is clicked twice) and
+        // setSelectedKeyId directly; pickerMode + inspectorOpen are
+        // already true so the picker stays open and the user can keep
+        // dragging chip after chip.
+        setSelectedKeyId(targetId)
         flashKey(targetId, '#10b981')
       }
     }
@@ -1348,7 +1381,14 @@ export function PanelStudio({
               <span className="text-2xl font-light leading-none text-[#3b4352]">+</span>
             ) : (
               <span className="text-[9px] font-bold text-white text-center whitespace-nowrap overflow-hidden max-w-full">
-                {keyState.pickListItemName}
+                {/* PTP keys show just the first name — the surface
+                    is too small to read full names at 9px and the
+                    person's first name is the meaningful talkback
+                    target. Other function types (CONF / IFB / GRP /
+                    Audio I/O) still show the full label. */}
+                {keyState.pickListItemType === 'PTP'
+                  ? (keyState.pickListItemName ?? '').split(' ')[0]
+                  : keyState.pickListItemName}
               </span>
             )}
           </div>
@@ -1361,6 +1401,15 @@ export function PanelStudio({
           {!isReviewMode && !isEmpty && keyState.triggerMode === 'latch' && (
             <div className="absolute bottom-1 right-1.5 text-[9px] font-extrabold text-[#f59e0b] opacity-85 uppercase">
               L
+            </div>
+          )}
+          {/* Talk-mode indicator on the bottom-left of the key:
+              TL for Talk + Listen (default), T for Talk-only,
+              L for Listen-only. Cyan to set it apart from the
+              amber trigger-mode label on the bottom-right. */}
+          {!isReviewMode && !isEmpty && (
+            <div className="absolute bottom-1 left-1.5 text-[9px] font-extrabold text-[#22a7d3] opacity-85 uppercase">
+              {keyState.talkMode === 't' ? 'T' : keyState.talkMode === 'l' ? 'L' : 'TL'}
             </div>
           )}
         </>
@@ -1500,13 +1549,19 @@ export function PanelStudio({
                 project dropdown far right. */}
             {isBrowseMode && browseProjects && browseMembers && (
               <div className="flex-shrink-0 mx-auto w-full max-w-7xl px-4 pt-3 sm:px-6 lg:px-8">
-                {/* Mobile layout */}
+                {/* Mobile layout — divider sits directly under the
+                    title (matches PageHeader's showMobileDivider
+                    pattern) so the line reads as "under the page
+                    name" rather than below the whole stack. */}
                 <div className="flex flex-col gap-2 sm:hidden">
                   <h1 className="text-2xl font-bold tracking-tight text-white">
                     My Equipment
                   </h1>
+                  <div className="w-full border-b border-white/20" />
                   <BrowseProjectDropdown project={project} browseProjects={browseProjects} />
-                  <BrowseMemberSwitcher project={project} currentEquipmentId={equipment.id} browseMembers={browseMembers} />
+                  <div className="pt-2">
+                    <BrowseMemberSwitcher project={project} currentEquipmentId={equipment.id} browseMembers={browseMembers} />
+                  </div>
                 </div>
                 {/* Desktop layout */}
                 <div className="hidden grid-cols-3 items-center gap-3 sm:grid">
@@ -1520,6 +1575,21 @@ export function PanelStudio({
                     <BrowseProjectDropdown project={project} browseProjects={browseProjects} />
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Divider underneath the back-link / browse dropdowns.
+                Drawn on an inner div so the line aligns with the
+                content below (which lives inside the same px-4 sm:
+                px-6 lg:px-8 padding) instead of the wider container
+                edge. Same look as the bottomBorder divider on the
+                Dashboard / Tasks / My Equipment / Projects pages.
+                Hidden when the picker card is open — the picker's
+                own controls border-b serves as the page divider in
+                that mode, so we don't end up with two stacked lines.*/}
+            {!(pickerMode && canEditKeys) && (
+              <div className="flex-shrink-0 mx-auto hidden w-full max-w-7xl px-4 pt-3 sm:block sm:px-6 lg:px-8">
+                <div className="border-b border-white/20" />
               </div>
             )}
 
@@ -1558,25 +1628,19 @@ export function PanelStudio({
                 // flex-shrink + min-h-0 lets the card give space back
                 // to the chassis when expansions are active so both
                 // fit in the viewport without page scroll.
-                <div className="hidden min-h-0 w-full flex-shrink justify-center overflow-hidden px-4 pt-3 lg:flex lg:px-10 lg:pt-4">
+                <div className="mx-auto hidden min-h-0 w-full max-w-7xl flex-shrink overflow-hidden px-4 pt-3 sm:px-6 lg:flex lg:px-8 lg:pt-4">
                   <div
-                    // Picker card holds its own comfortable width
-                    // (max-w-7xl) regardless of how small the chassis
-                    // is — the chassisWidth match was making chips
-                    // squeeze unreadably on narrow panels (e.g. a
-                    // 16-key beltpack). The card is a separate visual
-                    // unit from the chassis; only the studio header
-                    // still tracks chassis width to keep the identity
-                    // text "contained with the logo".
-                    //
-                    // The card's height is capped so the chassis
-                    // (header strip + chassis card + footer) always
-                    // has room to render fully without forcing a
-                    // scroll. The chip grid inside the card scrolls
-                    // instead when its rows overflow. Pixel cap kicks
-                    // in on shorter laptop viewports where 35vh would
-                    // still squeeze a small (6-key) panel chassis.
-                    className="mx-auto flex max-h-[min(35vh,280px)] min-h-0 w-full max-w-7xl flex-1 flex-col border-b border-white/10 pb-4"
+                    // Inner card fills the outer container's content
+                    // area. Outer is `mx-auto max-w-7xl px-4 sm:px-6
+                    // lg:px-8` — same gutter math as every other page
+                    // header / content section, so the picker card's
+                    // left and right edges sit at the standard 32px
+                    // page margin on desktop. Vertical cap keeps the
+                    // chassis below visible: max-h-[min(35vh,280px)]
+                    // kicks the smaller value in on short laptop
+                    // viewports so a 6-key panel still fits without
+                    // forcing a scroll.
+                    className="flex max-h-[min(35vh,280px)] min-h-0 w-full flex-1 flex-col border-b border-white/10 pb-4"
                   >
                     {/* Top row: 3 controls + search + close — separated
                         from the chip grid below by the same border style
@@ -1603,6 +1667,19 @@ export function PanelStudio({
                             { value: 'auto', label: 'Auto' },
                             { value: 'latch', label: 'Latching' },
                             { value: 'momentary', label: 'Momentary' },
+                          ]}
+                        />
+                      </div>
+
+                      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Talk Keys</div>
+                        <PickerSelect
+                          value={selectedKey?.talkMode || 'tl'}
+                          onChange={(v) => { if (selectedKeyId) setTalkMode(selectedKeyId, v) }}
+                          options={[
+                            { value: 'tl', label: 'Talk / Listen' },
+                            { value: 't', label: 'Talk' },
+                            { value: 'l', label: 'Listen' },
                           ]}
                         />
                       </div>
@@ -1690,8 +1767,25 @@ export function PanelStudio({
                             }`}
                           >
                             <span className="overflow-hidden text-ellipsis whitespace-nowrap">{item.name}</span>
-                            {item.code && (
-                              <span className={`font-mono text-[10px] ${isActive ? 'text-white/70' : 'text-gray-500'}`}>{item.code}</span>
+                            {/* PTP chips: show the member's position
+                                in cyan so admins can pick the right
+                                John Doe by role at a glance. The code
+                                field is hidden for PTP because the
+                                position already serves that "extra
+                                disambiguator" role and double labels
+                                feel redundant. */}
+                            {item.type === 'PTP' && item.position && (
+                              <span className={`overflow-hidden text-ellipsis whitespace-nowrap text-[10px] ${isActive ? 'text-white/85' : 'text-[#22a7d3]'}`}>
+                                {item.position}
+                              </span>
+                            )}
+                            {item.type !== 'PTP' && item.code && (
+                              // Non-PTP code (CONF / IFB / GRP / Audio
+                              // I/O id) gets the same cyan treatment as
+                              // PTP's position so the disambiguator
+                              // text reads consistently across all
+                              // function types in the picker.
+                              <span className={`font-mono text-[10px] ${isActive ? 'text-white/85' : 'text-[#22a7d3]'}`}>{item.code}</span>
                             )}
                           </PickerItemDraggable>
                         )
@@ -1762,53 +1856,73 @@ export function PanelStudio({
                   the picker card stayed wide. Now header + picker share
                   the same comfortable container width so things stay
                   visually aligned no matter how small the chassis. */}
-              <div className="flex w-full flex-shrink-0 px-4 pt-2 pb-2 lg:px-10 lg:pt-3 lg:pb-3">
-                <div className={`mx-auto flex w-full max-w-7xl items-center gap-3 ${stackHeader ? 'flex-col' : 'flex-nowrap justify-between'}`}>
+              <div className="w-full flex-shrink-0 pt-2 pb-2 lg:pt-3 lg:pb-3">
+                {/* Single max-w-7xl container with px-4 sm:px-6 lg:px-8
+                    so the inner edges land at the SAME 32px desktop
+                    gutter as the picker card and every other page
+                    section — important so identity / Copy / Save /
+                    expansion controls all line up vertically with the
+                    picker card edges below them. */}
+                <div className={`mx-auto flex w-full max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8 ${stackHeader ? 'flex-col' : 'flex-nowrap justify-between'}`}>
                 {/* Left: ID · name · meta · ip · project · hardware · key count
                     All separated by middle dots. Wraps via flex-wrap so
                     a long identity line doesn't push the right group
                     off-screen on narrow viewports — but the parent is
                     flex-nowrap so the two GROUPS stay on one row. */}
-                <div className={`flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 overflow-hidden ${stackHeader ? 'justify-center' : 'flex-1'}`}>
-                  {equipment.name && (
-                    <span className="text-[18px] font-bold text-[#22a7d3] font-mono lg:text-[22px]">{equipment.name}</span>
-                  )}
-                  {equipment.name && (
-                    <span className="text-xs text-[#3a3a3a]">&middot;</span>
-                  )}
-                  <span className="text-[18px] font-bold text-white truncate lg:text-[22px]">{memberName}</span>
-                  {memberMeta && (
-                    <>
+                <div className={`flex min-w-0 flex-col gap-y-0.5 overflow-hidden ${stackHeader ? 'items-center' : 'flex-1 items-center sm:items-start'}`}>
+                  {/* Row 1: ID · firstName lastName · position · location */}
+                  <div className={`flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 justify-center ${stackHeader ? '' : 'sm:justify-start'}`}>
+                    {equipment.name && (
+                      <span className="text-[18px] font-bold text-[#22a7d3] font-mono lg:text-[22px]">{equipment.name}</span>
+                    )}
+                    {equipment.name && (
                       <span className="text-xs text-[#3a3a3a]">&middot;</span>
-                      <span className="text-[13px] text-gray-400">{memberMeta}</span>
-                    </>
-                  )}
-                  {showIpAddress && equipment.ipAddress && (
-                    <>
-                      <span className="text-xs text-[#3a3a3a]">&middot;</span>
-                      <a
-                        href={`http://${equipment.ipAddress}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[13px] text-[#22a7d3] font-mono hover:underline"
-                      >
-                        {equipment.ipAddress}
-                      </a>
-                    </>
-                  )}
-                  <span className="text-xs text-[#3a3a3a]">&middot;</span>
-                  <span className="text-xs text-gray-500">{project.name}</span>
-                  {/* Hardware type + key count moved to the chassis card's
-                      top-right corner so they sit on the gear itself like
-                      a manufacturer label, not in the studio header. */}
-                  {isReviewMode && (
-                    <span className="ml-2 inline-flex items-center gap-2 rounded-lg border border-[#f59e0b]/30 bg-[#f59e0b]/10 px-3 py-1">
-                      <svg className="size-3.5 text-[#f59e0b]" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-                      </svg>
-                      <span className="text-[11px] font-semibold text-[#f59e0b]">Reviewing change request</span>
-                    </span>
-                  )}
+                    )}
+                    <span className="text-[18px] font-bold text-white truncate lg:text-[22px]">{memberName}</span>
+                    {memberMeta && (
+                      <>
+                        <span className="text-xs text-[#3a3a3a]">&middot;</span>
+                        <span className="text-[13px] text-gray-400">{memberMeta}</span>
+                      </>
+                    )}
+                    {isReviewMode && (
+                      <span className="ml-2 inline-flex items-center gap-2 rounded-lg border border-[#f59e0b]/30 bg-[#f59e0b]/10 px-3 py-1">
+                        <svg className="size-3.5 text-[#f59e0b]" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                        </svg>
+                        <span className="text-[11px] font-semibold text-[#f59e0b]">Reviewing change request</span>
+                      </span>
+                    )}
+                  </div>
+                  {/* Row 2: IP · project (show) name. Sits directly
+                      below the identity row so the bigger name + role
+                      strip stays clean and the secondary metadata
+                      (link to panel UI, which show this is on) lives
+                      on its own line. */}
+                  <div className={`flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 justify-center ${stackHeader ? '' : 'sm:justify-start'}`}>
+                    {showIpAddress && equipment.ipAddress && (
+                      <>
+                        <a
+                          // Panels carry the Riedel web UI under
+                          // /remote-control/, so the link drops the
+                          // user straight into that. Other categories
+                          // (switches, antennas) just open the bare IP.
+                          href={`http://${equipment.ipAddress}${equipment.category === 'panels' ? '/remote-control/' : ''}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          // Match the surrounding identity strip's font
+                          // (no font-mono, no underline) — just stays
+                          // cyan with a slightly brighter cyan on hover
+                          // so it still reads as a clickable link.
+                          className="text-[13px] text-[#22a7d3] hover:text-[#019bc7]"
+                        >
+                          {equipment.ipAddress}
+                        </a>
+                        <span className="text-xs text-[#3a3a3a]">&middot;</span>
+                      </>
+                    )}
+                    <span className="text-xs text-gray-500">{project.name}</span>
+                  </div>
                 </div>
 
                 {/* Right: on desktop = legend chips + expansion +/- +
@@ -1925,7 +2039,7 @@ export function PanelStudio({
                   pushing the bigger identity text down. Hidden on
                   desktop (lg+) — same content already lives in the
                   studio header's right group there. */}
-              <div className="flex w-full flex-shrink-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 pb-2 lg:hidden">
+              <div className="flex w-full flex-shrink-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 pb-2 sm:px-6 lg:hidden">
                 <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
                   <span className="w-[9px] h-[9px] rounded-sm bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
                   Assigned
@@ -1982,7 +2096,7 @@ export function PanelStudio({
 
               {/* ─── Scrollable panel content ─── */}
               <div
-                className={`flex-[0_1_auto] min-h-0 w-full overflow-auto p-4 lg:p-5 lg:px-10 flex transition-[padding-right] duration-300 ${inspectorOpen && !(pickerMode && canEditKeys) ? 'xl:pr-[420px] 2xl:pr-10' : ''}`}
+                className={`flex-[0_1_auto] min-h-0 w-full overflow-auto p-4 sm:px-6 lg:p-5 lg:px-8 flex transition-[padding-right] duration-300 ${inspectorOpen && !(pickerMode && canEditKeys) ? 'xl:pr-[420px] 2xl:pr-10' : ''}`}
               >
                 <div className="min-w-min mx-auto" ref={chassisRef}>
                   {/* Single chassis card containing expansions + main panel */}
@@ -1994,7 +2108,12 @@ export function PanelStudio({
                     <div
                       className="pointer-events-none absolute right-4 top-3 text-[10px] font-bold uppercase tracking-[0.18em] tabular-nums leading-none"
                       style={{
-                        color: 'rgba(150,150,150,0.18)',
+                        // Cyan brand colour at low alpha so the label
+                        // reads like a faintly tinted silkscreen on
+                        // the chassis. Same engraved shadow recipe as
+                        // before keeps the "carved into the surface"
+                        // feel.
+                        color: 'rgba(34,167,211,0.55)',
                         textShadow: [
                           '0 -1px 0 rgba(255,255,255,0.06)',
                           '0 -2px 2px rgba(255,255,255,0.03)',
@@ -2012,22 +2131,28 @@ export function PanelStudio({
                         highlight at the bottom edge to suggest the label is carved
                         into the chassis itself. */}
                     {Array.from({ length: expansionCount }, (_, i) => expansionCount - i).map((exp) => (
-                      <div key={`exp-${exp}`} className="flex items-center gap-4">
+                      <div key={`exp-${exp}`} className="relative flex items-center">
+                        {renderPanel(exp)}
+                        {/* Number floats out to the right of the panel
+                            block via absolute positioning so it doesn't
+                            take flex space — that keeps the panel
+                            centred under the chassis the same way as
+                            the main panel below (which has no number),
+                            so all rows of keys line up vertically.
+                            The chassis card's right padding is 32px
+                            (p-8), so we anchor the number's centre at
+                            16px past the panel edge to land it exactly
+                            in the middle of that gutter strip:
+                            left-full + ml-4 (16px) puts the number's
+                            LEFT at gutter centre, then -translate-x-1/2
+                            shifts it back by half its own width — net
+                            result, the number's centre sits at gutter
+                            centre regardless of how wide the digit
+                            renders. */}
                         <div
-                          className="text-[18px] font-extrabold tabular-nums leading-none"
+                          className="pointer-events-none absolute left-full top-1/2 ml-4 -translate-x-1/2 -translate-y-1/2 text-[18px] font-extrabold tabular-nums leading-none"
                           style={{
-                            // Light gray fill (kept from the version the
-                            // user liked) but with the shadows flipped:
-                            //   • Highlight on TOP — like the original
-                            //     surface still catches light above the
-                            //     carved channel.
-                            //   • Stacked sharp + blurred shadows BELOW —
-                            //     reads as the channel dropping inward
-                            //     under the text, the shadow falling away
-                            //     into the recessed area.
-                            // Inverts the previous "popping out" feel into
-                            // a clear "pressed in" silkscreen look.
-                            color: 'rgba(150,150,150,0.18)',
+                            color: 'rgba(34,167,211,0.55)',
                             textShadow: [
                               '0 -1px 0 rgba(255,255,255,0.06)',
                               '0 -2px 2px rgba(255,255,255,0.03)',
@@ -2038,7 +2163,6 @@ export function PanelStudio({
                         >
                           {exp}
                         </div>
-                        {renderPanel(exp)}
                       </div>
                     ))}
 
@@ -2240,7 +2364,8 @@ export function PanelStudio({
               </div>
               <button
                 onClick={closeInspector}
-                className="bg-transparent border-none text-gray-400 text-lg cursor-pointer p-1 px-2 rounded-md flex-shrink-0 hover:text-white hover:bg-white/[0.06]"
+                aria-label="Close picker"
+                className="flex size-10 shrink-0 items-center justify-center rounded-md bg-transparent text-2xl text-gray-300 transition-colors hover:bg-white/[0.06] hover:text-white"
               >
                 &times;
               </button>
@@ -2297,7 +2422,15 @@ export function PanelStudio({
                 of truth, so hide this in-inspector picker view there. */}
             {pickerMode && (
               <div className="flex flex-col flex-1 min-h-0 sm:hidden">
-                {/* Picker controls */}
+                {/* Picker controls — all dropdowns use the shared
+                    PickerSelect component (same as the desktop card)
+                    so the look is consistent: full-width trigger,
+                    cyan-fill on the selected option, single chevron.
+                    The native <select> here was rendering its own
+                    browser chevron alongside our custom one — hence
+                    the "extra character" — switching to PickerSelect
+                    fixes that and gives us trigger-mode + talk-key
+                    dropdowns to match desktop. */}
                 <div className="px-[18px] py-3.5 border-b border-white/[0.06] flex flex-col gap-2.5 flex-shrink-0">
                   <input
                     type="text"
@@ -2311,33 +2444,32 @@ export function PanelStudio({
                     autoComplete="off"
                     spellCheck={false}
                   />
-                  {/* Function type filter — mobile only. On desktop this
-                      same control lives on the floating picker card so
-                      we don't render two of them. */}
-                  <div className="relative w-full sm:hidden">
-                    <select
-                      value={pickerFilter}
-                      onChange={(e) => setPickerFilter(e.target.value)}
-                      className="block w-full appearance-none rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 pr-9 text-sm text-white outline-none transition-[border-color] hover:border-white/20 focus:border-[#0178a3]"
-                    >
-                      {filterTypes.map((type) => (
-                        <option key={type} value={type}>
-                          {type === 'All' ? 'All function types' : type === 'Audio' ? 'Audio I/O' : type}
-                        </option>
-                      ))}
-                    </select>
-                    <svg
-                      className="pointer-events-none absolute right-3 top-1/2 size-3 -translate-y-1/2 text-gray-400"
-                      viewBox="0 0 20 20"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <polyline points="5 8 10 13 15 8" />
-                    </svg>
-                  </div>
+                  <PickerSelect
+                    value={pickerFilter}
+                    onChange={setPickerFilter}
+                    options={filterTypes.map((t) => ({
+                      value: t,
+                      label: t === 'All' ? 'All function types' : t === 'Audio' ? 'Audio I/O' : t,
+                    }))}
+                  />
+                  <PickerSelect
+                    value={selectedKey?.triggerMode || 'latch'}
+                    onChange={(v) => { if (selectedKeyId) setTriggerMode(selectedKeyId, v) }}
+                    options={[
+                      { value: 'auto', label: 'Auto' },
+                      { value: 'latch', label: 'Latching' },
+                      { value: 'momentary', label: 'Momentary' },
+                    ]}
+                  />
+                  <PickerSelect
+                    value={selectedKey?.talkMode || 'tl'}
+                    onChange={(v) => { if (selectedKeyId) setTalkMode(selectedKeyId, v) }}
+                    options={[
+                      { value: 'tl', label: 'Talk / Listen' },
+                      { value: 't', label: 'Talk' },
+                      { value: 'l', label: 'Listen' },
+                    ]}
+                  />
                 </div>
 
                 {/* Picker list */}
@@ -2389,36 +2521,47 @@ export function PanelStudio({
                             item={item}
                             canDrag={canEditKeys}
                             isActive={isActive}
-                            onClick={() => selectedKeyId && assignPickerItem(selectedKeyId, item)}
+                            onClick={() => {
+                              if (!selectedKeyId) return
+                              assignPickerItem(selectedKeyId, item)
+                              // Mobile-only picker: tapping a function
+                              // type assigns it AND closes the picker
+                              // so the user can immediately see the
+                              // updated key on the chassis.
+                              closeInspector()
+                            }}
                             className={`rounded-[10px] px-3.5 py-2.5 flex items-center gap-2.5 cursor-pointer transition-all border ${
                               isActive
-                                ? 'bg-[rgba(34,167,211,0.12)] border-[rgba(34,167,211,0.5)]'
+                                ? 'bg-[#0178a3] border-[#0178a3] text-white'
                                 : 'bg-white/[0.03] border-transparent hover:bg-white/[0.06] hover:border-white/10'
                             }`}
                           >
                             <div className="flex-1 min-w-0 flex items-baseline gap-2 overflow-hidden">
-                              <span className={`text-xs font-semibold whitespace-nowrap overflow-hidden text-ellipsis ${isActive ? 'text-[#22a7d3]' : 'text-gray-200'}`}>
+                              <span className={`text-xs font-semibold whitespace-nowrap overflow-hidden text-ellipsis ${isActive ? 'text-white' : 'text-gray-200'}`}>
                                 {item.name}
                               </span>
                               {item.position && (
-                                <span className="text-[11px] text-gray-400 whitespace-nowrap overflow-hidden text-ellipsis">
+                                <span className={`text-[11px] whitespace-nowrap overflow-hidden text-ellipsis ${
+                                  isActive ? 'text-white/80' : item.type === 'PTP' ? 'text-[#22a7d3]' : 'text-gray-400'
+                                }`}>
                                   {item.position}
                                 </span>
                               )}
-                              {item.code && (
-                                <span className="text-[10px] text-gray-500 font-mono">{item.code}</span>
+                              {item.type !== 'PTP' && item.code && (
+                                <span className={`text-[10px] font-mono ${isActive ? 'text-white/80' : 'text-[#22a7d3]'}`}>{item.code}</span>
                               )}
                             </div>
                             <span className={`text-[11px] font-medium px-2 py-0.5 rounded-md flex-shrink-0 ${
                               isActive
-                                ? 'text-[#22a7d3] bg-[rgba(34,167,211,0.18)]'
+                                ? 'text-white bg-white/20'
                                 : 'text-gray-300 bg-white/10'
                             }`}>
                               {item.type === 'Audio_IO' ? 'Audio I/O' : item.type}
                             </span>
-                            {isActive && (
-                              <span className="text-[#22a7d3] font-bold text-sm ml-1">&check;</span>
-                            )}
+                            {/* Active state is already obvious from
+                                the cyan-fill + white text, so the
+                                trailing checkmark we used to render
+                                is redundant — removed. */}
                           </PickerItemDraggable>
                         )
                       })}

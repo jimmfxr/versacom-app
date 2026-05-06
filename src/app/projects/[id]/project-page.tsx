@@ -557,6 +557,10 @@ export function ProjectPage({
   )
   const [eqChipsExpanded, setEqChipsExpanded] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
+  // Mobile-only: when true the per-tab search input slides in below
+  // the tab dropdown row. Toggled by the search-icon button next to
+  // the tab dropdown on mobile.
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   // Which tab inside the open Add Equipment card is active. Default = the
   // gear-add form; flip to 'inventory' to manage headset / misc counts that
   // used to live under the Edit button on the Dashboard headsets card.
@@ -1154,27 +1158,105 @@ export function ProjectPage({
         titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
         inlineAction
         stickyHeader
-        before={
-          <button
-            type="button"
-            onClick={() => router.push('/projects')}
-            className="inline-flex items-center gap-1 text-sm text-gray-400 transition-colors hover:text-white"
-          >
-            <ChevronLeftIcon className="size-4" />
-            <span>Projects</span>
-          </button>
-        }
+        bottomBorder
+        // Back button used to live above the title on mobile via the
+        // `before` slot. Now mobile and desktop both render the same
+        // gray "Back" pill in the action row to the right of Edit, so
+        // the slot is no longer used.
         action={
-          canSeeSettings && (
-            <Button
-              size="md"
-              variant="secondary"
-              onClick={() => setShowSettings(!showSettings)}
-              aria-label={showSettings ? 'Close settings' : 'Edit project'}
+          <div className="flex items-center gap-3">
+            {/* Per-tab toolbar (search + Add button) — desktop only.
+                On mobile each tab still renders its own sticky search
+                row inside the tab body. Pulling these into the page
+                header gives admins a single horizontal strip with
+                everything they need: Search · Add · Edit · ← Back. */}
+            <div className="hidden items-center gap-3 sm:flex">
+              {activeTab === 'equipment' && (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Search equipment..."
+                    value={eqSearch}
+                    onChange={(e) => setEqSearch(e.target.value)}
+                    className="w-56 rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+                  />
+                  {/* Add buttons match the Edit/Back button height
+                      on desktop (px-4 py-2 text-sm). Still a single
+                      "+" glyph but pill-shaped instead of square. */}
+                  {canAddEquipment && !showAdd && (
+                    <button type="button" onClick={() => setShowAdd(true)} aria-label="Add Equipment" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
+                  )}
+                  {!canAddEquipment && isCrew && !showTeamQr && (
+                    <button type="button" onClick={() => setShowTeamQr(true)} aria-label="Show QR" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
+                  )}
+                </>
+              )}
+              {activeTab === 'team' && (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Search team..."
+                    value={teamSearch}
+                    onChange={(e) => setTeamSearch(e.target.value)}
+                    className="w-56 rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+                  />
+                  {canEditTeam && !showAddMember && (
+                    <button type="button" onClick={() => setShowAddMember(true)} aria-label="Add Member" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
+                  )}
+                  {!canEditTeam && isCrew && !showTeamQr && (
+                    <button type="button" onClick={() => setShowTeamQr(true)} aria-label="Show QR" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
+                  )}
+                </>
+              )}
+              {activeTab === 'picklist' && (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Search functions..."
+                    value={plSearch}
+                    onChange={(e) => setPlSearch(e.target.value)}
+                    className="w-56 rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+                  />
+                  {canEditPickList && !showAddPl && (
+                    <button type="button" onClick={() => setShowAddPl(true)} aria-label="Add Function" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
+                  )}
+                </>
+              )}
+              {activeTab === 'stage-plots' && (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Search plots..."
+                    value={plotSearch}
+                    onChange={(e) => setPlotSearch(e.target.value)}
+                    className="w-56 rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+                  />
+                  {isAdmin && !showAddPlot && (
+                    <button type="button" onClick={() => setShowAddPlot(true)} aria-label="Add Plot" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
+                  )}
+                </>
+              )}
+            </div>
+            {canSeeSettings && (
+              <Button
+                size="md"
+                variant="secondary"
+                onClick={() => setShowSettings(!showSettings)}
+                aria-label={showSettings ? 'Close settings' : 'Edit project'}
+              >
+                {showSettings ? 'Close' : 'Edit'}
+              </Button>
+            )}
+            {/* Back button — sits to the right of Edit on every
+                viewport. Filled gray pill with white text. */}
+            <button
+              type="button"
+              onClick={() => router.push('/projects')}
+              className="inline-flex rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/15"
             >
-              {showSettings ? 'Close' : 'Edit'}
-            </Button>
-          )
+              Back
+            </button>
+          </div>
         }
       >
         <div className="flex min-h-0 flex-1 flex-col space-y-3">
@@ -1293,23 +1375,110 @@ export function ProjectPage({
                 })()
             return (
               <>
-                {/* Mobile: dropdown selector — saves the horizontal space
-                    the chip row was eating. */}
-                <div className="sm:hidden">
-                  <TabsMobileDropdown tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} />
+                {/* Mobile: tab dropdown on the left, search-toggle
+                    icon and per-tab Add button on the right. Tapping
+                    search reveals an input row below; tapping the X
+                    on that row hides the input again and brings the
+                    search icon back. */}
+                <div className="flex items-center gap-2 sm:hidden">
+                  <div className="min-w-0 flex-1">
+                    <TabsMobileDropdown tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} />
+                  </div>
+                  {!mobileSearchOpen && (
+                    <button
+                      type="button"
+                      onClick={() => setMobileSearchOpen(true)}
+                      aria-label="Search"
+                      className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                    >
+                      <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.343-4.343m0 0A8 8 0 1 0 5.343 5.343a8 8 0 0 0 11.314 11.314Z" />
+                      </svg>
+                    </button>
+                  )}
+                  {/* Per-tab + (Add) button. Sits to the right of the
+                      search icon. Each branch matches the per-tab
+                      Add behavior the desktop header has. */}
+                  {activeTab === 'equipment' && canAddEquipment && !showAdd && (
+                    <button type="button" onClick={() => setShowAdd(true)} aria-label="Add Equipment" className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
+                  )}
+                  {activeTab === 'equipment' && !canAddEquipment && isCrew && !showTeamQr && (
+                    <button type="button" onClick={() => setShowTeamQr(true)} aria-label="Show QR" className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
+                  )}
+                  {activeTab === 'team' && canEditTeam && !showAddMember && (
+                    <button type="button" onClick={() => setShowAddMember(true)} aria-label="Add Member" className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
+                  )}
+                  {activeTab === 'team' && !canEditTeam && isCrew && !showTeamQr && (
+                    <button type="button" onClick={() => setShowTeamQr(true)} aria-label="Show QR" className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
+                  )}
+                  {activeTab === 'picklist' && canEditPickList && !showAddPl && (
+                    <button type="button" onClick={() => setShowAddPl(true)} aria-label="Add Function" className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
+                  )}
+                  {activeTab === 'stage-plots' && isAdmin && !showAddPlot && (
+                    <button type="button" onClick={() => setShowAddPlot(true)} aria-label="Add Plot" className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
+                  )}
                 </div>
-                {/* Desktop: keep the chip strip with chevron-on-overflow. */}
+
+                {/* Collapsible mobile search input — shown only when
+                    the search icon was tapped. Each tab's local
+                    search state is wired to its own input here so
+                    typing filters the right list. The X on the right
+                    closes the row and brings the search icon back. */}
+                {mobileSearchOpen && (
+                  <div className="mt-2 flex items-center gap-2 sm:hidden">
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder={
+                        activeTab === 'equipment' ? 'Search equipment...' :
+                        activeTab === 'team' ? 'Search team...' :
+                        activeTab === 'picklist' ? 'Search functions...' :
+                        activeTab === 'stage-plots' ? 'Search plots...' :
+                        'Search...'
+                      }
+                      value={
+                        activeTab === 'equipment' ? eqSearch :
+                        activeTab === 'team' ? teamSearch :
+                        activeTab === 'picklist' ? plSearch :
+                        activeTab === 'stage-plots' ? plotSearch : ''
+                      }
+                      onChange={(e) => {
+                        const v = e.target.value
+                        if (activeTab === 'equipment') setEqSearch(v)
+                        else if (activeTab === 'team') setTeamSearch(v)
+                        else if (activeTab === 'picklist') setPlSearch(v)
+                        else if (activeTab === 'stage-plots') setPlotSearch(v)
+                      }}
+                      className="w-full flex-1 rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setMobileSearchOpen(false)}
+                      aria-label="Close search"
+                      className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                    >
+                      <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+                {/* Desktop: tabs render as filled chip-style buttons —
+                    same look as the filter Chip component (cyan-fill
+                    when active, dark-fill with border when inactive)
+                    but bumped up a size for the tab strip. Centered
+                    via the ChipScroller's sm:justify-center override. */}
                 <div className="hidden sm:block">
-                  <ChipScroller ariaLabel="tabs">
+                  <ChipScroller ariaLabel="tabs" containerClassName="flex flex-1 gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:justify-center">
                     {tabs.map((tab) => (
                       <button
                         key={tab.key}
                         type="button"
                         onClick={() => setActiveTab(tab.key)}
-                        className={`shrink-0 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
+                        className={`shrink-0 rounded-md px-3.5 py-2 text-sm font-semibold transition-colors ${
                           activeTab === tab.key
                             ? 'bg-[#0178a3] text-white'
-                            : 'text-gray-400 hover:text-white'
+                            : 'border border-white/10 bg-[#2a2a2a] text-gray-300 hover:bg-[#313131] hover:text-white'
                         }`}
                       >
                         {tab.label}
@@ -1323,70 +1492,15 @@ export function ProjectPage({
           })()}
           </div>{/* /tab strip wrapper */}
 
-          {/* Desktop-only per-tab toolbar (search + add). Mobile renders
-              the same controls inside each tab branch (sticky on scroll). */}
-          <div className="hidden sm:flex sm:flex-shrink-0 sm:items-center sm:gap-3">
-            {activeTab === 'equipment' && (
-              <>
-                <input
-                  type="text"
-                  placeholder="Search equipment..."
-                  value={eqSearch}
-                  onChange={(e) => setEqSearch(e.target.value)}
-                  className="w-64 rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
-                />
-                {canAddEquipment && !showAdd && <Button onClick={() => setShowAdd(true)}>Add Equipment</Button>}
-                {!canAddEquipment && isCrew && !showTeamQr && <Button onClick={() => setShowTeamQr(true)}>Show QR</Button>}
-              </>
-            )}
-            {activeTab === 'team' && (
-              <>
-                <input
-                  type="text"
-                  placeholder="Search team..."
-                  value={teamSearch}
-                  onChange={(e) => setTeamSearch(e.target.value)}
-                  className="w-64 rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
-                />
-                {canEditTeam && !showAddMember && <Button onClick={() => setShowAddMember(true)}>Add Member</Button>}
-                {!canEditTeam && isCrew && !showTeamQr && <Button onClick={() => setShowTeamQr(true)}>Show QR</Button>}
-              </>
-            )}
-            {activeTab === 'picklist' && (
-              <>
-                <input
-                  type="text"
-                  placeholder="Search functions..."
-                  value={plSearch}
-                  onChange={(e) => setPlSearch(e.target.value)}
-                  className="w-64 rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
-                />
-                {canEditPickList && !showAddPl && <Button onClick={() => setShowAddPl(true)}>Add Function</Button>}
-              </>
-            )}
-            {activeTab === 'stage-plots' && (
-              <>
-                <input
-                  type="text"
-                  placeholder="Search plots..."
-                  value={plotSearch}
-                  onChange={(e) => setPlotSearch(e.target.value)}
-                  className="w-64 rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
-                />
-                {isAdmin && !showAddPlot && <Button onClick={() => setShowAddPlot(true)}>Add Plot</Button>}
-              </>
-            )}
-          </div>
+          {/* Per-tab toolbar moved into the page header's action slot
+              on desktop (left of the Edit / Projects buttons), so this
+              row no longer renders a separate toolbar block. */}
           </div>{/* /tab + toolbar row */}
 
-          {/* Desktop divider — sits in the breathing room between the
-              tab+toolbar row and the per-tab content. Mobile hides it
-              since the per-tab sticky bundle already provides separation. */}
-          {/* Desktop divider — sits below the tab+toolbar row. Mobile
-              renders its own divider INSIDE each per-tab sticky bundle
-              (below the search bar) since the toolbar isn't on this row
-              on mobile. */}
-          <div className="hidden sm:block h-0.5 bg-white/[0.12] mb-4 flex-shrink-0" />
+          {/* Removed: desktop divider that used to sit below the
+              tab + toolbar row. The page header's bottomBorder is
+              now the only horizontal separator above per-tab content
+              so the page doesn't carry two stacked dividers. */}
 
           {/* ═══════════════════════════════ EQUIPMENT TAB ═══════════════════════════════ */}
           {activeTab === 'equipment' && (
@@ -1394,34 +1508,20 @@ export function ProjectPage({
               {/* Mobile-only sticky bundle: search + filter chips ride
                   together. Desktop search+add is in the top toolbar. */}
               <div className="flex-shrink-0 -mx-4 bg-[#202020] px-4 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-                <div className="flex items-center gap-3 pb-4 sm:hidden">
-                  <div className="flex-1">
-                    <input
-                      type="text"
-                      placeholder="Search equipment..."
-                      value={eqSearch}
-                      onChange={(e) => setEqSearch(e.target.value)}
-                      className="w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
-                    />
-                  </div>
-                  {canAddEquipment && !showAdd && (
-                    <button type="button" onClick={() => setShowAdd(true)} aria-label="Add Equipment" className="flex shrink-0 items-center justify-center rounded-lg bg-[#0178a3] px-4 py-2.5 text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
-                  )}
-                  {!canAddEquipment && isCrew && !showTeamQr && (
-                    <button type="button" onClick={() => setShowTeamQr(true)} aria-label="Show QR" className="flex shrink-0 items-center justify-center rounded-lg bg-[#0178a3] px-4 py-2.5 text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
-                  )}
-                </div>
+                {/* Search + Add moved into the tab dropdown row above
+                    on mobile (search icon toggles a collapsible
+                    input). */}
                 {/* Mobile-only divider line — sits between the search row
                     and the filter chips (matches the desktop divider's
                     role of separating toolbar from per-tab content). */}
-                <div className="h-0.5 bg-white/[0.12] mb-4 flex-shrink-0 sm:hidden" />
+{/* removed — page-header bottomBorder serves as the toolbar / content divider now */}
 
               {/* Filter chips — All + categories + locations in a single
                   horizontally-scrollable row. ChipScroller adds prev/next
                   chevrons only when the row overflows the container. */}
               {(usedEquipmentCategories.length > 0 || equipmentLocations.length > 0) && (
                 <div className="pb-3">
-                  <ChipScroller>
+                  <ChipScroller containerClassName="flex flex-1 gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:justify-center">
                     <Chip
                       active={!eqCategoryFilter && !eqLocationFilter}
                       onClick={() => {
@@ -1802,7 +1902,7 @@ export function ProjectPage({
                                   {item.location && <span><span className="text-xs text-gray-500">Location: </span>{item.location}</span>}
                                   {item.hardwareType && <span><span className="text-xs text-gray-500">Hardware: </span>{item.hardwareType}</span>}
                                   {item.headsetType && <span><span className="text-xs text-gray-500">Headset: </span>{item.headsetType}</span>}
-                                  {item.ipAddress && <span><span className="text-xs text-gray-500">IP: </span><a href={`http://${item.ipAddress}`} target="_blank" rel="noopener noreferrer" className="text-[#22a7d3] hover:text-[#019bc7]">{item.ipAddress}</a></span>}
+                                  {item.ipAddress && <span><span className="text-xs text-gray-500">IP: </span><a href={`http://${item.ipAddress}${item.category === 'panels' ? '/remote-control/' : ''}`} target="_blank" rel="noopener noreferrer" className="text-[#22a7d3] hover:text-[#019bc7]">{item.ipAddress}</a></span>}
                                   {item.patch && <span><span className="text-xs text-gray-500">Patch: </span><span className="font-mono">{item.patch}</span></span>}
                                   {item.gooseneck && <span><span className="text-xs text-gray-500">Misc: </span>Gooseneck</span>}
                                   {item.footswitches > 0 && <span><span className="text-xs text-gray-500">FS: </span>{item.footswitches}</span>}
@@ -1813,7 +1913,7 @@ export function ProjectPage({
                                   {item.location && <><span className="text-xs text-gray-500">Location: </span><span>{item.location}</span><span className="text-gray-500">·</span></>}
                                   {item.hardwareType && <><span className="text-xs text-gray-500">Hardware: </span><span>{item.hardwareType}</span></>}
                                   {item.headsetType && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">Headset: </span><span>{item.headsetType}</span></>}
-                                  {item.ipAddress && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">IP: </span><a href={`http://${item.ipAddress}`} target="_blank" rel="noopener noreferrer" className="text-[#22a7d3] hover:text-[#019bc7]">{item.ipAddress}</a></>}
+                                  {item.ipAddress && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">IP: </span><a href={`http://${item.ipAddress}${item.category === 'panels' ? '/remote-control/' : ''}`} target="_blank" rel="noopener noreferrer" className="text-[#22a7d3] hover:text-[#019bc7]">{item.ipAddress}</a></>}
                                   {item.patch && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">Patch: </span><span className="font-mono">{item.patch}</span></>}
                                   {item.gooseneck && <><span className="text-gray-500">·</span><span>Gooseneck</span></>}
                                   {item.footswitches > 0 && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">FS: </span><span>{item.footswitches}</span></>}
@@ -1863,25 +1963,10 @@ export function ProjectPage({
             <div className="flex min-h-0 flex-1 flex-col">
               {/* Mobile-only sticky bundle: search + filter chips. */}
               <div className="flex-shrink-0 -mx-4 bg-[#202020] px-4 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-                <div className="flex items-center gap-3 pb-4 sm:hidden">
-                  <div className="flex-1">
-                    <input
-                      type="text"
-                      placeholder="Search by name, position, role, equipment, or status..."
-                      value={teamSearch}
-                      onChange={(e) => setTeamSearch(e.target.value)}
-                      className="w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
-                    />
-                  </div>
-                  {canEditTeam && !showAddMember && (
-                    <button type="button" onClick={() => setShowAddMember(true)} aria-label="Add Member" className="flex shrink-0 items-center justify-center rounded-lg bg-[#0178a3] px-4 py-2.5 text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
-                  )}
-                  {!canEditTeam && isCrew && !showTeamQr && (
-                    <button type="button" onClick={() => setShowTeamQr(true)} aria-label="Show QR" className="flex shrink-0 items-center justify-center rounded-lg bg-[#0178a3] px-4 py-2.5 text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
-                  )}
-                </div>
+                {/* Search + Add moved into the tab dropdown row above
+                    on mobile. */}
                 {/* Mobile-only divider line below the search row. */}
-                <div className="h-0.5 bg-white/[0.12] mb-4 flex-shrink-0 sm:hidden" />
+{/* removed — page-header bottomBorder serves as the toolbar / content divider now */}
 
                 {/* Filter chips: assignable equipment categories (Panels /
                     Wireless BP / Hardwire BP) plus an A–Z sort toggle on the
@@ -1895,7 +1980,7 @@ export function ProjectPage({
                   if (cats.length === 0) return null
                   return (
                     <div className="pb-3">
-                      <ChipScroller>
+                      <ChipScroller containerClassName="flex flex-1 gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:justify-center">
                         <Chip active={teamCategoryFilter === null} onClick={() => setTeamCategoryFilter(null)}>
                           All
                         </Chip>
@@ -2223,22 +2308,10 @@ export function ProjectPage({
             <div className="flex min-h-0 flex-1 flex-col">
               {/* Mobile-only sticky bundle: search + filter chips. */}
               <div className="flex-shrink-0 -mx-4 bg-[#202020] px-4 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-                <div className="flex items-center gap-3 pb-4 sm:hidden">
-                  <div className="flex-1">
-                    <input
-                      type="text"
-                      placeholder="Search by name, type, or user..."
-                      value={plSearch}
-                      onChange={(e) => setPlSearch(e.target.value)}
-                      className="w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
-                    />
-                  </div>
-                  {canEditPickList && !showAddPl && (
-                    <button type="button" onClick={() => setShowAddPl(true)} aria-label="Add Function" className="flex shrink-0 items-center justify-center rounded-lg bg-[#0178a3] px-4 py-2.5 text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
-                  )}
-                </div>
+                {/* Search + Add moved into the tab dropdown row above
+                    on mobile. */}
                 {/* Mobile-only divider line below the search row. */}
-                <div className="h-0.5 bg-white/[0.12] mb-4 flex-shrink-0 sm:hidden" />
+{/* removed — page-header bottomBorder serves as the toolbar / content divider now */}
 
                 {/* Filter chips: All / function types · A–Z sort toggle.
                     Function-type filter chips on the left, then a cyan dot
@@ -2246,7 +2319,7 @@ export function ProjectPage({
                     right. Mirrors the equipment tab's category-then-location
                     pattern. */}
                 <div className="pb-3">
-                  <ChipScroller>
+                  <ChipScroller containerClassName="flex flex-1 gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:justify-center">
                     <Chip active={plTypeFilter === null} onClick={() => setPlTypeFilter(null)}>
                       All
                     </Chip>
@@ -2390,24 +2463,10 @@ export function ProjectPage({
           {/* ═══════════════════════════════ STAGE PLOTS TAB ═══════════════════════════════ */}
           {activeTab === 'stage-plots' && (
             <div className="flex min-h-0 flex-1 flex-col">
-              {/* Mobile-only sticky search + Add. Desktop has these
-                  in the top toolbar next to the tab strip. */}
-              <div className="flex-shrink-0 -mx-4 flex items-center gap-3 bg-[#202020] px-4 pb-4 pt-3 sm:hidden">
-                <div className="flex-1">
-                  <input
-                    type="text"
-                    placeholder="Search stage plots..."
-                    value={plotSearch}
-                    onChange={(e) => setPlotSearch(e.target.value)}
-                    className="w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
-                  />
-                </div>
-                {isAdmin && !showAddPlot && (
-                  <button type="button" onClick={() => setShowAddPlot(true)} aria-label="Add Plot" className="flex shrink-0 items-center justify-center rounded-lg bg-[#0178a3] px-4 py-2.5 text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
-                )}
-              </div>
+              {/* Search + Add moved into the tab dropdown row above
+                  on mobile. */}
               {/* Mobile-only divider line below the search row. */}
-              <div className="h-0.5 bg-white/[0.12] mb-4 flex-shrink-0 sm:hidden -mx-4" />
+{/* removed — page-header bottomBorder serves as the toolbar / content divider now */}
 
               {/* Count text — pinned above the scroll on desktop. */}
               <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
@@ -2624,7 +2683,7 @@ export function ProjectPage({
                             {item.location && <><span className="hidden sm:inline text-gray-500">Location: </span><span>{item.location}</span><span className="text-gray-500">·</span></>}
                             {item.hardwareType && <><span className="hidden sm:inline text-gray-500">Hardware: </span><span>{item.hardwareType}</span></>}
                             {item.headsetType && <><span className="text-gray-500">·</span><span className="hidden sm:inline text-gray-500">Headset: </span><span>{item.headsetType}</span></>}
-                            {item.ipAddress && <><span className="text-gray-500">·</span><span className="hidden sm:inline text-gray-500">IP: </span><a href={`http://${item.ipAddress}`} target="_blank" rel="noopener noreferrer" className="text-[#22a7d3] hover:text-[#019bc7]" onClick={(e) => e.stopPropagation()}>{item.ipAddress}</a></>}
+                            {item.ipAddress && <><span className="text-gray-500">·</span><span className="hidden sm:inline text-gray-500">IP: </span><a href={`http://${item.ipAddress}${item.category === 'panels' ? '/remote-control/' : ''}`} target="_blank" rel="noopener noreferrer" className="text-[#22a7d3] hover:text-[#019bc7]" onClick={(e) => e.stopPropagation()}>{item.ipAddress}</a></>}
                           </div>
                         </div>
                         <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_BADGE_STYLES[item.deployStatus] || STATUS_BADGE_STYLES.na}`}>

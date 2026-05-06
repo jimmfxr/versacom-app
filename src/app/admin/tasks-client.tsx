@@ -110,6 +110,8 @@ export function TasksClient({
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [unlockingId, setUnlockingId] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
 
   // Auto-refresh to pick up new requests
   useEffect(() => {
@@ -119,7 +121,74 @@ export function TasksClient({
     return () => clearInterval(interval)
   }, [router])
 
-  const totalTasks = lockoutTasks.length + changeRequestTasks.length
+  // Search filter — matches submitter, target, project, equipment, hardware
+  // for change requests, and first/last name for lockouts.
+  const q = search.trim().toLowerCase()
+  const filteredLockoutTasks = q.length === 0
+    ? lockoutTasks
+    : lockoutTasks.filter((t) => {
+        const haystack = [t.firstName, t.lastName, `${t.firstName} ${t.lastName}`]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+        return haystack.includes(q)
+      })
+  const filteredChangeRequestTasks = q.length === 0
+    ? changeRequestTasks
+    : changeRequestTasks.filter((t) => {
+        const haystack = [
+          t.submitterName,
+          t.submitterRole,
+          t.targetName,
+          t.targetPosition,
+          t.projectName,
+          t.equipmentName,
+          t.hardwareType,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+        return haystack.includes(q)
+      })
+
+  const totalTasks = filteredLockoutTasks.length + filteredChangeRequestTasks.length
+  const hasAnyTasks = lockoutTasks.length + changeRequestTasks.length > 0
+
+  const desktopSearchInput = (
+    <div className="hidden sm:block">
+      <input
+        type="text"
+        placeholder="Search tasks..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="w-64 rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+      />
+    </div>
+  )
+
+  const mobileSearchToggle = !mobileSearchOpen && (
+    <button
+      type="button"
+      onClick={() => setMobileSearchOpen(true)}
+      aria-label="Search"
+      className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white sm:hidden"
+    >
+      <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.343-4.343m0 0A8 8 0 1 0 5.343 5.343a8 8 0 0 0 11.314 11.314Z" />
+      </svg>
+    </button>
+  )
+
+  const projectSwitcher = userProjects.length > 1 ? (
+    <ProjectSwitcher
+      projectId={selectedProjectId}
+      projectName={
+        userProjects.find((p) => p.id === selectedProjectId)?.name ?? userProjects[0].name
+      }
+      userProjects={userProjects}
+      basePath="/admin"
+    />
+  ) : null
 
   function handleUnlock(task: LockoutTask) {
     setUnlockingId(task.id)
@@ -141,34 +210,63 @@ export function TasksClient({
         title="Tasks"
         titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
         stickyHeader
+        bottomBorder
         action={
-          userProjects.length > 1 ? (
-            <ProjectSwitcher
-              projectId={selectedProjectId}
-              projectName={
-                userProjects.find((p) => p.id === selectedProjectId)?.name ?? userProjects[0].name
-              }
-              userProjects={userProjects}
-              basePath="/admin"
-            />
-          ) : null
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            {/* Desktop: search input left of project switcher. */}
+            {desktopSearchInput}
+            {/* Mobile: project dropdown grows to fill, search icon
+                + (optional) project switcher sit to its right. The
+                project switcher itself is always visible if shown. */}
+            <div className="min-w-0 flex-1 sm:flex-initial">
+              {projectSwitcher}
+            </div>
+            {mobileSearchToggle}
+          </div>
         }
       >
-        {totalTasks === 0 ? (
+        {/* Mobile-only collapsible search row — opens when the
+            search icon to the right of the project dropdown is
+            tapped. The X on the right closes it again. */}
+        {mobileSearchOpen && (
+          <div className="mb-3 flex items-center gap-2 sm:hidden">
+            <input
+              type="text"
+              autoFocus
+              placeholder="Search tasks..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full flex-1 rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+            />
+            <button
+              type="button"
+              onClick={() => { setMobileSearchOpen(false); setSearch('') }}
+              aria-label="Close search"
+              className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+            >
+              <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
+        {!hasAnyTasks ? (
           <EmptyState icon={<CheckIcon />} title="Inbox zero" message="No pending tasks. All users are active and operational." />
+        ) : totalTasks === 0 ? (
+          <EmptyState icon={<CheckIcon />} title="No matches" message="No tasks match your search." />
         ) : (
           // Desktop: scrollable list region inside the kiosk-style flex
           // chain. Mobile: page-level scroll, this div is just a normal
           // space-y-4 container.
           <div data-scroll-container className="space-y-4 sm:flex-1 sm:overflow-y-auto sm:overscroll-none sm:pt-1 sm:pb-20">
             {/* Change Request cards */}
-            {changeRequestTasks.length > 0 && (
+            {filteredChangeRequestTasks.length > 0 && (
               <div className="space-y-2">
                 <h3 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
                   Key change requests
-                  <span className="ml-1.5 text-xs opacity-70">{changeRequestTasks.length}</span>
+                  <span className="ml-1.5 text-xs opacity-70">{filteredChangeRequestTasks.length}</span>
                 </h3>
-                {changeRequestTasks.map((task) => (
+                {filteredChangeRequestTasks.map((task) => (
                   <RowCard key={task.id}>
                     {/* Content */}
                     <div className="min-w-0 flex-1">
@@ -241,13 +339,13 @@ export function TasksClient({
             )}
 
             {/* Lockout cards */}
-            {lockoutTasks.length > 0 && (
+            {filteredLockoutTasks.length > 0 && (
               <div className="space-y-2">
                 <h3 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
                   Lockouts
-                  <span className="ml-1.5 text-xs opacity-70">{lockoutTasks.length}</span>
+                  <span className="ml-1.5 text-xs opacity-70">{filteredLockoutTasks.length}</span>
                 </h3>
-                {lockoutTasks.map((task) => (
+                {filteredLockoutTasks.map((task) => (
                   <RowCard key={task.id}>
                     <div className={`flex size-10 shrink-0 items-center justify-center rounded-full ${
                       task.status === 'locked' ? 'bg-red-500/15' : 'bg-amber-500/15'

@@ -18,9 +18,11 @@ type PageLayoutProps = {
    * Mobile behavior is unchanged regardless.
    */
   stickyHeader?: boolean
+  /** Forwarded to PageHeader: thin divider under the title/action row. */
+  bottomBorder?: boolean
 }
 
-export function PageLayout({ title, action, children, titleClassName, inlineAction, before, stickyHeader }: PageLayoutProps) {
+export function PageLayout({ title, action, children, titleClassName, inlineAction, before, stickyHeader, bottomBorder }: PageLayoutProps) {
   // The page header lives in its own wrapper so the sticky styling can be
   // applied just to it without affecting the rest of the layout.
   const headerBlock = (
@@ -28,7 +30,7 @@ export function PageLayout({ title, action, children, titleClassName, inlineActi
       {before && (
         <div className="mx-auto mb-2 max-w-7xl px-4 sm:px-6 lg:px-8">{before}</div>
       )}
-      <PageHeader title={title} action={action} titleClassName={titleClassName} inlineAction={inlineAction} />
+      <PageHeader title={title} action={action} titleClassName={titleClassName} inlineAction={inlineAction} bottomBorder={bottomBorder} />
     </>
   )
 
