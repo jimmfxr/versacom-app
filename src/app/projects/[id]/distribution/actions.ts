@@ -51,7 +51,13 @@ export async function bulkCreateEquipment(
   category: string,
   hardwareType: string,
   quantity: number,
-  startingId: string = ''
+  startingId: string = '',
+  /** When true (default), each new piece of assignable equipment also
+   *  gets a placeholder team member auto-created and assigned to it.
+   *  The placeholder's first name = equipment prefix, last name =
+   *  trailing number (e.g. "HWBP 1" → first "HWBP", last "1"). The real
+   *  person who eventually checks in via the kiosk replaces them. */
+  autoAssign: boolean = true,
 ) {
   const session = await getSession()
   if (!session) return { error: 'Not authenticated' }
@@ -151,8 +157,85 @@ export async function bulkCreateEquipment(
 
   await prisma.equipment.createMany({ data: records })
 
+  // ─── Auto-assign placeholder members ───
+  // Only run when the caller asked for it AND the category is one we
+  // can actually assign to (chargers, switches, antennas don't take a
+  // person). Each piece of new equipment gets a placeholder member
+  // whose name mirrors the equipment ID; if a real user with the same
+  // name already exists on the project we reuse them instead of
+  // creating duplicates.
+  const ASSIGNABLE_CATEGORIES = ['panels', 'wireless_bp', 'hardwire_bp']
+  let placeholdersCreated = 0
+  if (autoAssign && ASSIGNABLE_CATEGORIES.includes(category) && records.length > 0) {
+    const createdNames = records.map((r) => r.name)
+    const created = await prisma.equipment.findMany({
+      where: { projectId, name: { in: createdNames } },
+      select: { id: true, name: true },
+    })
+
+    // Snapshot existing members on the project so we can reuse instead
+    // of creating new placeholder rows when names collide.
+    const existingMembers = await prisma.projectMember.findMany({
+      where: { projectId },
+      select: {
+        id: true,
+        user: { select: { firstName: true, lastName: true } },
+      },
+    })
+    const memberByName = new Map<string, number>(
+      existingMembers.map((m) => [
+        `${m.user.firstName.toLowerCase()}|${m.user.lastName.toLowerCase()}`,
+        m.id,
+      ]),
+    )
+
+    for (const eq of created) {
+      // Parse equipment name into placeholder first + last.
+      // Accepts "HWBP 1", "HWBP1", "P001", etc. Anything before the
+      // trailing digit run becomes the first name; the digits become
+      // the last name (preserving zero-padding so "P001" → "001").
+      const m = eq.name.match(/^(.*?)\s*(\d+)$/)
+      if (!m) continue
+      const fn = m[1].trim()
+      const ln = m[2]
+      if (!fn) continue
+
+      const memberKey = `${fn.toLowerCase()}|${ln.toLowerCase()}`
+      let memberId = memberByName.get(memberKey)
+      if (!memberId) {
+        // No existing member — find/create the user and the project membership.
+        const existingUser = await prisma.user.findFirst({
+          where: {
+            firstName: { equals: fn, mode: 'insensitive' },
+            lastName: { equals: ln, mode: 'insensitive' },
+          },
+          select: { id: true },
+        })
+        const userId = existingUser
+          ? existingUser.id
+          : (
+              await prisma.user.create({
+                data: { firstName: fn, lastName: ln, pin: '' },
+              })
+            ).id
+        const newMember = await prisma.projectMember.create({
+          data: { userId, projectId, role: 'user' },
+          select: { id: true },
+        })
+        memberId = newMember.id
+        memberByName.set(memberKey, memberId)
+        placeholdersCreated++
+      }
+
+      await prisma.equipment.update({
+        where: { id: eq.id },
+        data: { assignedToId: memberId },
+      })
+    }
+  }
+
   revalidatePath(`/projects/${projectId}`)
-  return { success: true, count: records.length }
+  return { success: true, count: records.length, placeholdersCreated }
 }
 
 export async function updateEquipment(

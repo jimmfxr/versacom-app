@@ -564,6 +564,10 @@ export function ProjectPage({
   const [addCategory, setAddCategory] = useState('panels')
   const [addHardwareType, setAddHardwareType] = useState('')
   const [addQuantity, setAddQuantity] = useState('1')
+  // Default Yes — bulk-add gear and immediately stage placeholder team
+  // members for each piece, ready for the real person to take over via
+  // the kiosk. Flip to No when the equipment is for storage / spares.
+  const [addAutoAssign, setAddAutoAssign] = useState(true)
   const [addError, setAddError] = useState('')
   const [editingEqId, setEditingEqId] = useState<number | null>(null)
   const [editEqData, setEditEqData] = useState<Partial<EquipmentItem>>({})
@@ -677,13 +681,21 @@ export function ProjectPage({
     if (qty > 200) { setAddError('Quantity must be at most 200'); return }
     setAddError('')
     startTransition(async () => {
-      const result = await bulkCreateEquipment(project.id, addCategory, addHardwareType, qty, addEquipmentId)
+      const result = await bulkCreateEquipment(project.id, addCategory, addHardwareType, qty, addEquipmentId, addAutoAssign)
       if (result.error) { setAddError(result.error); return }
-      showToast('success', `Added ${result.count} ${getCategoryLabel(addCategory)}`)
+      const placeholders = (result as { placeholdersCreated?: number }).placeholdersCreated ?? 0
+      const label = getCategoryLabel(addCategory)
+      showToast(
+        'success',
+        placeholders > 0
+          ? `Added ${result.count} ${label} · auto-assigned ${placeholders} placeholder member${placeholders === 1 ? '' : 's'}`
+          : `Added ${result.count} ${label}`,
+      )
       setShowAdd(false)
       setAddEquipmentId('')
       setAddHardwareType('')
       setAddQuantity('1')
+      // Keep auto-assign default-Yes across uses; don't reset.
       router.refresh()
     })
   }
@@ -1440,7 +1452,7 @@ export function ProjectPage({
                     <>
                       <p className="mt-2 text-xs text-gray-500">Add equipment. Each item auto-IDs by category (<span className="font-mono">PNL 1</span>, <span className="font-mono">WLBP 1</span>…). Type an ID to customize.</p>
                       <form onSubmit={(e) => { e.preventDefault(); handleBulkAdd() }}>
-                        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
                           <FormInput
                             label="ID"
                             type="text"
@@ -1464,6 +1476,13 @@ export function ProjectPage({
                           />
                           <FormInput label="Quantity" type="text" inputMode="numeric" pattern="[0-9]*" value={addQuantity}
                             onChange={(e) => { const val = e.target.value.replace(/\D/g, ''); setAddQuantity(val) }} />
+                          <SearchableSelect
+                            label="Auto Assign"
+                            value={addAutoAssign ? 'yes' : 'no'}
+                            placeholder="Select..."
+                            options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]}
+                            onChange={(v) => setAddAutoAssign(v === 'yes')}
+                          />
                         </div>
                         <div className="mt-4 flex justify-end">
                           <Button type="submit" disabled={isPending}>{isPending ? 'Adding...' : 'Add'}</Button>
