@@ -2374,23 +2374,92 @@ function PickerSelect({
   onChange: (v: string) => void
 }) {
   const [open, setOpen] = useState(false)
+  const [highlight, setHighlight] = useState(-1)
   const ref = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
     }
-    if (open) document.addEventListener('mousedown', onMouseDown)
-    return () => document.removeEventListener('mousedown', onMouseDown)
+    // focusin: close when focus moves outside (Tab to next field).
+    // More reliable than onBlur + relatedTarget.
+    function onFocusIn(e: FocusEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    if (open) {
+      document.addEventListener('mousedown', onMouseDown)
+      document.addEventListener('focusin', onFocusIn)
+    }
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown)
+      document.removeEventListener('focusin', onFocusIn)
+    }
   }, [open])
+
+  // When the dropdown opens, start the highlight on the active option
+  // (or the first one) so an immediate Enter selects something sensible.
+  useEffect(() => {
+    if (!open) { setHighlight(-1); return }
+    const activeIdx = options.findIndex((o) => o.value === value)
+    setHighlight(activeIdx >= 0 ? activeIdx : 0)
+  }, [open, options, value])
+
+  // Keep the highlighted row visible during arrow-key navigation.
+  useEffect(() => {
+    if (!open || highlight < 0) return
+    listRef.current?.querySelector<HTMLButtonElement>(`[data-idx="${highlight}"]`)?.scrollIntoView({ block: 'nearest' })
+  }, [highlight, open])
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      if (!open) { setOpen(true); return }
+      if (options.length === 0) return
+      setHighlight((h) => (h + 1 >= options.length ? 0 : h + 1))
+      return
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (!open) { setOpen(true); return }
+      if (options.length === 0) return
+      setHighlight((h) => (h <= 0 ? options.length - 1 : h - 1))
+      return
+    }
+    if (e.key === 'Enter' || e.key === ' ') {
+      if (!open) {
+        // Opens the menu — same as clicking the trigger.
+        e.preventDefault()
+        setOpen(true)
+        return
+      }
+      // Open + Enter → lock in the highlighted option, close menu, but
+      // don't propagate so any surrounding form Enter handler doesn't fire.
+      if (highlight >= 0 && highlight < options.length) {
+        e.preventDefault()
+        e.stopPropagation()
+        onChange(options[highlight].value)
+        setOpen(false)
+      }
+      return
+    }
+    if (e.key === 'Escape' && open) {
+      e.preventDefault()
+      e.stopPropagation()
+      setOpen(false)
+    }
+  }
 
   const current = options.find((o) => o.value === value) ?? options[0]
 
   return (
-    <div ref={ref} className="relative w-full">
+    <div ref={ref} className="relative w-full" onKeyDown={handleKeyDown}>
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
+        // Close-on-focus-out is handled by the focusin listener above.
         className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3.5 py-2 text-left text-sm text-white outline-none transition-colors ${
           open ? 'border-[#22a7d3]/50 bg-white/[0.04]' : 'border-white/10 bg-[#2a2a2a] hover:border-white/20'
         }`}
@@ -2409,20 +2478,30 @@ function PickerSelect({
         </svg>
       </button>
       {open && (
-        <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-[260px] overflow-y-auto rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl">
-          {options.map((o) => {
+        <div ref={listRef} className="absolute left-0 right-0 top-full z-30 mt-1 max-h-[260px] overflow-y-auto rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl">
+          {options.map((o, idx) => {
             const isActive = o.value === value
+            const isHighlight = idx === highlight
+            // Selected option fills with the brand cyan + white text
+            // (matches the SearchableSelect dropdown). Keyboard /
+            // mouse highlight on non-selected rows is just a soft band.
+            const stateClass = isActive
+              ? 'bg-[#0178a3] text-white'
+              : isHighlight
+                ? 'bg-white/[0.08] text-white'
+                : 'text-gray-200 hover:bg-white/[0.06] hover:text-white'
             return (
               <button
                 key={o.value}
                 type="button"
+                data-idx={idx}
+                tabIndex={-1}
+                onMouseEnter={() => setHighlight(idx)}
                 onClick={() => {
                   onChange(o.value)
                   setOpen(false)
                 }}
-                className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                  isActive ? 'bg-[#22a7d3]/10 text-[#22a7d3]' : 'text-gray-200 hover:bg-white/[0.06] hover:text-white'
-                }`}
+                className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors ${stateClass}`}
               >
                 <span className="truncate">{o.label}</span>
                 {isActive && <span className="text-xs">✓</span>}

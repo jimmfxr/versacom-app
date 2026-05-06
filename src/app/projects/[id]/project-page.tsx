@@ -591,6 +591,12 @@ export function ProjectPage({
   const [editingMemberId, setEditingMemberId] = useState<number | null>(null)
   const [editMemberData, setEditMemberData] = useState<{ firstName: string; lastName: string; position: string; role: string }>({ firstName: '', lastName: '', position: '', role: 'crew' })
 
+  // Keyboard-chain state. The actual hooks that read editingPlId etc.
+  // live further down (after those state vars are declared) so we don't
+  // hit a use-before-decl error.
+  type ChainType = 'equipment' | 'team' | 'picklist'
+  const [chainTarget, setChainTarget] = useState<{ type: ChainType; id: number } | null>(null)
+
   /** Whether the Add Member form is in a blocking state because of the
    *  Equipment ID preview — `true` when the user typed an unparseable ID
    *  or when any of the resolved slots don't exist / are non-assignable.
@@ -635,6 +641,43 @@ export function ProjectPage({
   const [editPlotData, setEditPlotData] = useState<{ label: string; url: string }>({ label: '', url: '' })
   const [plotUploading, setPlotUploading] = useState(false)
   const [plotUploadError, setPlotUploadError] = useState('')
+
+  /* ─── Keyboard chain hooks ───
+   *  Three useEffects auto-focus the first input when an edit form
+   *  opens (one per editing-id state). A fourth picks up `chainTarget`
+   *  after a successful save and focuses the next visible card's Edit
+   *  button so the user can press Enter to walk down the list. The
+   *  data-edit-form / data-edit-button selectors are how we find the
+   *  right DOM nodes without threading refs through every component. */
+  useEffect(() => {
+    if (editingEqId == null) return
+    const form = document.querySelector<HTMLFormElement>(`[data-edit-form="equipment"][data-card-id="${editingEqId}"]`)
+    form?.querySelector<HTMLElement>('input:not([type="hidden"])')?.focus()
+  }, [editingEqId])
+  useEffect(() => {
+    if (editingMemberId == null) return
+    const form = document.querySelector<HTMLFormElement>(`[data-edit-form="team"][data-card-id="${editingMemberId}"]`)
+    form?.querySelector<HTMLElement>('input:not([type="hidden"])')?.focus()
+  }, [editingMemberId])
+  useEffect(() => {
+    if (editingPlId == null) return
+    const form = document.querySelector<HTMLFormElement>(`[data-edit-form="picklist"][data-card-id="${editingPlId}"]`)
+    form?.querySelector<HTMLElement>('input:not([type="hidden"])')?.focus()
+  }, [editingPlId])
+  useEffect(() => {
+    if (!chainTarget) return
+    // Short timeout so the post-save router.refresh() commits before we
+    // try to hit the next Edit button.
+    const id = window.setTimeout(() => {
+      const btn = document.querySelector<HTMLButtonElement>(`[data-edit-button="${chainTarget.type}-${chainTarget.id}"]`)
+      if (btn) {
+        btn.focus()
+        btn.scrollIntoView({ block: 'nearest' })
+      }
+      setChainTarget(null)
+    }, 80)
+    return () => window.clearTimeout(id)
+  }, [chainTarget])
   const [mockPlots, setMockPlots] = useState([
     { id: 1, label: 'FOH', url: 'https://example.com/foh.pdf' },
     { id: 2, label: 'Stage Left', url: 'https://example.com/sl.pdf' },
@@ -751,7 +794,12 @@ export function ProjectPage({
         speakers: item.category === 'panels' ? Number(editEqData.speakers ?? 0) : 0,
       })
       if (result.error) { showToast('error', result.error); return }
+      // Chain to the next visible equipment card before clearing the
+      // edit state so focus has somewhere to go.
+      const idx = filteredEquipment.findIndex((e) => e.id === item.id)
+      const next = idx >= 0 ? filteredEquipment[idx + 1] : undefined
       setEditingEqId(null)
+      if (next) setChainTarget({ type: 'equipment', id: next.id })
       router.refresh()
     })
   }
@@ -776,7 +824,11 @@ export function ProjectPage({
     startTransition(async () => {
       const result = await updateMember(project.id, m.id, editMemberData)
       if (result.error) { showToast('error', result.error); return }
+      // Chain to next visible team member.
+      const idx = filteredMembers.findIndex((mm) => mm.id === m.id)
+      const next = idx >= 0 ? filteredMembers[idx + 1] : undefined
       setEditingMemberId(null)
+      if (next) setChainTarget({ type: 'team', id: next.id })
       router.refresh()
     })
   }
@@ -852,7 +904,11 @@ export function ProjectPage({
     startTransition(async () => {
       const result = await updatePickListItem(project.id, item.id, editPlData)
       if (result.error) { showToast('error', result.error); return }
+      // Chain to next visible pick-list item.
+      const idx = filteredPickList.findIndex((p) => p.id === item.id)
+      const next = idx >= 0 ? filteredPickList[idx + 1] : undefined
       setEditingPlId(null)
+      if (next) setChainTarget({ type: 'picklist', id: next.id })
       router.refresh()
     })
   }
@@ -1544,7 +1600,17 @@ export function ProjectPage({
                         {/* Content */}
                         <div className="min-w-0 flex-1">
                           {isEditing ? (
-                            <form onSubmit={(e) => { e.preventDefault(); handleSaveEquipment(item) }}>
+                            <form
+                              data-edit-form="equipment"
+                              data-card-id={item.id}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Escape') {
+                                  e.preventDefault()
+                                  setEditingEqId(null)
+                                  setChainTarget(null)
+                                }
+                              }}
+                              onSubmit={(e) => { e.preventDefault(); handleSaveEquipment(item) }}>
                               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                                 <FormInput compact label="ID" type="text" value={(editEqData.name as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, name: e.target.value })} />
                                 <SearchableSelect
@@ -1755,7 +1821,7 @@ export function ProjectPage({
                                 {getStatusLabel(item.deployStatus)}
                               </span>
                             )}
-                            {canEditEquipment && <Button size="sm" onClick={() => startEqEdit(item)}>Edit</Button>}
+                            {canEditEquipment && <Button size="sm" data-edit-button={`equipment-${item.id}`} onClick={() => startEqEdit(item)}>Edit</Button>}
                           </div>
                         )}
                       </div>
@@ -2037,7 +2103,17 @@ export function ProjectPage({
                     return (
                       <div key={m.id} className="rounded-2xl bg-[#2a2a2a] px-5 py-4 transition-colors hover:bg-[#313131]">
                         {isEditing ? (
-                          <form onSubmit={(e) => { e.preventDefault(); handleSaveMember(m) }}>
+                          <form
+                            data-edit-form="team"
+                            data-card-id={m.id}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Escape') {
+                                e.preventDefault()
+                                setEditingMemberId(null)
+                                setChainTarget(null)
+                              }
+                            }}
+                            onSubmit={(e) => { e.preventDefault(); handleSaveMember(m) }}>
                             <div className="text-sm font-semibold text-white">
                               {m.firstName} {m.lastName}
                               {m.position && <span className="text-gray-500"> · {m.position}</span>}
@@ -2105,7 +2181,7 @@ export function ProjectPage({
                                 <div className="mt-1.5 text-xs italic text-gray-500">No equipment assigned</div>
                               )}
                             </div>
-                            {canEditTeam && <Button size="sm" onClick={() => startMemberEdit(m)}>Edit</Button>}
+                            {canEditTeam && <Button size="sm" data-edit-button={`team-${m.id}`} onClick={() => startMemberEdit(m)}>Edit</Button>}
                           </div>
                         )}
                       </div>
@@ -2226,7 +2302,17 @@ export function ProjectPage({
                     return (
                       <div key={item.id} className="rounded-2xl bg-[#2a2a2a] px-5 py-4 transition-colors hover:bg-[#313131]">
                         {isEditing ? (
-                          <form onSubmit={(e) => { e.preventDefault(); handleSavePl(item) }}>
+                          <form
+                            data-edit-form="picklist"
+                            data-card-id={item.id}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Escape') {
+                                e.preventDefault()
+                                setEditingPlId(null)
+                                setChainTarget(null)
+                              }
+                            }}
+                            onSubmit={(e) => { e.preventDefault(); handleSavePl(item) }}>
                             <div className="flex items-center gap-2">
                               {item.code && <span className="text-sm font-semibold text-white">{item.code}</span>}
                               <span className="text-sm font-semibold text-white">{item.name}</span>
@@ -2264,7 +2350,7 @@ export function ProjectPage({
                                 <div className="mt-1.5 text-xs italic text-gray-500">Unused</div>
                               )}
                             </div>
-                            {canEditPickList && <Button size="sm" onClick={() => startPlEdit(item)}>Edit</Button>}
+                            {canEditPickList && <Button size="sm" data-edit-button={`picklist-${item.id}`} onClick={() => startPlEdit(item)}>Edit</Button>}
                           </div>
                         )}
                       </div>
