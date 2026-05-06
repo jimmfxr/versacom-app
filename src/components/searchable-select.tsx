@@ -11,6 +11,7 @@ export function SearchableSelect({
   onChange,
   placeholder = 'Search...',
   compact = false,
+  disabled = false,
 }: {
   label: string
   value: string
@@ -18,6 +19,10 @@ export function SearchableSelect({
   onChange: (value: string) => void
   placeholder?: string
   compact?: boolean
+  /** Renders the field non-interactive (grayed out, can't focus or
+   *  open). Useful when an upstream value (e.g. another field) makes
+   *  this option invalid. */
+  disabled?: boolean
 }) {
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
@@ -31,6 +36,11 @@ export function SearchableSelect({
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
+  // Snap the dropdown closed if it becomes disabled while open.
+  useEffect(() => {
+    if (disabled) setOpen(false)
+  }, [disabled])
+
   const selectedLabel = options.find((o) => o.value === value)?.label || ''
   const filtered = options
     .filter((o) => !search || o.label.toLowerCase().includes(search.toLowerCase()))
@@ -38,8 +48,8 @@ export function SearchableSelect({
 
   const labelClass = compact ? 'block text-[10px] font-medium text-gray-500' : 'block text-xs font-medium text-gray-400'
   const inputClass = compact
-    ? 'mt-0.5 w-full rounded border border-white/10 bg-[#202020] px-2 py-1 text-base text-white outline-none focus:border-[#0178a3]'
-    : 'mt-1 w-full rounded-lg border-2 border-white/10 bg-[#202020] px-3 py-2 text-base text-white outline-none transition-colors focus:border-[#0178a3]'
+    ? 'mt-0.5 w-full rounded border border-white/10 bg-[#202020] px-2 py-1 text-base text-white outline-none focus:border-[#0178a3] disabled:cursor-not-allowed disabled:opacity-50'
+    : 'mt-1 w-full rounded-lg border-2 border-white/10 bg-[#202020] px-3 py-2 text-base text-white outline-none transition-colors focus:border-[#0178a3] disabled:cursor-not-allowed disabled:opacity-50'
 
   return (
     <div className="relative" ref={ref}>
@@ -49,10 +59,11 @@ export function SearchableSelect({
         placeholder={selectedLabel || placeholder}
         value={search}
         onChange={(e) => { setSearch(e.target.value); setOpen(true) }}
-        onFocus={() => setOpen(true)}
+        onFocus={() => { if (!disabled) setOpen(true) }}
+        disabled={disabled}
         className={inputClass}
       />
-      {open && (
+      {open && !disabled && (
         <div className="absolute z-10 mt-1 max-h-[11rem] w-full overflow-y-auto rounded-lg border border-white/10 bg-[#2a2a2a] shadow-lg">
           {filtered.map((o) => (
             <button

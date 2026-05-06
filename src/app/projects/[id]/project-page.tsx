@@ -1477,8 +1477,13 @@ export function ProjectPage({
                           <FormInput label="Quantity" type="text" inputMode="numeric" pattern="[0-9]*" value={addQuantity}
                             onChange={(e) => { const val = e.target.value.replace(/\D/g, ''); setAddQuantity(val) }} />
                           <SearchableSelect
-                            label="Auto Assign"
-                            value={addAutoAssign ? 'yes' : 'no'}
+                            label="Auto Team Assign"
+                            // Auto-creating a placeholder team member only
+                            // makes sense for categories that can have a
+                            // person assigned (panels, beltpacks). Lock
+                            // the field for chargers / switches / etc.
+                            disabled={!isAssignable(addCategory)}
+                            value={!isAssignable(addCategory) ? 'no' : (addAutoAssign ? 'yes' : 'no')}
                             placeholder="Select..."
                             options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]}
                             onChange={(v) => setAddAutoAssign(v === 'yes')}
