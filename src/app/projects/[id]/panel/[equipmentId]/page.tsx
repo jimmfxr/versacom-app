@@ -375,7 +375,12 @@ export default async function PanelStudioPage({
   // Browse mode — when admin/manager arrives via My Equipment, fetch the
   // sibling data so we can render the project + user dropdowns, prev/next,
   // and a row of all the current member's gear at the top of the page.
-  let browseProjects: Array<{ id: number; name: string }> | undefined
+  // Each browseable project carries a `firstEquipmentId` so the
+  // project-switcher dropdown can navigate STRAIGHT to that project's
+  // first panel-route (e.g. /projects/12/panel/8?from=my-equipment)
+  // instead of bouncing through /my-equipment, which triggered an
+  // extra server redirect and a visible blank flash on every switch.
+  let browseProjects: Array<{ id: number; name: string; firstEquipmentId: number | null }> | undefined
   let browseMembers:
     | Array<{
         id: number // entry id = equipmentId; one entry per panel-category device
@@ -415,9 +420,34 @@ export default async function PanelStudioPage({
         }
       }
     }
-    browseProjects = Array.from(browseProjectsMap.values()).sort((a, b) =>
-      a.name.localeCompare(b.name),
-    )
+    const browseProjectIds = Array.from(browseProjectsMap.keys())
+
+    // Resolve the first panel-category equipment for each project up
+    // front so the project-switcher dropdown can navigate directly to
+    // that project's panel page (skips the /my-equipment redirect).
+    const PANEL_CATEGORIES = ['panels', 'hardwire_bp', 'wireless_bp']
+    const firstPanelByProject = browseProjectIds.length === 0
+      ? new Map<number, number>()
+      : await (async () => {
+          const rows = await prisma.equipment.findMany({
+            where: {
+              projectId: { in: browseProjectIds },
+              category: { in: PANEL_CATEGORIES },
+              assignedToId: { not: null },
+            },
+            select: { id: true, name: true, projectId: true },
+            orderBy: [{ projectId: 'asc' }, { name: 'asc' }],
+          })
+          const m = new Map<number, number>()
+          for (const r of rows) {
+            if (!m.has(r.projectId)) m.set(r.projectId, r.id)
+          }
+          return m
+        })()
+
+    browseProjects = Array.from(browseProjectsMap.values())
+      .map((p) => ({ ...p, firstEquipmentId: firstPanelByProject.get(p.id) ?? null }))
+      .sort((a, b) => a.name.localeCompare(b.name))
 
     // One entry per panel-category device on THIS project — multi-device
     // members appear once per device. Sorted by equipment name (natural

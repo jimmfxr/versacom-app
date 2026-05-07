@@ -152,7 +152,7 @@ interface PanelStudioProps {
   /** Browse mode (set when admin/manager arrives via /my-equipment).
    *  Drives the project + user dropdowns, prev/next, and sibling-gear row
    *  rendered above the panel keys. */
-  browseProjects?: Array<{ id: number; name: string }>
+  browseProjects?: Array<{ id: number; name: string; firstEquipmentId: number | null }>
   browseMembers?: Array<{
     /** Entry ID = equipmentId. Each row in the dropdown is one device,
      *  so multi-device members appear once per device. */
@@ -2991,7 +2991,7 @@ function BrowseProjectDropdown({
   className = '',
 }: {
   project: { id: number; name: string }
-  browseProjects: Array<{ id: number; name: string }>
+  browseProjects: Array<{ id: number; name: string; firstEquipmentId: number | null }>
   className?: string
 }) {
   const router = useRouter()
@@ -3021,7 +3021,17 @@ function BrowseProjectDropdown({
 
   function navigateToProject(nextId: number) {
     if (nextId === project.id) return
-    router.push(`/my-equipment?project=${nextId}`)
+    // Skip the /my-equipment redirect by going straight to the
+    // target project's panel route. The first panel-category
+    // equipment id is preloaded server-side on each browseProjects
+    // entry; if a project has no panels the dropdown still falls
+    // back to /my-equipment so the empty-state can render there.
+    const target = browseProjects.find((p) => p.id === nextId)
+    if (target?.firstEquipmentId != null) {
+      router.push(`/projects/${nextId}/panel/${target.firstEquipmentId}?from=my-equipment`)
+    } else {
+      router.push(`/my-equipment?project=${nextId}`)
+    }
   }
 
   return (
