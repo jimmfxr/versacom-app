@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { AppShell } from '@/components/app-shell'
 import { PageLayout } from '@/components/page-layout'
 import { EmptyState } from '@/components/empty-state'
 import { STATUS_BADGE_STYLES, getStatusLabel } from '@/lib/deploy-status'
@@ -95,7 +94,6 @@ export function MyEquipmentContent({
   useBackgroundRefresh(5000)
 
   return (
-    <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={!isUserOnly}>
       <PageLayout
         title="My Equipment"
         titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
@@ -236,7 +234,6 @@ export function MyEquipmentContent({
           </div>
         )}
       </PageLayout>
-    </AppShell>
   )
 }
 

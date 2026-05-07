@@ -10,7 +10,6 @@ import { useDeviceReachability } from '@/hooks/use-device-reachability'
 import { useBackgroundRefresh } from '@/hooks/use-background-refresh'
 import { Button } from '@/components/button'
 import { showToast } from '@/components/toast'
-import { AppShell } from '@/components/app-shell'
 import { PageLayout } from '@/components/page-layout'
 import { Card } from '@/components/card'
 import { EmptyState } from '@/components/empty-state'
@@ -1204,7 +1203,7 @@ export function ProjectPage({
   )
 
   return (
-    <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={isCrew}>
+    <>
       <PageLayout
         title={project.name}
         titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
@@ -2822,6 +2821,6 @@ export function ProjectPage({
       >
         Are you sure you want to delete <span className="text-white font-medium">{project.name}</span>? This will remove all members and cannot be undone.
       </Modal>
-    </AppShell>
+    </>
   )
 }

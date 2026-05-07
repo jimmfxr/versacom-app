@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NoZoom } from "@/components/no-zoom";
 import { ServiceWorkerRegister } from "@/components/sw-register";
+import { AppShell } from "@/components/app-shell";
+import { getSession } from "@/lib/session";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -48,21 +50,43 @@ export const viewport: Viewport = {
   themeColor: "#202020",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Lift the AppShell into the root layout so the navbar / global
+  // chrome persists across navigation within the app (project switch
+  // on Panel Studio, kiosk transitions, etc.). Pages no longer wrap
+  // themselves in AppShell — they just return their content. The
+  // layout segment isn't unmounted on route changes, so the navbar
+  // stays on screen and only the inner page content swaps (which
+  // pairs with each route's loading.tsx Suspense fallback).
+  //
+  // Login / forgot-pin / join routes have no session yet — when
+  // session is null we render children bare (no AppShell), which
+  // keeps those public pages chrome-free as they were before.
+  const session = await getSession();
+  const userName = session ? `${session.user.firstName} ${session.user.lastName}` : undefined;
+  const isAdmin = session?.memberships.some((m) => m.role === "admin") ?? false;
+  const isUserOnly = session ? session.memberships.every((m) => m.role === "user") : false;
+  const showMyEquipment = session?.memberships.some((m) => m.role === "crew") ?? false;
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full bg-[#202020] antialiased`}
       suppressHydrationWarning
     >
-      <body className="h-full" suppressHydrationWarning>
+      <body className="h-full bg-[#202020]" suppressHydrationWarning>
         <NoZoom />
         <ServiceWorkerRegister />
-        {children}
+        {session ? (
+          <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={showMyEquipment}>
+            {children}
+          </AppShell>
+        ) : (
+          children
+        )}
       </body>
     </html>
   );

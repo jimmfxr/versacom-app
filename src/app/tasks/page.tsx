@@ -2,7 +2,6 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
-import { AppShell } from '@/components/app-shell'
 import { TasksPageClient } from './tasks-page-client'
 
 export const dynamic = 'force-dynamic'
@@ -33,11 +32,7 @@ export default async function TasksPage({
       ? cookieProjectId
       : null
 
-  const userName = `${session.user.firstName} ${session.user.lastName}`
-  const isAdmin = session.memberships.some((m) => m.role === 'admin')
   const isUserOnly = session.memberships.every((m) => m.role === 'user')
-  const showMyEquipment = session.memberships.some((m) => m.role === 'crew')
-
   if (isUserOnly) redirect('/my-equipment')
 
   // Pull all projects the user belongs to so we can scope the task list and
@@ -171,15 +166,13 @@ export default async function TasksPage({
   ).sort()
 
   return (
-    <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={showMyEquipment}>
-      <TasksPageClient
-        cards={cards}
-        allGear={allGear}
-        locations={locations}
-        userProjects={userProjects}
-        validFilteredId={validFilteredId}
-        selectedProjectName={validFilteredId != null ? (userProjectsMap.get(validFilteredId)?.name ?? null) : null}
-      />
-    </AppShell>
+    <TasksPageClient
+      cards={cards}
+      allGear={allGear}
+      locations={locations}
+      userProjects={userProjects}
+      validFilteredId={validFilteredId}
+      selectedProjectName={validFilteredId != null ? (userProjectsMap.get(validFilteredId)?.name ?? null) : null}
+    />
   )
 }

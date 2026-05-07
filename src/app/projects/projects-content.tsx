@@ -4,7 +4,6 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/button'
 import { showToast } from '@/components/toast'
-import { AppShell } from '@/components/app-shell'
 import { PageLayout } from '@/components/page-layout'
 import { Card } from '@/components/card'
 import { RowCard } from '@/components/row-card'
@@ -103,7 +102,6 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
   }
 
   return (
-    <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={showMyEquipment}>
       <PageLayout
         title="Projects"
         titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
@@ -243,6 +241,5 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
           </div>
         )}
       </PageLayout>
-    </AppShell>
   )
 }

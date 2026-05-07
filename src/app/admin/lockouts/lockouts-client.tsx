@@ -3,7 +3,6 @@
 import { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { showToast } from '@/components/toast'
-import { AppShell } from '@/components/app-shell'
 import { PageLayout } from '@/components/page-layout'
 import { Avatar } from '@/components/avatar'
 import { StatusBadge } from '@/components/status-badge'
@@ -83,7 +82,6 @@ export function LockoutsClient({ users, userName, isAdmin }: { users: User[]; us
   const activeUsers = users.filter((u) => getStatus(u) === 'ok')
 
   return (
-    <AppShell userName={userName} isAdmin={isAdmin}>
       <PageLayout title="User Lockouts" bottomBorder>
         <div className="space-y-8">
           {/* Needs attention */}
@@ -186,6 +184,5 @@ export function LockoutsClient({ users, userName, isAdmin }: { users: User[]; us
           )}
         </div>
       </PageLayout>
-    </AppShell>
   )
 }

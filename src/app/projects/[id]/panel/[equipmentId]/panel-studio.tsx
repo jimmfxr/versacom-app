@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef, useTransition, useMemo } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useTransition, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronLeftIcon } from '@heroicons/react/24/outline'
 import {
@@ -46,7 +46,6 @@ const snapCenterToCursor: Modifier = ({ activatorEvent, draggingNodeRect, transf
     y: transform.y + offsetY - draggingNodeRect.height / 2,
   }
 }
-import { AppShell } from '@/components/app-shell'
 import { Button } from '@/components/button'
 import { showToast } from '@/components/toast'
 import { VerticalScroller } from '@/components/vertical-scroller'
@@ -539,9 +538,22 @@ export function PanelStudio({
   // → stack the two groups into their own centered rows so the
   // header doesn't run wider than the chassis below it.
   const [chassisWidth, setChassisWidth] = useState<number | null>(null)
-  useEffect(() => {
+  // useLayoutEffect (not useEffect) so the initial width measurement
+  // happens BEFORE the browser commits the first paint. Without this,
+  // the header rendered with chassisWidth=null for one frame, then the
+  // useEffect would fire, the chassisWidth state would update, and the
+  // header would visibly snap from one layout to the other — the
+  // "starts wide then settles" flash the user reported when navigating
+  // between panels (especially panel → bolero).
+  useLayoutEffect(() => {
     const el = chassisRef.current
-    if (!el || typeof ResizeObserver === 'undefined') return
+    if (!el) return
+    // Synchronous initial measurement so the first commit already has
+    // the correct chassisWidth and stackHeader is computed correctly
+    // for frame 1.
+    const initial = el.getBoundingClientRect().width
+    if (initial > 0) setChassisWidth(Math.round(initial))
+    if (typeof ResizeObserver === 'undefined') return
     const ro = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width
       if (w && w > 0) setChassisWidth(Math.round(w))
@@ -553,7 +565,15 @@ export function PanelStudio({
   // 720px lines up with roughly the smallest chassis that still fits
   // the full identity strip (ID · name · meta · IP · project ·
   // hardware · key count) on one line.
-  const stackHeader = chassisWidth !== null && chassisWidth < 720
+  //
+  // While chassisWidth is still null (first paint, before the
+  // ResizeObserver fires), default to `true` so the header lays out
+  // in its narrow / centered form. That way navigating from a wide
+  // chassis (panel) to a narrow one (bolero, beltpack) doesn't flash
+  // the wide layout for one frame before snapping into the centered
+  // mode — the user reported that as "sloppy". Wide chassis still
+  // expand on the next paint after measurement.
+  const stackHeader = chassisWidth === null ? true : chassisWidth < 720
 
   /* ─── Initialize keys from server data ─── */
   // (expKeyCount is declared above the useState block — it's referenced
@@ -1502,7 +1522,7 @@ export function PanelStudio({
   const memberMeta = [member?.position, member?.location].filter(Boolean).join(' \u00B7 ')
 
   return (
-    <AppShell userName={userName} isAdmin={isAdminGlobal} isUserOnly={isUserOnly} showMyEquipment={isCrew}>
+    <>
       {/* Stable id avoids the SSR / client hydration mismatch on
           dnd-kit's auto-generated aria-describedby IDs (counter starts
           fresh on each side without one). */}
@@ -2632,7 +2652,7 @@ export function PanelStudio({
         ) : null}
       </DragOverlay>
       </DndContext>
-    </AppShell>
+    </>
   )
 }
 

@@ -4,7 +4,6 @@ import { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { showToast } from '@/components/toast'
 import { Button } from '@/components/button'
-import { AppShell } from '@/components/app-shell'
 import { PageLayout } from '@/components/page-layout'
 import { EmptyState } from '@/components/empty-state'
 import { RowCard } from '@/components/row-card'
@@ -205,7 +204,6 @@ export function TasksClient({
   }
 
   return (
-    <AppShell userName={userName} isAdmin={isAdmin}>
       <PageLayout
         title="Tasks"
         titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
@@ -392,6 +390,5 @@ export function TasksClient({
           </div>
         )}
       </PageLayout>
-    </AppShell>
   )
 }

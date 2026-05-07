@@ -4,7 +4,6 @@ import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import Image from 'next/image'
 import Link from 'next/link'
-import { AppShell } from '@/components/app-shell'
 import { ScrollToTop } from '@/components/scroll-to-top'
 import { StepCarousel } from '@/components/step-carousel'
 import { PageLayout } from '@/components/page-layout'
@@ -289,15 +288,13 @@ export default async function HomePage({
   // No projects to show — empty state.
   if (userProjects.length === 0) {
     return (
-      <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={showMyEquipment}>
-        <PageLayout title="Dashboard" titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-          <EmptyState
-            icon={null}
-            title="No projects yet"
-            message="You're not a member of any projects. Join one with a PIN to get started."
-          />
-        </PageLayout>
-      </AppShell>
+      <PageLayout title="Dashboard" titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+        <EmptyState
+          icon={null}
+          title="No projects yet"
+          message="You're not a member of any projects. Join one with a PIN to get started."
+        />
+      </PageLayout>
     )
   }
 
@@ -366,46 +363,42 @@ export default async function HomePage({
   if (!project) {
     // Shouldn't happen since selectedProjectId came from session, but bail safely.
     return (
-      <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={showMyEquipment}>
-        <PageLayout title="Dashboard" titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-          <EmptyState icon={null} title="Project not found" message="That project may have been deleted." />
-        </PageLayout>
-      </AppShell>
+      <PageLayout title="Dashboard" titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+        <EmptyState icon={null} title="Project not found" message="That project may have been deleted." />
+      </PageLayout>
     )
   }
 
   return (
-    <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={showMyEquipment}>
-      <PageLayout
-        title="Dashboard"
-        titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
-        bottomBorder
-        action={
-          <DashboardHeaderAction
-            projectId={project.id}
-            projectName={project.name}
-            memberCount={memberCount}
-            equipmentCount={equipment.length}
-            userProjects={userProjects}
-          />
-        }
-      >
-        <DashboardStatsLine memberCount={memberCount} equipmentCount={equipment.length} />
-        <ProjectDashboard
+    <PageLayout
+      title="Dashboard"
+      titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
+      bottomBorder
+      action={
+        <DashboardHeaderAction
           projectId={project.id}
-          equipment={equipment}
-          headsetInventory={headsetInventory}
-          miscInventory={{
-            goosenecksBrought: project.goosenecksBrought,
-            footswitchesBrought: project.footswitchesBrought,
-            speakersBrought: project.speakersBrought,
-            quarterXlrmBrought: project.quarterXlrmBrought,
-            db9XlrfBrought: project.db9XlrfBrought,
-            rj45XlrmfBrought: project.rj45XlrmfBrought,
-          }}
-          canEditInventory={canEditInventory}
+          projectName={project.name}
+          memberCount={memberCount}
+          equipmentCount={equipment.length}
+          userProjects={userProjects}
         />
-      </PageLayout>
-    </AppShell>
+      }
+    >
+      <DashboardStatsLine memberCount={memberCount} equipmentCount={equipment.length} />
+      <ProjectDashboard
+        projectId={project.id}
+        equipment={equipment}
+        headsetInventory={headsetInventory}
+        miscInventory={{
+          goosenecksBrought: project.goosenecksBrought,
+          footswitchesBrought: project.footswitchesBrought,
+          speakersBrought: project.speakersBrought,
+          quarterXlrmBrought: project.quarterXlrmBrought,
+          db9XlrfBrought: project.db9XlrfBrought,
+          rj45XlrmfBrought: project.rj45XlrmfBrought,
+        }}
+        canEditInventory={canEditInventory}
+      />
+    </PageLayout>
   )
 }
