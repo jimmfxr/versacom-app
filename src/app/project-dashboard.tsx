@@ -669,7 +669,13 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
       {/* Deployment status — single combined card */}
       <div>
         <SectionHeader>Deployment status</SectionHeader>
-        <div className="rounded-2xl bg-[#2a2a2a] p-4 sm:p-5 sm:px-6">
+        {/* touch-action: pan-y so a horizontal drag on this card
+            (which sits above the SwipeCarousel) doesn't get
+            interpreted as a horizontal swipe — it always falls
+            through to the page's vertical scroll. Without this iOS
+            Safari was sometimes treating a flat horizontal drag
+            here like a carousel swipe + page scroll combo. */}
+        <div className="rounded-2xl bg-[#2a2a2a] p-4 sm:p-5 sm:px-6" style={{ touchAction: 'pan-y' }}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
             {/* Headline % — the stage currently leading */}
             <div className="flex items-baseline gap-2 sm:block">
