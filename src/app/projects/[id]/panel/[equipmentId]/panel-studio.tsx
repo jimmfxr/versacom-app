@@ -1123,7 +1123,14 @@ export function PanelStudio({
     if (!data) return
     if (data.kind === 'key') {
       setDragSourceId(data.sourceId)
-      selectKey(data.sourceId)
+      // Bypass selectKey() — its tap-to-toggle logic closes the
+      // picker when the dragged key was already selected, which
+      // makes the picker card flicker in/out during a touch drag
+      // on iPad. Set state directly so the picker stays open
+      // throughout the drag.
+      setSelectedKeyId(data.sourceId)
+      setInspectorOpen(true)
+      if (canEditKeys) setPickerMode(true)
       setActiveDragChip(null)
     } else if (data.kind === 'picklist') {
       setDragSourceId(null)
@@ -1157,7 +1164,12 @@ export function PanelStudio({
             talkMode: 'tl',
             status: isRequestMode ? 'changed' : 'empty',
           })
-          selectKey(targetId)
+          // Same reasoning as handleDndStart — avoid selectKey()'s
+          // tap-to-toggle behavior so the picker doesn't blink on
+          // touch drops to the source key (or any already-selected
+          // key). setSelectedKeyId directly; pickerMode +
+          // inspectorOpen are already true from the start of the drag.
+          setSelectedKeyId(targetId)
           flashKey(targetId, '#10b981')
         }
       } else if (activeData.kind === 'picklist') {

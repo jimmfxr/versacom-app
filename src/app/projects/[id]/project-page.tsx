@@ -1237,14 +1237,14 @@ export function ProjectPage({
                 </>
               )}
             </div>
-            {canSeeSettings && (
+            {canSeeSettings && !showSettings && (
               <button
                 type="button"
-                onClick={() => setShowSettings(!showSettings)}
-                aria-label={showSettings ? 'Close settings' : 'Edit project'}
+                onClick={() => setShowSettings(true)}
+                aria-label="Edit project"
                 className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
               >
-                {showSettings ? 'Close' : 'Edit'}
+                Edit
               </button>
             )}
             {/* Back button — sits to the right of Edit on every
@@ -1278,20 +1278,36 @@ export function ProjectPage({
           {showSettings && (
             <div className="space-y-4">
               <Card>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-semibold text-white">Project PIN</h3>
-                    <p className="mt-1 text-xs text-gray-500">Share this PIN with your crew so they can join the project.</p>
-                  </div>
-                  <div className="flex gap-2">
-                    {project.pin.split('').map((digit, i) => (
-                      <span key={i} className="flex size-10 items-center justify-center rounded-lg bg-[#202020] text-lg font-bold text-[#0178a3]">{digit}</span>
-                    ))}
+                {/* Top row: heading on the left, PIN centered, close
+                    X on the right. The standalone Project PIN card
+                    used to live above this — folded in here so admins
+                    see one consolidated settings panel. */}
+                <div className="relative flex items-center justify-center gap-3">
+                  <h3 className="absolute left-0 top-0 text-xl font-bold text-white sm:text-2xl">Project Details</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowSettings(false)}
+                    aria-label="Close settings"
+                    className="absolute right-0 top-0 flex size-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:text-white"
+                  >
+                    <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                  <div className="flex flex-col items-center gap-2 pt-10 sm:pt-2">
+                    <div className="flex gap-2">
+                      {project.pin.split('').map((digit, i) => (
+                        <span
+                          key={i}
+                          className="flex size-10 items-center justify-center rounded-lg border border-white/10 text-lg font-bold text-gray-200"
+                        >
+                          {digit}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-gray-500">Project PIN — share with your crew so they can join.</p>
                   </div>
                 </div>
-              </Card>
-              <Card>
-                <h3 className="text-sm font-semibold text-white">Project Details</h3>
                 <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <FormInput label="Project name" type="text" value={name} onChange={(e) => { setName(e.target.value); setEditError('') }} maxLength={100} />
                   <SearchableSelect
