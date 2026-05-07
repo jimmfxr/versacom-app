@@ -283,10 +283,15 @@ function TabsMobileDropdown({
   tabs,
   activeTab,
   onSelect,
+  compact = false,
 }: {
   tabs: Array<{ key: Tab; label: string; count: number }>
   activeTab: Tab
   onSelect: (tab: Tab) => void
+  /** Desktop-shrunk variant: matches Edit/Back button size
+   *  (px-4 py-2 text-sm). Mobile default keeps the larger
+   *  (px-3.5 py-2.5 text-base) trigger for thumb reach. */
+  compact?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -306,7 +311,9 @@ function TabsMobileDropdown({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3.5 py-2.5 text-base font-medium text-gray-200 transition-colors ${
+        className={`flex w-full items-center justify-between gap-2 rounded-lg border font-medium text-gray-200 transition-colors ${
+          compact ? 'px-4 py-2 text-sm' : 'px-3.5 py-2.5 text-base'
+        } ${
           open
             ? 'border-[#22a7d3]/50 bg-white/[0.04]'
             : 'border-white/10 hover:border-white/20'
@@ -314,7 +321,7 @@ function TabsMobileDropdown({
       >
         <span className="flex items-center gap-2">
           <span>{active.label}</span>
-          <span className="text-xs text-gray-500">{active.count}</span>
+          <span className={`text-gray-500 ${compact ? 'text-[11px]' : 'text-xs'}`}>{active.count}</span>
         </span>
         <svg className="size-3 shrink-0 text-gray-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="5 8 10 13 15 8" />
@@ -1216,77 +1223,33 @@ export function ProjectPage({
         // the slot is no longer used.
         action={
           <div className="flex items-center gap-3">
-            {/* Per-tab toolbar (search + Add button) — desktop only.
-                On mobile each tab still renders its own sticky search
-                row inside the tab body. Pulling these into the page
-                header gives admins a single horizontal strip with
-                everything they need: Search · Add · Edit · ← Back. */}
-            <div className="hidden items-center gap-3 sm:flex">
-              {activeTab === 'equipment' && (
-                <>
-                  <input
-                    type="text"
-                    placeholder="Search equipment..."
-                    value={eqSearch}
-                    onChange={(e) => setEqSearch(e.target.value)}
-                    className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white focus:border-[#0178a3]"
-                  />
-                  {/* Add buttons match the Edit/Back button height
-                      on desktop (px-4 py-2 text-sm). Still a single
-                      "+" glyph but pill-shaped instead of square. */}
-                  {canAddEquipment && !showAdd && (
-                    <button type="button" onClick={() => setShowAdd(true)} aria-label="Add Equipment" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
-                  )}
-                  {!canAddEquipment && isCrew && !showTeamQr && (
-                    <button type="button" onClick={() => setShowTeamQr(true)} aria-label="Show QR" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
-                  )}
-                </>
-              )}
-              {activeTab === 'team' && (
-                <>
-                  <input
-                    type="text"
-                    placeholder="Search team..."
-                    value={teamSearch}
-                    onChange={(e) => setTeamSearch(e.target.value)}
-                    className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white focus:border-[#0178a3]"
-                  />
-                  {canEditTeam && !showAddMember && (
-                    <button type="button" onClick={() => setShowAddMember(true)} aria-label="Add Member" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
-                  )}
-                  {!canEditTeam && isCrew && !showTeamQr && (
-                    <button type="button" onClick={() => setShowTeamQr(true)} aria-label="Show QR" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
-                  )}
-                </>
-              )}
-              {activeTab === 'picklist' && (
-                <>
-                  <input
-                    type="text"
-                    placeholder="Search functions..."
-                    value={plSearch}
-                    onChange={(e) => setPlSearch(e.target.value)}
-                    className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white focus:border-[#0178a3]"
-                  />
-                  {canEditPickList && !showAddPl && (
-                    <button type="button" onClick={() => setShowAddPl(true)} aria-label="Add Function" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
-                  )}
-                </>
-              )}
-              {activeTab === 'stage-plots' && (
-                <>
-                  <input
-                    type="text"
-                    placeholder="Search plots..."
-                    value={plotSearch}
-                    onChange={(e) => setPlotSearch(e.target.value)}
-                    className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white focus:border-[#0178a3]"
-                  />
-                  {isAdmin && !showAddPlot && (
-                    <button type="button" onClick={() => setShowAddPlot(true)} aria-label="Add Plot" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
-                  )}
-                </>
-              )}
+            {/* Desktop tab dropdown — same component as mobile but
+                shrunk to match Edit/Back button height
+                (px-4 py-2 text-sm). Fixed-width (w-44) so every
+                tab label renders the trigger at the same size,
+                no jumping when you switch from Equipment (8 chars)
+                to Pick List (9) etc. */}
+            <div className="hidden w-44 sm:block">
+              {(() => {
+                const myEqCount = equipment.filter((e) => e.assignedMemberId === currentMemberId).length
+                const tabs: { key: Tab; label: string; count: number }[] = isUser
+                  ? [{ key: 'my-equipment' as Tab, label: 'My Equipment', count: myEqCount }]
+                  : (() => {
+                      const list: { key: Tab; label: string; count: number }[] = [
+                        { key: 'equipment', label: 'Equipment', count: equipment.length },
+                      ]
+                      if (isCrew && myEqCount > 0) list.push({ key: 'my-equipment', label: 'My Equipment', count: myEqCount })
+                      if (!isCrew) {
+                        list.push({ key: 'team', label: 'Team', count: project.members.length })
+                        list.push({ key: 'picklist', label: 'Pick List', count: pickListItems.filter((p) => p.type !== 'PTP').length })
+                      }
+                      list.push({ key: 'stage-plots', label: 'Plots', count: mockPlots.length })
+                      return list
+                    })()
+                return (
+                  <TabsMobileDropdown tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} compact />
+                )
+              })()}
             </div>
             {canSeeSettings && !showSettings && (
               <button
@@ -1547,30 +1510,9 @@ export function ProjectPage({
                     </button>
                   </div>
                 )}
-                {/* Desktop: tabs render as filled chip-style buttons —
-                    same look as the filter Chip component (cyan-fill
-                    when active, dark-fill with border when inactive)
-                    but bumped up a size for the tab strip. Centered
-                    via the ChipScroller's sm:justify-center override. */}
-                <div className="hidden sm:block">
-                  <ChipScroller ariaLabel="tabs" containerClassName="flex flex-1 gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:justify-center">
-                    {tabs.map((tab) => (
-                      <button
-                        key={tab.key}
-                        type="button"
-                        onClick={() => setActiveTab(tab.key)}
-                        className={`shrink-0 rounded-md px-3.5 py-2 text-sm font-semibold transition-colors ${
-                          activeTab === tab.key
-                            ? 'bg-[#0178a3] text-white'
-                            : 'border border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
-                        }`}
-                      >
-                        {tab.label}
-                        <span className="ml-1.5 text-xs opacity-70">{tab.count}</span>
-                      </button>
-                    ))}
-                  </ChipScroller>
-                </div>
+                {/* Desktop tab strip removed — desktop now uses
+                    the same dropdown component as mobile, rendered
+                    in the page header's action slot. */}
               </>
             )
           })()}
@@ -1600,45 +1542,68 @@ export function ProjectPage({
                     role of separating toolbar from per-tab content). */}
 {/* removed — page-header bottomBorder serves as the toolbar / content divider now */}
 
-              {/* Filter chips — All + categories + locations in a single
-                  horizontally-scrollable row. ChipScroller adds prev/next
-                  chevrons only when the row overflows the container. */}
-              {(usedEquipmentCategories.length > 0 || equipmentLocations.length > 0) && (
-                <div className="pb-3">
-                  <ChipScroller containerClassName="flex flex-1 gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:justify-center">
-                    <Chip
-                      active={!eqCategoryFilter && !eqLocationFilter}
-                      onClick={() => {
-                        setEqCategoryFilter(null)
-                        setEqLocationFilter(null)
-                      }}
-                    >
-                      All
-                    </Chip>
-                    {usedEquipmentCategories.map((c) => (
+              {/* Filter chips (left) + desktop search + add button
+                  (right). Chips left-aligned. Search/+ moved here
+                  from the page header so the header chrome only
+                  carries the tab dropdown + Edit/Back. Mobile keeps
+                  the search/+ in the dropdown row above. */}
+              <div className="pb-3 sm:flex sm:items-center sm:gap-3">
+                {(usedEquipmentCategories.length > 0 || equipmentLocations.length > 0) ? (
+                  <div className="min-w-0 sm:flex-1">
+                    <ChipScroller containerClassName="flex flex-1 gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       <Chip
-                        key={`cat:${c.value}`}
-                        active={eqCategoryFilter === c.value}
-                        onClick={() => setEqCategoryFilter(eqCategoryFilter === c.value ? null : c.value)}
+                        active={!eqCategoryFilter && !eqLocationFilter}
+                        onClick={() => {
+                          setEqCategoryFilter(null)
+                          setEqLocationFilter(null)
+                        }}
                       >
-                        {c.label}
+                        All
                       </Chip>
-                    ))}
-                    {usedEquipmentCategories.length > 0 && equipmentLocations.length > 0 && (
-                      <span aria-hidden className="flex shrink-0 items-center px-1 text-2xl font-bold leading-none text-[#22a7d3]">·</span>
-                    )}
-                    {equipmentLocations.map((loc) => (
-                      <Chip
-                        key={`loc:${loc}`}
-                        active={eqLocationFilter === loc}
-                        onClick={() => setEqLocationFilter(eqLocationFilter === loc ? null : loc)}
-                      >
-                        {loc}
-                      </Chip>
-                    ))}
-                  </ChipScroller>
+                      {usedEquipmentCategories.map((c) => (
+                        <Chip
+                          key={`cat:${c.value}`}
+                          active={eqCategoryFilter === c.value}
+                          onClick={() => setEqCategoryFilter(eqCategoryFilter === c.value ? null : c.value)}
+                        >
+                          {c.label}
+                        </Chip>
+                      ))}
+                      {usedEquipmentCategories.length > 0 && equipmentLocations.length > 0 && (
+                        <span aria-hidden className="flex shrink-0 items-center px-1 text-2xl font-bold leading-none text-[#22a7d3]">·</span>
+                      )}
+                      {equipmentLocations.map((loc) => (
+                        <Chip
+                          key={`loc:${loc}`}
+                          active={eqLocationFilter === loc}
+                          onClick={() => setEqLocationFilter(eqLocationFilter === loc ? null : loc)}
+                        >
+                          {loc}
+                        </Chip>
+                      ))}
+                    </ChipScroller>
+                  </div>
+                ) : (
+                  <div className="sm:flex-1" />
+                )}
+                {/* Desktop-only: per-tab search input + Add button on
+                    the right side of the filter row. */}
+                <div className="hidden items-center gap-2 sm:flex">
+                  <input
+                    type="text"
+                    placeholder="Search equipment..."
+                    value={eqSearch}
+                    onChange={(e) => setEqSearch(e.target.value)}
+                    className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                  />
+                  {canAddEquipment && !showAdd && (
+                    <button type="button" onClick={() => setShowAdd(true)} aria-label="Add Equipment" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
+                  )}
+                  {!canAddEquipment && isCrew && !showTeamQr && (
+                    <button type="button" onClick={() => setShowTeamQr(true)} aria-label="Show QR" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
+                  )}
                 </div>
-              )}
+              </div>
               </div>{/* /sticky bundle */}
 
               {/* Count text — pinned above the scroll on desktop. */}
@@ -2062,39 +2027,51 @@ export function ProjectPage({
                 {/* Mobile-only divider line below the search row. */}
 {/* removed — page-header bottomBorder serves as the toolbar / content divider now */}
 
-                {/* Filter chips: assignable equipment categories (Panels /
-                    Wireless BP / Hardwire BP) plus an A–Z sort toggle on the
-                    right separated by the same cyan dot used on other tabs.
-                    When a category is selected and A–Z is OFF, members sort
-                    by their equipment ID (PNL 1, PNL 2, …). When A–Z is ON
-                    (or "All" is selected with A–Z off), members sort by
-                    first name. */}
-                {!isCrew && (() => {
-                  const cats = usedEquipmentCategories.filter((c) => c.assignable)
-                  if (cats.length === 0) return null
-                  return (
-                    <div className="pb-3">
-                      <ChipScroller containerClassName="flex flex-1 gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:justify-center">
-                        <Chip active={teamCategoryFilter === null} onClick={() => setTeamCategoryFilter(null)}>
-                          All
-                        </Chip>
-                        {cats.map((c) => (
-                          <Chip
-                            key={c.value}
-                            active={teamCategoryFilter === c.value}
-                            onClick={() => setTeamCategoryFilter(teamCategoryFilter === c.value ? null : c.value)}
-                          >
-                            {c.label}
+                {/* Filter chips (left) + desktop search + add (right). */}
+                <div className="pb-3 sm:flex sm:items-center sm:gap-3">
+                  {!isCrew && (() => {
+                    const cats = usedEquipmentCategories.filter((c) => c.assignable)
+                    if (cats.length === 0) return <div className="sm:flex-1" />
+                    return (
+                      <div className="min-w-0 sm:flex-1">
+                        <ChipScroller containerClassName="flex flex-1 gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                          <Chip active={teamCategoryFilter === null} onClick={() => setTeamCategoryFilter(null)}>
+                            All
                           </Chip>
-                        ))}
-                        <span aria-hidden className="flex shrink-0 items-center px-1 text-2xl font-bold leading-none text-[#22a7d3]">·</span>
-                        <Chip active={teamSortAbc} onClick={() => setTeamSortAbc(!teamSortAbc)}>
-                          A–Z
-                        </Chip>
-                      </ChipScroller>
-                    </div>
-                  )
-                })()}
+                          {cats.map((c) => (
+                            <Chip
+                              key={c.value}
+                              active={teamCategoryFilter === c.value}
+                              onClick={() => setTeamCategoryFilter(teamCategoryFilter === c.value ? null : c.value)}
+                            >
+                              {c.label}
+                            </Chip>
+                          ))}
+                          <span aria-hidden className="flex shrink-0 items-center px-1 text-2xl font-bold leading-none text-[#22a7d3]">·</span>
+                          <Chip active={teamSortAbc} onClick={() => setTeamSortAbc(!teamSortAbc)}>
+                            A–Z
+                          </Chip>
+                        </ChipScroller>
+                      </div>
+                    )
+                  })()}
+                  {/* Desktop search + Add member */}
+                  <div className="hidden items-center gap-2 sm:flex">
+                    <input
+                      type="text"
+                      placeholder="Search team..."
+                      value={teamSearch}
+                      onChange={(e) => setTeamSearch(e.target.value)}
+                      className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                    />
+                    {canEditTeam && !showAddMember && (
+                      <button type="button" onClick={() => setShowAddMember(true)} aria-label="Add Member" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
+                    )}
+                    {!canEditTeam && isCrew && !showTeamQr && (
+                      <button type="button" onClick={() => setShowTeamQr(true)} aria-label="Show QR" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
+                    )}
+                  </div>
+                </div>
               </div>{/* /sticky bundle */}
 
               {/* Count text — pinned above the scroll on desktop. */}
@@ -2412,25 +2389,40 @@ export function ProjectPage({
                     divider, then the A–Z toggle (same chip styling) on the
                     right. Mirrors the equipment tab's category-then-location
                     pattern. */}
-                <div className="pb-3">
-                  <ChipScroller containerClassName="flex flex-1 gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:justify-center">
-                    <Chip active={plTypeFilter === null} onClick={() => setPlTypeFilter(null)}>
-                      All
-                    </Chip>
-                    {FUNCTION_TYPES.map((t) => (
-                      <Chip
-                        key={t}
-                        active={plTypeFilter === t}
-                        onClick={() => setPlTypeFilter(plTypeFilter === t ? null : t)}
-                      >
-                        {FUNCTION_TYPE_LABELS[t] || t}
+                <div className="pb-3 sm:flex sm:items-center sm:gap-3">
+                  <div className="min-w-0 sm:flex-1">
+                    <ChipScroller containerClassName="flex flex-1 gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      <Chip active={plTypeFilter === null} onClick={() => setPlTypeFilter(null)}>
+                        All
                       </Chip>
-                    ))}
-                    <span aria-hidden className="flex shrink-0 items-center px-1 text-2xl font-bold leading-none text-[#22a7d3]">·</span>
-                    <Chip active={plSortAbc} onClick={() => setPlSortAbc(!plSortAbc)}>
-                      A–Z
-                    </Chip>
-                  </ChipScroller>
+                      {FUNCTION_TYPES.map((t) => (
+                        <Chip
+                          key={t}
+                          active={plTypeFilter === t}
+                          onClick={() => setPlTypeFilter(plTypeFilter === t ? null : t)}
+                        >
+                          {FUNCTION_TYPE_LABELS[t] || t}
+                        </Chip>
+                      ))}
+                      <span aria-hidden className="flex shrink-0 items-center px-1 text-2xl font-bold leading-none text-[#22a7d3]">·</span>
+                      <Chip active={plSortAbc} onClick={() => setPlSortAbc(!plSortAbc)}>
+                        A–Z
+                      </Chip>
+                    </ChipScroller>
+                  </div>
+                  {/* Desktop search + Add function */}
+                  <div className="hidden items-center gap-2 sm:flex">
+                    <input
+                      type="text"
+                      placeholder="Search functions..."
+                      value={plSearch}
+                      onChange={(e) => setPlSearch(e.target.value)}
+                      className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                    />
+                    {canEditPickList && !showAddPl && (
+                      <button type="button" onClick={() => setShowAddPl(true)} aria-label="Add Function" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
+                    )}
+                  </div>
                 </div>
               </div>{/* /sticky bundle */}
 
@@ -2557,10 +2549,21 @@ export function ProjectPage({
           {/* ═══════════════════════════════ STAGE PLOTS TAB ═══════════════════════════════ */}
           {activeTab === 'stage-plots' && (
             <div className="flex min-h-0 flex-1 flex-col">
-              {/* Search + Add moved into the tab dropdown row above
-                  on mobile. */}
-              {/* Mobile-only divider line below the search row. */}
-{/* removed — page-header bottomBorder serves as the toolbar / content divider now */}
+              {/* Plots tab has no filter chips — desktop still gets
+                  a search + Add row aligned to the right so the
+                  toolbar pattern is consistent across tabs. */}
+              <div className="hidden items-center justify-end gap-2 pb-3 sm:flex">
+                <input
+                  type="text"
+                  placeholder="Search plots..."
+                  value={plotSearch}
+                  onChange={(e) => setPlotSearch(e.target.value)}
+                  className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                />
+                {isAdmin && !showAddPlot && (
+                  <button type="button" onClick={() => setShowAddPlot(true)} aria-label="Add Plot" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
+                )}
+              </div>
 
               {/* Count text — pinned above the scroll on desktop. */}
               <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
