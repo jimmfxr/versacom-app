@@ -102,51 +102,51 @@ export function MyEquipmentContent({
         bottomBorder
         action={
           browseMode && browseProjects && selectedProjectId != null ? (
-            <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center">
-              {/* Project switcher — same component as Dashboard / Tasks */}
-              <ProjectSwitcher
-                projectId={selectedProjectId}
-                projectName={
-                  browseProjects.find((p) => p.id === selectedProjectId)?.name ?? '—'
-                }
-                userProjects={browseProjects}
-                basePath="/my-equipment"
-              />
-              {/* User switcher with prev/next stepper buttons */}
-              {browseMembers && browseMembers.length > 0 && (
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => jumpToMember(currentMemberIndex - 1)}
-                    aria-label="Previous user"
-                    className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
-                  >
-                    <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                    </svg>
-                  </button>
-                  <MemberSwitcher
-                    members={browseMembers}
-                    selectedMemberId={selectedMemberId ?? null}
-                    selectedLabel={browseMemberLabel ?? '—'}
-                    onSelect={(id) => router.push(`/my-equipment?project=${selectedProjectId}&member=${id}`)}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => jumpToMember(currentMemberIndex + 1)}
-                    aria-label="Next user"
-                    className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
-                  >
-                    <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                    </svg>
-                  </button>
-                </div>
-              )}
-            </div>
+            <ProjectSwitcher
+              projectId={selectedProjectId}
+              projectName={
+                browseProjects.find((p) => p.id === selectedProjectId)?.name ?? '—'
+              }
+              userProjects={browseProjects}
+              basePath="/my-equipment"
+            />
           ) : null
         }
       >
+        {/* Member switcher + prev/next steppers — moved out of the
+            page header's action slot so the header height matches
+            Dashboard / Tasks (one dropdown only). Sits on its own
+            row directly below the divider. */}
+        {browseMode && browseMembers && browseMembers.length > 0 && selectedProjectId != null && (
+          <div className="-mt-6 mb-3 flex items-center justify-end gap-1">
+            <button
+              type="button"
+              onClick={() => jumpToMember(currentMemberIndex - 1)}
+              aria-label="Previous user"
+              className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
+            >
+              <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+              </svg>
+            </button>
+            <MemberSwitcher
+              members={browseMembers}
+              selectedMemberId={selectedMemberId ?? null}
+              selectedLabel={browseMemberLabel ?? '—'}
+              onSelect={(id) => router.push(`/my-equipment?project=${selectedProjectId}&member=${id}`)}
+            />
+            <button
+              type="button"
+              onClick={() => jumpToMember(currentMemberIndex + 1)}
+              aria-label="Next user"
+              className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
+            >
+              <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
+          </div>
+        )}
         <p className="text-xs text-gray-500">
           {browseMode
             ? `${equipment.length} item${equipment.length !== 1 ? 's' : ''} assigned`

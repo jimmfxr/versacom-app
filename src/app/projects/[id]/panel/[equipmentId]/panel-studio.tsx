@@ -1534,7 +1534,7 @@ export function PanelStudio({
                 User-only accounts can't access the project page (proxy
                 blocks it), so route them back to My Equipment instead. */}
             {!isBrowseMode && (
-              <div className="flex-shrink-0 mx-auto w-full max-w-7xl flex flex-wrap items-center justify-between gap-3 pt-3 px-4 sm:px-6 lg:px-8">
+              <div className="flex-shrink-0 mx-auto w-full max-w-7xl flex flex-wrap items-center justify-between gap-3 pt-5 px-4 sm:px-6 lg:px-8">
                 {/* The back button is only useful when the admin/manager came
                     in from a project tab or an admin review. User-only role
                     treats panel studio as the entire My Equipment experience,
@@ -1560,7 +1560,7 @@ export function PanelStudio({
                 Desktop: 3-column grid — title left, user dropdown centered,
                 project dropdown far right. */}
             {isBrowseMode && browseProjects && browseMembers && (
-              <div className="flex-shrink-0 mx-auto w-full max-w-7xl px-4 pt-3 sm:px-6 lg:px-8">
+              <div className="flex-shrink-0 mx-auto w-full max-w-7xl px-4 pt-5 sm:px-6 lg:px-8">
                 {/* Mobile layout — divider sits directly under the
                     title (matches PageHeader's showMobileDivider
                     pattern) so the line reads as "under the page
@@ -1600,7 +1600,7 @@ export function PanelStudio({
                 own controls border-b serves as the page divider in
                 that mode, so we don't end up with two stacked lines.*/}
             {!(pickerMode && canEditKeys) && (
-              <div className="flex-shrink-0 mx-auto hidden w-full max-w-7xl px-4 pt-3 sm:block sm:px-6 lg:px-8">
+              <div className="flex-shrink-0 mx-auto hidden w-full max-w-7xl px-4 pt-4 sm:block sm:px-6 lg:px-8">
                 <div className="border-b border-white/20" />
               </div>
             )}
