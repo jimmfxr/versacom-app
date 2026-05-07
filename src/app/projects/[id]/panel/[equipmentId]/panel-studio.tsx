@@ -422,12 +422,44 @@ export function PanelStudio({
   useEffect(() => {
     if (prevFingerprintRef.current === serverFingerprint) return
     prevFingerprintRef.current = serverFingerprint
-    setKeys(initializeKeys(initialPanelKeys, keyCount))
 
-    // New resolutions since the last sync — decide toast(s).
-    const newResolutions = recentResolutions.filter(
+    // Collect ids of keys whose pending request just resolved
+    // (admin approve / deny). Those keys should re-initialize from
+    // the fresh server state — losing their local 'submitted'
+    // status — because the source-of-truth (PanelKey) was updated.
+    const resolvedKeyIds = new Set<string>()
+    const newResolutionsForReset = recentResolutions.filter(
       (r) => !seenResolutionIdsRef.current.has(r.id),
     )
+    for (const res of newResolutionsForReset) {
+      for (const item of res.items) {
+        resolvedKeyIds.add(keyId(item.keyIndex, item.page, item.expansion))
+      }
+    }
+
+    // Re-init from the fresh server snapshot, but PRESERVE keys the
+    // user has locally marked as 'submitted' or 'changed' — UNLESS
+    // their request just resolved. Otherwise saveDraftKeys' upsert
+    // (which creates PanelKey rows for any newly-touched key with
+    // pickListItemId=null) bumps the fingerprint and this effect
+    // would clobber the user's pending submission back to 'empty',
+    // making the key visually disappear.
+    setKeys((prev) => {
+      const next = initializeKeys(initialPanelKeys, keyCount)
+      const prevById = new Map(prev.map((k) => [keyId(k.keyIndex, k.page, k.expansion), k]))
+      return next.map((k) => {
+        const id = keyId(k.keyIndex, k.page, k.expansion)
+        if (resolvedKeyIds.has(id)) return k
+        const existing = prevById.get(id)
+        if (existing && (existing.status === 'submitted' || existing.status === 'changed')) {
+          return existing
+        }
+        return k
+      })
+    })
+
+    // New resolutions since the last sync — decide toast(s).
+    const newResolutions = newResolutionsForReset
     if (newResolutions.length > 0) {
       const approvedKeyNums: number[] = []
       const deniedKeyNums: number[] = []
@@ -985,6 +1017,11 @@ export function PanelStudio({
         setKeys((prev) =>
           prev.map((k) => (k.status === 'changed' ? { ...k, status: 'submitted' } : k))
         )
+        // Dismiss the picker card / inspector so the user immediately
+        // sees the chassis with the green-bordered submitted keys.
+        // Same call that the close-X button uses: clears picker mode,
+        // inspector open state, and the highlighted key id.
+        closeInspector()
       }
     } catch {
       showToast('error', 'Submit failed')
@@ -2289,6 +2326,28 @@ export function PanelStudio({
                       </div>
                     ) : null}
 
+                    {/* Submit changes — request mode (user role).
+                        Centered at the bottom of the panel, both
+                        mobile and desktop. Disabled when there are
+                        no pending changes to submit. */}
+                    {canEditKeys && isRequestMode && (() => {
+                      const pendingChanges = keys.filter((k) => k.status === 'changed').length
+                      return (
+                        <button
+                          type="button"
+                          onClick={handleSubmit}
+                          disabled={saving || pendingChanges === 0}
+                          className="rounded-lg bg-[#0178a3] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {saving
+                            ? 'Submitting…'
+                            : pendingChanges > 0
+                              ? `Submit ${pendingChanges} change${pendingChanges === 1 ? '' : 's'}`
+                              : 'Submit'}
+                        </button>
+                      )
+                    })()}
+
                     {/* Mobile-portrait Copy / Paste / Save row —
                         sits below Main/Shift in column mode. Also
                         re-shown at lg+ when stackHeader is true
@@ -2481,7 +2540,7 @@ export function PanelStudio({
                     the "extra character" — switching to PickerSelect
                     fixes that and gives us trigger-mode + talk-key
                     dropdowns to match desktop. */}
-                <div className="px-[18px] py-3.5 border-b border-white/[0.06] flex flex-col gap-2.5 flex-shrink-0">
+                <div className="px-[18px] pt-0 pb-3.5 border-b border-white/[0.06] flex flex-col gap-2.5 flex-shrink-0">
                   {/* Row 1: Function-type filter (full width) + search
                       icon button on the right. Tapping the search
                       icon swaps in a search-input row directly below. */}
