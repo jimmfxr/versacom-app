@@ -2137,27 +2137,10 @@ export function PanelStudio({
                 <div className="min-w-min mx-auto" ref={chassisRef}>
                   {/* Single chassis card containing expansions + main panel */}
                   <div className="relative bg-[#2a2a2a] border border-white/[0.06] rounded-[14px] p-8 flex flex-col gap-4 items-center">
-                    {/* Hardware type + key count, top-right corner of the
-                        chassis card itself — engraved silkscreen look so
-                        it sits on the gear like a manufacturer label,
-                        matching the look used for the expansion number. */}
-                    <div
-                      className="pointer-events-none absolute right-4 top-3 text-[10px] font-bold uppercase tracking-[0.18em] tabular-nums leading-none"
-                      style={{
-                        // Cyan brand colour at low alpha so the label
-                        // reads like a faintly tinted silkscreen on
-                        // the chassis. Same engraved shadow recipe as
-                        // before keeps the "carved into the surface"
-                        // feel.
-                        color: 'rgba(34,167,211,0.55)',
-                        textShadow: [
-                          '0 -1px 0 rgba(255,255,255,0.06)',
-                          '0 -2px 2px rgba(255,255,255,0.03)',
-                          '0 1px 0 rgba(0,0,0,0.6)',
-                          '0 2px 4px rgba(0,0,0,0.4)',
-                        ].join(', '),
-                      }}
-                    >
+                    {/* Hardware type + key count, top-right corner of
+                        the chassis card. Plain cyan label — no
+                        engraved silkscreen shadow. */}
+                    <div className="pointer-events-none absolute right-4 top-3 text-sm font-bold uppercase tracking-[0.18em] tabular-nums leading-none text-[#22a7d3]">
                       {(equipment.hardwareType || 'Unknown')} · {keyCount}-Key
                     </div>
                     {/* Expansion rows (rendered on top, reversed so newest is at top).
@@ -2185,18 +2168,7 @@ export function PanelStudio({
                             result, the number's centre sits at gutter
                             centre regardless of how wide the digit
                             renders. */}
-                        <div
-                          className="pointer-events-none absolute left-full top-1/2 ml-4 -translate-x-1/2 -translate-y-1/2 text-[18px] font-extrabold tabular-nums leading-none"
-                          style={{
-                            color: 'rgba(34,167,211,0.55)',
-                            textShadow: [
-                              '0 -1px 0 rgba(255,255,255,0.06)',
-                              '0 -2px 2px rgba(255,255,255,0.03)',
-                              '0 1px 0 rgba(0,0,0,0.6)',
-                              '0 2px 4px rgba(0,0,0,0.4)',
-                            ].join(', '),
-                          }}
-                        >
+                        <div className="pointer-events-none absolute left-full top-1/2 ml-4 -translate-x-1/2 -translate-y-1/2 text-[18px] font-extrabold tabular-nums leading-none text-[#22a7d3]">
                           {exp}
                         </div>
                       </div>
