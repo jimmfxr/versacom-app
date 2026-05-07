@@ -98,6 +98,7 @@ export function MyEquipmentContent({
     <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={!isUserOnly}>
       <PageLayout
         title="My Equipment"
+        titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
         bottomBorder
         action={
           browseMode && browseProjects && selectedProjectId != null ? (
