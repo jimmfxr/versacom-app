@@ -202,7 +202,7 @@ function LoginPageInner() {
     }
   }
 
-  const pinBoxClass = 'h-14 flex-1 min-w-0 rounded-lg border border-white/10 bg-[#2a2a2a] text-center text-xl text-white outline-none transition-colors hover:border-white/20 focus:border-[#0178a3] disabled:opacity-50'
+  const pinBoxClass = 'h-14 flex-1 min-w-0 rounded-lg border border-white/10 text-center text-xl text-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3] disabled:opacity-50'
 
   // ─── Step 2: Create Personal PIN ───
   if (setupInfo) {
@@ -314,7 +314,7 @@ function LoginPageInner() {
                 value={firstName}
                 onChange={(e) => { setFirstName(e.target.value); setError(null) }}
                 disabled={loading}
-                className="w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3] disabled:opacity-50"
+                className="w-full rounded-lg border border-white/10 px-3.5 py-2.5 text-base text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3] disabled:opacity-50"
               />
             </div>
             <div>
@@ -328,7 +328,7 @@ function LoginPageInner() {
                 value={lastName}
                 onChange={(e) => { setLastName(e.target.value); setError(null) }}
                 disabled={loading}
-                className="w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3] disabled:opacity-50"
+                className="w-full rounded-lg border border-white/10 px-3.5 py-2.5 text-base text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3] disabled:opacity-50"
               />
             </div>
           </div>

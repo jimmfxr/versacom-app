@@ -163,7 +163,7 @@ function JoinProjectPageInner() {
                     type="text"
                     value={firstName}
                     onChange={(e) => { setFirstName(e.target.value); setJoinError('') }}
-                    className="mt-1 w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+                    className="mt-1 w-full rounded-lg border border-white/10 px-3.5 py-2.5 text-base text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
                   />
                 </div>
                 <div>
@@ -175,7 +175,7 @@ function JoinProjectPageInner() {
                     type="text"
                     value={lastName}
                     onChange={(e) => { setLastName(e.target.value); setJoinError('') }}
-                    className="mt-1 w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2.5 text-base text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+                    className="mt-1 w-full rounded-lg border border-white/10 px-3.5 py-2.5 text-base text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
                   />
                 </div>
               </div>
@@ -193,7 +193,7 @@ function JoinProjectPageInner() {
                       value={d}
                       onChange={(e) => handleDigitChange(projectPinDigits, setProjectPinDigits, i, e.target.value, 'project-pin')}
                       onKeyDown={(e) => handleDigitKeyDown(projectPinDigits, 'project-pin', i, e)}
-                      className="h-14 flex-1 min-w-0 rounded-lg border border-white/10 bg-[#2a2a2a] text-center text-xl text-white outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+                      className="h-14 flex-1 min-w-0 rounded-lg border border-white/10 text-center text-xl text-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
                     />
                   ))}
                 </div>
@@ -241,7 +241,7 @@ function JoinProjectPageInner() {
                       onChange={(e) => handleDigitChange(pinDigits, setPinDigits, i, e.target.value, 'pin')}
                       onKeyDown={(e) => handleDigitKeyDown(pinDigits, 'pin', i, e)}
                       autoFocus={i === 0}
-                      className="h-14 flex-1 min-w-0 rounded-lg border border-white/10 bg-[#2a2a2a] text-center text-xl text-white outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+                      className="h-14 flex-1 min-w-0 rounded-lg border border-white/10 text-center text-xl text-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
                     />
                   ))}
                 </div>
@@ -260,7 +260,7 @@ function JoinProjectPageInner() {
                       value={d}
                       onChange={(e) => handleDigitChange(confirmPinDigits, setConfirmPinDigits, i, e.target.value, 'confirm')}
                       onKeyDown={(e) => handleDigitKeyDown(confirmPinDigits, 'confirm', i, e)}
-                      className="h-14 flex-1 min-w-0 rounded-lg border border-white/10 bg-[#2a2a2a] text-center text-xl text-white outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+                      className="h-14 flex-1 min-w-0 rounded-lg border border-white/10 text-center text-xl text-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
                     />
                   ))}
                 </div>
