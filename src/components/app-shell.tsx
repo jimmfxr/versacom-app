@@ -180,14 +180,13 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
         userNavigation={userNavigation}
         onSignOut={handleSignOut}
       />
-      {/* Children wrapper is the scroll container. Navbar above stays
-          pinned because AppShell itself is overflow-hidden, but
-          this inner div takes the remaining height and scrolls
-          when content exceeds it (e.g. dashboard cards on a phone
-          where the carousel + dots run off the bottom). Sticky /
-          kiosk-style pages use min-h-0 + flex-1 internally so they
-          fit within this container without triggering its overflow. */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">{children}</div>
+      {/* Children wrapper is just a flex column. NO scroll handling
+          here — pages own their own scroll. Sticky / kiosk pages use
+          min-h-0 + flex-1 + overflow-y-auto on inner regions;
+          non-sticky pages (PageLayout's non-sticky branch) wrap the
+          content in their own overflow-y-auto. Avoids nested scroll
+          containers, which iOS Safari handles poorly. */}
+      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
       <ToastContainer />
       <ScrollToTop />
     </div>
