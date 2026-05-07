@@ -2384,12 +2384,12 @@ export function PanelStudio({
           <aside
             ref={inspectorRef}
             className={`
-              w-full lg:w-[360px] bg-[#2a2a2a] border-white/[0.06] flex-col overflow-hidden z-[200]
+              w-full lg:w-[360px] bg-[#202020] lg:bg-[#2a2a2a] border-white/[0.06] flex-col overflow-hidden z-[200]
               /* Mobile: bottom sheet */
               fixed left-0 right-0 bottom-0 lg:top-auto
               max-h-[65vh] landscape:max-h-[92dvh] lg:max-h-[calc(100%-48px)] lg:landscape:max-h-[calc(100%-48px)]
               rounded-t-[20px] lg:rounded-[14px]
-              border-t lg:border
+              lg:border
               shadow-[0_-10px_40px_rgba(0,0,0,0.6)] lg:shadow-[-15px_10px_40px_rgba(0,0,0,0.6)]
               transition-transform duration-[350ms] ease-[cubic-bezier(0.4,0,0.2,1)]
               lg:transition-none
@@ -2398,11 +2398,6 @@ export function PanelStudio({
               ${inspectorOpen ? 'flex translate-y-0 lg:flex' : 'flex translate-y-full lg:hidden'}
             `}
           >
-            {/* Sheet handle (mobile) */}
-            <div className="flex justify-center py-2.5 cursor-grab lg:hidden">
-              <div className="w-10 h-[5px] rounded-[3px] bg-white/25" />
-            </div>
-
             {/* Inspector header \u2014 picker mode strips the back arrow
                 and "Pick destination" label so the row just holds
                 a key-summary on the left and a big close X on the
@@ -2633,10 +2628,10 @@ export function PanelStudio({
                               // updated key on the chassis.
                               closeInspector()
                             }}
-                            className={`rounded-[10px] px-3.5 py-2.5 flex items-center gap-2.5 cursor-pointer transition-all border ${
+                            className={`rounded-lg px-3.5 py-2.5 flex items-center gap-2.5 cursor-pointer transition-colors border ${
                               isActive
                                 ? 'bg-[#0178a3] border-[#0178a3] text-white'
-                                : 'bg-white/[0.03] border-transparent hover:bg-white/[0.06] hover:border-white/10'
+                                : 'border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
                             }`}
                           >
                             <div className="flex-1 min-w-0 flex items-baseline gap-2 overflow-hidden">
@@ -2654,10 +2649,13 @@ export function PanelStudio({
                                 <span className={`text-[10px] font-mono ${isActive ? 'text-white/80' : 'text-[#22a7d3]'}`}>{item.code}</span>
                               )}
                             </div>
-                            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-md flex-shrink-0 ${
-                              isActive
-                                ? 'text-white bg-white/20'
-                                : 'text-gray-300 bg-white/10'
+                            {/* Function-type badge — cyan text only,
+                                no background, so it reads as a label
+                                rather than a pill. Matches the
+                                secondary-text style used elsewhere
+                                on chips. */}
+                            <span className={`text-[11px] font-semibold flex-shrink-0 uppercase tracking-wider ${
+                              isActive ? 'text-white' : 'text-[#22a7d3]'
                             }`}>
                               {item.type === 'Audio_IO' ? 'Audio I/O' : item.type}
                             </span>
