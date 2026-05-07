@@ -172,6 +172,11 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
         // inset so kiosk-style scroll regions (Dashboard cards,
         // Tasks list, etc.) don't render content underneath it.
         paddingBottom: 'env(safe-area-inset-bottom)',
+        // Block horizontal rubber-band on iOS Safari. Without this,
+        // a horizontal swipe inside an overflow-x scroller (the
+        // SwipeCarousel) could bleed past its bounds and shove the
+        // whole page sideways.
+        overscrollBehaviorX: 'contain',
       }}
     >
       <Navbar
@@ -180,13 +185,15 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
         userNavigation={userNavigation}
         onSignOut={handleSignOut}
       />
-      {/* Children wrapper is just a flex column. NO scroll handling
-          here — pages own their own scroll. Sticky / kiosk pages use
-          min-h-0 + flex-1 + overflow-y-auto on inner regions;
-          non-sticky pages (PageLayout's non-sticky branch) wrap the
-          content in their own overflow-y-auto. Avoids nested scroll
-          containers, which iOS Safari handles poorly. */}
-      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+      {/* Children wrapper is just a flex column with horizontal
+          overflow locked. Vertical scroll is owned by individual
+          pages (sticky/kiosk via internal flex-1 + overflow-y-auto
+          regions; non-sticky via PageLayout's wrapper). overflow-x
+          locked here as well as on AppShell outer because iOS
+          Safari's rubber-band can let a horizontal swipe in a
+          nested scroller (e.g. SwipeCarousel) propagate up and
+          rubber-band the whole page sideways. */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden">{children}</div>
       <ToastContainer />
       <ScrollToTop />
     </div>

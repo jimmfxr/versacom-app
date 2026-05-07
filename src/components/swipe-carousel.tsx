@@ -58,7 +58,9 @@ export function SwipeCarousel({ children, hiddenAbove = 'sm:hidden' }: Props) {
         // carousel and the page's vertical scroll at the same time
         // (iOS Safari will treat the swipe as page-scroll once it
         // detects vertical intent, leaving the carousel alone).
-        style={{ touchAction: 'pan-x' }}
+        // overscroll-behavior: contain prevents a swipe past the
+        // first/last slide from rubber-banding the whole page.
+        style={{ touchAction: 'pan-x', overscrollBehavior: 'contain' }}
         className="-mx-2 flex snap-x snap-mandatory items-stretch overflow-x-auto scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {slides.map((child, i) => (
