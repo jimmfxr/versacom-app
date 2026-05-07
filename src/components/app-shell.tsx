@@ -179,12 +179,18 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
         overscrollBehaviorX: 'contain',
       }}
     >
-      <Navbar
-        navigation={getNavigation(pathname, isAdmin, isUserOnly, showMyEquipment, lastProjectId, taskCount, inMyEquipmentBrowse)}
-        user={navUser}
-        userNavigation={userNavigation}
-        onSignOut={handleSignOut}
-      />
+      {/* Kiosk routes (/projects/<id>/kiosk) are full-screen
+          chassis viewers — no nav, no chrome. The navbar is
+          rendered for every other authed route via the root
+          layout's AppShell, but kiosk gets the bare children. */}
+      {!pathname.includes('/kiosk') && (
+        <Navbar
+          navigation={getNavigation(pathname, isAdmin, isUserOnly, showMyEquipment, lastProjectId, taskCount, inMyEquipmentBrowse)}
+          user={navUser}
+          userNavigation={userNavigation}
+          onSignOut={handleSignOut}
+        />
+      )}
       {/* Children wrapper is just a flex column with horizontal
           overflow locked. Vertical scroll is owned by individual
           pages (sticky/kiosk via internal flex-1 + overflow-y-auto
