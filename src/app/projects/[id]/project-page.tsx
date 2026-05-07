@@ -1378,7 +1378,6 @@ export function ProjectPage({
                   </button>
                 </div>
               </Card>
-              <div className="border-t border-white/10" />
             </div>
           )}
 
