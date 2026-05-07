@@ -684,6 +684,47 @@ export function ProjectPage({
     return () => window.clearTimeout(id)
   }, [chainTarget])
 
+  /* ─── Arrow-key navigation between Edit buttons ───
+   *
+   * After a save, focus auto-jumps to the next card's Edit button (the
+   * chainTarget useEffect above). From there the user wants to arrow
+   * up/down to skip cards before committing — e.g. save card #3,
+   * land on #4, but really want to edit #7, so press ↓ ↓ ↓ Enter.
+   *
+   * We listen at document level for ArrowUp / ArrowDown when the
+   * focused element is an Edit button. The list of buttons is
+   * collected in DOM order and limited to the same tab prefix
+   * (equipment / team / picklist) so arrows never bleed across tabs
+   * — they're never visible at the same time anyway, but defensive.
+   */
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+      const active = document.activeElement as HTMLElement | null
+      if (!active) return
+      const tag = active.getAttribute('data-edit-button')
+      if (!tag) return
+      // Only consider Edit buttons sharing the same prefix (eg. "equipment-")
+      // so arrows walk inside the current tab's list, not across tabs.
+      const prefix = tag.split('-')[0]
+      const buttons = Array.from(
+        document.querySelectorAll<HTMLButtonElement>(`[data-edit-button^="${prefix}-"]`),
+      ).filter((btn) => !btn.hasAttribute('disabled') && btn.offsetParent !== null)
+      const idx = buttons.indexOf(active as HTMLButtonElement)
+      if (idx === -1) return
+      e.preventDefault()
+      const nextIdx = e.key === 'ArrowDown'
+        ? Math.min(idx + 1, buttons.length - 1)
+        : Math.max(idx - 1, 0)
+      if (nextIdx === idx) return
+      const next = buttons[nextIdx]
+      next.focus()
+      next.scrollIntoView({ block: 'nearest' })
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [])
+
   // Visibility-aware background refresh — keeps the page in sync with
   // edits coming from other browsers / the kiosk / panel studio etc.
   // Pause whenever the user is mid-edit so we don't redraw under their
