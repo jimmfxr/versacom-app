@@ -188,11 +188,12 @@ function MobileNavPanel({
             aria-current={item.current ? 'page' : undefined}
             className={classNames(
               item.current
-                ? 'bg-[#2a2a2a] text-[#0178a3] ring-1 ring-[#0178a3]'
-                : 'bg-[#2a2a2a] text-gray-300 hover:text-white',
-              // Press feedback: scale + cyan flash so the tap is visibly
-              // acknowledged before navigation completes.
-              'flex items-center justify-between gap-2 rounded-2xl px-5 py-4 text-base font-medium transition-all duration-100 active:scale-[0.97] active:bg-[#0178a3]/20 active:text-white',
+                ? 'border border-[#0178a3] text-[#22a7d3]'
+                : 'border border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04]',
+              // Press feedback: cyan-fill chip-active style so the
+              // tap is visibly acknowledged before navigation
+              // completes — same chip system as the rest of the app.
+              'flex items-center justify-between gap-2 rounded-lg px-5 py-4 text-base font-medium transition-colors duration-100 active:border-[#0178a3] active:bg-[#0178a3] active:text-white',
             )}
           >
             <span>{item.name}</span>
@@ -211,7 +212,7 @@ function MobileNavPanel({
           <DisclosureButton
             as="button"
             onClick={onSignOut}
-            className="block w-full rounded-2xl bg-[#2a2a2a] px-5 py-4 text-left text-base font-medium text-gray-400 transition-all duration-100 hover:text-white active:scale-[0.97] active:bg-[#0178a3]/20 active:text-white"
+            className="block w-full rounded-lg border border-white/10 px-5 py-4 text-left text-base font-medium text-gray-200 transition-colors duration-100 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
           >
             Sign out
           </DisclosureButton>
