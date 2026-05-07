@@ -119,21 +119,68 @@ export default async function PanelStudioPage({
     orderBy: { id: 'asc' },
   })
 
-  // Auto-sync PTP PickListItems from project members
-  // Each member gets a PTP pick list entry so it has a real PickListItem ID
+  // Auto-sync PTP PickListItems from project members. Each member
+  // gets exactly ONE PTP pick list entry so it has a real
+  // PickListItem ID.
+  //
+  // Match case-insensitively so a name edit like "wyatt ortiz" →
+  // "Wyatt Ortiz" doesn't create a duplicate PTP. Old casings of
+  // the same member name (left behind by edits before this dedup
+  // ran) are collapsed: keep one, delete the rest. Names that no
+  // longer match any current member at all are also deleted as
+  // orphans.
   const existingPtp = await prisma.pickListItem.findMany({
     where: { projectId, type: 'PTP' },
     select: { id: true, name: true },
   })
-  const existingPtpNames = new Set(existingPtp.map((p) => p.name))
+  // Bucket every existing PTP by its lowercase name so duplicates
+  // (e.g. three "Wyatt Ortiz" rows in different casings) all land
+  // in the same bucket and we can keep one + delete the rest.
+  const existingByLower = new Map<string, typeof existingPtp>()
+  for (const p of existingPtp) {
+    const lower = p.name.toLowerCase()
+    const arr = existingByLower.get(lower) ?? []
+    arr.push(p)
+    existingByLower.set(lower, arr)
+  }
+
+  const idsToDelete: number[] = []
 
   for (const m of ptpMembersRaw) {
     const ptpName = `${m.user.firstName} ${m.user.lastName}`
-    if (!existingPtpNames.has(ptpName)) {
+    const lower = ptpName.toLowerCase()
+    const matches = existingByLower.get(lower) ?? []
+    if (matches.length === 0) {
+      // No existing entry — create one.
       await prisma.pickListItem.create({
         data: { projectId, name: ptpName, type: 'PTP', code: m.position },
       })
+    } else {
+      // Keep the lowest-id row as the canonical one; collapse all
+      // duplicates onto it.
+      const [keep, ...dups] = matches
+      if (keep.name !== ptpName) {
+        await prisma.pickListItem.update({
+          where: { id: keep.id },
+          data: { name: ptpName, code: m.position },
+        })
+      }
+      for (const d of dups) idsToDelete.push(d.id)
     }
+    // Mark this bucket as consumed so the orphan pass below skips it.
+    existingByLower.delete(lower)
+  }
+
+  // Anything left in `existingByLower` is an orphan — its name
+  // doesn't match any current member. Delete those rows entirely.
+  for (const arr of existingByLower.values()) {
+    for (const p of arr) idsToDelete.push(p.id)
+  }
+
+  if (idsToDelete.length > 0) {
+    await prisma.pickListItem.deleteMany({
+      where: { id: { in: idsToDelete }, projectId, type: 'PTP' },
+    })
   }
 
   // Members whose equipment is NON-EMPTY but consists of only hardwire

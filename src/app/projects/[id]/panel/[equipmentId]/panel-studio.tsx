@@ -1704,119 +1704,107 @@ export function PanelStudio({
                 <div className="mx-auto hidden min-h-0 w-full max-w-7xl flex-shrink overflow-hidden px-4 pt-3 sm:px-6 lg:flex lg:px-8 lg:pt-4">
                   <div
                     // Inner card fills the outer container's content
-                    // area. Outer is `mx-auto max-w-7xl px-4 sm:px-6
-                    // lg:px-8` — same gutter math as every other page
-                    // header / content section, so the picker card's
-                    // left and right edges sit at the standard 32px
-                    // page margin on desktop. Vertical cap keeps the
-                    // chassis below visible: max-h-[min(35vh,280px)]
-                    // kicks the smaller value in on short laptop
-                    // viewports so a 6-key panel still fits without
-                    // forcing a scroll.
-                    className="flex max-h-[min(35vh,280px)] min-h-0 w-full flex-1 flex-col border-b border-white/10 pb-4"
+                    // area. Vertical cap keeps the chassis below
+                    // visible: max-h-[min(35vh,280px)] kicks the
+                    // smaller value in on short laptop viewports so
+                    // a 6-key panel still fits without forcing a
+                    // scroll. Now a 2-column horizontal split:
+                    // controls stacked vertically on the LEFT,
+                    // function-type-filtered chip area on the RIGHT.
+                    className="relative flex max-h-[min(35vh,280px)] min-h-0 w-full flex-row gap-4 border-b border-white/10 pb-4"
                   >
-                    {/* Top row: 3 controls + search + close — separated
-                        from the chip grid below by the same border style
-                        as the divider between the two chip columns. */}
-                    <div className="flex flex-wrap items-end gap-3 border-b border-white/10 pb-3.5">
-                      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Function Type</div>
-                        <PickerSelect
-                          value={pickerFilter}
-                          onChange={setPickerFilter}
-                          options={filterTypes.map((t) => ({
-                            value: t,
-                            label: t === 'All' ? 'All function types' : t === 'Audio' ? 'Audio I/O' : t,
-                          }))}
-                        />
-                      </div>
+                    {/* Left column — picker controls stacked
+                        vertically: Search on top, then Function Type
+                        filter, Trigger Mode, Talk Keys, Clear Key.
+                        Fixed-width so the right chip area gets the
+                        rest of the row. */}
+                    <div className="flex w-[260px] shrink-0 flex-col gap-2 border-r border-white/10 pr-4">
+                      <input
+                        type="text"
+                        placeholder="Search…"
+                        value={pickerSearch}
+                        onChange={(e) => setPickerSearch(e.target.value)}
+                        className="block w-full rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 outline-none transition-colors placeholder:text-gray-200 hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                        autoCapitalize="off"
+                        autoCorrect="off"
+                        autoComplete="off"
+                        spellCheck={false}
+                      />
 
-                      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Trigger Mode</div>
-                        <PickerSelect
-                          value={selectedKey?.triggerMode || 'latch'}
-                          onChange={(v) => { if (selectedKeyId) setTriggerMode(selectedKeyId, v) }}
-                          options={[
-                            { value: 'auto', label: 'Auto' },
-                            { value: 'latch', label: 'Latching' },
-                            { value: 'momentary', label: 'Momentary' },
-                          ]}
-                        />
-                      </div>
+                      <PickerSelect
+                        value={pickerFilter}
+                        onChange={setPickerFilter}
+                        options={filterTypes.map((t) => ({
+                          value: t,
+                          label: t === 'All' ? 'All function types' : t === 'Audio' ? 'Audio I/O' : t,
+                        }))}
+                      />
 
-                      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Talk Keys</div>
-                        <PickerSelect
-                          value={selectedKey?.talkMode || 'tl'}
-                          onChange={(v) => { if (selectedKeyId) setTalkMode(selectedKeyId, v) }}
-                          options={[
-                            { value: 'tl', label: 'Talk / Listen' },
-                            { value: 't', label: 'Talk' },
-                            { value: 'l', label: 'Listen' },
-                          ]}
-                        />
-                      </div>
+                      <PickerSelect
+                        value={selectedKey?.triggerMode || 'latch'}
+                        onChange={(v) => { if (selectedKeyId) setTriggerMode(selectedKeyId, v) }}
+                        options={[
+                          { value: 'auto', label: 'Auto' },
+                          { value: 'latch', label: 'Latching' },
+                          { value: 'momentary', label: 'Momentary' },
+                        ]}
+                      />
 
-                      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500">&nbsp;</div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            // Haptic blip on supported devices (iOS
-                            // Safari has no Vibration API yet, but
-                            // it's a no-op there). Fires regardless
-                            // of whether the key was already empty —
-                            // the user's tapped a button and should
-                            // feel something.
-                            try { navigator.vibrate?.(15) } catch {}
-                            if (selectedKeyId) clearKey(selectedKeyId)
-                          }}
-                          className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 px-3.5 py-2 text-sm font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
-                        >
-                          {selectedKey?.pickListItemId ? 'Clear Key' : 'Unassigned'}
-                        </button>
-                      </div>
+                      <PickerSelect
+                        value={selectedKey?.talkMode || 'tl'}
+                        onChange={(v) => { if (selectedKeyId) setTalkMode(selectedKeyId, v) }}
+                        options={[
+                          { value: 'tl', label: 'Talk / Listen' },
+                          { value: 't', label: 'Talk' },
+                          { value: 'l', label: 'Listen' },
+                        ]}
+                      />
 
-                      <div className="min-w-[200px] flex-1">
-                        <input
-                          type="text"
-                          placeholder="Search by name or code..."
-                          value={pickerSearch}
-                          onChange={(e) => setPickerSearch(e.target.value)}
-                          className="block w-full rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 outline-none transition-colors placeholder:text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white focus:border-[#0178a3]"
-                          autoCapitalize="off"
-                          autoCorrect="off"
-                          autoComplete="off"
-                          spellCheck={false}
-                        />
-                      </div>
-
-                      {/* Close X — top-right of the card. Closes the
-                          inspector too so we don't fall back into the
-                          old detail-view modal on desktop. */}
                       <button
                         type="button"
-                        onClick={() => { closeInspector() }}
-                        aria-label="Close picker"
-                        className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+                        onClick={() => {
+                          try { navigator.vibrate?.(15) } catch {}
+                          if (selectedKeyId) clearKey(selectedKeyId)
+                        }}
+                        className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 px-3.5 py-2 text-sm font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
                       >
-                        <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                        </svg>
+                        {selectedKey?.pickListItemId ? 'Clear Key' : 'Unassigned'}
                       </button>
                     </div>
 
-                    {/* Items as tab-style chips, split into two columns:
-                        left = everything except PTP (CONF, IFB, Audio,
-                        GRP) grouped by type, right = PTP (panels &
-                        beltpacks). Each column scrolls independently
-                        so a long PTP list doesn't push the rest off
-                        screen. min-h-0 + flex-1 lets the whole grid
-                        auto-shrink so the chassis below stays in view
-                        when expansions are active. */}
+                    {/* Right column — chips populated by the Function
+                        Type filter on the left. Single column now;
+                        scrolls vertically when there are more chips
+                        than fit. */}
                     {(() => {
                       const renderChip = (item: PickerItem) => {
                         const isActive = selectedKey?.pickListItemId === item.id
+                        // PTP chips: show "FirstName L" instead of
+                        // the full "First Last" so the chip stays
+                        // narrow on the desktop grid. First name is
+                        // capped at 7 chars (no ellipsis) so very
+                        // long names like "Latreesse" / "Christopher"
+                        // shrink to "Latrees" / "Christo" — the chip
+                        // doesn't blow out its grid cell. Position
+                        // truncates to its first 4 characters when
+                        // the name part is longer than 8 chars total
+                        // so the label still fits next to the name.
+                        let displayName = item.name
+                        let displayDetail: string | null = null
+                        if (item.type === 'PTP') {
+                          const parts = item.name.trim().split(/\s+/)
+                          const firstFull = parts[0] ?? ''
+                          const first = firstFull.length > 7 ? firstFull.slice(0, 7) : firstFull
+                          const last = parts.length > 1 ? parts[parts.length - 1] : ''
+                          displayName = last ? `${first} ${last.charAt(0).toUpperCase()}` : first
+                          if (item.position) {
+                            displayDetail = displayName.length > 8
+                              ? item.position.slice(0, 4)
+                              : item.position
+                          }
+                        } else if (item.code) {
+                          displayDetail = item.code
+                        }
                         return (
                           <PickerItemDraggable
                             key={`${item.type}-${item.id}`}
@@ -1824,32 +1812,20 @@ export function PanelStudio({
                             canDrag={canEditKeys}
                             isActive={isActive}
                             onClick={() => selectedKeyId && assignPickerItem(selectedKeyId, item)}
-                            className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold transition-[colors,transform] active:scale-95 ${
+                            className={`flex w-full min-w-0 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold transition-[colors,transform] active:scale-95 ${
                               isActive
                                 ? 'border-[#0178a3] bg-[#0178a3] text-white'
                                 : 'border-white/10 bg-[#202020] text-gray-300 hover:border-white/20 hover:bg-[#2a2a2a] hover:text-white'
                             }`}
                           >
-                            <span className="overflow-hidden text-ellipsis whitespace-nowrap">{item.name}</span>
-                            {/* PTP chips: show the member's position
-                                in cyan so admins can pick the right
-                                John Doe by role at a glance. The code
-                                field is hidden for PTP because the
-                                position already serves that "extra
-                                disambiguator" role and double labels
-                                feel redundant. */}
-                            {item.type === 'PTP' && item.position && (
+                            <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{displayName}</span>
+                            {item.type === 'PTP' && displayDetail && (
                               <span className={`overflow-hidden text-ellipsis whitespace-nowrap text-[10px] ${isActive ? 'text-white/85' : 'text-[#22a7d3]'}`}>
-                                {item.position}
+                                {displayDetail}
                               </span>
                             )}
-                            {item.type !== 'PTP' && item.code && (
-                              // Non-PTP code (CONF / IFB / GRP / Audio
-                              // I/O id) gets the same cyan treatment as
-                              // PTP's position so the disambiguator
-                              // text reads consistently across all
-                              // function types in the picker.
-                              <span className={`font-mono text-[10px] ${isActive ? 'text-white/85' : 'text-[#22a7d3]'}`}>{item.code}</span>
+                            {item.type !== 'PTP' && displayDetail && (
+                              <span className={`font-mono text-[10px] ${isActive ? 'text-white/85' : 'text-[#22a7d3]'}`}>{displayDetail}</span>
                             )}
                           </PickerItemDraggable>
                         )
@@ -1864,45 +1840,37 @@ export function PanelStudio({
                               )}
                             </div>
                           )}
-                          <div className="flex flex-wrap gap-1.5">
+                          <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-1.5">
                             {items.map(renderChip)}
                           </div>
                         </div>
                       )
-                      const otherEntries = Object.entries(groupedItems).filter(([t]) => t !== 'PTP')
-                      const ptpItems = groupedItems.PTP ?? []
-                      if (Object.keys(groupedItems).length === 0) {
-                        return <div className="py-8 text-center text-sm text-gray-500">No items found</div>
-                      }
+                      const allEntries = Object.entries(groupedItems)
+                      // The chip column is absolute-positioned inside
+                      // a relative flex slot so its content height
+                      // doesn't push the row taller than the left
+                      // column's natural height. The wrapper takes
+                      // its width from `flex-1` but contributes 0px
+                      // to the row's height — so the card sizes to
+                      // the left column (5 controls), and chips
+                      // scroll inside that allotted height.
                       return (
-                        <div className="grid min-h-0 flex-1 grid-cols-2 gap-4 overflow-hidden pt-3.5">
-                          {/* Each column wrapped in VerticalScroller so
-                              up/down chevrons appear on the right edge
-                              when there are more chips than fit. Same
-                              chevron styling as ChipScroller's left/
-                              right buttons elsewhere in the app. */}
-                          <VerticalScroller
-                            className="min-h-0"
-                            scrollClassName="flex h-full flex-col gap-3 overflow-y-auto pr-9"
-                            ariaLabel="functions"
-                          >
-                            {otherEntries.length === 0 ? (
-                              <div className="py-4 text-center text-xs text-gray-500">Nothing in this filter</div>
+                        <div className="relative flex-1">
+                          <div className="absolute inset-0 pl-[30px]">
+                            {allEntries.length === 0 ? (
+                              <div className="flex h-full items-center justify-center">
+                                <div className="text-sm text-gray-500">No items found</div>
+                              </div>
                             ) : (
-                              otherEntries.map(([type, items]) => renderGroup(type, items))
+                              <VerticalScroller
+                                className="h-full"
+                                scrollClassName="flex h-full flex-col gap-3 overflow-y-auto pr-9"
+                                ariaLabel="picker items"
+                              >
+                                {allEntries.map(([type, items]) => renderGroup(type, items))}
+                              </VerticalScroller>
                             )}
-                          </VerticalScroller>
-                          <VerticalScroller
-                            className="min-h-0 border-l border-white/10 pl-4"
-                            scrollClassName="flex h-full flex-col gap-3 overflow-y-auto pr-9"
-                            ariaLabel="point-to-point list"
-                          >
-                            {ptpItems.length === 0 ? (
-                              <div className="py-4 text-center text-xs text-gray-500">No PTP in this filter</div>
-                            ) : (
-                              renderGroup('PTP', ptpItems)
-                            )}
-                          </VerticalScroller>
+                          </div>
                         </div>
                       )
                     })()}
