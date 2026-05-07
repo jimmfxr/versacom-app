@@ -164,7 +164,16 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
     // Viewport-locked flex column on all screen sizes so pages can
     // implement kiosk-style inner scroll regions (header / tabs / chips
     // fixed, only the list scrolls).
-    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[#202020]">
+    <div
+      className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[#202020]"
+      style={{
+        // iOS PWA in standalone mode: 100dvh extends beneath the
+        // home indicator. Reserve that strip with the safe-area
+        // inset so kiosk-style scroll regions (Dashboard cards,
+        // Tasks list, etc.) don't render content underneath it.
+        paddingBottom: 'env(safe-area-inset-bottom)',
+      }}
+    >
       <Navbar
         navigation={getNavigation(pathname, isAdmin, isUserOnly, showMyEquipment, lastProjectId, taskCount, inMyEquipmentBrowse)}
         user={navUser}

@@ -388,11 +388,14 @@ export default async function HomePage({
       {/* Sticky chrome: title + ProjectSwitcher come from PageLayout's
           stickyHeader path; the # members / # equipment line below
           the divider is also pinned (flex-shrink-0). Only the
-          ProjectDashboard sections scroll. */}
-      <div className="flex-shrink-0 pt-1">
+          ProjectDashboard sections scroll. Wrappers kept tight (no
+          extra pt) so the kiosk header doesn't eat into the
+          scroll region's height — important on iPhone Pro Max
+          where the dashboard previously fit on one screen. */}
+      <div className="flex-shrink-0">
         <DashboardStatsLine memberCount={memberCount} equipmentCount={equipment.length} />
       </div>
-      <div data-scroll-container className="min-h-0 flex-1 overflow-y-auto pt-3 pb-[max(env(safe-area-inset-bottom),20px)]">
+      <div data-scroll-container className="min-h-0 flex-1 overflow-y-auto">
         <ProjectDashboard
           projectId={project.id}
           equipment={equipment}
