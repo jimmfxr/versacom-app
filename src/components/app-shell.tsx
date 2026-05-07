@@ -127,6 +127,39 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
     router.push('/login')
   }
 
+  // Global haptic feedback for taps on actionable elements. Fires
+  // navigator.vibrate(10) on `pointerdown` for any element matching
+  // button / role=button / [data-haptic] / anchors-as-buttons. iOS
+  // and iPadOS don't expose the Vibration API (the call no-ops there
+  // — Apple still has no web-haptics primitive), but Android Chrome
+  // and most desktop browsers honor it. Listening on `pointerdown`
+  // (not `click`) gives the buzz the moment the finger touches down,
+  // which is what users expect on native apps. A guard skips form
+  // controls (input/textarea/select) so typing doesn't buzz on every
+  // key, and disabled elements are ignored too.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (typeof navigator.vibrate !== 'function') return
+    function onPointerDown(e: PointerEvent) {
+      // Only fire for primary touch / mouse buttons.
+      if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return
+      const target = e.target as Element | null
+      if (!target) return
+      // Walk up to the nearest button-ish ancestor.
+      const el = target.closest('button, [role="button"], a[href], [data-haptic="true"]') as HTMLElement | null
+      if (!el) return
+      // Skip disabled buttons.
+      if (el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true') return
+      try {
+        navigator.vibrate(10)
+      } catch {
+        // ignore — vibration may be blocked by user-agent policy.
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown, { passive: true })
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [])
+
   return (
     // Viewport-locked flex column on all screen sizes so pages can
     // implement kiosk-style inner scroll regions (header / tabs / chips
