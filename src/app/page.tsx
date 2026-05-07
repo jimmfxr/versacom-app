@@ -9,7 +9,7 @@ import { ScrollToTop } from '@/components/scroll-to-top'
 import { StepCarousel } from '@/components/step-carousel'
 import { PageLayout } from '@/components/page-layout'
 import { EmptyState } from '@/components/empty-state'
-import { ProjectDashboard, DashboardHeaderAction } from './project-dashboard'
+import { ProjectDashboard, DashboardHeaderAction, DashboardStatsLine } from './project-dashboard'
 
 export const dynamic = 'force-dynamic'
 
@@ -390,6 +390,7 @@ export default async function HomePage({
           />
         }
       >
+        <DashboardStatsLine memberCount={memberCount} equipmentCount={equipment.length} />
         <ProjectDashboard
           projectId={project.id}
           equipment={equipment}

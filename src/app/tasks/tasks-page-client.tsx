@@ -39,7 +39,7 @@ export function TasksPageClient({
         placeholder="Search tasks..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        className="w-64 rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+        className="w-64 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
       />
     </div>
   )
@@ -92,7 +92,7 @@ export function TasksPageClient({
             placeholder="Search tasks..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full flex-1 rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+            className="w-full flex-1 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
           />
           <button
             type="button"

@@ -1178,7 +1178,7 @@ export function ProjectPage({
                     placeholder="Search equipment..."
                     value={eqSearch}
                     onChange={(e) => setEqSearch(e.target.value)}
-                    className="w-56 rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+                    className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
                   />
                   {/* Add buttons match the Edit/Back button height
                       on desktop (px-4 py-2 text-sm). Still a single
@@ -1198,7 +1198,7 @@ export function ProjectPage({
                     placeholder="Search team..."
                     value={teamSearch}
                     onChange={(e) => setTeamSearch(e.target.value)}
-                    className="w-56 rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+                    className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
                   />
                   {canEditTeam && !showAddMember && (
                     <button type="button" onClick={() => setShowAddMember(true)} aria-label="Add Member" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
@@ -1215,7 +1215,7 @@ export function ProjectPage({
                     placeholder="Search functions..."
                     value={plSearch}
                     onChange={(e) => setPlSearch(e.target.value)}
-                    className="w-56 rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+                    className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
                   />
                   {canEditPickList && !showAddPl && (
                     <button type="button" onClick={() => setShowAddPl(true)} aria-label="Add Function" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
@@ -1229,7 +1229,7 @@ export function ProjectPage({
                     placeholder="Search plots..."
                     value={plotSearch}
                     onChange={(e) => setPlotSearch(e.target.value)}
-                    className="w-56 rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+                    className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
                   />
                   {isAdmin && !showAddPlot && (
                     <button type="button" onClick={() => setShowAddPlot(true)} aria-label="Add Plot" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
@@ -1238,21 +1238,23 @@ export function ProjectPage({
               )}
             </div>
             {canSeeSettings && (
-              <Button
-                size="md"
-                variant="secondary"
+              <button
+                type="button"
                 onClick={() => setShowSettings(!showSettings)}
                 aria-label={showSettings ? 'Close settings' : 'Edit project'}
+                className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
               >
                 {showSettings ? 'Close' : 'Edit'}
-              </Button>
+              </button>
             )}
             {/* Back button — sits to the right of Edit on every
-                viewport. Filled gray pill with white text. */}
+                viewport. Same chip-inactive style as the Edit and
+                in-card Edit buttons so the whole header row reads
+                as one cohesive set. */}
             <button
               type="button"
               onClick={() => router.push('/projects')}
-              className="inline-flex rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/15"
+              className="inline-flex rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
             >
               Back
             </button>
@@ -1304,44 +1306,60 @@ export function ProjectPage({
                     findable instead of buried as a third dropdown. */}
                 {isProjectAdmin && (
                   <div className="mt-5 border-t border-white/[0.06] pt-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <h4 className="text-sm font-semibold text-white">
-                          {status === 'archived' ? 'Restore project' : 'Archive project'}
-                        </h4>
-                        <p className="mt-0.5 text-xs text-gray-500">
-                          {status === 'archived'
-                            ? 'Bring this project back to Active so crew can edit equipment again.'
-                            : 'Lock the project as read-only after the show wraps. Everything is preserved; you can restore it later.'}
-                        </p>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => setStatus(status === 'archived' ? 'active' : 'archived')}
-                        disabled={isPending}
-                      >
-                        {status === 'archived' ? 'Restore' : 'Archive'}
-                      </Button>
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-semibold text-white">
+                        {status === 'archived' ? 'Restore project' : 'Archive project'}
+                      </h4>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        {status === 'archived'
+                          ? 'Bring this project back to Active so crew can edit equipment again.'
+                          : 'Lock the project as read-only after the show wraps. Everything is preserved; you can restore it later.'}
+                      </p>
                     </div>
                   </div>
                 )}
                 {editError && <p className="mt-3 text-sm text-red-400">{editError}</p>}
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                {/* Action row — all buttons live here at the bottom-
+                    right of the card. Delete on the far left of the
+                    cluster, then Archive / Activate Return (chip-
+                    inactive look), then Save Changes (cyan primary). */}
+                <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
                   {isProjectAdmin && (
-                    <Button variant="danger" size="sm" onClick={() => setShowDeleteConfirm(true)} disabled={isPending}>Delete Project</Button>
-                  )}
-                  <div className="ml-auto flex flex-wrap items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant={returnPhaseActive ? 'secondary' : 'primary'}
-                      onClick={handleToggleReturnPhase}
-                      disabled={returnPending}
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      disabled={isPending}
+                      className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {returnPending ? '...' : returnPhaseActive ? 'Undo Return' : 'Activate Return'}
-                    </Button>
-                    <Button size="sm" onClick={handleSaveProject} disabled={isPending}>{isPending ? 'Saving...' : 'Save Changes'}</Button>
-                  </div>
+                      Delete
+                    </button>
+                  )}
+                  {isProjectAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => setStatus(status === 'archived' ? 'active' : 'archived')}
+                      disabled={isPending}
+                      className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {status === 'archived' ? 'Restore' : 'Archive'}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleToggleReturnPhase}
+                    disabled={returnPending}
+                    className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {returnPending ? '...' : returnPhaseActive ? 'Undo Return' : 'Activate Return'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveProject}
+                    disabled={isPending}
+                    className="rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isPending ? 'Saving...' : 'Save Changes'}
+                  </button>
                 </div>
               </Card>
               <div className="border-t border-white/10" />
@@ -1449,7 +1467,7 @@ export function ProjectPage({
                         else if (activeTab === 'picklist') setPlSearch(v)
                         else if (activeTab === 'stage-plots') setPlotSearch(v)
                       }}
-                      className="w-full flex-1 rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+                      className="w-full flex-1 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
                     />
                     <button
                       type="button"
@@ -1478,7 +1496,7 @@ export function ProjectPage({
                         className={`shrink-0 rounded-md px-3.5 py-2 text-sm font-semibold transition-colors ${
                           activeTab === tab.key
                             ? 'bg-[#0178a3] text-white'
-                            : 'border border-white/10 bg-[#2a2a2a] text-gray-300 hover:bg-[#313131] hover:text-white'
+                            : 'border border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04]'
                         }`}
                       >
                         {tab.label}
@@ -1596,24 +1614,34 @@ export function ProjectPage({
                   Two tabs: Add Equipment (default) + Headsets & Misc. */}
               {canAddEquipment && showAdd && (
                 <Card>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        variant={addTab === 'equipment' ? 'primary' : 'secondary'}
+                  <div className="relative flex items-center justify-center gap-2">
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <button
+                        type="button"
                         onClick={() => setAddTab('equipment')}
+                        className={`shrink-0 rounded-md px-3.5 py-2 text-sm font-semibold transition-colors ${
+                          addTab === 'equipment'
+                            ? 'bg-[#0178a3] text-white'
+                            : 'border border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04]'
+                        }`}
                       >
-                        Add Equipment
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={addTab === 'inventory' ? 'primary' : 'secondary'}
+                        Equipment
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => setAddTab('inventory')}
+                        className={`shrink-0 rounded-md px-3.5 py-2 text-sm font-semibold transition-colors ${
+                          addTab === 'inventory'
+                            ? 'bg-[#0178a3] text-white'
+                            : 'border border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04]'
+                        }`}
                       >
-                        Add Headsets &amp; Misc
-                      </Button>
+                        Headsets &amp; Misc
+                      </button>
                     </div>
-                    <IconButton onClick={() => { setShowAdd(false); setAddError('') }}><CloseIcon /></IconButton>
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2">
+                      <IconButton onClick={() => { setShowAdd(false); setAddError('') }}><CloseIcon /></IconButton>
+                    </div>
                   </div>
 
                   {addTab === 'equipment' ? (
@@ -1839,8 +1867,8 @@ export function ProjectPage({
                               </div>
                               <div className="mt-3 flex items-center justify-end gap-3">
                                 <Button type="submit" size="sm" disabled={isPending}>Save</Button>
-                                <Button type="button" size="sm" variant="danger" onClick={() => handleDeleteEquipment(item)} disabled={isPending}>Delete</Button>
-                                <Button type="button" size="sm" variant="secondary" onClick={() => setEditingEqId(null)} disabled={isPending}>Cancel</Button>
+                                <button type="button" onClick={() => handleDeleteEquipment(item)} disabled={isPending} className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50">Delete</button>
+                                <button type="button" onClick={() => setEditingEqId(null)} disabled={isPending} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
                               </div>
                             </form>
                           ) : (
@@ -1946,7 +1974,7 @@ export function ProjectPage({
                                 {getStatusLabel(item.deployStatus)}
                               </span>
                             )}
-                            {canEditEquipment && <Button size="sm" data-edit-button={`equipment-${item.id}`} onClick={() => startEqEdit(item)}>Edit</Button>}
+                            {canEditEquipment && <button type="button" data-edit-button={`equipment-${item.id}`} onClick={() => startEqEdit(item)} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]">Edit</button>}
                           </div>
                         )}
                       </div>
@@ -2262,8 +2290,8 @@ export function ProjectPage({
                             </div>
                             <div className="mt-3 flex items-center justify-end gap-3">
                               <Button type="submit" size="sm" disabled={isPending}>Save</Button>
-                              <Button type="button" size="sm" variant="danger" onClick={() => handleDeleteMember(m)} disabled={isPending}>Delete</Button>
-                              <Button type="button" size="sm" variant="secondary" onClick={() => setEditingMemberId(null)} disabled={isPending}>Cancel</Button>
+                              <button type="button" onClick={() => handleDeleteMember(m)} disabled={isPending} className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50">Delete</button>
+                              <button type="button" onClick={() => setEditingMemberId(null)} disabled={isPending} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
                             </div>
                           </form>
                         ) : (
@@ -2291,7 +2319,7 @@ export function ProjectPage({
                                 <div className="mt-1.5 text-xs italic text-gray-500">No equipment assigned</div>
                               )}
                             </div>
-                            {canEditTeam && <Button size="sm" data-edit-button={`team-${m.id}`} onClick={() => startMemberEdit(m)}>Edit</Button>}
+                            {canEditTeam && <button type="button" data-edit-button={`team-${m.id}`} onClick={() => startMemberEdit(m)} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]">Edit</button>}
                           </div>
                         )}
                       </div>
@@ -2430,8 +2458,8 @@ export function ProjectPage({
                             </div>
                             <div className="mt-3 flex items-center justify-end gap-3">
                               <Button type="submit" size="sm" disabled={isPending}>Save</Button>
-                              <Button type="button" size="sm" variant="danger" onClick={() => handleDeletePl(item)} disabled={isPending}>Delete</Button>
-                              <Button type="button" size="sm" variant="secondary" onClick={() => setEditingPlId(null)} disabled={isPending}>Cancel</Button>
+                              <button type="button" onClick={() => handleDeletePl(item)} disabled={isPending} className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50">Delete</button>
+                              <button type="button" onClick={() => setEditingPlId(null)} disabled={isPending} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
                             </div>
                           </form>
                         ) : (
@@ -2448,7 +2476,7 @@ export function ProjectPage({
                                 <div className="mt-1.5 text-xs italic text-gray-500">Unused</div>
                               )}
                             </div>
-                            {canEditPickList && <Button size="sm" data-edit-button={`picklist-${item.id}`} onClick={() => startPlEdit(item)}>Edit</Button>}
+                            {canEditPickList && <button type="button" data-edit-button={`picklist-${item.id}`} onClick={() => startPlEdit(item)} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]">Edit</button>}
                           </div>
                         )}
                       </div>
@@ -2608,8 +2636,8 @@ export function ProjectPage({
                               >
                                 Save
                               </Button>
-                              <Button size="sm" variant="danger" onClick={() => setMockPlots((prev) => prev.filter((p) => p.id !== plot.id))}>Delete</Button>
-                              <Button size="sm" variant="secondary" onClick={() => setEditingPlotId(null)}>Cancel</Button>
+                              <button type="button" onClick={() => setMockPlots((prev) => prev.filter((p) => p.id !== plot.id))} className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15">Delete</button>
+                              <button type="button" onClick={() => setEditingPlotId(null)} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]">Cancel</button>
                             </div>
                           </>
                         ) : (
@@ -2620,17 +2648,18 @@ export function ProjectPage({
                                 href={plot.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="rounded-lg bg-white/10 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-white/20"
+                                className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
                               >
                                 Open PDF
                               </a>
                               {isAdmin && (
-                                <Button
-                                  size="sm"
+                                <button
+                                  type="button"
                                   onClick={() => { setEditingPlotId(plot.id); setEditPlotData({ label: plot.label, url: plot.url }) }}
+                                  className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
                                 >
                                   Edit
-                                </Button>
+                                </button>
                               )}
                             </div>
                           </div>

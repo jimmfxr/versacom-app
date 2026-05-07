@@ -74,7 +74,7 @@ export function Chip({
       className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
         active
           ? 'bg-[#0178a3] text-white'
-          : 'border border-white/[0.10] bg-[#2a2a2a] text-gray-300 hover:bg-[#313131]'
+          : 'border border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04]'
       }`}
     >
       {children}

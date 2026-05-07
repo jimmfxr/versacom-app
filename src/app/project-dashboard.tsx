@@ -58,10 +58,35 @@ export function DashboardHeaderAction({
   return (
     <div className="flex w-full flex-col items-start sm:w-auto sm:items-end">
       <ProjectSwitcher projectId={projectId} projectName={projectName} userProjects={userProjects} />
-      <div className="mt-2 text-xs text-gray-500">
+      {/* Mobile: stats line stays inside the header (left-aligned
+          under the project switcher). Desktop renders this same
+          summary as a separate row below the page header divider —
+          see DashboardStatsLine. */}
+      <div className="mt-2 text-xs text-gray-500 sm:hidden">
         {memberCount} {memberCount === 1 ? 'member' : 'members'} · {equipmentCount}{' '}
         {equipmentCount === 1 ? 'equipment item' : 'equipment items'}
       </div>
+    </div>
+  )
+}
+
+/**
+ * Desktop-only stats summary (members / equipment count) that lives
+ * directly under the page header's bottomBorder line, right-aligned
+ * to match the project switcher's column on desktop. Hidden on mobile
+ * because the same info is rendered inline in DashboardHeaderAction.
+ */
+export function DashboardStatsLine({
+  memberCount,
+  equipmentCount,
+}: {
+  memberCount: number
+  equipmentCount: number
+}) {
+  return (
+    <div className="hidden -mt-6 pt-0 text-right text-xs text-gray-500 sm:block">
+      {memberCount} {memberCount === 1 ? 'member' : 'members'} · {equipmentCount}{' '}
+      {equipmentCount === 1 ? 'equipment item' : 'equipment items'}
     </div>
   )
 }

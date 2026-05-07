@@ -1686,31 +1686,22 @@ export function PanelStudio({
 
                       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                         <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500">&nbsp;</div>
-                        {(() => {
-                          const isUnassignedActive = !selectedKey?.pickListItemId
-                          return (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                // Haptic blip on supported devices (iOS
-                                // Safari has no Vibration API yet, but
-                                // it's a no-op there). Fires regardless
-                                // of whether the key was already empty —
-                                // the user's tapped a button and should
-                                // feel something.
-                                try { navigator.vibrate?.(15) } catch {}
-                                if (selectedKeyId) clearKey(selectedKeyId)
-                              }}
-                              className={`flex w-full items-center justify-center gap-2 rounded-lg border px-3.5 py-2 text-sm font-semibold transition-colors ${
-                                isUnassignedActive
-                                  ? 'border-[rgba(34,167,211,0.5)] bg-[rgba(34,167,211,0.12)] text-[#22a7d3]'
-                                  : 'border-white/10 bg-[#2a2a2a] text-gray-300 hover:border-white/20 hover:bg-white/[0.06] hover:text-white'
-                              }`}
-                            >
-                              Clear Key
-                            </button>
-                          )
-                        })()}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // Haptic blip on supported devices (iOS
+                            // Safari has no Vibration API yet, but
+                            // it's a no-op there). Fires regardless
+                            // of whether the key was already empty —
+                            // the user's tapped a button and should
+                            // feel something.
+                            try { navigator.vibrate?.(15) } catch {}
+                            if (selectedKeyId) clearKey(selectedKeyId)
+                          }}
+                          className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 px-3.5 py-2 text-sm font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
+                        >
+                          {selectedKey?.pickListItemId ? 'Clear Key' : 'Unassigned'}
+                        </button>
                       </div>
 
                       <div className="min-w-[200px] flex-1">
@@ -1719,7 +1710,7 @@ export function PanelStudio({
                           placeholder="Search by name or code..."
                           value={pickerSearch}
                           onChange={(e) => setPickerSearch(e.target.value)}
-                          className="block w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3.5 py-2 text-sm text-white outline-none transition-colors placeholder:text-gray-500 hover:border-white/20 focus:border-[#0178a3]"
+                          className="block w-full rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 outline-none transition-colors placeholder:text-gray-200 hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
                           autoCapitalize="off"
                           autoCorrect="off"
                           autoComplete="off"
@@ -1734,7 +1725,7 @@ export function PanelStudio({
                         type="button"
                         onClick={() => { closeInspector() }}
                         aria-label="Close picker"
-                        className="flex size-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+                        className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
                       >
                         <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -1863,15 +1854,15 @@ export function PanelStudio({
                     section — important so identity / Copy / Save /
                     expansion controls all line up vertically with the
                     picker card edges below them. */}
-                <div className={`mx-auto flex w-full max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8 ${stackHeader ? 'flex-col' : 'flex-nowrap justify-between'}`}>
+                <div className={`mx-auto flex w-full max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8 ${stackHeader ? 'flex-col sm:max-lg:flex-row sm:max-lg:flex-nowrap sm:max-lg:justify-between' : 'flex-nowrap justify-between'}`}>
                 {/* Left: ID · name · meta · ip · project · hardware · key count
                     All separated by middle dots. Wraps via flex-wrap so
                     a long identity line doesn't push the right group
                     off-screen on narrow viewports — but the parent is
                     flex-nowrap so the two GROUPS stay on one row. */}
-                <div className={`flex min-w-0 flex-col gap-y-0.5 overflow-hidden ${stackHeader ? 'items-center' : 'flex-1 items-center sm:items-start'}`}>
+                <div className={`flex min-w-0 flex-col gap-y-0.5 overflow-hidden ${stackHeader ? 'items-center sm:max-lg:flex-1 sm:max-lg:items-start' : 'flex-1 items-center sm:items-start'}`}>
                   {/* Row 1: ID · firstName lastName · position · location */}
-                  <div className={`flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 justify-center ${stackHeader ? '' : 'sm:justify-start'}`}>
+                  <div className={`flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 justify-center ${stackHeader ? 'sm:max-lg:justify-start' : 'sm:justify-start'}`}>
                     {equipment.name && (
                       <span className="text-[18px] font-bold text-[#22a7d3] font-mono lg:text-[22px]">{equipment.name}</span>
                     )}
@@ -1899,7 +1890,7 @@ export function PanelStudio({
                       strip stays clean and the secondary metadata
                       (link to panel UI, which show this is on) lives
                       on its own line. */}
-                  <div className={`flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 justify-center ${stackHeader ? '' : 'sm:justify-start'}`}>
+                  <div className={`flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 justify-center ${stackHeader ? 'sm:max-lg:justify-start' : 'sm:justify-start'}`}>
                     {showIpAddress && equipment.ipAddress && (
                       <>
                         <a
@@ -1930,9 +1921,11 @@ export function PanelStudio({
                     and expansion controls move to the footer next to
                     the Main/Shift toggle so the header stays compact
                     on small screens). */}
-                <div className={`flex flex-shrink-0 flex-wrap items-center gap-3 ${stackHeader ? 'justify-center' : ''}`}>
-                  {/* Legend + expansion — desktop only (lg+) */}
-                  <div className="hidden flex-wrap items-center gap-x-2 gap-y-1 lg:flex">
+                <div className={`flex flex-shrink-0 flex-wrap items-center gap-3 ${stackHeader ? 'justify-center sm:max-lg:justify-end' : ''}`}>
+                  {/* Legend + expansion — visible from sm+ (so it
+                      sits to the right of the identity strip in
+                      landscape phone too, not just desktop). */}
+                  <div className="hidden flex-wrap items-center gap-x-2 gap-y-1 sm:flex">
                     <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
                       <span className="w-[9px] h-[9px] rounded-sm bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
                       Assigned
@@ -1987,20 +1980,22 @@ export function PanelStudio({
                     )}
                   </div>
 
-                  {/* Copy / Paste / Save — desktop right header only.
-                      On mobile they live at the bottom of the footer
-                      (under the Main/Shift toggle), so we hide them
-                      here on small screens. Hidden entirely in review
-                      mode (deny / approve buttons take over the
-                      footer in that mode). */}
+                  {/* Copy / Paste / Save — visible at sm+ so they
+                      sit right of the expansion controls on landscape
+                      phone too. Hidden in mobile portrait (Main/Shift
+                      footer carries them there) and at lg+ when
+                      stackHeader is true (small chassis on desktop —
+                      the layout collapses to mobile-style and these
+                      buttons move down to the footer below the
+                      chassis). Hidden in review mode entirely. */}
                   {canEditKeys && !isReviewMode && (
-                    <div className="hidden items-center gap-2 lg:flex">
+                    <div className={`hidden items-center gap-2 sm:flex ${stackHeader ? 'lg:hidden' : ''}`}>
                       {(_currentUserRole === 'admin' || _currentUserRole === 'manager' || isAdminGlobal) && (
                         <>
                           <button
                             type="button"
                             onClick={handleCopyPanel}
-                            className="rounded-lg border border-white/10 bg-[#2a2a2a] px-4 py-2 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                            className="shrink-0 rounded-md border border-white/10 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
                           >
                             Copy
                           </button>
@@ -2009,7 +2004,7 @@ export function PanelStudio({
                               type="button"
                               onClick={handlePastePanel}
                               title={`Paste from ${panelClipboard.sourceLabel}`}
-                              className="rounded-lg border border-white/10 bg-[#2a2a2a] px-4 py-2 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                              className="shrink-0 rounded-md border border-white/10 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
                             >
                               Paste
                             </button>
@@ -2021,7 +2016,7 @@ export function PanelStudio({
                           type="button"
                           onClick={handleSave}
                           disabled={saving}
-                          className="rounded-lg bg-[#0178a3] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
+                          className="shrink-0 rounded-md bg-[#0178a3] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {saving ? 'Saving...' : 'Save'}
                         </button>
@@ -2039,7 +2034,7 @@ export function PanelStudio({
                   pushing the bigger identity text down. Hidden on
                   desktop (lg+) — same content already lives in the
                   studio header's right group there. */}
-              <div className="flex w-full flex-shrink-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 pb-2 sm:px-6 lg:hidden">
+              <div className="flex w-full flex-shrink-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 pb-2 sm:hidden">
                 <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
                   <span className="w-[9px] h-[9px] rounded-sm bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
                   Assigned
@@ -2186,7 +2181,7 @@ export function PanelStudio({
                   studio header's right group on big screens.
                   Legend + expansion now live ABOVE the user-name
                   strip on mobile, not down here. */}
-              <div className="flex-shrink-0 w-full px-4 pb-3 pt-2 lg:px-5 lg:pb-5 lg:pt-3 flex flex-col items-center gap-3 lg:flex-row lg:justify-center">
+              <div className="flex-shrink-0 w-full px-4 pb-3 pt-2 lg:px-5 lg:pb-5 lg:pt-3 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
                 {isReviewMode ? (
                   <>
                     {/* Review mode summary */}
@@ -2227,36 +2222,51 @@ export function PanelStudio({
                   </>
                 ) : (
                   <>
-                    {/* Main/Shift toggle (panels only) */}
+                    {/* Main/Shift toggle (panels only) — styled to
+                        match the Chip component used in tabs/filters:
+                        cyan-fill + white text when active, dark fill
+                        with a hairline border when inactive. */}
                     {hasShiftPage ? (
-                      <div className="inline-flex bg-[#2a2a2a] p-1 rounded-[10px] border border-white/[0.06]">
+                      <div className="inline-flex gap-2">
                         <button
+                          type="button"
                           onClick={() => { setActivePage('main'); deselectAll() }}
-                          className={`border-none text-[11px] font-bold py-2 px-[22px] rounded-[7px] tracking-wider uppercase cursor-pointer transition-colors ${activePage === 'main' ? 'bg-[#0178a3] text-white' : 'bg-transparent text-gray-400'}`}
+                          className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                            activePage === 'main'
+                              ? 'bg-[#0178a3] text-white'
+                              : 'border border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04]'
+                          }`}
                         >
                           Main
                         </button>
                         <button
+                          type="button"
                           onClick={() => { setActivePage('shift'); deselectAll() }}
-                          className={`border-none text-[11px] font-bold py-2 px-[22px] rounded-[7px] tracking-wider uppercase cursor-pointer transition-colors ${activePage === 'shift' ? 'bg-[#0178a3] text-white' : 'bg-transparent text-gray-400'}`}
+                          className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                            activePage === 'shift'
+                              ? 'bg-[#0178a3] text-white'
+                              : 'border border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04]'
+                          }`}
                         >
                           Shift
                         </button>
                       </div>
                     ) : null}
 
-                    {/* Mobile-only Copy / Paste / Save row — sits below
-                        the Main/Shift toggle (or where it would be).
-                        Hidden on desktop because Copy/Save are in the
-                        studio header's right group there. */}
+                    {/* Mobile-portrait Copy / Paste / Save row —
+                        sits below Main/Shift in column mode. Also
+                        re-shown at lg+ when stackHeader is true
+                        (small chassis on desktop, mobile-style
+                        layout) so the buttons live below the chassis
+                        like mobile rather than crowding the header. */}
                     {canEditKeys && (
-                      <div className="flex items-center gap-2 lg:hidden">
+                      <div className={`flex items-center gap-2 sm:hidden ${stackHeader ? 'lg:flex' : ''}`}>
                         {(_currentUserRole === 'admin' || _currentUserRole === 'manager' || isAdminGlobal) && (
                           <>
                             <button
                               type="button"
                               onClick={handleCopyPanel}
-                              className="rounded-lg border border-white/10 bg-[#2a2a2a] px-4 py-2 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                              className="shrink-0 rounded-md border border-white/10 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
                             >
                               Copy
                             </button>
@@ -2265,7 +2275,7 @@ export function PanelStudio({
                                 type="button"
                                 onClick={handlePastePanel}
                                 title={`Paste from ${panelClipboard.sourceLabel}`}
-                                className="rounded-lg border border-white/10 bg-[#2a2a2a] px-4 py-2 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                                className="shrink-0 rounded-md border border-white/10 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
                               >
                                 Paste
                               </button>
@@ -2277,7 +2287,7 @@ export function PanelStudio({
                             type="button"
                             onClick={handleSave}
                             disabled={saving}
-                            className="rounded-lg bg-[#0178a3] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
+                            className="shrink-0 rounded-md bg-[#0178a3] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             {saving ? 'Saving...' : 'Save'}
                           </button>
@@ -2314,7 +2324,7 @@ export function PanelStudio({
               w-full lg:w-[360px] bg-[#2a2a2a] border-white/[0.06] flex-col overflow-hidden z-[200]
               /* Mobile: bottom sheet */
               fixed left-0 right-0 bottom-0 lg:top-auto
-              max-h-[65vh] lg:max-h-[calc(100%-48px)]
+              max-h-[65vh] landscape:max-h-[92dvh] lg:max-h-[calc(100%-48px)] lg:landscape:max-h-[calc(100%-48px)]
               rounded-t-[20px] lg:rounded-[14px]
               border-t lg:border
               shadow-[0_-10px_40px_rgba(0,0,0,0.6)] lg:shadow-[-15px_10px_40px_rgba(0,0,0,0.6)]
@@ -2437,7 +2447,7 @@ export function PanelStudio({
                     placeholder="Search by name or code..."
                     value={pickerSearch}
                     onChange={(e) => setPickerSearch(e.target.value)}
-                    className="w-full bg-[#2a2a2a] text-white border border-white/10 px-3.5 py-2 rounded-lg text-sm outline-none transition-[border-color] placeholder:text-gray-500 hover:border-white/20 focus:border-[#0178a3]"
+                    className="w-full text-gray-200 border border-white/10 px-3.5 py-2 rounded-lg text-sm outline-none transition-colors placeholder:text-gray-200 hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
                     autoFocus
                     autoCapitalize="off"
                     autoCorrect="off"
@@ -2715,8 +2725,8 @@ function PickerSelect({
         type="button"
         onClick={() => setOpen((o) => !o)}
         // Close-on-focus-out is handled by the focusin listener above.
-        className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3.5 py-2 text-left text-sm text-white outline-none transition-colors ${
-          open ? 'border-[#22a7d3]/50 bg-white/[0.04]' : 'border-white/10 bg-[#2a2a2a] hover:border-white/20'
+        className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3.5 py-2 text-left text-sm text-gray-200 outline-none transition-colors ${
+          open ? 'border-[#22a7d3]/50 bg-white/[0.04]' : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04]'
         }`}
       >
         <span className="truncate">{current?.label}</span>
@@ -3246,7 +3256,7 @@ function SiblingGearRow({
               className={`rounded-lg border px-3 py-1.5 text-left text-[11px] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                 isActive
                   ? 'border-[#22a7d3] bg-[#22a7d3]/10 text-white'
-                  : 'border-white/10 bg-[#2a2a2a] text-gray-300 hover:border-white/20 hover:bg-[#313131]'
+                  : 'border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04]'
               }`}
             >
               <div className={`font-mono font-semibold ${isActive ? 'text-[#22a7d3]' : 'text-gray-400'}`}>{g.name}</div>
