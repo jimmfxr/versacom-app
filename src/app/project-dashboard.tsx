@@ -665,7 +665,7 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
     || quarterXlrmTracked || db9XlrfTracked || rj45XlrmfTracked
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3 sm:space-y-5">
       {/* Deployment status — single combined card */}
       <div>
         <SectionHeader>Deployment status</SectionHeader>
@@ -903,7 +903,10 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
 
           return (
             <>
-              {/* Mobile: swipeable carousel */}
+              {/* Mobile: swipeable carousel (left/right swipe with
+                  Instagram-style dot indicators). Only the carousel
+                  itself scrolls horizontally — the rest of the page
+                  stacks vertically. */}
               <SwipeCarousel>
                 {assignmentCard}
                 {utilizationCard}
