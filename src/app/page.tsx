@@ -373,6 +373,7 @@ export default async function HomePage({
     <PageLayout
       title="Dashboard"
       titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
+      stickyHeader
       bottomBorder
       action={
         <DashboardHeaderAction
@@ -384,21 +385,31 @@ export default async function HomePage({
         />
       }
     >
-      <DashboardStatsLine memberCount={memberCount} equipmentCount={equipment.length} />
-      <ProjectDashboard
-        projectId={project.id}
-        equipment={equipment}
-        headsetInventory={headsetInventory}
-        miscInventory={{
-          goosenecksBrought: project.goosenecksBrought,
-          footswitchesBrought: project.footswitchesBrought,
-          speakersBrought: project.speakersBrought,
-          quarterXlrmBrought: project.quarterXlrmBrought,
-          db9XlrfBrought: project.db9XlrfBrought,
-          rj45XlrmfBrought: project.rj45XlrmfBrought,
-        }}
-        canEditInventory={canEditInventory}
-      />
+      {/* Header chrome stays pinned (PageLayout's stickyHeader path).
+          Stats line is just below the divider — keep it shrink-0 so
+          it doesn't get included in the scrollable region. The
+          ProjectDashboard sections (Deployment / Distribution / etc.)
+          live in a flex-1 overflow-y-auto wrapper so the user scrolls
+          THEM, not the page chrome above. */}
+      <div className="flex-shrink-0">
+        <DashboardStatsLine memberCount={memberCount} equipmentCount={equipment.length} />
+      </div>
+      <div data-scroll-container className="min-h-0 flex-1 overflow-y-auto pb-[max(env(safe-area-inset-bottom),20px)]">
+        <ProjectDashboard
+          projectId={project.id}
+          equipment={equipment}
+          headsetInventory={headsetInventory}
+          miscInventory={{
+            goosenecksBrought: project.goosenecksBrought,
+            footswitchesBrought: project.footswitchesBrought,
+            speakersBrought: project.speakersBrought,
+            quarterXlrmBrought: project.quarterXlrmBrought,
+            db9XlrfBrought: project.db9XlrfBrought,
+            rj45XlrmfBrought: project.rj45XlrmfBrought,
+          }}
+          canEditInventory={canEditInventory}
+        />
+      </div>
     </PageLayout>
   )
 }
