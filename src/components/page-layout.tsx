@@ -51,15 +51,8 @@ export function PageLayout({ title, action, children, titleClassName, inlineActi
     )
   }
 
-  // Non-sticky pages: AppShell is a fixed-height (100dvh) flex
-  // container with overflow-hidden, so a non-scrollable child would
-  // get its tail clipped on phones (the user reported the dashboard
-  // distribution cards' bottom edge / pagination dots being cut off
-  // on iPhone 17 Pro Max). Make the wrapper a flex column with its
-  // own overflow-y-auto so the content scrolls inside the AppShell
-  // frame instead of running off-screen.
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto py-5 pb-[max(env(safe-area-inset-bottom),20px)]">
+    <div className="py-5">
       {headerBlock}
       <main>
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">{children}</div>
