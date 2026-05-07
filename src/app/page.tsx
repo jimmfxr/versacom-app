@@ -373,6 +373,7 @@ export default async function HomePage({
     <PageLayout
       title="Dashboard"
       titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
+      stickyHeader
       bottomBorder
       action={
         <DashboardHeaderAction
@@ -384,21 +385,29 @@ export default async function HomePage({
         />
       }
     >
-      <DashboardStatsLine memberCount={memberCount} equipmentCount={equipment.length} />
-      <ProjectDashboard
-        projectId={project.id}
-        equipment={equipment}
-        headsetInventory={headsetInventory}
-        miscInventory={{
-          goosenecksBrought: project.goosenecksBrought,
-          footswitchesBrought: project.footswitchesBrought,
-          speakersBrought: project.speakersBrought,
-          quarterXlrmBrought: project.quarterXlrmBrought,
-          db9XlrfBrought: project.db9XlrfBrought,
-          rj45XlrmfBrought: project.rj45XlrmfBrought,
-        }}
-        canEditInventory={canEditInventory}
-      />
+      {/* Sticky chrome: title + ProjectSwitcher come from PageLayout's
+          stickyHeader path; the # members / # equipment line below
+          the divider is also pinned (flex-shrink-0). Only the
+          ProjectDashboard sections scroll. */}
+      <div className="flex-shrink-0 pt-1">
+        <DashboardStatsLine memberCount={memberCount} equipmentCount={equipment.length} />
+      </div>
+      <div data-scroll-container className="min-h-0 flex-1 overflow-y-auto pt-3 pb-[max(env(safe-area-inset-bottom),20px)]">
+        <ProjectDashboard
+          projectId={project.id}
+          equipment={equipment}
+          headsetInventory={headsetInventory}
+          miscInventory={{
+            goosenecksBrought: project.goosenecksBrought,
+            footswitchesBrought: project.footswitchesBrought,
+            speakersBrought: project.speakersBrought,
+            quarterXlrmBrought: project.quarterXlrmBrought,
+            db9XlrfBrought: project.db9XlrfBrought,
+            rj45XlrmfBrought: project.rj45XlrmfBrought,
+          }}
+          canEditInventory={canEditInventory}
+        />
+      </div>
     </PageLayout>
   )
 }

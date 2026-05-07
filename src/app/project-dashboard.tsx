@@ -84,7 +84,7 @@ export function DashboardStatsLine({
   equipmentCount: number
 }) {
   return (
-    <div className="hidden -mt-6 pt-0 text-right text-xs text-gray-500 sm:block">
+    <div className="hidden text-right text-xs text-gray-500 sm:block">
       {memberCount} {memberCount === 1 ? 'member' : 'members'} · {equipmentCount}{' '}
       {equipmentCount === 1 ? 'equipment item' : 'equipment items'}
     </div>
