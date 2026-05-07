@@ -122,7 +122,7 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                 placeholder="Search projects..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="hidden w-64 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3] sm:block"
+                className="hidden w-64 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white focus:border-[#0178a3] sm:block"
               />
             )}
             <Button onClick={() => setShowForm(true)} aria-label="New Project">+</Button>
@@ -176,7 +176,7 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
               placeholder="Search projects..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+              className="w-full rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white focus:border-[#0178a3]"
             />
           </div>
         )}

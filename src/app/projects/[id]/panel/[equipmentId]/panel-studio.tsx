@@ -1710,7 +1710,7 @@ export function PanelStudio({
                             try { navigator.vibrate?.(15) } catch {}
                             if (selectedKeyId) clearKey(selectedKeyId)
                           }}
-                          className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 px-3.5 py-2 text-sm font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
+                          className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 px-3.5 py-2 text-sm font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
                         >
                           {selectedKey?.pickListItemId ? 'Clear Key' : 'Unassigned'}
                         </button>
@@ -1722,7 +1722,7 @@ export function PanelStudio({
                           placeholder="Search by name or code..."
                           value={pickerSearch}
                           onChange={(e) => setPickerSearch(e.target.value)}
-                          className="block w-full rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 outline-none transition-colors placeholder:text-gray-200 hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                          className="block w-full rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 outline-none transition-colors placeholder:text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white focus:border-[#0178a3]"
                           autoCapitalize="off"
                           autoCorrect="off"
                           autoComplete="off"
@@ -1737,7 +1737,7 @@ export function PanelStudio({
                         type="button"
                         onClick={() => { closeInspector() }}
                         aria-label="Close picker"
-                        className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
+                        className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
                       >
                         <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -2007,7 +2007,7 @@ export function PanelStudio({
                           <button
                             type="button"
                             onClick={handleCopyPanel}
-                            className="shrink-0 rounded-md border border-white/10 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
+                            className="shrink-0 rounded-md border border-white/10 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
                           >
                             Copy
                           </button>
@@ -2016,7 +2016,7 @@ export function PanelStudio({
                               type="button"
                               onClick={handlePastePanel}
                               title={`Paste from ${panelClipboard.sourceLabel}`}
-                              className="shrink-0 rounded-md border border-white/10 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
+                              className="shrink-0 rounded-md border border-white/10 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
                             >
                               Paste
                             </button>
@@ -2246,7 +2246,7 @@ export function PanelStudio({
                           className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
                             activePage === 'main'
                               ? 'bg-[#0178a3] text-white'
-                              : 'border border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04]'
+                              : 'border border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
                           }`}
                         >
                           Main
@@ -2257,7 +2257,7 @@ export function PanelStudio({
                           className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
                             activePage === 'shift'
                               ? 'bg-[#0178a3] text-white'
-                              : 'border border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04]'
+                              : 'border border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
                           }`}
                         >
                           Shift
@@ -2278,7 +2278,7 @@ export function PanelStudio({
                             <button
                               type="button"
                               onClick={handleCopyPanel}
-                              className="shrink-0 rounded-md border border-white/10 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
+                              className="shrink-0 rounded-md border border-white/10 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
                             >
                               Copy
                             </button>
@@ -2287,7 +2287,7 @@ export function PanelStudio({
                                 type="button"
                                 onClick={handlePastePanel}
                                 title={`Paste from ${panelClipboard.sourceLabel}`}
-                                className="shrink-0 rounded-md border border-white/10 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
+                                className="shrink-0 rounded-md border border-white/10 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
                               >
                                 Paste
                               </button>
@@ -2459,7 +2459,7 @@ export function PanelStudio({
                     placeholder="Search by name or code..."
                     value={pickerSearch}
                     onChange={(e) => setPickerSearch(e.target.value)}
-                    className="w-full text-gray-200 border border-white/10 px-3.5 py-2 rounded-lg text-sm outline-none transition-colors placeholder:text-gray-200 hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                    className="w-full text-gray-200 border border-white/10 px-3.5 py-2 rounded-lg text-sm outline-none transition-colors placeholder:text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white focus:border-[#0178a3]"
                     autoFocus
                     autoCapitalize="off"
                     autoCorrect="off"
@@ -2738,7 +2738,7 @@ function PickerSelect({
         onClick={() => setOpen((o) => !o)}
         // Close-on-focus-out is handled by the focusin listener above.
         className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3.5 py-2 text-left text-sm text-gray-200 outline-none transition-colors ${
-          open ? 'border-[#22a7d3]/50 bg-white/[0.04]' : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04]'
+          open ? 'border-[#22a7d3]/50 bg-white/[0.04]' : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
         }`}
       >
         <span className="truncate">{current?.label}</span>
@@ -3012,7 +3012,7 @@ function BrowseProjectDropdown({
         className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium text-gray-200 transition-colors sm:w-auto sm:justify-start ${
           open
             ? 'border-[#22a7d3]/50 bg-white/[0.04]'
-            : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04]'
+            : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
         }`}
       >
         <span className="truncate sm:max-w-[160px]">{project.name}</span>
@@ -3154,7 +3154,7 @@ function BrowseMemberSwitcher({
         type="button"
         onClick={() => jumpByOffset(-1)}
         aria-label="Previous user"
-        className="flex h-[38px] w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
+        className="flex h-[38px] w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white hover:text-white"
       >
         <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
       </button>
@@ -3165,7 +3165,7 @@ function BrowseMemberSwitcher({
           className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium text-gray-200 transition-colors sm:w-auto sm:justify-start ${
             open
               ? 'border-[#22a7d3]/50 bg-white/[0.04]'
-              : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04]'
+              : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
           }`}
         >
           <span className="truncate sm:max-w-[200px]">{memberLabel}</span>
@@ -3225,7 +3225,7 @@ function BrowseMemberSwitcher({
         type="button"
         onClick={() => jumpByOffset(1)}
         aria-label="Next user"
-        className="flex h-[38px] w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
+        className="flex h-[38px] w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white hover:text-white"
       >
         <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
       </button>
@@ -3268,7 +3268,7 @@ function SiblingGearRow({
               className={`rounded-lg border px-3 py-1.5 text-left text-[11px] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                 isActive
                   ? 'border-[#22a7d3] bg-[#22a7d3]/10 text-white'
-                  : 'border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04]'
+                  : 'border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
               }`}
             >
               <div className={`font-mono font-semibold ${isActive ? 'text-[#22a7d3]' : 'text-gray-400'}`}>{g.name}</div>

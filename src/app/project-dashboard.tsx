@@ -206,7 +206,7 @@ export function ProjectSwitcher({
         className={`flex w-full items-center justify-between gap-2.5 rounded-lg border px-3.5 py-2 text-sm font-medium text-gray-200 transition-colors sm:min-w-[280px] ${
           open
             ? 'border-[#22a7d3]/50 bg-white/[0.04]'
-            : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04]'
+            : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
         }`}
       >
         <span>{projectName}</span>

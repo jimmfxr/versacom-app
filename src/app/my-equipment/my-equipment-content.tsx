@@ -123,7 +123,7 @@ export function MyEquipmentContent({
               type="button"
               onClick={() => jumpToMember(currentMemberIndex - 1)}
               aria-label="Previous user"
-              className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
+              className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white hover:text-white"
             >
               <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
@@ -139,7 +139,7 @@ export function MyEquipmentContent({
               type="button"
               onClick={() => jumpToMember(currentMemberIndex + 1)}
               aria-label="Next user"
-              className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
+              className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white hover:text-white"
             >
               <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
@@ -280,7 +280,7 @@ function MemberSwitcher({
         className={`flex w-full items-center justify-between gap-2.5 rounded-lg border px-3.5 py-2 text-sm font-medium text-gray-200 transition-colors sm:min-w-[220px] ${
           open
             ? 'border-[#22a7d3]/50 bg-white/[0.04]'
-            : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04]'
+            : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
         }`}
       >
         <span className="truncate">{triggerLabel}</span>
