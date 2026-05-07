@@ -2734,8 +2734,22 @@ export function ProjectPage({
         title="Delete Project"
         actions={
           <>
-            <Button variant="secondary" onClick={() => setShowDeleteConfirm(false)} disabled={isPending}>Cancel</Button>
-            <Button variant="danger" onClick={handleDeleteProject} disabled={isPending}>{isPending ? 'Deleting...' : 'Delete'}</Button>
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={isPending}
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleDeleteProject}
+              disabled={isPending}
+              className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isPending ? 'Deleting...' : 'Delete'}
+            </button>
           </>
         }
       >
