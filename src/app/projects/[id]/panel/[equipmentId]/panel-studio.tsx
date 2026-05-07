@@ -349,6 +349,10 @@ export function PanelStudio({
   const [flashingKey, setFlashingKey] = useState<{ id: string; color: string } | null>(null)
   const [saving, setSaving] = useState(false)
   const [pickerSearch, setPickerSearch] = useState('')
+  // Mobile-only: the picker search input is hidden behind a chip-
+  // style search-icon button to save vertical space. Tapping the
+  // icon expands a row with the input + an X to collapse it back.
+  const [mobilePickerSearchOpen, setMobilePickerSearchOpen] = useState(false)
   const [pickerFilter, setPickerFilter] = useState<string>('All')
   // Active drag source — driven by dnd-kit's onDragStart so the chassis can
   // dim the source key during a key→key swap. Drop-target highlights come
@@ -2372,26 +2376,30 @@ export function PanelStudio({
               <div className="w-10 h-[5px] rounded-[3px] bg-white/25" />
             </div>
 
-            {/* Inspector header */}
-            <div className="px-[18px] py-4 border-b border-white/[0.06] flex items-center justify-between gap-2.5 flex-shrink-0">
+            {/* Inspector header \u2014 picker mode strips the back arrow
+                and "Pick destination" label so the row just holds
+                a key-summary on the left and a big close X on the
+                right. No bottom border on the picker-mode header
+                because the controls section below has its own
+                border-b that doubles as the divider. */}
+            <div className={`px-[18px] py-4 flex items-center justify-between gap-2.5 flex-shrink-0 ${pickerMode ? '' : 'border-b border-white/[0.06]'}`}>
               <div className="flex-1 min-w-0 flex items-center gap-2.5">
                 {pickerMode ? (
-                  <>
-                    <button
-                      onClick={() => setPickerMode(false)}
-                      className="bg-transparent border border-white/10 rounded-md text-gray-300 cursor-pointer px-2.5 py-[3px] text-sm flex-shrink-0 hover:bg-white/[0.06]"
-                    >
-                      &larr;
-                    </button>
-                    <div>
-                      <div className="text-[13px] font-semibold text-white">Pick destination</div>
-                      {selectedKey?.pickListItemName && (
-                        <div className="text-[10px] text-[#22a7d3] mt-0.5 uppercase tracking-wider font-semibold">
-                          Currently: {selectedKey.pickListItemName} &middot; {selectedKey.pickListItemType}
-                        </div>
+                  <div>
+                    <div className="text-[13px] font-semibold text-white">
+                      Key {selectedKeyParsed ? selectedKeyParsed.keyIndex + 1 : '?'}
+                      <span className="text-gray-500"> &middot; </span>
+                      {activePage === 'main' ? 'Main' : 'Shift'}
+                      {selectedKeyParsed && selectedKeyParsed.expansion > 0 && (
+                        <><span className="text-gray-500"> &middot; </span>Exp {selectedKeyParsed.expansion}</>
                       )}
                     </div>
-                  </>
+                    {selectedKey?.pickListItemName && (
+                      <div className="text-[10px] text-[#22a7d3] mt-0.5 uppercase tracking-wider font-semibold">
+                        Currently: {selectedKey.pickListItemName}
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div>
                     <div className="text-[13px] font-semibold text-white">
@@ -2407,7 +2415,7 @@ export function PanelStudio({
               <button
                 onClick={closeInspector}
                 aria-label="Close picker"
-                className="flex size-10 shrink-0 items-center justify-center rounded-md bg-transparent text-2xl text-gray-300 transition-colors hover:bg-white/[0.06] hover:text-white"
+                className="flex size-12 shrink-0 items-center justify-center rounded-md bg-transparent text-3xl text-gray-300 transition-colors hover:bg-white/[0.06] hover:text-white"
               >
                 &times;
               </button>
@@ -2474,79 +2482,105 @@ export function PanelStudio({
                     fixes that and gives us trigger-mode + talk-key
                     dropdowns to match desktop. */}
                 <div className="px-[18px] py-3.5 border-b border-white/[0.06] flex flex-col gap-2.5 flex-shrink-0">
-                  <input
-                    type="text"
-                    placeholder="Search by name or code..."
-                    value={pickerSearch}
-                    onChange={(e) => setPickerSearch(e.target.value)}
-                    className="w-full text-gray-200 border border-white/10 px-3.5 py-2 rounded-lg text-sm outline-none transition-colors placeholder:text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white focus:border-[#0178a3]"
-                    autoFocus
-                    autoCapitalize="off"
-                    autoCorrect="off"
-                    autoComplete="off"
-                    spellCheck={false}
-                  />
-                  <PickerSelect
-                    value={pickerFilter}
-                    onChange={setPickerFilter}
-                    options={filterTypes.map((t) => ({
-                      value: t,
-                      label: t === 'All' ? 'All function types' : t === 'Audio' ? 'Audio I/O' : t,
-                    }))}
-                  />
-                  <PickerSelect
-                    value={selectedKey?.triggerMode || 'latch'}
-                    onChange={(v) => { if (selectedKeyId) setTriggerMode(selectedKeyId, v) }}
-                    options={[
-                      { value: 'auto', label: 'Auto' },
-                      { value: 'latch', label: 'Latching' },
-                      { value: 'momentary', label: 'Momentary' },
-                    ]}
-                  />
-                  <PickerSelect
-                    value={selectedKey?.talkMode || 'tl'}
-                    onChange={(v) => { if (selectedKeyId) setTalkMode(selectedKeyId, v) }}
-                    options={[
-                      { value: 'tl', label: 'Talk / Listen' },
-                      { value: 't', label: 'Talk' },
-                      { value: 'l', label: 'Listen' },
-                    ]}
-                  />
+                  {/* Row 1: Function-type filter (full width) + search
+                      icon button on the right. Tapping the search
+                      icon swaps in a search-input row directly below. */}
+                  <div className="flex items-stretch gap-2">
+                    <div className="min-w-0 flex-1">
+                      <PickerSelect
+                        value={pickerFilter}
+                        onChange={setPickerFilter}
+                        options={filterTypes.map((t) => ({
+                          value: t,
+                          label: t === 'All' ? 'All function types' : t === 'Audio' ? 'Audio I/O' : t,
+                        }))}
+                      />
+                    </div>
+                    {!mobilePickerSearchOpen && (
+                      <button
+                        type="button"
+                        onClick={() => setMobilePickerSearchOpen(true)}
+                        aria-label="Search"
+                        className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+                      >
+                        <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.343-4.343m0 0A8 8 0 1 0 5.343 5.343a8 8 0 0 0 11.314 11.314Z" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Row 1.5 (collapsible): search input + X close,
+                      shown only when the search icon was tapped.
+                      Tapping X clears the search and brings the
+                      icon button back. */}
+                  {mobilePickerSearchOpen && (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        autoFocus
+                        placeholder="Search by name or code..."
+                        value={pickerSearch}
+                        onChange={(e) => setPickerSearch(e.target.value)}
+                        className="w-full flex-1 text-gray-200 border border-white/10 px-3.5 py-2 rounded-lg text-sm outline-none transition-colors placeholder:text-gray-200 hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                        autoCapitalize="off"
+                        autoCorrect="off"
+                        autoComplete="off"
+                        spellCheck={false}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => { setMobilePickerSearchOpen(false); setPickerSearch('') }}
+                        aria-label="Close search"
+                        className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
+                      >
+                        <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Row 2: Trigger mode + Talk/Listen + Unassigned
+                      (clear key) all in one horizontal row. Each
+                      takes a third of the width on mobile. */}
+                  <div className="flex items-stretch gap-2">
+                    <div className="min-w-0 flex-1">
+                      <PickerSelect
+                        value={selectedKey?.triggerMode || 'latch'}
+                        onChange={(v) => { if (selectedKeyId) setTriggerMode(selectedKeyId, v) }}
+                        options={[
+                          { value: 'auto', label: 'Auto' },
+                          { value: 'latch', label: 'Latching' },
+                          { value: 'momentary', label: 'Momentary' },
+                        ]}
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <PickerSelect
+                        value={selectedKey?.talkMode || 'tl'}
+                        onChange={(v) => { if (selectedKeyId) setTalkMode(selectedKeyId, v) }}
+                        options={[
+                          { value: 'tl', label: 'Talk / Listen' },
+                          { value: 't', label: 'Talk' },
+                          { value: 'l', label: 'Listen' },
+                        ]}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { if (selectedKeyId) clearKey(selectedKeyId) }}
+                      className="min-w-0 flex-1 truncate rounded-lg border border-white/10 px-2 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+                    >
+                      {selectedKey?.pickListItemId ? 'Clear Key' : 'Unassigned'}
+                    </button>
+                  </div>
                 </div>
 
-                {/* Picker list */}
+                {/* Picker list — Unassigned/Clear was promoted into
+                    the controls row above next to trigger/talk
+                    dropdowns, so it no longer renders here. */}
                 <div className="px-[18px] py-3.5 overflow-y-auto flex-1 flex flex-col gap-[18px]">
-                  {/* "Unassigned" — mobile-only one-tap key-clear. On
-                      desktop the same action lives on the floating
-                      picker card, so this row is hidden there. */}
-                  {canEditKeys && (() => {
-                    const isUnassignedActive = !selectedKey?.pickListItemId
-                    return (
-                      <div
-                        onClick={() => {
-                          if (selectedKeyId) clearKey(selectedKeyId)
-                          // Always close the picker so this row behaves like
-                          // any other selection — even if the key was already
-                          // empty (clearKey is a no-op in that case).
-                          setPickerMode(false)
-                        }}
-                        className={`rounded-[10px] px-3.5 py-2.5 flex items-center gap-2.5 cursor-pointer transition-all border sm:hidden ${
-                          isUnassignedActive
-                            ? 'bg-[rgba(34,167,211,0.12)] border-[rgba(34,167,211,0.5)]'
-                            : 'bg-white/[0.03] border-transparent hover:bg-white/[0.06] hover:border-white/10'
-                        }`}
-                      >
-                        <div className="flex-1 min-w-0 flex items-baseline gap-2 overflow-hidden">
-                          <span className={`text-xs font-semibold italic whitespace-nowrap overflow-hidden text-ellipsis ${isUnassignedActive ? 'text-[#22a7d3]' : 'text-gray-400'}`}>
-                            Unassigned
-                          </span>
-                          <span className="text-[11px] text-gray-500 whitespace-nowrap">
-                            Clear this key
-                          </span>
-                        </div>
-                      </div>
-                    )
-                  })()}
                   {Object.entries(groupedItems).map(([type, items]) => (
                     <div key={type} className="flex flex-col gap-1.5">
                       <div className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider px-1">
