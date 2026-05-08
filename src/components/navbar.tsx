@@ -240,7 +240,13 @@ export function Navbar({
                 <div className="flex shrink-0 items-center">
                   <img alt={logoAlt} src={logoSrc} className="h-8 w-auto" />
                 </div>
-                <div className="hidden sm:-my-px sm:ml-6 sm:flex sm:space-x-8">
+                {/* sm:items-center stops the links from stretching to
+                    the full h-16 navbar height — without it, the link's
+                    border-b-2 sits at the navbar bottom (~28px below
+                    the text). With items-center the link only spans
+                    its content + pt-1 + the 2px border, so the active
+                    indicator hugs the underline of the text. */}
+                <div className="hidden sm:-my-px sm:ml-6 sm:flex sm:items-center sm:space-x-8">
                   {navigation.map((item) => (
                     <a
                       key={item.name}
