@@ -1,6 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { capitalizeName } from '@/lib/format-name'
 import { KioskClient } from './kiosk-client'
 
 export const dynamic = 'force-dynamic'
@@ -54,8 +55,8 @@ export default async function KioskPage({
   const pending = pendingMembers
     .map((m) => ({
       id: m.id,
-      firstName: m.user.firstName,
-      lastName: m.user.lastName,
+      firstName: capitalizeName(m.user.firstName),
+      lastName: capitalizeName(m.user.lastName),
       position: m.position,
       // Sort equipment names naturally so "100A, 100B, 200A" reads in order.
       equipmentNames: m.equipment
@@ -78,11 +79,26 @@ export default async function KioskPage({
       return collator.compare(a.lastName, b.lastName)
     })
 
+  // Distinct positions already used on this project — fed to the
+  // Add-Crew form's position combobox as suggestions (FOH, SL, SR,
+  // etc.) so kiosk operators can pick from existing positions
+  // instead of typing freehand every time.
+  const positionRows = await prisma.projectMember.findMany({
+    where: { projectId, position: { not: null } },
+    select: { position: true },
+    distinct: ['position'],
+  })
+  const positionSuggestions = positionRows
+    .map((r) => r.position?.trim() ?? '')
+    .filter(Boolean)
+    .sort((a, b) => collator.compare(a, b))
+
   return (
     <KioskClient
       projectId={project.id}
       projectName={project.name}
       pending={pending}
+      positionSuggestions={positionSuggestions}
     />
   )
 }

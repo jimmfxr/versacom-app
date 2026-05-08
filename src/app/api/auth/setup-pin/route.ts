@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/db'
+import { capitalizeName } from '@/lib/format-name'
 
 export async function POST(request: NextRequest) {
   const { firstName, lastName, projectId, pin } = await request.json()
@@ -61,15 +62,11 @@ export async function POST(request: NextRequest) {
     include: { project: true },
   })
 
-  function capitalize(s: string) {
-    return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
-  }
-
   const sessionData = {
     user: {
       id: user.id,
-      firstName: capitalize(user.firstName),
-      lastName: capitalize(user.lastName),
+      firstName: capitalizeName(user.firstName),
+      lastName: capitalizeName(user.lastName),
     },
     memberships: memberships.map((m) => ({
       id: m.id,

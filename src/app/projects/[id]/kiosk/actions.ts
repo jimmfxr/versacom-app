@@ -60,6 +60,7 @@ export async function createKioskMember(
   projectId: number,
   firstName: string,
   lastName: string,
+  position?: string,
 ): Promise<KioskResult> {
   const session = await getSession()
   if (!session) return { error: 'Not authenticated' }
@@ -69,8 +70,10 @@ export async function createKioskMember(
 
   const fn = firstName.trim()
   const ln = lastName.trim()
+  const pos = position?.trim() || null
   if (!fn || !ln) return { error: 'First and last name are required' }
   if (fn.length > 50 || ln.length > 50) return { error: 'Name too long' }
+  if (pos && pos.length > 50) return { error: 'Position too long' }
 
   const project = await prisma.project.findUnique({
     where: { id: projectId },
@@ -104,7 +107,7 @@ export async function createKioskMember(
       return { error: `${existingRealUser.firstName} ${existingRealUser.lastName} is already on this project — they can sign in with their PIN.` }
     }
     await prisma.projectMember.create({
-      data: { userId: existingRealUser.id, projectId, role: 'crew' },
+      data: { userId: existingRealUser.id, projectId, role: 'crew', position: pos },
     })
     revalidatePath(`/projects/${projectId}`)
     revalidatePath(`/projects/${projectId}/kiosk`)
@@ -138,7 +141,7 @@ export async function createKioskMember(
     data: { firstName: fn, lastName: ln, pin: '' },
   })
   await prisma.projectMember.create({
-    data: { userId: user.id, projectId, role: 'crew' },
+    data: { userId: user.id, projectId, role: 'crew', position: pos },
   })
 
   revalidatePath(`/projects/${projectId}`)

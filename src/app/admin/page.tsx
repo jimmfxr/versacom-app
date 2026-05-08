@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { capitalizeName } from '@/lib/format-name'
 import { TasksClient } from './tasks-client'
 
 export const dynamic = 'force-dynamic'
@@ -150,8 +151,8 @@ export default async function TasksPage({
       id: `lockout-${u.id}`,
       type: 'lockout' as const,
       userId: u.id,
-      firstName: u.firstName,
-      lastName: u.lastName,
+      firstName: capitalizeName(u.firstName),
+      lastName: capitalizeName(u.lastName),
       failedAttempts: u.failedAttempts,
       status: 'locked' as const,
       lockedUntil: u.lockedUntil?.toISOString() ?? null,
@@ -180,8 +181,8 @@ export default async function TasksPage({
 
   for (const cr of changeRequests) {
     const groupKey = `${cr.submittedById}-${cr.targetMember.id}`
-    const targetName = `${cr.targetMember.user.firstName} ${cr.targetMember.user.lastName}`
-    const submitterName = `${cr.submittedBy.firstName} ${cr.submittedBy.lastName}`
+    const targetName = `${capitalizeName(cr.targetMember.user.firstName)} ${capitalizeName(cr.targetMember.user.lastName)}`
+    const submitterName = `${capitalizeName(cr.submittedBy.firstName)} ${capitalizeName(cr.submittedBy.lastName)}`
     const eq = cr.targetMember.equipment[0]
     const isSelf = cr.submittedById === cr.targetMember.userId
 

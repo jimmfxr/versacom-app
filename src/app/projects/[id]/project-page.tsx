@@ -1183,10 +1183,12 @@ export function ProjectPage({
         p.users.some((u) => u.toLowerCase().includes(q))
       )
     })
-    // Always natural-sort by name so renaming a function (or deleting
-    // and re-adding it) reorders the list immediately. The plSortAbc
-    // chip is now redundant but kept as a no-op for compatibility.
-    .sort((a, b) => naturalCompare(a.name, b.name))
+    // Default sort: by id (creation order) — when a category chip
+    // (CONF / IFB / Audio / GRP) is selected the user wants to see
+    // items in the order they were added to the project. The A–Z
+    // chip flips to natural-sort by name so renames / re-adds
+    // reorder the list immediately.
+    .sort((a, b) => plSortAbc ? naturalCompare(a.name, b.name) : a.id - b.id)
 
   const filteredPlots = mockPlots
     .filter((p) =>

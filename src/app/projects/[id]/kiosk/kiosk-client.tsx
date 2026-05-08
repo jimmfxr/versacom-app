@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { QRCodeSVG } from 'qrcode.react'
+import { ComboboxInput } from '@/components/combobox-input'
 import { createKioskMember, updatePendingMember } from './actions'
 
-const QR_COUNTDOWN_SECONDS = 20
+const QR_COUNTDOWN_SECONDS = 15
 
 type PendingMember = {
   id: number
@@ -24,10 +25,12 @@ export function KioskClient({
   projectId,
   projectName,
   pending,
+  positionSuggestions,
 }: {
   projectId: number
   projectName: string
   pending: PendingMember[]
+  positionSuggestions: string[]
 }) {
   const router = useRouter()
   const [view, setView] = useState<KioskView>({ kind: 'form' })
@@ -108,6 +111,7 @@ export function KioskClient({
             projectName={projectName}
             onCreated={(r) => setView({ kind: 'qr', ...r })}
             pending={pending}
+            positionSuggestions={positionSuggestions}
             onPickPending={(m) => setView({ kind: 'edit', member: m })}
           />
         )}
@@ -142,17 +146,20 @@ function FormView({
   projectId,
   projectName,
   pending,
+  positionSuggestions,
   onCreated,
   onPickPending,
 }: {
   projectId: number
   projectName: string
   pending: PendingMember[]
+  positionSuggestions: string[]
   onCreated: (r: { firstName: string; lastName: string; joinUrl: string }) => void
   onPickPending: (m: PendingMember) => void
 }) {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
+  const [position, setPosition] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   const [pending2, startTransition] = useTransition()
@@ -171,13 +178,14 @@ function FormView({
     e.preventDefault()
     setError(null)
     startTransition(async () => {
-      const res = await createKioskMember(projectId, firstName, lastName)
+      const res = await createKioskMember(projectId, firstName, lastName, position)
       if ('error' in res) {
         setError(res.error)
         return
       }
       setFirstName('')
       setLastName('')
+      setPosition('')
       onCreated(res)
     })
   }
@@ -222,6 +230,17 @@ function FormView({
               />
             </div>
           </div>
+          {/* Position — free-text combobox with suggestions sourced
+              from the existing positions on this project (SM,
+              Audio, Lighting, etc.). The kiosk operator can pick
+              an existing one or type a new one. Optional. */}
+          <ComboboxInput
+            label="Position"
+            value={position}
+            onChange={setPosition}
+            options={positionSuggestions}
+            placeholder="SM, Audio, Lighting…"
+          />
           {error && <p className="text-sm text-rose-400">{error}</p>}
           <button
             type="submit"
