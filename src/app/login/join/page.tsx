@@ -131,7 +131,12 @@ function JoinProjectPageInner() {
         setPinError(result.error)
         return
       }
-      router.push('/login')
+      // Server action already set the session cookie. Send the user
+      // straight to /my-equipment — the join flow only ever creates
+      // 'user' role memberships, and /my-equipment is the home page
+      // for that role. Skipping / saves a server redirect hop.
+      router.push('/my-equipment')
+      router.refresh()
     })
   }
 

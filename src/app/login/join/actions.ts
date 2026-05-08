@@ -1,6 +1,7 @@
 'use server'
 
 import bcrypt from 'bcryptjs'
+import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 
 export async function joinProject(firstName: string, lastName: string, projectPin: string) {
@@ -110,6 +111,10 @@ export async function createPersonalPin(
     },
   })
 
+  let userIdForSession: number
+  let firstNameForSession: string
+  let lastNameForSession: string
+
   if (existingUser) {
     // Update their PIN (forgot PIN recovery)
     await prisma.user.update({
@@ -132,20 +137,64 @@ export async function createPersonalPin(
       })
     }
 
-    return { success: true }
+    userIdForSession = existingUser.id
+    firstNameForSession = existingUser.firstName
+    lastNameForSession = existingUser.lastName
+  } else {
+    // Brand-new user
+    const user = await prisma.user.create({
+      data: {
+        firstName,
+        lastName,
+        pin: hashedPin,
+      },
+    })
+
+    await prisma.projectMember.create({
+      data: { userId: user.id, projectId, role: 'user' },
+    })
+
+    userIdForSession = user.id
+    firstNameForSession = user.firstName
+    lastNameForSession = user.lastName
   }
 
-  // Brand-new user
-  const user = await prisma.user.create({
-    data: {
-      firstName,
-      lastName,
-      pin: hashedPin,
+  // Sign the user in straight away — same session cookie shape as the
+  // /api/auth/login route — so the client can router.push('/') and skip
+  // bouncing through the login screen with re-entered name + PIN.
+  const memberships = await prisma.projectMember.findMany({
+    where: {
+      userId: userIdForSession,
+      project: { status: 'active' },
     },
+    include: { project: true },
   })
 
-  await prisma.projectMember.create({
-    data: { userId: user.id, projectId, role: 'user' },
+  function capitalize(s: string) {
+    return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
+  }
+
+  const sessionData = {
+    user: {
+      id: userIdForSession,
+      firstName: capitalize(firstNameForSession),
+      lastName: capitalize(lastNameForSession),
+    },
+    memberships: memberships.map((m) => ({
+      id: m.id,
+      role: m.role,
+      position: m.position,
+      project: { id: m.project.id, name: m.project.name },
+    })),
+  }
+
+  const cookieStore = await cookies()
+  cookieStore.set('session', JSON.stringify(sessionData), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 60 * 24, // 24 hours, matches login route
   })
 
   return { success: true }
