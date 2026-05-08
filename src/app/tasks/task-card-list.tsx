@@ -230,12 +230,14 @@ export function TaskCardList({
       })
 
   const SearchBar = (
-    <div className="flex-shrink-0 -mx-4 mb-3 bg-[#202020] px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-      {/* Internal search input — hidden when the parent supplies its
-          own search via the searchValue prop (e.g. the page-header
-          search on /tasks). */}
+    // pt-3 matches the equipment-details tab spacing — gives the chip
+    // row 12px of breathing room below the page-header bottomBorder
+    // line. mb-3 keeps existing spacing below.
+    <div className="flex-shrink-0 -mx-4 mb-3 bg-[#202020] px-4 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      {/* Mobile-only internal search input. Desktop search lives on
+          the chips row below (right side). */}
       {!isExternalSearch && (
-        <div className="flex items-center gap-3 pb-3">
+        <div className="flex items-center gap-3 pb-3 sm:hidden">
           <div className="flex-1">
             <input
               type="text"
@@ -248,14 +250,36 @@ export function TaskCardList({
         </div>
       )}
       {locations.length > 0 && (
-        <FilterBar
-          options={locations.map((loc) => ({ value: loc, label: loc }))}
-          selected={selectedLocation}
-          onSelect={(loc) => setSelectedLocation(loc)}
-          visibleMobile={3}
-          visibleDesktop={6}
-          containerClassName="flex flex-1 gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:justify-center"
-        />
+        // Desktop: chips on the left (flex-1, scroll if too many),
+        // search input on the right of the same row. Mobile: chips
+        // only — search lives in the page header / collapsible row.
+        // The min-w-0 flex-1 wrapper around FilterBar is REQUIRED for
+        // the ChipScroller's < > chevrons to appear: without it the
+        // chip row sizes to its content, never overflows, and the
+        // chevrons never trigger. (Same pattern as project details.)
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <FilterBar
+              options={locations.map((loc) => ({ value: loc, label: loc }))}
+              selected={selectedLocation}
+              onSelect={(loc) => setSelectedLocation(loc)}
+              visibleMobile={3}
+              visibleDesktop={6}
+              containerClassName="flex flex-1 gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            />
+          </div>
+          {/* ml-auto pushes the search input flush to the right edge
+              of the row regardless of how few chips render. */}
+          <div className="hidden sm:block">
+            <input
+              type="text"
+              placeholder="Search tasks..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-64 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white focus:border-[#0178a3]"
+            />
+          </div>
+        </div>
       )}
     </div>
   )

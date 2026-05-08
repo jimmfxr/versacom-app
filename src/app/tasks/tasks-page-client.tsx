@@ -32,18 +32,9 @@ export function TasksPageClient({
   const [search, setSearch] = useState('')
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
 
-  const desktopSearchInput = (
-    <div className="hidden sm:block">
-      <input
-        type="text"
-        placeholder="Search tasks..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="w-64 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white focus:border-[#0178a3]"
-      />
-    </div>
-  )
-
+  // Desktop search lives next to the chips row inside TaskCardList now,
+  // not in the page header. Only the mobile collapsible search button
+  // remains in the header on small screens.
   const mobileSearchToggle = !mobileSearchOpen && (
     <button
       type="button"
@@ -57,7 +48,10 @@ export function TasksPageClient({
     </button>
   )
 
-  const projectSwitcher = userProjects.length > 1 && validFilteredId != null && selectedProjectName ? (
+  // Always render the project switcher when we have a valid project
+  // (even for crew with a single project) — the dropdown should be
+  // present in the header for visual consistency with other pages.
+  const projectSwitcher = validFilteredId != null && selectedProjectName ? (
     <ProjectSwitcher
       projectId={validFilteredId}
       projectName={selectedProjectName}
@@ -74,7 +68,6 @@ export function TasksPageClient({
       bottomBorder
       action={
         <div className="flex w-full items-center gap-2 sm:w-auto">
-          {desktopSearchInput}
           <div className="min-w-0 flex-1 sm:flex-initial">
             {projectSwitcher}
           </div>
