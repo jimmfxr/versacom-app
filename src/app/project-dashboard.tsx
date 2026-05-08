@@ -663,25 +663,51 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
     || quarterXlrmTracked || db9XlrfTracked || rj45XlrmfTracked
 
   return (
-    <div className="divide-y divide-white/[0.06] [&>div]:py-3 sm:[&>div]:py-4">
-      {/* Deployment status — single combined card */}
-      <div style={{ borderBottomWidth: 0 }}>
+    // Dashboard root locks the whole tree to vertical pans by default.
+    // The SwipeCarousel inside re-enables horizontal pans on its own
+    // track only — so a horizontal/diagonal gesture on the deployment
+    // status card or section headers can't leak out and get picked up
+    // by the carousel's overflow-x scroller below. Also pb-6 gives the
+    // last children (carousel dots) room to breathe above the
+    // safe-area inset on iPhones.
+    <div
+      className="divide-y divide-white/[0.06] [&>div]:py-3 sm:[&>div]:py-4 pb-6"
+      style={{ touchAction: 'pan-y' }}
+    >
+      {/* Deployment status — single combined card.
+          touch-action: pan-y on the OUTER div (not just the inner
+          padded one) so a touch starting anywhere on this card —
+          including the SectionHeader — is locked to vertical scroll
+          and can't be hijacked by the carousel further down. */}
+      {/* paddingBottom: 0 (inline) overrides the parent's
+          [&>div]:py-3 / sm:[&>div]:py-4 so this section doesn't carry
+          the 12px (mobile) / 16px (desktop) bottom padding — section
+          ends flush at the divider. Tailwind's !pb-0 wasn't winning
+          against the arbitrary-variant parent rule consistently, so
+          inline style is the reliable override. The inner pt-4 sm:pt-5
+          provides top breathing room only. */}
+      <div
+        style={{
+          borderBottomWidth: 0,
+          touchAction: 'pan-y',
+          paddingBottom: 0,
+        }}
+      >
         <SectionHeader>Deployment status</SectionHeader>
-        {/* touch-action: pan-y so a horizontal drag on this card
-            (which sits above the SwipeCarousel) doesn't get
-            interpreted as a horizontal swipe — it always falls
-            through to the page's vertical scroll. Without this iOS
-            Safari was sometimes treating a flat horizontal drag
-            here like a carousel swipe + page scroll combo. */}
-        <div className="py-4 sm:py-5" style={{ touchAction: 'pan-y' }}>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
-            {/* Headline % — the stage currently leading */}
-            <div className="flex items-baseline gap-2 sm:block">
-              <div className={`text-[36px] font-bold leading-none tabular-nums sm:text-[42px] ${headlineStat.color}`}>
-                {headlineStat.pct}%
-              </div>
+        <div className="pt-4 sm:pt-5">
+          {/* Always row: pct on the left, progress bar on the right.
+              Pct + label always stacked vertically (label sits
+              directly under the percentage on every breakpoint). */}
+          <div className="flex flex-row items-center gap-4 sm:gap-6">
+            {/* Headline % — the stage currently leading. Label sits
+                ABOVE the percentage so the small uppercase status reads
+                first, then the big number. */}
+            <div>
               <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
                 {headlineStat.label}
+              </div>
+              <div className={`text-[36px] font-bold leading-none tabular-nums sm:text-[42px] ${headlineStat.color}`}>
+                {headlineStat.pct}%
               </div>
             </div>
 

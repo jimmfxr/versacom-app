@@ -77,7 +77,10 @@ export function SwipeCarousel({ children, hiddenAbove = 'sm:hidden' }: Props) {
       </div>
 
       {slides.length > 1 && (
-        <div className="mt-4 flex items-center justify-center gap-2">
+        // pb-2 + scroll-mt-4 below the dots so when this section is
+        // the last thing in a scroll container the dots aren't flush
+        // with the boundary / safe-area inset on iPhones.
+        <div className="mt-4 pb-2 flex items-center justify-center gap-2">
           {slides.map((_, i) => {
             const isActive = i === active
             return (
