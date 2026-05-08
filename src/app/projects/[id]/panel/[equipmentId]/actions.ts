@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
+import { sendPushToUsers } from '@/lib/web-push'
 
 /* ─── Hardware key counts ─── */
 const HARDWARE_KEY_COUNTS: Record<string, number> = {
@@ -255,6 +256,19 @@ export async function submitChanges(
       data: { status: 'submitted' },
     })
 
+    // ─── Web push fanout: notify every admin on this project ───
+    // Fire-and-forget so a slow push service doesn't stall the
+    // request. The submitter doesn't need to know whether the push
+    // delivered — they have the green-bordered keys as confirmation.
+    void notifyAdminsOfNewChangeRequest({
+      projectId,
+      submittedById: userId,
+      targetMemberId: projectMemberId,
+      equipmentId,
+      keyCount: drafts.length,
+      changeRequestId: changeRequest.id,
+    }).catch((err) => console.warn('[push] submit fanout failed', err))
+
     revalidatePath(`/projects`)
     revalidatePath(`/admin`)
     revalidatePath(`/my-equipment`)
@@ -394,6 +408,18 @@ export async function resolveChangeRequests(
 
   try {
     const approvedSet = new Set(approvedItemIds)
+    // Collected outside the loop so we can fan out one push per CR
+    // AFTER the DB writes commit. Web push is best-effort — we don't
+    // want a slow push service to delay the resolve response.
+    const resolveOutcomes: Array<{
+      submittedById: number
+      changeRequestId: number
+      equipmentId: number | null
+      projectId: number
+      kind: 'applied' | 'rejected' | 'mixed'
+      approvedKeys: number
+      deniedKeys: number
+    }> = []
 
     for (const crId of changeRequestIds) {
       const cr = await prisma.changeRequest.findUnique({
@@ -417,7 +443,9 @@ export async function resolveChangeRequests(
 
       // Determine final status: if all items denied → rejected, otherwise → applied
       const crItemIds = cr.items.map((i) => i.id)
-      const allDenied = crItemIds.every((id) => !approvedSet.has(id))
+      const approvedCount = crItemIds.filter((id) => approvedSet.has(id)).length
+      const deniedCount = crItemIds.length - approvedCount
+      const allDenied = approvedCount === 0
 
       await prisma.changeRequest.update({
         where: { id: crId },
@@ -435,7 +463,24 @@ export async function resolveChangeRequests(
           status: 'submitted',
         },
       })
+
+      resolveOutcomes.push({
+        submittedById: cr.submittedById,
+        changeRequestId: cr.id,
+        equipmentId: cr.equipmentId ?? null,
+        projectId: cr.projectId,
+        kind: allDenied ? 'rejected' : approvedCount > 0 && deniedCount > 0 ? 'mixed' : 'applied',
+        approvedKeys: approvedCount,
+        deniedKeys: deniedCount,
+      })
     }
+
+    // Push notification to each submitter (one per CR resolved). Fire
+    // and forget — the in-app polling already updates the panel; push
+    // is just so the user knows even when the tab isn't focused.
+    void Promise.all(
+      resolveOutcomes.map((o) => notifySubmitterOfResolution(o)),
+    ).catch((err) => console.warn('[push] resolve fanout failed', err))
 
     revalidatePath(`/projects`)
     revalidatePath(`/admin`)
@@ -446,4 +491,127 @@ export async function resolveChangeRequests(
     console.error('resolveChangeRequests error:', msg, e)
     return { error: `Failed to resolve: ${msg}` }
   }
+}
+
+// ─── Push notification helpers ───────────────────────────────────────
+//
+// Internal — called fire-and-forget from submitChanges /
+// resolveChangeRequests so push delivery doesn't block the user
+// response. All errors swallowed; the polling-based fingerprint
+// sync is the source of truth, push is purely a "wake the device".
+
+type SubmitNotifyArgs = {
+  projectId: number
+  submittedById: number
+  targetMemberId: number
+  equipmentId: number
+  keyCount: number
+  changeRequestId: number
+}
+
+async function notifyAdminsOfNewChangeRequest(args: SubmitNotifyArgs) {
+  // Recipients: every admin on this project. We exclude the submitter
+  // themselves in case an admin submitted on someone else's panel —
+  // they'll see it via the in-app badge and don't need a buzz too.
+  const adminMembers = await prisma.projectMember.findMany({
+    where: { projectId: args.projectId, role: 'admin' },
+    select: { userId: true },
+  })
+  const recipients = adminMembers
+    .map((m) => m.userId)
+    .filter((id) => id !== args.submittedById)
+  if (recipients.length === 0) return
+
+  // Resolve names for a meaningful body — fall back gracefully.
+  const [submitter, target, equipment, project] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: args.submittedById },
+      select: { firstName: true, lastName: true },
+    }),
+    prisma.projectMember.findUnique({
+      where: { id: args.targetMemberId },
+      select: { user: { select: { firstName: true, lastName: true } } },
+    }),
+    prisma.equipment.findUnique({
+      where: { id: args.equipmentId },
+      select: { name: true },
+    }),
+    prisma.project.findUnique({
+      where: { id: args.projectId },
+      select: { name: true },
+    }),
+  ])
+
+  const submitterName = submitter
+    ? `${submitter.firstName} ${submitter.lastName}`
+    : 'Someone'
+  const targetName = target
+    ? `${target.user.firstName} ${target.user.lastName}`
+    : 'a crew member'
+  const eqName = equipment?.name ?? 'their panel'
+  const projectName = project?.name ?? 'a show'
+  const keyWord = args.keyCount === 1 ? 'key' : 'keys'
+
+  await sendPushToUsers(recipients, {
+    title: `${args.keyCount} ${keyWord} pending review`,
+    body: `${submitterName} edited ${eqName} for ${targetName} (${projectName})`,
+    url: `/admin`,
+    tag: `cr-${args.changeRequestId}`,
+  })
+}
+
+type ResolveNotifyArgs = {
+  submittedById: number
+  changeRequestId: number
+  equipmentId: number | null
+  projectId: number
+  kind: 'applied' | 'rejected' | 'mixed'
+  approvedKeys: number
+  deniedKeys: number
+}
+
+async function notifySubmitterOfResolution(args: ResolveNotifyArgs) {
+  // Resolve equipment + project names for context.
+  const [equipment, project] = await Promise.all([
+    args.equipmentId
+      ? prisma.equipment.findUnique({
+          where: { id: args.equipmentId },
+          select: { name: true },
+        })
+      : Promise.resolve(null),
+    prisma.project.findUnique({
+      where: { id: args.projectId },
+      select: { name: true },
+    }),
+  ])
+  const eqName = equipment?.name ?? 'your panel'
+  const projectName = project?.name ?? 'the show'
+
+  let title: string
+  let body: string
+  if (args.kind === 'applied') {
+    const word = args.approvedKeys === 1 ? 'key' : 'keys'
+    title = `${args.approvedKeys} ${word} approved`
+    body = `${eqName} on ${projectName} is live`
+  } else if (args.kind === 'rejected') {
+    const word = args.deniedKeys === 1 ? 'key' : 'keys'
+    title = `${args.deniedKeys} ${word} denied`
+    body = `${eqName} on ${projectName}`
+  } else {
+    title = `${args.approvedKeys} approved · ${args.deniedKeys} denied`
+    body = `${eqName} on ${projectName}`
+  }
+
+  // Deep-link to the panel for the submitter so tapping the
+  // notification opens the same view they last edited.
+  const url = args.equipmentId
+    ? `/projects/${args.projectId}/panel/${args.equipmentId}`
+    : `/`
+
+  await sendPushToUsers([args.submittedById], {
+    title,
+    body,
+    url,
+    tag: `cr-${args.changeRequestId}`,
+  })
 }

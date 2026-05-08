@@ -1,6 +1,6 @@
 # Nodal Control — Entity Relationship Diagram
 
-**Updated:** 2026-05-03
+**Updated:** 2026-05-08
 **Source of truth:** `prisma/schema.prisma`. Regenerate this diagram when the schema changes.
 
 ---
@@ -27,6 +27,8 @@ erDiagram
     ProjectMember ||--o{ PanelKey : "has keys"
     ProjectMember ||--o{ Equipment : "assigned to"
     ProjectMember ||--o{ ChangeRequest : "targeted by"
+    Equipment ||--o{ PanelKey : "scoped to"
+    Equipment ||--o{ ChangeRequest : "scoped to"
 
     PickListItem ||--o{ PanelKey : "assigned to key"
     PickListItem ||--o{ KeyDraft : "assigned in draft"
@@ -104,11 +106,13 @@ erDiagram
     PanelKey {
         int id PK
         int projectMemberId FK
+        int equipmentId FK "scoped per device since 2026-05-08"
         int keyIndex "physical key position"
         string page "main or shift"
         int expansion "0 main 1-6 expansion"
         int pickListItemId FK
         string triggerMode "latch momentary auto"
+        string talkMode "tl t l"
     }
 
     KeyDraft {
@@ -126,6 +130,7 @@ erDiagram
         int projectId FK
         int submittedById FK
         int targetMemberId FK
+        int equipmentId FK "scoped per device since 2026-05-08"
         string status "submitted mgr_endorsed applied rejected"
         string rejectionNote
         datetime createdAt
@@ -226,6 +231,8 @@ erDiagram
     Project ||--o{ Equipment : ""
     ProjectMember ||--o{ PanelKey : ""
     ProjectMember ||--o{ Equipment : "assignedTo"
+    Equipment ||--o{ PanelKey : "scoped to"
+    Equipment ||--o{ ChangeRequest : "scoped to"
     PickListItem ||--o{ PanelKey : ""
     PanelKey ||--o{ KeyDraft : ""
     PanelKey ||--o{ ChangeRequestItem : ""
@@ -242,7 +249,7 @@ erDiagram
 |---|---|---|
 | `Project` | `pin` | No two active projects share a 4-digit join PIN |
 | `ProjectMember` | `(userId, projectId)` | A user isn't on the same project twice |
-| `PanelKey` | `(projectMemberId, keyIndex, page, expansion)` | One physical key position per member |
+| `PanelKey` | `(equipmentId, keyIndex, page, expansion)` | One physical key position per device — multi-device members get one row per device per slot (changed 2026-05-08; was scoped by `projectMemberId`) |
 | `Asset` | `qrCode` | Every physical asset has a unique QR |
 | `ProjectHeadsetInventory` | `(projectId, headsetType)` | One brought-total row per headset type per project |
 

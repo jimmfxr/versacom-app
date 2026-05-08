@@ -103,3 +103,48 @@ A living record of key product decisions and the reasoning behind them.
 **Decision:** 10 wrong PIN attempts locks the account for 15 minutes. Auto-unlocks after 15 minutes OR Admin can manually unlock immediately. Admin gets notified in Inbox.
 
 **Why:** Dual unlock (timed + manual) solves two scenarios. During a live show, if a crew member gets locked out and can't find Admin, they wait 15 minutes and try again — they're never fully stuck. But Admin still sees every lockout in their Inbox and can unlock early or reset the PIN if they're nearby. 10 attempts is generous enough for honest mistakes, and the 15-minute window limits brute force to ~650 attempts/day (would take 15 days to exhaust all 10,000 PINs).
+
+---
+
+## PD-013: PanelKey + ChangeRequest are equipment-scoped, not member-scoped
+
+**Decision:** As of 2026-05-08, the unique constraint on `PanelKey` is `(equipmentId, keyIndex, page, expansion)` (was `(projectMemberId, …)`). `ChangeRequest` carries an `equipmentId` denormalized off its first item.
+
+**Why:** Multi-device members (e.g. one crew member assigned both HWBP 1 and PNL 3 on the same show) used to share PanelKey rows across all their devices because keys were keyed off `projectMemberId` only. Editing key 1 on HWBP 1 mutated the same row PNL 3 read from. The admin review surface compounded the problem by grouping change requests on `(submitter, target member)`, collapsing two devices' edits into one card.
+
+**Migration cost:** A one-time data migration cloned each member's existing PanelKey rows once per device so each device started at the canonical state and could diverge from there. ChangeRequests with no items were dropped as orphans. See `prisma/migrations/20260508000000_panel_key_equipment_scope/`.
+
+**Consequence:**
+- Admin grouping at `/admin` keys reviews on `(submitter, target member, equipment)` — HWBP 1 and PNL 3 produce separate review cards.
+- Task badge count distinct on the same triple, so two devices = two tasks.
+- Panel page loader queries pending `ChangeRequestItem`s for the current equipment + user and hydrates the green-bordered "submitted" state on revisit; without this, navigating away and back lost the visual indication of what was awaiting review.
+
+---
+
+## PD-014: Flat-card visual language across list surfaces
+
+**Decision:** List rows across the app have no card chrome — no `rounded-2xl`, no `bg-[#2a2a2a]`. Just transparent rows separated by a 6%-white border. Empty states are also transparent.
+
+**Why:** Design feedback was "the cards float; there are too many container boundaries." A live-show interface needs lists to read as lists, not as grids of boxes. Flat rows with thin separators read faster, hide better behind a small phone screen at 3am, and let the page-header `bottomBorder` pattern unify with the content below.
+
+**Pattern:** Each list wrapper uses either `divide-y divide-white/[0.06]` (line on top of every row except the first) or `[&>*]:border-b [&>*]:border-white/[0.06]` (line on bottom of every row including the last) — the latter when a closing line under the list is desirable. Rows themselves: `py-3` only, no horizontal padding (cards sit flush with the page gutter).
+
+**Surfaces touched:** Dashboard distribution cards still keep their bordered look (3-up grid on desktop, swipe carousel on mobile) — the rest (Projects list, Tasks, Admin tasks, My Equipment, Project Details Equipment / Team / Pick List / Plots, Kiosk pending list) all dropped to flat rows.
+
+---
+
+## PD-015: Tasks badge collapses on (submitter, member, equipment)
+
+**Decision:** `/api/admin/task-count` distincts ChangeRequests on `(submittedById, targetMemberId, equipmentId)` rather than `(submittedById, targetMemberId)`.
+
+**Why:** Companion to PD-013. Without `equipmentId` in the distinct, a crew member submitting on two devices would only count as one badge unit — but the `/admin` page would still render two cards (since we group on the same triple). The mismatch between badge count and visible cards was confusing.
+
+---
+
+## PD-016: Touch-action discipline on the Dashboard
+
+**Decision:** The dashboard root and the deployment-status section's outer wrapper have `touch-action: pan-y` set inline. The SwipeCarousel's track re-enables `pan-x` on its own subtree.
+
+**Why:** A horizontal/diagonal gesture starting on the deployment-status card or its section header used to leak through to the SwipeCarousel below — iOS Safari interprets the touch as belonging to the closest horizontal scroller. Locking the surrounding tree to vertical-only pans constrains the leak. The carousel keeps swipe behavior because its own `touch-action: pan-x` overrides for that subtree.
+
+**Side benefit:** Pre-empts the same class of bug on any future card on the dashboard — the parent rule wins by default.

@@ -23,12 +23,34 @@ model User {
   updatedAt      DateTime  @updatedAt
 
   // Relations
-  createdProjects  Project[]        @relation("ProjectCreator")
-  memberships      ProjectMember[]
-  changeRequests   ChangeRequest[]
-  accessRequests   AccessRequest[]
-  keyDrafts        KeyDraft[]
-  nfgReports       NfgReport[]
+  createdProjects   Project[]            @relation("ProjectCreator")
+  memberships       ProjectMember[]
+  changeRequests    ChangeRequest[]
+  accessRequests    AccessRequest[]
+  keyDrafts         KeyDraft[]
+  nfgReports        NfgReport[]
+  pushSubscriptions PushSubscription[]
+}
+
+// Web Push subscription registered by the user from one device. Stored
+// per-endpoint so the same user can subscribe from multiple devices /
+// browsers and receive push on all of them. Endpoints are reported by
+// the browser as URLs that uniquely identify the destination on the
+// browser-vendor's push service (Mozilla / Google / Apple). We dedupe
+// on `endpoint` so a re-subscription overwrites instead of duplicating.
+model PushSubscription {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  endpoint  String   @unique
+  // Web-Push encryption keys reported by the browser when subscribing.
+  // Required to encrypt notifications for this endpoint.
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Project {

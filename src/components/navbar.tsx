@@ -12,6 +12,7 @@ import {
 } from '@headlessui/react'
 import { Bars3Icon, BellIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useDrag } from '@use-gesture/react'
+import { NotificationToggle } from '@/components/notification-toggle'
 
 export type NavItem = {
   readonly name: string
@@ -300,6 +301,16 @@ export function Navbar({
                     transition
                     className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-gray-800 py-1 outline -outline-offset-1 outline-white/10 transition data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-200 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
                   >
+                    {/* Notifications toggle — sits above the static
+                        nav items because it's the most state-aware
+                        action in the menu and naturally drops below
+                        a divider when something account-y comes
+                        next. Renders nothing when the browser
+                        doesn't support push or VAPID isn't
+                        configured. */}
+                    <MenuItem>
+                      {() => <NotificationToggle />}
+                    </MenuItem>
                     {userNavigation.map((item) => (
                       <MenuItem key={item.name}>
                         {item.name === 'Sign out' && onSignOut ? (

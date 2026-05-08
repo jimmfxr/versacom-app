@@ -1,7 +1,7 @@
 # Nodal Control — Product Requirements Document
 
-**Version:** 2.1 (current-state rewrite)
-**Updated:** 2026-05-03
+**Version:** 2.2 (equipment-scoping + UX flatten pass)
+**Updated:** 2026-05-08
 **Author:** Jimmy Xiloj / Versacom (ATK / Clair Global)
 **Status:** Living document — describes what is actually built and shipping, not future phases.
 
@@ -15,18 +15,22 @@ Nodal Control is a web-based intercom management platform for live production sh
 
 **What's built today (v2):**
 
-- PIN-based auth with project PIN + personal PIN flow
+- PIN-based auth with project PIN + personal PIN flow + auto-login after first-time PIN setup
 - Operational pages: **Projects list**, **Project detail** (Equipment/Team/Pick List/Plots/My Equipment tabs), **Panel Studio** (per-equipment key editor)
-- **Dashboard** with project switcher, **My Equipment** unified across roles (admin/manager browse mode redirects directly into Panel Studio)
+- **Dashboard** with project switcher, kiosk-style header pin, swipe-carousel distribution cards on mobile
+- **My Equipment** unified across roles (admin/manager browse mode redirects directly into Panel Studio)
 - **Tasks** page — `/admin` for admins (CR review + lockouts), `/tasks` for crew (deploy + return tasks). Both surface a polled badge in the navbar.
 - Four roles: `admin`, `manager`, `crew`, `user` — each with specific permissions; **`admin` on any project promotes the user to "global admin"** (sees every project)
-- Change-request approval workflow for panel key edits (submitted → applied/rejected)
+- **Equipment-scoped key editing + change requests** — multi-device members (e.g. HWBP 1 + PNL 3 on the same crew member) keep separate key state per device, and admin reviews are split per device.
+- Change-request approval workflow with green "submitted" border that survives navigation away and back (hydrated from unresolved `ChangeRequestItem` rows on the panel-page loader)
 - **Panel-level Copy / Paste** clipboard (sessionStorage) for cloning a panel's keys onto another user
 - **Per-key clipboard** (Cmd/Ctrl-C / V) for copying one key's assignment + trigger mode
-- QR code generation for project join links + crew kiosk page (`/projects/[id]/kiosk`)
-- Mobile-first nav with drag-to-dismiss gesture
+- QR code generation for project join links + **crew kiosk page** with name + position field (`/projects/[id]/kiosk`)
+- Mobile-first nav with drag-to-dismiss gesture, chip-style nav cards, and global haptic feedback (`navigator.vibrate` on `pointerdown` for buttons + `[data-haptic]` rows)
+- iOS PWA polish: safe-area inset reservation on `AppShell`, `overscroll-behavior: contain` to block horizontal rubber-band, touch-action discipline on the Dashboard
 - Device reachability probing with caching + cross-tab sync
 - Admin-toggled **Return phase** — when active, crew see "done" gear as Return tasks alongside Deploy tasks
+- **Flat-card visual language** across list surfaces (Projects, Tasks, My Equipment, Project Details tabs, Kiosk pending list, Admin tasks). See PD-014.
 
 **What's not built:**
 
@@ -34,6 +38,8 @@ Nodal Control is a web-based intercom management platform for live production sh
 - NFG / asset tracking (Phase 4 — schema exists, no UI)
 - Rack designer (Phase 2 — schema exists, no UI)
 - Distribution page (the old "master sheet" idea — replaced in practice by the Equipment tab on Project detail)
+- Label / sticker printing (Brother P-touch integration — see §11 Future Work)
+- Web push notifications (planned for Tasks badge so it doesn't depend on a foregrounded tab)
 
 ---
 
@@ -376,9 +382,9 @@ const onlyHwbp = m.equipment.every((e) => e.category === 'hardwire_bp')
 | `ProjectHeadsetInventory` | Per-project headset-type "brought" totals | `(projectId, headsetType)` unique, `brought` count |
 | `ProjectMember` | User's membership in a project | `role`, `position`, `location`, `hardwareType` (legacy — equipment carries this now), `deployStatus` (per-member, less-used now) |
 | `PickListItem` | A named comm function | `code`, `name`, `type` (PTP/CONF/IFB/Audio_IO/GRP) |
-| `PanelKey` | One physical key on someone's panel | `keyIndex`, `page` (main/shift), `expansion` (0-N), `pickListItemId`, `triggerMode` |
-| `KeyDraft` | Unsaved edit to a PanelKey | `editedById`, `pickListItemId`, `triggerMode`, `status` (draft/submitted) |
-| `ChangeRequest` | Bundle of key edits awaiting approval | `status` (draft/submitted/mgr_endorsed/applied/rejected/discarded), `submittedById`, `targetMemberId`, `resolvedAt` |
+| `PanelKey` | One physical key on a specific piece of gear | `equipmentId` (since 2026-05-08), `projectMemberId`, `keyIndex`, `page` (main/shift), `expansion` (0-N), `pickListItemId`, `triggerMode`, `talkMode`. Unique on `(equipmentId, keyIndex, page, expansion)`. |
+| `KeyDraft` | Unsaved edit to a PanelKey | `editedById`, `pickListItemId`, `triggerMode`, `talkMode`, `status` (draft/submitted) |
+| `ChangeRequest` | Bundle of key edits awaiting approval, **scoped to one device** | `equipmentId` (since 2026-05-08), `status` (draft/submitted/mgr_endorsed/applied/rejected/discarded), `submittedById`, `targetMemberId`, `resolvedAt` |
 | `ChangeRequestItem` | Per-key diff within a change request | `panelKeyId`, `fieldChanged`, `previousValue`, `newValue` |
 | `AccessRequest` | Not currently used in UI | (kept in schema for future project-access flow) |
 
@@ -473,6 +479,7 @@ Auto-generated pick list codes and equipment names are **not zero-padded** (`C1,
 - **Monitoring page / NFG UI / Rack designer** — schema present, no UI. Explicitly deferred from v2 scope.
 - **ChangeRequestItem has no per-item status field.** Current resolution sets the CR to `applied` or `rejected` at the bundle level; per-item approve/deny is inferred by comparing `newValue` to the current `PanelKey` — works for the 95% case but breaks if another edit happens in the ~60s window between resolution and crew polling.
 - **`riedelId` on ProjectMember** is legacy from the original Riedel-integration plan. No current code reads or writes it. Leave alone until the monitoring phase starts.
+- **No web push for Tasks** — admins/crew need to keep a tab open for the badge to refresh. Push would let the device wake on a new CR. Service worker already registered for PWA install; missing piece is the VAPID server.
 
 ---
 
@@ -499,7 +506,40 @@ When returning to the codebase, these are the files to re-read first:
 
 ---
 
-## 10. Related Documents
+## 11. Future Work
+
+Loosely-prioritized roadmap. Not commitments — just "if/when we touch these next."
+
+### 11.1 Label / sticker printing (Brother P-touch)
+
+Equipment in the warehouse + on the show floor needs human-readable + machine-readable stickers (gear name, project, QR). Path depends on which printer model:
+
+- **WiFi printer** (PT-P900W / P950NW family): Next.js server action opens a TCP socket to printer IP:9100 and pushes Brother's raster command stream. Works from any device including iPad. Requires a per-project printer-IP setting.
+- **Bluetooth printer** (PT-P710BT / P300BT): Web Bluetooth from the browser — works on desktop Chrome/Edge and Android. Doesn't work on iOS Safari (Apple has refused Web Bluetooth for years).
+
+Templates already exist in P-touch Editor (`.lbx` files) but that format isn't web-portable; we'd re-create the layouts as code (SVG → raster) — typically 1-day work for ~3 layouts. Schema additions: a `qrCode` field on `Equipment` (mirror of `Asset.qrCode`) so stickers stay valid across project reassignments, and a printer-config row per project (IP, model, default tape width).
+
+Status: scoped, not started. Waiting on hardware decision.
+
+### 11.2 Web push notifications
+
+Replace polling-only Tasks badge with a push delivery so admins / crew get notified without keeping a tab open. Service worker is already registered for the PWA install; the missing pieces are a VAPID key, a `subscribe` endpoint, and a server-side `web-push` send when a ChangeRequest is created or a deployment status flips into a watched state.
+
+### 11.3 Riedel hardware integration (the original Phase 3 plan)
+
+`riedelId` lives on `ProjectMember` for this. The plan is to push approved key configs straight into a Riedel frame via RRCS XML-RPC so the show comms reflect the approved state without a programmer manually re-entering keys. Significant effort — requires a stateful relay that holds the RRCS connection, plus a mapping layer between our `PickListItem` model and Riedel's port/conference graph.
+
+### 11.4 Rack designer (Phase 2 schema, no UI)
+
+`RackTemplate` + `RackSlot` exist. UI would be a per-project rack layout view with drag-and-drop placement of equipment + RU-aware constraints. Lower priority than monitoring.
+
+### 11.5 NFG / Asset tracking (Phase 4 schema, no UI)
+
+`NfgReport` + `Asset` are wired in the schema. Reports of damaged or non-functioning gear would let managers see across-project failure patterns and tag specific assets out of rotation.
+
+---
+
+## 12. Related Documents
 
 - `uml-erd.md` — Entity relationship diagram (Mermaid)
 - `uml-sequence-diagrams.md` — Sequence flows for key operations
