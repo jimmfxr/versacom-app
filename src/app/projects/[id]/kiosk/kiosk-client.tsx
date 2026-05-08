@@ -292,13 +292,13 @@ function FormView({
               // shrink below content size when too many cards, at which
               // point overflow-y-auto kicks in. pb-4 matches the inner
               // scroll padding used on project / tasks pages.
-              <div className="min-h-0 flex-initial space-y-2 overflow-y-auto overscroll-none pb-4 pr-1">
+              <div className="min-h-0 flex-initial divide-y divide-white/[0.06] overflow-y-auto overscroll-none pb-4 pr-1">
                 {filteredPending.map((m) => (
                   <button
                     key={m.id}
                     type="button"
                     onClick={() => onPickPending(m)}
-                    className="flex w-full items-center justify-between gap-4 rounded-2xl bg-[#2a2a2a] px-5 py-4 text-left transition-colors hover:bg-[#313131]"
+                    className="flex w-full items-center justify-between gap-4 px-5 py-3 text-left transition-colors hover:bg-white/[0.04]"
                   >
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
