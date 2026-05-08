@@ -1596,23 +1596,46 @@ export function PanelStudio({
                 User-only accounts can't access the project page (proxy
                 blocks it), so route them back to My Equipment instead. */}
             {!isBrowseMode && (
-              <div className="flex-shrink-0 mx-auto w-full max-w-7xl flex flex-wrap items-center justify-between gap-3 pt-5 px-4 sm:px-6 lg:px-8">
-                {/* The back button is only useful when the admin/manager came
-                    in from a project tab or an admin review. User-only role
-                    treats panel studio as the entire My Equipment experience,
-                    so the back button would just reload the same page. */}
-                {!isUserOnly && (
-                  <button
-                    onClick={() => {
-                      const dest = isReviewMode ? '/admin' : `/projects/${project.id}`
-                      router.push(dest)
-                    }}
-                    className="inline-flex items-center gap-1 text-sm text-gray-400 transition-colors hover:text-white"
-                  >
-                    <ChevronLeftIcon className="size-4" />
-                    <span>{isReviewMode ? 'Tasks' : 'Project'}</span>
-                  </button>
-                )}
+              <div className="flex-shrink-0 mx-auto w-full max-w-7xl px-4 pt-5 sm:px-6 lg:px-8">
+                {(() => {
+                  const dest = isReviewMode
+                    ? '/admin'
+                    : isUserOnly
+                      ? '/my-equipment'
+                      : `/projects/${project.id}`
+                  const backBtn = (
+                    <button
+                      onClick={() => router.push(dest)}
+                      className="inline-flex rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+                    >
+                      Back
+                    </button>
+                  )
+                  return (
+                    <>
+                      {/* Mobile: title, then divider under it, then
+                          back button on its own row — mirrors the
+                          browse-mode header / PageHeader showMobile
+                          Divider pattern. */}
+                      <div className="flex flex-col gap-2 sm:hidden">
+                        <div className="flex items-center justify-between gap-3">
+                          <h1 className="text-2xl font-bold tracking-tight text-white">
+                            My Equipment
+                          </h1>
+                          {backBtn}
+                        </div>
+                        <div className="w-full border-b border-white/20" />
+                      </div>
+                      {/* Desktop: title left, back button right. */}
+                      <div className="hidden items-center justify-between gap-3 sm:flex">
+                        <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                          My Equipment
+                        </h1>
+                        {backBtn}
+                      </div>
+                    </>
+                  )
+                })()}
               </div>
             )}
 

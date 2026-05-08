@@ -145,7 +145,7 @@ export function MyEquipmentContent({
             </button>
           </div>
         )}
-        <p className="text-xs text-gray-500">
+        <p className="mb-3 text-xs text-gray-500">
           {browseMode
             ? `${equipment.length} item${equipment.length !== 1 ? 's' : ''} assigned`
             : `${equipment.length} item${equipment.length !== 1 ? 's' : ''} assigned to you`}
@@ -158,14 +158,14 @@ export function MyEquipmentContent({
             message="You don't have any equipment assigned to you yet."
           />
         ) : (
-          <div className="space-y-2">
+          <div className="divide-y divide-white/[0.06]">
             {equipment.map((item) => {
               const hasPanel = isPanelType(item.category)
               const canEdit = hasPanel && canEditPanel(item.userRole)
               return (
                 <div
                   key={item.id}
-                  className={`flex items-start gap-4 rounded-2xl bg-[#2a2a2a] px-5 py-4 transition-colors ${hasPanel ? 'cursor-pointer hover:bg-[#313131]' : ''}`}
+                  className={`flex items-start gap-4 px-5 py-3 transition-colors ${hasPanel ? 'cursor-pointer hover:bg-white/[0.04]' : ''}`}
                   onClick={hasPanel ? () => {
                     // In browse mode (admin/manager) we tag the URL with
                     // ?from=my-equipment so the panel studio renders the
@@ -178,17 +178,21 @@ export function MyEquipmentContent({
                   } : undefined}
                 >
                   <div className="min-w-0 flex-1">
-                    {/* Row 1: ID, project, and edit badge */}
-                    <div className="flex items-center gap-2 text-sm font-semibold">
+                    {/* Row 1: ID + edit badge. Project name is a
+                        separate row on mobile (below ID) so the
+                        narrow viewport doesn't squeeze the strip. */}
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-semibold">
                       <span className="text-xs font-semibold text-gray-400">{item.name}</span>
-                      <span className="text-gray-500">·</span>
-                      <span className="text-xs text-[#0178a3]">{item.projectName}</span>
+                      <span className="hidden text-gray-500 sm:inline">·</span>
+                      <span className="hidden text-xs text-[#0178a3] sm:inline">{item.projectName}</span>
                       {hasPanel && (
                         <span className="rounded bg-[#0178a3]/15 px-1.5 py-0.5 text-[10px] font-medium text-[#22a7d3]">
                           {canEdit ? 'Edit Panel' : 'View Panel'}
                         </span>
                       )}
                     </div>
+                    {/* Project name on its own row on mobile only. */}
+                    <div className="mt-0.5 text-xs text-[#0178a3] sm:hidden">{item.projectName}</div>
 
                     {/* Row 2: Details */}
                     <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-gray-400">
