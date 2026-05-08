@@ -413,6 +413,7 @@ export async function resolveChangeRequests(
     // want a slow push service to delay the resolve response.
     const resolveOutcomes: Array<{
       submittedById: number
+      resolverUserId: number
       changeRequestId: number
       equipmentId: number | null
       projectId: number
@@ -466,6 +467,10 @@ export async function resolveChangeRequests(
 
       resolveOutcomes.push({
         submittedById: cr.submittedById,
+        // The session user is the admin / manager who hit Approve.
+        // Surfaced in the notification title so the submitter sees
+        // who resolved the request.
+        resolverUserId: session.user.id,
         changeRequestId: cr.id,
         equipmentId: cr.equipmentId ?? null,
         projectId: cr.projectId,
@@ -552,9 +557,16 @@ async function notifyAdminsOfNewChangeRequest(args: SubmitNotifyArgs) {
   const projectName = project?.name ?? 'a show'
   const keyWord = args.keyCount === 1 ? 'key' : 'keys'
 
+  // Body uses two stacked lines:
+  //   line 1: equipment ID + the submitter's name (e.g. "PNL 3 - Wyatt Ortiz")
+  //   line 2: the project name
+  // targetName is intentionally omitted because the row "ID + person"
+  // already conveys whose panel was touched in most cases (the
+  // submitter and the target tend to be the same person).
+  void targetName // accepted for compatibility; not surfaced in the new copy
   await sendPushToUsers(recipients, {
     title: `${args.keyCount} ${keyWord} pending review`,
-    body: `${submitterName} edited ${eqName} for ${targetName} (${projectName})`,
+    body: `${eqName} - ${submitterName}\n${projectName}`,
     url: `/admin`,
     tag: `cr-${args.changeRequestId}`,
   })
@@ -562,6 +574,9 @@ async function notifyAdminsOfNewChangeRequest(args: SubmitNotifyArgs) {
 
 type ResolveNotifyArgs = {
   submittedById: number
+  // The admin/manager who resolved the request — surfaced as the
+  // notification title so the submitter sees who made the call.
+  resolverUserId: number
   changeRequestId: number
   equipmentId: number | null
   projectId: number
@@ -571,36 +586,36 @@ type ResolveNotifyArgs = {
 }
 
 async function notifySubmitterOfResolution(args: ResolveNotifyArgs) {
-  // Resolve equipment + project names for context.
-  const [equipment, project] = await Promise.all([
-    args.equipmentId
-      ? prisma.equipment.findUnique({
-          where: { id: args.equipmentId },
-          select: { name: true },
-        })
-      : Promise.resolve(null),
+  // Resolve resolver + project names for context.
+  const [resolver, project] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: args.resolverUserId },
+      select: { firstName: true, lastName: true },
+    }),
     prisma.project.findUnique({
       where: { id: args.projectId },
       select: { name: true },
     }),
   ])
-  const eqName = equipment?.name ?? 'your panel'
+  const resolverName = resolver
+    ? `${resolver.firstName} ${resolver.lastName}`
+    : 'Admin'
   const projectName = project?.name ?? 'the show'
 
+  // Title leads with the resolver's name + outcome so the user sees
+  // "JIMMY XILOJ approved 1 key" rather than the generic app name.
   let title: string
-  let body: string
   if (args.kind === 'applied') {
     const word = args.approvedKeys === 1 ? 'key' : 'keys'
-    title = `${args.approvedKeys} ${word} approved`
-    body = `${eqName} on ${projectName} is live`
+    title = `${resolverName} approved ${args.approvedKeys} ${word}`
   } else if (args.kind === 'rejected') {
     const word = args.deniedKeys === 1 ? 'key' : 'keys'
-    title = `${args.deniedKeys} ${word} denied`
-    body = `${eqName} on ${projectName}`
+    title = `${resolverName} denied ${args.deniedKeys} ${word}`
   } else {
-    title = `${args.approvedKeys} approved · ${args.deniedKeys} denied`
-    body = `${eqName} on ${projectName}`
+    title = `${resolverName} · ${args.approvedKeys} approved, ${args.deniedKeys} denied`
   }
+  // Body is just the project name on its own row.
+  const body = projectName
 
   // Deep-link to the panel for the submitter so tapping the
   // notification opens the same view they last edited.
