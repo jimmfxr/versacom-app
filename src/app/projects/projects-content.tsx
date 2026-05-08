@@ -168,7 +168,7 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
             inline in the page header (left of the New Project button)
             so we hide this row at sm+. */}
         {projects.length > 0 && (
-          <div className="sticky top-16 z-20 -mx-4 bg-[#202020] px-4 pb-3 pt-3 sm:hidden">
+          <div className="sticky top-16 z-20 -mx-4 bg-[#202020] px-4 pb-3 sm:hidden">
             <input
               type="text"
               placeholder="Search projects..."

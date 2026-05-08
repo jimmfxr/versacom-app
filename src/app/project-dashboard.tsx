@@ -160,7 +160,7 @@ function ChevronIcon({ open }: { open: boolean }) {
 
 function CheckIcon() {
   return (
-    <svg className="size-3.5 text-[#22a7d3]" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+    <svg className="size-3.5 text-white" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="4 10 8 14 16 6" />
     </svg>
   )
@@ -225,10 +225,10 @@ export function ProjectSwitcher({
                   if (!isActive) router.push(basePath)
                 }}
                 className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2.5 text-left transition-colors ${
-                  isActive ? 'bg-[#22a7d3]/10' : 'hover:bg-white/[0.06]'
+                  isActive ? 'bg-[#0178a3]' : 'hover:bg-white/[0.06]'
                 }`}
               >
-                <span className={`text-[13px] font-medium ${isActive ? 'text-[#22a7d3]' : 'text-gray-200'}`}>
+                <span className={`text-[13px] font-medium ${isActive ? 'text-white' : 'text-gray-200'}`}>
                   {allLabel}
                 </span>
                 {isActive && <CheckIcon />}
@@ -250,10 +250,10 @@ export function ProjectSwitcher({
                   }
                 }}
                 className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2.5 text-left transition-colors ${
-                  isActive ? 'bg-[#22a7d3]/10' : 'hover:bg-white/[0.06]'
+                  isActive ? 'bg-[#0178a3]' : 'hover:bg-white/[0.06]'
                 }`}
               >
-                <span className={`text-[13px] font-medium ${isActive ? 'text-[#22a7d3]' : 'text-gray-200'}`}>
+                <span className={`text-[13px] font-medium ${isActive ? 'text-white' : 'text-gray-200'}`}>
                   {p.name}
                 </span>
                 {isActive && <CheckIcon />}

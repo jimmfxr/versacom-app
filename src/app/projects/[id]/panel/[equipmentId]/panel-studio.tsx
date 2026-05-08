@@ -3066,18 +3066,18 @@ function BrowseProjectDropdown({
   }
 
   return (
-    <div ref={ref} className={`relative w-full sm:w-auto ${className}`}>
+    <div ref={ref} className={`relative w-full sm:w-[280px] ${className}`}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium text-gray-200 transition-colors sm:w-auto sm:justify-start ${
+        className={`flex w-full items-center justify-between gap-2.5 rounded-lg border px-3.5 py-2 text-sm font-medium text-gray-200 transition-colors ${
           open
             ? 'border-[#22a7d3]/50 bg-white/[0.04]'
             : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
         }`}
       >
-        <span className="truncate sm:max-w-[160px]">{project.name}</span>
-        <svg className="size-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
+        <span className="truncate">{project.name}</span>
+        <svg className={`size-3.5 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
       </button>
       {open && (
         <div className="absolute left-0 right-0 top-full z-30 mt-1 flex max-h-[320px] flex-col rounded-lg border border-white/10 bg-[#2a2a2a] shadow-2xl sm:left-auto sm:min-w-[240px]">
@@ -3107,10 +3107,10 @@ function BrowseProjectDropdown({
                   type="button"
                   onClick={() => { setOpen(false); navigateToProject(p.id) }}
                   className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left transition-colors ${
-                    isActive ? 'bg-[#22a7d3]/10' : 'hover:bg-white/[0.06]'
+                    isActive ? 'bg-[#0178a3]' : 'hover:bg-white/[0.06]'
                   }`}
                 >
-                  <span className={`text-[12px] font-medium ${isActive ? 'text-[#22a7d3]' : 'text-gray-200'}`}>{p.name}</span>
+                  <span className={`text-[12px] font-medium ${isActive ? 'text-white' : 'text-gray-200'}`}>{p.name}</span>
                 </button>
               )
             })}
@@ -3219,18 +3219,18 @@ function BrowseMemberSwitcher({
       >
         <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
       </button>
-      <div className="relative flex-1 sm:flex-initial">
+      <div className="relative flex-1 sm:w-[280px] sm:flex-initial">
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium text-gray-200 transition-colors sm:w-auto sm:justify-start ${
+          className={`flex w-full items-center justify-between gap-2.5 rounded-lg border px-3.5 py-2 text-sm font-medium text-gray-200 transition-colors ${
             open
               ? 'border-[#22a7d3]/50 bg-white/[0.04]'
               : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
           }`}
         >
-          <span className="truncate sm:max-w-[200px]">{memberLabel}</span>
-          <svg className="size-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
+          <span className="truncate">{memberLabel}</span>
+          <svg className={`size-3.5 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
         </button>
         {open && (
           <div className="absolute left-0 right-0 top-full z-30 mt-1 flex max-h-[360px] flex-col rounded-lg border border-white/10 bg-[#2a2a2a] shadow-2xl sm:left-1/2 sm:right-auto sm:min-w-[280px] sm:-translate-x-1/2">
@@ -3268,10 +3268,10 @@ function BrowseMemberSwitcher({
                     onClick={() => { setOpen(false); navigateToEntry(m.id) }}
                     disabled={m.equipmentId == null}
                     className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left transition-colors disabled:opacity-40 ${
-                      isActive ? 'bg-[#22a7d3]/10' : 'hover:bg-white/[0.06]'
+                      isActive ? 'bg-[#0178a3]' : 'hover:bg-white/[0.06]'
                     }`}
                   >
-                    <span className={`text-[12px] font-medium ${isActive ? 'text-[#22a7d3]' : 'text-gray-200'}`}>{label}</span>
+                    <span className={`text-[12px] font-medium ${isActive ? 'text-white' : 'text-gray-200'}`}>{label}</span>
                   </button>
                 )
               })}

@@ -230,7 +230,7 @@ export function TaskCardList({
       })
 
   const SearchBar = (
-    <div className="flex-shrink-0 -mx-4 mb-3 bg-[#202020] px-4 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+    <div className="flex-shrink-0 -mx-4 mb-3 bg-[#202020] px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
       {/* Internal search input — hidden when the parent supplies its
           own search via the searchValue prop (e.g. the page-header
           search on /tasks). */}

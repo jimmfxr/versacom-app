@@ -311,19 +311,19 @@ function TabsMobileDropdown({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`flex w-full items-center justify-between gap-2 rounded-lg border font-medium text-gray-200 transition-colors ${
-          compact ? 'px-4 py-2 text-sm' : 'px-3.5 py-2.5 text-base'
+        className={`flex w-full items-center justify-between gap-2.5 rounded-lg border font-medium text-gray-200 transition-colors ${
+          compact ? 'px-3.5 py-2 text-sm' : 'px-3.5 py-2.5 text-base'
         } ${
           open
             ? 'border-[#22a7d3]/50 bg-white/[0.04]'
-            : 'border-white/10 hover:border-white/20'
+            : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
         }`}
       >
         <span className="flex items-center gap-2">
           <span>{active.label}</span>
           <span className={`text-gray-500 ${compact ? 'text-[11px]' : 'text-xs'}`}>{active.count}</span>
         </span>
-        <svg className="size-3 shrink-0 text-gray-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg className={`size-3.5 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="5 8 10 13 15 8" />
         </svg>
       </button>
@@ -340,10 +340,10 @@ function TabsMobileDropdown({
                   onSelect(t.key)
                 }}
                 className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left transition-colors ${
-                  isActive ? 'bg-[#22a7d3]/10' : 'hover:bg-white/[0.06]'
+                  isActive ? 'bg-[#0178a3]' : 'hover:bg-white/[0.06]'
                 }`}
               >
-                <span className={`text-sm font-medium ${isActive ? 'text-[#22a7d3]' : 'text-gray-200'}`}>{t.label}</span>
+                <span className={`text-sm font-medium ${isActive ? 'text-white' : 'text-gray-200'}`}>{t.label}</span>
                 <span className="text-xs text-gray-500">{t.count}</span>
               </button>
             )
@@ -1225,13 +1225,32 @@ export function ProjectPage({
         // the slot is no longer used.
         action={
           <div className="flex items-center gap-3">
-            {/* Desktop tab dropdown — same component as mobile but
-                shrunk to match Edit/Back button height
-                (px-4 py-2 text-sm). Fixed-width (w-44) so every
-                tab label renders the trigger at the same size,
-                no jumping when you switch from Equipment (8 chars)
-                to Pick List (9) etc. */}
-            <div className="hidden w-44 sm:block">
+            {/* Layout: Edit + Back on the left, then the tab
+                dropdown on the right. Matches the user request to
+                swap the dropdown to the right side of the header
+                action area. */}
+            {canSeeSettings && !showSettings && (
+              <button
+                type="button"
+                onClick={() => setShowSettings(true)}
+                aria-label="Edit project"
+                className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+              >
+                Edit
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => router.push('/projects')}
+              className="inline-flex rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+            >
+              Back
+            </button>
+            {/* Desktop tab dropdown — fixed 280px wide on sm+ so
+                the trigger lines up with Dashboard / Tasks / My
+                Equipment widths and doesn't jump as the active
+                tab label changes. */}
+            <div className="hidden w-[280px] sm:block">
               {(() => {
                 const myEqCount = equipment.filter((e) => e.assignedMemberId === currentMemberId).length
                 const tabs: { key: Tab; label: string; count: number }[] = isUser
@@ -1253,31 +1272,10 @@ export function ProjectPage({
                 )
               })()}
             </div>
-            {canSeeSettings && !showSettings && (
-              <button
-                type="button"
-                onClick={() => setShowSettings(true)}
-                aria-label="Edit project"
-                className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
-              >
-                Edit
-              </button>
-            )}
-            {/* Back button — sits to the right of Edit on every
-                viewport. Same chip-inactive style as the Edit and
-                in-card Edit buttons so the whole header row reads
-                as one cohesive set. */}
-            <button
-              type="button"
-              onClick={() => router.push('/projects')}
-              className="inline-flex rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
-            >
-              Back
-            </button>
           </div>
         }
       >
-        <div className="flex min-h-0 flex-1 flex-col space-y-3">
+        <div className="flex min-h-0 flex-1 flex-col">
           {/* ─── Archived banner ─── */}
           {isArchived && (
             <div className="rounded-xl border border-gray-500/30 bg-gray-500/10 px-4 py-3 text-sm text-gray-300">
@@ -1401,7 +1399,7 @@ export function ProjectPage({
           {/* On desktop the tab chips and the active tab's search+add
               button sit on the same row (tabs left, toolbar right).
               Mobile keeps the existing per-tab sticky search bar below. */}
-          <div className="flex-shrink-0 pt-4 sm:flex sm:items-center sm:gap-3 sm:pb-4">
+          <div className="flex-shrink-0 sm:flex sm:items-center sm:gap-3">
           <div className="sm:min-w-0 sm:flex-1">
           {(() => {
             const myEqCount = equipment.filter((e) => e.assignedMemberId === currentMemberId).length
