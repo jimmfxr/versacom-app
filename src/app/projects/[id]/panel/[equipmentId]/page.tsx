@@ -72,10 +72,12 @@ export default async function PanelStudioPage({
     }
   }
 
-  // Fetch PanelKey records for the member (if assigned)
+  // Fetch PanelKey records for THIS equipment (if assigned). Keys are
+  // equipment-scoped now — members with multiple panel-category devices
+  // get one PanelKey row per device per slot.
   const panelKeysRaw = member
     ? await prisma.panelKey.findMany({
-        where: { projectMemberId: member.id },
+        where: { equipmentId: equipment.id },
         select: {
           id: true,
           keyIndex: true,
@@ -297,6 +299,10 @@ export default async function PanelStudioPage({
     const rawCRs = await prisma.changeRequest.findMany({
       where: {
         targetMemberId: reviewTargetMemberId,
+        // Scope review to the equipment the admin opened — members with
+        // multiple panel-category devices have one ChangeRequest per
+        // device, so showing only this device's CRs is correct.
+        equipmentId: equipment.id,
         status: { in: ['submitted', 'mgr_endorsed'] },
       },
       select: {
@@ -389,6 +395,9 @@ export default async function PanelStudioPage({
     const recentCRs = await prisma.changeRequest.findMany({
       where: {
         targetMemberId: member.id,
+        // Scope to THIS equipment — multi-device members shouldn't see
+        // approval / rejection toasts for keys on a sibling device.
+        equipmentId: equipment.id,
         status: { in: ['applied', 'rejected'] },
         resolvedAt: { gte: sixtySecondsAgo },
       },
@@ -420,6 +429,77 @@ export default async function PanelStudioPage({
         }
       }),
     }))
+  }
+
+  // ─── Restore pending submitted state on revisit ───
+  // When a user submits change requests, then navigates away and comes
+  // back to this equipment, the green "submitted" border on their pending
+  // keys must reappear. The ChangeRequestItem rows are the source of
+  // truth: every item whose parent ChangeRequest is still unresolved
+  // (status submitted / mgr_endorsed) marks a key slot the current user
+  // has a pending request on.
+  let pendingSubmittedSlots: Array<{
+    keyIndex: number
+    page: string
+    expansion: number
+    pickListItemId: number | null
+    triggerMode: string | null
+    talkMode: string | null
+  }> = []
+  if (member && isOwnPanel) {
+    const pendingCRs = await prisma.changeRequest.findMany({
+      where: {
+        equipmentId: equipment.id,
+        targetMemberId: member.id,
+        submittedById: session.user.id,
+        status: { in: ['submitted', 'mgr_endorsed'] },
+      },
+      select: {
+        items: {
+          select: {
+            fieldChanged: true,
+            newValue: true,
+            panelKey: {
+              select: { keyIndex: true, page: true, expansion: true },
+            },
+          },
+        },
+      },
+    })
+    // Collapse to one entry per slot — if multiple items target the same
+    // key (e.g. pickListItem + triggerMode in the same submission), the
+    // green border only needs to render once.
+    const bySlot = new Map<string, {
+      keyIndex: number
+      page: string
+      expansion: number
+      pickListItemId: number | null
+      triggerMode: string | null
+      talkMode: string | null
+    }>()
+    for (const cr of pendingCRs) {
+      for (const item of cr.items) {
+        const k = item.panelKey
+        const slotId = `${k.expansion}-${k.page}-${k.keyIndex}`
+        const existing = bySlot.get(slotId) ?? {
+          keyIndex: k.keyIndex,
+          page: k.page,
+          expansion: k.expansion,
+          pickListItemId: null,
+          triggerMode: null,
+          talkMode: null,
+        }
+        if (item.fieldChanged === 'pickListItemId') {
+          existing.pickListItemId = item.newValue ? parseInt(item.newValue) : null
+        } else if (item.fieldChanged === 'triggerMode') {
+          existing.triggerMode = item.newValue
+        } else if (item.fieldChanged === 'talkMode') {
+          existing.talkMode = item.newValue
+        }
+        bySlot.set(slotId, existing)
+      }
+    }
+    pendingSubmittedSlots = Array.from(bySlot.values())
   }
 
   // Browse mode — when admin/manager arrives via My Equipment, fetch the
@@ -570,6 +650,7 @@ export default async function PanelStudioPage({
       currentUserId={session.user.id}
       currentMemberId={currentMembership?.id ?? null}
       pendingChangeRequests={pendingChangeRequests}
+      pendingSubmittedSlots={pendingSubmittedSlots}
       recentResolutions={recentResolutions}
       browseProjects={browseProjects}
       browseMembers={browseMembers}

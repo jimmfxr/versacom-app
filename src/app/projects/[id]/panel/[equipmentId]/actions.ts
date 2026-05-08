@@ -58,6 +58,10 @@ async function getSession() {
 /* ─── Save keys (admin — immediate save) ─── */
 export async function saveKeys(
   projectMemberId: number,
+  // PanelKeys are equipment-scoped now — multi-device members have one
+  // row per device per slot, so callers must specify which device the
+  // edits belong to.
+  equipmentId: number,
   keys: Array<{
     keyIndex: number
     page: string
@@ -74,8 +78,8 @@ export async function saveKeys(
     for (const key of keys) {
       await prisma.panelKey.upsert({
         where: {
-          projectMemberId_keyIndex_page_expansion: {
-            projectMemberId,
+          equipmentId_keyIndex_page_expansion: {
+            equipmentId,
             keyIndex: key.keyIndex,
             page: key.page,
             expansion: key.expansion,
@@ -88,6 +92,7 @@ export async function saveKeys(
         },
         create: {
           projectMemberId,
+          equipmentId,
           keyIndex: key.keyIndex,
           page: key.page,
           expansion: key.expansion,
@@ -111,6 +116,9 @@ export async function saveKeys(
 /* ─── Save draft keys (crew/manager — save as drafts) ─── */
 export async function saveDraftKeys(
   projectMemberId: number,
+  // PanelKey rows are equipment-scoped; the caller passes the device the
+  // drafts belong to so multi-device members keep their key state apart.
+  equipmentId: number,
   userId: number,
   keys: Array<{
     keyIndex: number
@@ -129,8 +137,8 @@ export async function saveDraftKeys(
       // Ensure PanelKey row exists
       const panelKey = await prisma.panelKey.upsert({
         where: {
-          projectMemberId_keyIndex_page_expansion: {
-            projectMemberId,
+          equipmentId_keyIndex_page_expansion: {
+            equipmentId,
             keyIndex: key.keyIndex,
             page: key.page,
             expansion: key.expansion,
@@ -139,6 +147,7 @@ export async function saveDraftKeys(
         update: {},
         create: {
           projectMemberId,
+          equipmentId,
           keyIndex: key.keyIndex,
           page: key.page,
           expansion: key.expansion,
@@ -192,6 +201,10 @@ export async function saveDraftKeys(
 /* ─── Submit changes (crew/manager — submit drafts as a change request) ─── */
 export async function submitChanges(
   projectMemberId: number,
+  // ChangeRequests are equipment-scoped — submitting on HWBP 1 produces a
+  // separate review card from a submission on PNL 3, even when the same
+  // member owns both devices.
+  equipmentId: number,
   projectId: number,
   userId: number
 ) {
@@ -199,12 +212,14 @@ export async function submitChanges(
   if (!session) return { error: 'Not authenticated' }
 
   try {
-    // Find all draft entries for this member created by this user
+    // Find draft entries for this user scoped to THIS equipment so
+    // multi-device members don't accidentally roll a sibling device's
+    // drafts into this submission.
     const drafts = await prisma.keyDraft.findMany({
       where: {
         editedById: userId,
         status: 'draft',
-        panelKey: { projectMemberId },
+        panelKey: { projectMemberId, equipmentId },
       },
       include: { panelKey: true },
     })
@@ -219,6 +234,7 @@ export async function submitChanges(
         projectId,
         submittedById: userId,
         targetMemberId: projectMemberId,
+        equipmentId,
         status: 'submitted',
         items: {
           create: drafts.map((draft) => ({
@@ -253,6 +269,9 @@ export async function submitChanges(
 /* ─── Add expansion panel ─── */
 export async function addExpansion(
   projectMemberId: number,
+  // Expansions live on a specific device. Scoping by equipmentId keeps
+  // PNL 3's expansion separate from HWBP 1's when one member owns both.
+  equipmentId: number,
   hardwareType: string
 ) {
   const session = await getSession()
@@ -265,9 +284,9 @@ export async function addExpansion(
   }
 
   try {
-    // Find the current highest expansion number
+    // Find the current highest expansion number on THIS device.
     const maxExpansion = await prisma.panelKey.findFirst({
-      where: { projectMemberId },
+      where: { equipmentId },
       orderBy: { expansion: 'desc' },
       select: { expansion: true },
     })
@@ -284,6 +303,7 @@ export async function addExpansion(
     // Create empty keys for the new expansion
     const keysToCreate: Array<{
       projectMemberId: number
+      equipmentId: number
       keyIndex: number
       page: string
       expansion: number
@@ -295,6 +315,7 @@ export async function addExpansion(
       for (let i = 0; i < keyCount; i++) {
         keysToCreate.push({
           projectMemberId,
+          equipmentId,
           keyIndex: i,
           page,
           expansion: nextExpansion,
@@ -318,6 +339,9 @@ export async function addExpansion(
 /* ─── Remove expansion panel ─── */
 export async function removeExpansion(
   projectMemberId: number,
+  // Scope deletion to the specific device — without this, removing an
+  // expansion on PNL 3 would also wipe HWBP 1's keys at the same expansion.
+  equipmentId: number,
   expansion: number
 ) {
   const session = await getSession()
@@ -330,7 +354,7 @@ export async function removeExpansion(
   try {
     // Delete all drafts associated with these keys first
     const keysToDelete = await prisma.panelKey.findMany({
-      where: { projectMemberId, expansion },
+      where: { equipmentId, expansion },
       select: { id: true },
     })
 
@@ -346,9 +370,10 @@ export async function removeExpansion(
     }
 
     await prisma.panelKey.deleteMany({
-      where: { projectMemberId, expansion },
+      where: { equipmentId, expansion },
     })
 
+    void projectMemberId // accepted for API symmetry; deletion scopes by device
     revalidatePath(`/projects`)
     return { success: true }
   } catch (e) {

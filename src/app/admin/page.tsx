@@ -81,6 +81,10 @@ export default async function TasksPage({
         id: true,
         status: true,
         createdAt: true,
+        equipmentId: true,
+        equipment: {
+          select: { id: true, name: true, hardwareType: true },
+        },
         project: { select: { id: true, name: true } },
         submittedById: true,
         projectId: true,
@@ -91,10 +95,6 @@ export default async function TasksPage({
             position: true,
             userId: true,
             user: { select: { firstName: true, lastName: true } },
-            equipment: {
-              select: { id: true, name: true, hardwareType: true },
-              take: 1,
-            },
           },
         },
         items: {
@@ -179,10 +179,15 @@ export default async function TasksPage({
   }>()
 
   for (const cr of changeRequests) {
-    const groupKey = `${cr.submittedById}-${cr.targetMember.id}`
+    // Group by submitter + target member + EQUIPMENT — multi-device
+    // members produce one ChangeRequest per device, and each device
+    // deserves its own admin review card. Without equipmentId in the
+    // key, edits to HWBP 1 and PNL 3 from the same user would collapse
+    // into a single (wrong) review entry.
+    const groupKey = `${cr.submittedById}-${cr.targetMember.id}-${cr.equipmentId}`
     const targetName = `${cr.targetMember.user.firstName} ${cr.targetMember.user.lastName}`
     const submitterName = `${cr.submittedBy.firstName} ${cr.submittedBy.lastName}`
-    const eq = cr.targetMember.equipment[0]
+    const eq = cr.equipment
     const isSelf = cr.submittedById === cr.targetMember.userId
 
     const changes = cr.items.map((item) => {

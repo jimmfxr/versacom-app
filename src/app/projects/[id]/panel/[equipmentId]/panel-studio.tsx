@@ -137,6 +137,20 @@ interface PanelStudioProps {
     }>
   }>
   /**
+   * Slots that have an unresolved change request submitted by the current
+   * user for THIS equipment. Used to restore the green "submitted" border
+   * when the user navigates away and back to this panel — without this,
+   * the in-memory `keys` state forgets which keys were pending.
+   */
+  pendingSubmittedSlots?: Array<{
+    keyIndex: number
+    page: string
+    expansion: number
+    pickListItemId: number | null
+    triggerMode: string | null
+    talkMode: string | null
+  }>
+  /**
    * Change requests for this member that were resolved in the last 60s.
    * Only populated when the viewer is looking at their OWN panel. Used to
    * show an approval / denial toast when polling detects a resolution.
@@ -304,6 +318,7 @@ export function PanelStudio({
   currentUserId,
   currentMemberId: _currentMemberId,
   pendingChangeRequests = [],
+  pendingSubmittedSlots = [],
   recentResolutions = [],
   browseProjects,
   browseMembers,
@@ -346,7 +361,43 @@ export function PanelStudio({
     try { window.sessionStorage.setItem(PICKER_OPEN_STORAGE_KEY, pickerMode ? '1' : '0') }
     catch {}
   }, [pickerMode])
-  const [keys, setKeys] = useState<KeyState[]>(() => initializeKeys(initialPanelKeys, keyCount))
+  // Overlay pending-submission state on top of the freshly-initialized
+  // keys. ChangeRequestItems that are still unresolved (status submitted /
+  // mgr_endorsed) carry the values the user REQUESTED — the underlying
+  // PanelKey row still holds the previous (unapproved) value. So when the
+  // user navigates away and back, we hydrate the green-bordered "submitted"
+  // state from those items rather than relying on in-memory state.
+  function applyPendingSubmittedSlots(seed: KeyState[]): KeyState[] {
+    if (pendingSubmittedSlots.length === 0) return seed
+    const pendingMap = new Map(
+      pendingSubmittedSlots.map((p) => [
+        `${p.expansion}-${p.page}-${p.keyIndex}`,
+        p,
+      ])
+    )
+    return seed.map((k) => {
+      const id = `${k.expansion}-${k.page}-${k.keyIndex}`
+      const pending = pendingMap.get(id)
+      if (!pending) return k
+      // Resolve pick-list metadata from the prop list so the chip renders
+      // the requested name (not the previously-applied name).
+      const pickItem = pending.pickListItemId != null
+        ? pickListItems.find((p) => p.id === pending.pickListItemId) ?? null
+        : null
+      return {
+        ...k,
+        pickListItemId: pickItem ? pickItem.id : null,
+        pickListItemName: pickItem ? pickItem.name : null,
+        pickListItemType: pickItem ? pickItem.type : null,
+        triggerMode: pending.triggerMode ?? k.triggerMode,
+        talkMode: pending.talkMode ?? k.talkMode,
+        status: 'submitted',
+      }
+    })
+  }
+  const [keys, setKeys] = useState<KeyState[]>(() =>
+    applyPendingSubmittedSlots(initializeKeys(initialPanelKeys, keyCount))
+  )
   const [clipboard, setClipboard] = useState<{ pickListItemId: number | null; pickListItemName: string | null; pickListItemType: string | null; triggerMode: string; talkMode: string } | null>(null)
   const [flashingKey, setFlashingKey] = useState<{ id: string; color: string } | null>(null)
   const [saving, setSaving] = useState(false)
@@ -402,9 +453,16 @@ export function PanelStudio({
         .map((k) => `${k.keyIndex}:${k.page}:${k.expansion}:${k.pickListItemId}`)
         .join('|')
       const resFp = recentResolutions.map((r) => r.id).sort((a, b) => a - b).join(',')
-      return `${keysFp}||res:${resFp}`
+      // Pending-submission slots also live in the fingerprint so a new
+      // submission (e.g. submitted from another tab) re-runs the sync
+      // effect and the green border appears here too.
+      const pendingFp = pendingSubmittedSlots
+        .map((p) => `${p.expansion}:${p.page}:${p.keyIndex}:${p.pickListItemId}`)
+        .sort()
+        .join('|')
+      return `${keysFp}||res:${resFp}||pend:${pendingFp}`
     },
-    [initialPanelKeys, recentResolutions]
+    [initialPanelKeys, recentResolutions, pendingSubmittedSlots]
   )
   const prevFingerprintRef = useRef(serverFingerprint)
   const hasSubmittedKeysRef = useRef(false)
@@ -447,7 +505,12 @@ export function PanelStudio({
     // would clobber the user's pending submission back to 'empty',
     // making the key visually disappear.
     setKeys((prev) => {
-      const next = initializeKeys(initialPanelKeys, keyCount)
+      // Start from server PanelKey snapshot, then re-apply pending
+      // submissions so anything still awaiting admin review keeps its
+      // green border across server-driven syncs.
+      const next = applyPendingSubmittedSlots(
+        initializeKeys(initialPanelKeys, keyCount)
+      )
       const prevById = new Map(prev.map((k) => [keyId(k.keyIndex, k.page, k.expansion), k]))
       return next.map((k) => {
         const id = keyId(k.keyIndex, k.page, k.expansion)
@@ -952,14 +1015,14 @@ export function PanelStudio({
 
     try {
       if (isRequestMode) {
-        const result = await saveDraftKeys(member.id, currentUserId, changedKeys)
+        const result = await saveDraftKeys(member.id, equipment.id, currentUserId, changedKeys)
         if (result.error) {
           showToast('error', result.error)
         } else {
           showToast('success', 'Draft saved')
         }
       } else {
-        const result = await saveKeys(member.id, changedKeys)
+        const result = await saveKeys(member.id, equipment.id, changedKeys)
         if (result.error) {
           showToast('error', result.error)
         } else {
@@ -1003,14 +1066,14 @@ export function PanelStudio({
         return
       }
 
-      const draftResult = await saveDraftKeys(member.id, currentUserId, changedKeys)
+      const draftResult = await saveDraftKeys(member.id, equipment.id, currentUserId, changedKeys)
       if (draftResult.error) {
         showToast('error', draftResult.error)
         setSaving(false)
         return
       }
 
-      const result = await submitChanges(member.id, project.id, currentUserId)
+      const result = await submitChanges(member.id, equipment.id, project.id, currentUserId)
       if (result.error) {
         showToast('error', result.error)
       } else {
@@ -1103,7 +1166,7 @@ export function PanelStudio({
     if (!member || !equipment.hardwareType) return
     setSaving(true)
     try {
-      const result = await addExpansion(member.id, equipment.hardwareType)
+      const result = await addExpansion(member.id, equipment.id, equipment.hardwareType)
       if (result.error) {
         showToast('error', result.error)
       } else {
@@ -1140,7 +1203,7 @@ export function PanelStudio({
     if (!member || expansionCount <= 0) return
     setSaving(true)
     try {
-      const result = await removeExpansion(member.id, expansionCount)
+      const result = await removeExpansion(member.id, equipment.id, expansionCount)
       if (result.error) {
         showToast('error', result.error)
       } else {

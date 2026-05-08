@@ -116,6 +116,10 @@ model PickListItem {
 model PanelKey {
   id              Int    @id @default(autoincrement())
   projectMemberId Int
+  // Equipment dimension — keys are scoped to a single panel-category
+  // device (panels / hardwire_bp / wireless_bp). Members with multiple
+  // devices on a project get one PanelKey row per device per slot.
+  equipmentId     Int
   keyIndex        Int    // Physical key position
   page            String @default("main") // main, shift
   expansion       Int    @default(0) // 0 = main panel, 1-6 = expansion
@@ -125,11 +129,13 @@ model PanelKey {
 
   // Relations
   projectMember      ProjectMember       @relation(fields: [projectMemberId], references: [id])
+  equipment          Equipment           @relation(fields: [equipmentId], references: [id])
   pickListItem       PickListItem?       @relation(fields: [pickListItemId], references: [id])
   keyDrafts          KeyDraft[]
   changeRequestItems ChangeRequestItem[]
 
-  @@unique([projectMemberId, keyIndex, page, expansion])
+  @@unique([equipmentId, keyIndex, page, expansion])
+  @@index([projectMemberId])
 }
 
 model KeyDraft {
@@ -153,6 +159,10 @@ model ChangeRequest {
   projectId      Int
   submittedById  Int
   targetMemberId Int
+  // Equipment scope — every ChangeRequest is scoped to ONE panel-category
+  // device. Multi-device members produce one ChangeRequest per device so
+  // admins see a separate review card per device, not a combined card.
+  equipmentId    Int
   status         String    @default("draft") // draft, submitted, mgr_endorsed, approved, rejected, applied, discarded
   rejectionNote  String?
   createdAt      DateTime  @default(now())
@@ -162,7 +172,10 @@ model ChangeRequest {
   project      Project             @relation(fields: [projectId], references: [id])
   submittedBy  User                @relation(fields: [submittedById], references: [id])
   targetMember ProjectMember       @relation("ChangeRequestTarget", fields: [targetMemberId], references: [id])
+  equipment    Equipment           @relation(fields: [equipmentId], references: [id])
   items        ChangeRequestItem[]
+
+  @@index([equipmentId])
 }
 
 model ChangeRequestItem {
@@ -216,10 +229,12 @@ model Equipment {
   speakers     Int     @default(0)
 
   // Relations
-  project    Project        @relation(fields: [projectId], references: [id])
-  assignedTo ProjectMember? @relation(fields: [assignedToId], references: [id])
-  asset      Asset?         @relation(fields: [assetId], references: [id])
-  nfgReports NfgReport[]
+  project        Project        @relation(fields: [projectId], references: [id])
+  assignedTo     ProjectMember? @relation(fields: [assignedToId], references: [id])
+  asset          Asset?         @relation(fields: [assetId], references: [id])
+  nfgReports     NfgReport[]
+  panelKeys      PanelKey[]
+  changeRequests ChangeRequest[]
 }
 
 model Asset {
