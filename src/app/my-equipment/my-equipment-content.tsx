@@ -165,7 +165,15 @@ export function MyEquipmentContent({
               return (
                 <div
                   key={item.id}
-                  className={`flex items-start gap-4 px-5 py-3 transition-colors ${hasPanel ? 'cursor-pointer hover:bg-white/[0.04]' : ''}`}
+                  // role=button + data-haptic so AppShell's global
+                  // pointerdown listener fires navigator.vibrate(10).
+                  // active:bg-white/[0.08] gives a subtle visual
+                  // press state alongside the haptic so taps feel
+                  // acknowledged on devices without vibration too.
+                  role={hasPanel ? 'button' : undefined}
+                  tabIndex={hasPanel ? 0 : undefined}
+                  data-haptic={hasPanel ? 'true' : undefined}
+                  className={`flex items-start gap-4 px-5 py-3 transition-colors ${hasPanel ? 'cursor-pointer hover:bg-white/[0.04] active:bg-white/[0.08]' : ''}`}
                   onClick={hasPanel ? () => {
                     // In browse mode (admin/manager) we tag the URL with
                     // ?from=my-equipment so the panel studio renders the

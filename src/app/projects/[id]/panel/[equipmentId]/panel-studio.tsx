@@ -4,6 +4,7 @@ import { useState, useEffect, useLayoutEffect, useCallback, useRef, useTransitio
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { ChevronLeftIcon } from '@heroicons/react/24/outline'
+import { PageHeader } from '@/components/page-header'
 import {
   DndContext,
   DragOverlay,
@@ -1596,46 +1597,31 @@ export function PanelStudio({
                 User-only accounts can't access the project page (proxy
                 blocks it), so route them back to My Equipment instead. */}
             {!isBrowseMode && (
-              <div className="flex-shrink-0 mx-auto w-full max-w-7xl px-4 pt-5 sm:px-6 lg:px-8">
-                {(() => {
-                  const dest = isReviewMode
-                    ? '/admin'
-                    : isUserOnly
-                      ? '/my-equipment'
-                      : `/projects/${project.id}`
-                  const backBtn = (
+              // Wrapped in pt-5 to match PageLayout's py-5 top padding
+              // exactly — keeps the "My Equipment" title at the same
+              // Y position as the My Equipment list page so there's
+              // no visual shift when navigating into the panel.
+              <div className="flex-shrink-0 pt-5">
+                <PageHeader
+                  title="My Equipment"
+                  titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
+                  bottomBorder
+                  action={
                     <button
-                      onClick={() => router.push(dest)}
+                      onClick={() => {
+                        const dest = isReviewMode
+                          ? '/admin'
+                          : isUserOnly
+                            ? '/my-equipment'
+                            : `/projects/${project.id}`
+                        router.push(dest)
+                      }}
                       className="inline-flex rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
                     >
                       Back
                     </button>
-                  )
-                  return (
-                    <>
-                      {/* Mobile: title, then divider under it, then
-                          back button on its own row — mirrors the
-                          browse-mode header / PageHeader showMobile
-                          Divider pattern. */}
-                      <div className="flex flex-col gap-2 sm:hidden">
-                        <div className="flex items-center justify-between gap-3">
-                          <h1 className="text-2xl font-bold tracking-tight text-white">
-                            My Equipment
-                          </h1>
-                          {backBtn}
-                        </div>
-                        <div className="w-full border-b border-white/20" />
-                      </div>
-                      {/* Desktop: title left, back button right. */}
-                      <div className="hidden items-center justify-between gap-3 sm:flex">
-                        <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-                          My Equipment
-                        </h1>
-                        {backBtn}
-                      </div>
-                    </>
-                  )
-                })()}
+                  }
+                />
               </div>
             )}
 
@@ -1684,7 +1670,7 @@ export function PanelStudio({
                 Hidden when the picker card is open — the picker's
                 own controls border-b serves as the page divider in
                 that mode, so we don't end up with two stacked lines.*/}
-            {!(pickerMode && canEditKeys) && (
+            {!(pickerMode && canEditKeys) && isBrowseMode && (
               <div className="flex-shrink-0 mx-auto hidden w-full max-w-7xl px-4 pt-4 sm:block sm:px-6 lg:px-8">
                 <div className="border-b border-white/20" />
               </div>
