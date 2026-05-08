@@ -1597,17 +1597,27 @@ export function PanelStudio({
                 User-only accounts can't access the project page (proxy
                 blocks it), so route them back to My Equipment instead. */}
             {!isBrowseMode && (
-              // Wrapped in pt-5 to match PageLayout's py-5 top padding
-              // exactly — keeps the "My Equipment" title at the same
-              // Y position as the My Equipment list page so there's
-              // no visual shift when navigating into the panel.
-              <div className="flex-shrink-0 pt-5">
+              // Match My Equipment list page header exactly: pt-5 +
+              // PageHeader (non-inline, bottomBorder) gives the same
+              // title row height + gap + divider. The Back button is
+              // absolutely positioned inside the wrapper so it sits
+              // at the right edge of the title row WITHOUT adding to
+              // the flow — the divider stays at the same Y as the
+              // list page. The button is vertically centered to the
+              // title's line-box; on mobile it extends ~2px past the
+              // line-box, which still leaves a clear ~10px gap above
+              // the divider so there's no overlap.
+              <div className="relative flex-shrink-0 pt-5">
                 <PageHeader
                   title="My Equipment"
                   titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
                   bottomBorder
-                  inlineAction
-                  action={
+                />
+                <div className="pointer-events-none absolute inset-x-0 top-5 mx-auto flex max-w-7xl px-4 sm:px-6 lg:px-8">
+                  {/* Mobile: title line-box is 2rem (32px). Center
+                      a 36px button on it via -my-0.5. Desktop: title
+                      line-box is 2.25rem (36px) — button fits. */}
+                  <div className="pointer-events-auto ml-auto flex h-8 items-center sm:h-9">
                     <button
                       onClick={() => {
                         const dest = isReviewMode
@@ -1621,8 +1631,8 @@ export function PanelStudio({
                     >
                       Back
                     </button>
-                  }
-                />
+                  </div>
+                </div>
               </div>
             )}
 
