@@ -308,9 +308,9 @@ function BarRow({
     <div className="mb-3 grid grid-cols-[110px_1fr_auto] items-center gap-3 last:mb-0 sm:grid-cols-[120px_1fr_auto] sm:gap-3.5">
       <div className="truncate text-[11px] font-medium text-gray-300 sm:text-xs">{label}</div>
       <div className="flex h-[18px] overflow-hidden rounded-md bg-white/[0.05]">
-        <div className="h-full bg-yellow-400" style={{ width: `${deployedPct}%` }} />
-        <div className="h-full bg-green-400" style={{ width: `${donePct}%` }} />
-        <div className="h-full bg-blue-400" style={{ width: `${returnedPct}%` }} />
+        <div className="h-full bg-yellow-500/80" style={{ width: `${deployedPct}%` }} />
+        <div className="h-full bg-green-500/80" style={{ width: `${donePct}%` }} />
+        <div className="h-full bg-blue-500/80" style={{ width: `${returnedPct}%` }} />
         <div className="h-full bg-white/[0.18]" style={{ width: `${otherPct}%` }} />
       </div>
       <div className="min-w-[60px] text-right font-mono text-[10px] tabular-nums text-gray-400 sm:min-w-[80px] sm:text-[11px]">
@@ -443,7 +443,7 @@ function StatusHero({
 }) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0
   const colorClass = color === 'cyan' ? 'text-[#22a7d3]' : 'text-[#c084fc]'
-  const fillClass = color === 'cyan' ? 'bg-[#22a7d3]' : 'bg-[#c084fc]'
+  const fillClass = color === 'cyan' ? 'bg-[#22a7d3]/70' : 'bg-[#c084fc]/70'
   return (
     <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-5 sm:p-5 sm:px-6">
       <div className="flex items-baseline gap-2 sm:block">
@@ -504,9 +504,9 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
   // Headline = whichever stage currently leads. Ties break: done > deployed > returned (most actionable).
   const headlineStat = (() => {
     const stats = [
-      { key: 'done', pct: donePct, label: 'Done', color: 'text-green-400' },
-      { key: 'deployed', pct: deployedPct, label: 'Deployed', color: 'text-yellow-400' },
-      { key: 'returned', pct: returnedPct, label: 'Returned', color: 'text-blue-400' },
+      { key: 'done', pct: donePct, label: 'Done', color: 'text-green-500/80' },
+      { key: 'deployed', pct: deployedPct, label: 'Deployed', color: 'text-yellow-500/80' },
+      { key: 'returned', pct: returnedPct, label: 'Returned', color: 'text-blue-500/80' },
     ]
     return stats.reduce((best, s) => (s.pct > best.pct ? s : best), stats[0])
   })()
@@ -665,7 +665,7 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
   return (
     <div className="divide-y divide-white/[0.06] [&>div]:py-3 sm:[&>div]:py-4">
       {/* Deployment status — single combined card */}
-      <div>
+      <div style={{ borderBottomWidth: 0 }}>
         <SectionHeader>Deployment status</SectionHeader>
         {/* touch-action: pan-y so a horizontal drag on this card
             (which sits above the SwipeCarousel) doesn't get
@@ -689,17 +689,17 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
             <div className="min-w-0 flex-1">
               <div className="flex h-[18px] w-full overflow-hidden rounded-full bg-white/[0.06]">
                 <div
-                  className="h-full bg-yellow-400"
+                  className="h-full bg-yellow-500/80"
                   style={{ width: `${deployedPct}%` }}
                   title={`${deployedCount} deployed`}
                 />
                 <div
-                  className="h-full bg-green-400"
+                  className="h-full bg-green-500/80"
                   style={{ width: `${donePct}%` }}
                   title={`${doneCount} done`}
                 />
                 <div
-                  className="h-full bg-blue-400"
+                  className="h-full bg-blue-500/80"
                   style={{ width: `${returnedPct}%` }}
                   title={`${returnedCount} returned`}
                 />
@@ -707,9 +707,9 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
 
               {/* Mini stats row */}
               <div className="mt-3 grid grid-cols-3 gap-2 text-[11px] sm:text-xs">
-                <StatusStat dotClass="bg-yellow-400" pctClass="text-yellow-400" label="Deployed" count={deployedCount} total={deployTotal} />
-                <StatusStat dotClass="bg-green-400" pctClass="text-green-400" label="Done" count={doneCount} total={deployTotal} />
-                <StatusStat dotClass="bg-blue-400" pctClass="text-blue-400" label="Returned" count={returnedCount} total={deployTotal} />
+                <StatusStat dotClass="bg-yellow-500/80" pctClass="text-yellow-500/80" label="Deployed" count={deployedCount} total={deployTotal} />
+                <StatusStat dotClass="bg-green-500/80" pctClass="text-green-500/80" label="Done" count={doneCount} total={deployTotal} />
+                <StatusStat dotClass="bg-blue-500/80" pctClass="text-blue-500/80" label="Returned" count={returnedCount} total={deployTotal} />
               </div>
             </div>
           </div>

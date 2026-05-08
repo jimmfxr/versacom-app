@@ -12,7 +12,7 @@ const paddings = {
 
 export function Card({ children, className = '', padding = 'md' }: CardProps) {
   return (
-    <div className={`rounded-2xl bg-[#2a2a2a] ${paddings[padding]} ${className}`}>
+    <div className={`rounded-lg border border-white/10 ${paddings[padding]} ${className}`}>
       {children}
     </div>
   )

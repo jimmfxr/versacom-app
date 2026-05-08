@@ -195,7 +195,7 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
         ) : (
           // Scrollable region (desktop): card list scrolls inside this
           // div while the search bar above stays put.
-          <div data-scroll-container className="space-y-2 sm:flex-1 sm:overflow-y-auto sm:overscroll-none sm:pt-1 sm:pb-20">
+          <div data-scroll-container className="divide-y divide-white/[0.06] sm:flex-1 sm:overflow-y-auto sm:overscroll-none sm:pt-1 sm:pb-20">
             {filteredProjects.map((project) => {
               const isArchived = project.status === 'archived'
               return (

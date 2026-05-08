@@ -259,7 +259,7 @@ export function TasksClient({
           <div data-scroll-container className="space-y-4 sm:flex-1 sm:overflow-y-auto sm:overscroll-none sm:pt-1 sm:pb-20">
             {/* Change Request cards */}
             {filteredChangeRequestTasks.length > 0 && (
-              <div className="space-y-2">
+              <div className="divide-y divide-white/[0.06]">
                 <h3 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
                   Key change requests
                   <span className="ml-1.5 text-xs opacity-70">{filteredChangeRequestTasks.length}</span>
@@ -338,7 +338,7 @@ export function TasksClient({
 
             {/* Lockout cards */}
             {filteredLockoutTasks.length > 0 && (
-              <div className="space-y-2">
+              <div className="divide-y divide-white/[0.06]">
                 <h3 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
                   Lockouts
                   <span className="ml-1.5 text-xs opacity-70">{filteredLockoutTasks.length}</span>
