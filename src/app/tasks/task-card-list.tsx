@@ -366,7 +366,13 @@ function TaskSection({
                 {projectName}
               </div>
             )}
-            <div className="divide-y divide-white/[0.06]">
+            {/* Border on the BOTTOM of each card (not divide-y, which
+                draws on the top of children 2-N). With border-b every
+                card "owns" the line below it, so the list ends with a
+                closing line under the last card — matches the page-
+                header bottomBorder + first-card pattern other pages
+                rely on. */}
+            <div className="[&>*]:border-b [&>*]:border-white/[0.06]">
               {items.map((task) => (
                 <TaskCardItem
                   key={task.id}
@@ -403,7 +409,7 @@ function TaskCardItem({
 
   return (
     <div
-      className={`flex items-start gap-4 px-5 py-3 transition-all ${
+      className={`flex items-start gap-4 py-3 transition-all ${
         state === 'idle' ? 'hover:bg-white/[0.04]' : 'opacity-60'
       }`}
     >

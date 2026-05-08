@@ -259,11 +259,14 @@ export function TasksClient({
           <div data-scroll-container className="space-y-4 sm:flex-1 sm:overflow-y-auto sm:overscroll-none sm:pt-1 sm:pb-20">
             {/* Change Request cards */}
             {filteredChangeRequestTasks.length > 0 && (
-              <div className="divide-y divide-white/[0.06]">
+              <div>
                 <h3 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
                   Key change requests
                   <span className="ml-1.5 text-xs opacity-70">{filteredChangeRequestTasks.length}</span>
                 </h3>
+                {/* h3 sits OUTSIDE the bordered wrapper so it doesn't
+                    pick up a divider — only the cards below need lines. */}
+                <div className="[&>*]:border-b [&>*]:border-white/[0.06]">
                 {filteredChangeRequestTasks.map((task) => (
                   <RowCard key={task.id}>
                     {/* Content */}
@@ -333,16 +336,18 @@ export function TasksClient({
                     )}
                   </RowCard>
                 ))}
+                </div>
               </div>
             )}
 
             {/* Lockout cards */}
             {filteredLockoutTasks.length > 0 && (
-              <div className="divide-y divide-white/[0.06]">
+              <div>
                 <h3 className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
                   Lockouts
                   <span className="ml-1.5 text-xs opacity-70">{filteredLockoutTasks.length}</span>
                 </h3>
+                <div className="[&>*]:border-b [&>*]:border-white/[0.06]">
                 {filteredLockoutTasks.map((task) => (
                   <RowCard key={task.id}>
                     <div className={`flex size-10 shrink-0 items-center justify-center rounded-full ${
@@ -385,6 +390,7 @@ export function TasksClient({
                     </Button>
                   </RowCard>
                 ))}
+                </div>
               </div>
             )}
           </div>

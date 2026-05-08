@@ -673,7 +673,7 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
             through to the page's vertical scroll. Without this iOS
             Safari was sometimes treating a flat horizontal drag
             here like a carousel swipe + page scroll combo. */}
-        <div className="p-4 sm:p-5 sm:px-6 sm:px-0" style={{ touchAction: 'pan-y' }}>
+        <div className="py-4 sm:py-5" style={{ touchAction: 'pan-y' }}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
             {/* Headline % — the stage currently leading */}
             <div className="flex items-baseline gap-2 sm:block">

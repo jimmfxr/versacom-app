@@ -1765,7 +1765,7 @@ export function ProjectPage({
                   {filteredEquipment.map((item) => {
                     const isEditing = editingEqId === item.id
                     return (
-                      <div key={item.id} className={`flex items-start gap-4 px-5 py-3 transition-colors ${isEditing ? '' : 'hover:bg-white/[0.04]'}`}>
+                      <div key={item.id} className={`flex items-start gap-4 py-3 transition-colors ${isEditing ? '' : 'hover:bg-white/[0.04]'}`}>
                         {/* Content */}
                         <div className="min-w-0 flex-1">
                           {isEditing ? (
@@ -2280,7 +2280,7 @@ export function ProjectPage({
                   {filteredMembers.map((m) => {
                     const isEditing = editingMemberId === m.id
                     return (
-                      <div key={m.id} className={`px-5 py-3 transition-colors ${isEditing ? '' : 'hover:bg-white/[0.04]'}`}>
+                      <div key={m.id} className={`py-3 transition-colors ${isEditing ? '' : 'hover:bg-white/[0.04]'}`}>
                         {isEditing ? (
                           <form
                             data-edit-form="team"
@@ -2482,7 +2482,7 @@ export function ProjectPage({
                   {filteredPickList.map((item) => {
                     const isEditing = editingPlId === item.id
                     return (
-                      <div key={item.id} className={`px-5 py-3 transition-colors ${isEditing ? '' : 'hover:bg-white/[0.04]'}`}>
+                      <div key={item.id} className={`py-3 transition-colors ${isEditing ? '' : 'hover:bg-white/[0.04]'}`}>
                         {isEditing ? (
                           <form
                             data-edit-form="picklist"
@@ -2649,7 +2649,7 @@ export function ProjectPage({
                   {filteredPlots.map((plot) => {
                     const isEditingPlot = editingPlotId === plot.id
                     return (
-                      <div key={plot.id} className={`px-5 py-3 transition-colors ${isEditingPlot ? '' : 'hover:bg-white/[0.04]'}`}>
+                      <div key={plot.id} className={`py-3 transition-colors ${isEditingPlot ? '' : 'hover:bg-white/[0.04]'}`}>
                         {isEditingPlot ? (
                           <>
                             <div className="flex flex-col gap-3">
@@ -2760,7 +2760,7 @@ export function ProjectPage({
                     {myEquipment.map((item) => (
                       <div
                         key={item.id}
-                        className={`flex items-start gap-4 px-5 py-3 transition-colors ${isPanelType(item.category) ? 'cursor-pointer hover:bg-[#313131]' : ''}`}
+                        className={`flex items-start gap-4 py-3 transition-colors ${isPanelType(item.category) ? 'cursor-pointer hover:bg-[#313131]' : ''}`}
                         onClick={isPanelType(item.category) ? () => router.push(`/projects/${project.id}/panel/${item.id}`) : undefined}
                       >
                         <div className="min-w-0 flex-1">

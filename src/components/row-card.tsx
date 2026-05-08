@@ -15,7 +15,7 @@ export function RowCard({ children, onClick, className = '' }: RowCardProps) {
   return (
     <div
       onClick={onClick}
-      className={`flex items-center gap-4 px-5 py-3 transition-colors duration-100 ${interactive} ${className}`}
+      className={`flex items-center gap-4 py-3 transition-colors duration-100 ${interactive} ${className}`}
     >
       {children}
     </div>

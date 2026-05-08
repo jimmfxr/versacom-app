@@ -15,7 +15,9 @@ export const dynamic = 'force-dynamic'
  * never disagrees with what the user sees on screen.
  *
  * Tasks = grouped change requests (one card per submitter + target member
- * combo) + active lockouts.
+ * + equipment combo) + active lockouts. Equipment is in the group key so
+ * a user editing two devices on the same show produces two cards, not
+ * one — matches /admin's grouping exactly.
  */
 export async function GET() {
   const session = await getSession()
@@ -50,8 +52,8 @@ export async function GET() {
         status: { in: ['submitted', 'mgr_endorsed'] },
         projectId: scopedProjectId,
       },
-      select: { submittedById: true, targetMemberId: true },
-      distinct: ['submittedById', 'targetMemberId'],
+      select: { submittedById: true, targetMemberId: true, equipmentId: true },
+      distinct: ['submittedById', 'targetMemberId', 'equipmentId'],
     }),
     prisma.user.count({
       where: {
