@@ -1606,6 +1606,7 @@ export function PanelStudio({
                   title="My Equipment"
                   titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
                   bottomBorder
+                  inlineAction
                   action={
                     <button
                       onClick={() => {
