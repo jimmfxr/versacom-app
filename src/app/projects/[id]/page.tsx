@@ -1,7 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
-import { capitalizeName } from '@/lib/format-name'
 import { ProjectPage } from './project-page'
 
 export const dynamic = 'force-dynamic'
@@ -164,7 +163,7 @@ export default async function ProjectDetailPage({
   const pickListUsageMap = new Map<number, Set<string>>()
   for (const k of panelKeyUsage) {
     if (k.pickListItemId == null) continue
-    const name = `${capitalizeName(k.projectMember.user.firstName)} ${capitalizeName(k.projectMember.user.lastName)}`
+    const name = `${k.projectMember.user.firstName} ${k.projectMember.user.lastName}`
     if (!pickListUsageMap.has(k.pickListItemId)) pickListUsageMap.set(k.pickListItemId, new Set())
     pickListUsageMap.get(k.pickListItemId)!.add(name)
   }
@@ -223,8 +222,8 @@ export default async function ProjectDetailPage({
           position: m.position,
           location: m.location,
           userId: m.user.id,
-          firstName: capitalizeName(m.user.firstName),
-          lastName: capitalizeName(m.user.lastName),
+          firstName: m.user.firstName,
+          lastName: m.user.lastName,
           equipmentNames: memberEquipmentMap[m.id] || [],
           expansionCount: expansionCountMap.get(m.id) ?? 0,
           hasPin: Boolean(m.user.pin),

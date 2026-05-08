@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
-import { capitalizeName } from '@/lib/format-name'
 import { LockoutsClient } from './lockouts-client'
 
 export const dynamic = 'force-dynamic'
@@ -27,8 +26,8 @@ export default async function LockoutsPage() {
 
   const serialized = users.map((u) => ({
     id: u.id,
-    firstName: capitalizeName(u.firstName),
-    lastName: capitalizeName(u.lastName),
+    firstName: u.firstName,
+    lastName: u.lastName,
     failedAttempts: u.failedAttempts,
     lockedUntil: u.lockedUntil?.toISOString() ?? null,
     lastFailedAt: u.lastFailedAt?.toISOString() ?? null,

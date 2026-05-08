@@ -2,7 +2,6 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
-import { capitalizeName } from '@/lib/format-name'
 import { MyEquipmentContent } from './my-equipment-content'
 
 export const dynamic = 'force-dynamic'
@@ -116,10 +115,10 @@ export default async function MyEquipmentPage({
             // is unique to one device.
             id: e.id,
             memberId: m.id,
-            firstName: capitalizeName(m.user.firstName),
-            lastName: capitalizeName(m.user.lastName),
+            firstName: m.user.firstName,
+            lastName: m.user.lastName,
             position: m.position,
-            displayName: `${capitalizeName(m.user.firstName)} ${capitalizeName(m.user.lastName)}`.trim(),
+            displayName: `${m.user.firstName} ${m.user.lastName}`.trim(),
             equipmentId: e.id,
             equipmentName: e.name,
           })),

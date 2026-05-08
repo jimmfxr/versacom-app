@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
-import { capitalizeName } from '@/lib/format-name'
 import { PanelStudio } from './panel-studio'
 
 export const dynamic = 'force-dynamic'
@@ -65,8 +64,8 @@ export default async function PanelStudioPage({
       member = {
         id: pm.id,
         userId: pm.userId,
-        firstName: capitalizeName(pm.user.firstName),
-        lastName: capitalizeName(pm.user.lastName),
+        firstName: pm.user.firstName,
+        lastName: pm.user.lastName,
         position: pm.position,
         location: pm.location,
       }
@@ -151,7 +150,7 @@ export default async function PanelStudioPage({
     // Always store PTP names with proper casing so picker chips +
     // suggestion lists render `Wyatt Ortiz`, not whatever the user
     // typed at signup.
-    const ptpName = `${capitalizeName(m.user.firstName)} ${capitalizeName(m.user.lastName)}`
+    const ptpName = `${m.user.firstName} ${m.user.lastName}`
     const lower = ptpName.toLowerCase()
     const matches = existingByLower.get(lower) ?? []
     if (matches.length === 0) {
@@ -197,7 +196,7 @@ export default async function PanelStudioPage({
   for (const m of ptpMembersRaw) {
     if (m.equipment.length === 0) continue
     const onlyHwbp = m.equipment.every((e) => e.category === 'hardwire_bp')
-    if (onlyHwbp) excludedPtpNames.add(`${capitalizeName(m.user.firstName)} ${capitalizeName(m.user.lastName)}`)
+    if (onlyHwbp) excludedPtpNames.add(`${m.user.firstName} ${m.user.lastName}`)
   }
 
   // Fetch PickListItem records for the project, filtering out PTP items
@@ -213,7 +212,7 @@ export default async function PanelStudioPage({
 
   const ptpMembers = ptpMembersRaw.map((m) => ({
     id: m.id,
-    name: `${capitalizeName(m.user.firstName)} ${capitalizeName(m.user.lastName)}`,
+    name: `${m.user.firstName} ${m.user.lastName}`,
     position: m.position,
   }))
 
@@ -355,7 +354,7 @@ export default async function PanelStudioPage({
     pendingChangeRequests = rawCRs.map((cr) => ({
       id: cr.id,
       status: cr.status,
-      submitterName: `${capitalizeName(cr.submittedBy.firstName)} ${capitalizeName(cr.submittedBy.lastName)}`,
+      submitterName: `${cr.submittedBy.firstName} ${cr.submittedBy.lastName}`,
       submitterRole: submitterRoleMap.get(`${cr.submittedById}-${cr.projectId}`) ?? 'crew',
       createdAt: cr.createdAt.toISOString(),
       items: cr.items.map((item) => ({
@@ -524,10 +523,10 @@ export default async function PanelStudioPage({
             // entry id = equipmentId so each device row is unique.
             id: e.id,
             memberId: m.id,
-            firstName: capitalizeName(m.user.firstName),
-            lastName: capitalizeName(m.user.lastName),
+            firstName: m.user.firstName,
+            lastName: m.user.lastName,
             position: m.position,
-            displayName: `${capitalizeName(m.user.firstName)} ${capitalizeName(m.user.lastName)}`.trim(),
+            displayName: `${m.user.firstName} ${m.user.lastName}`.trim(),
             equipmentId: e.id,
             equipmentName: e.name,
           })),

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/db'
-import { capitalizeName } from '@/lib/format-name'
 
 const MAX_ATTEMPTS = 10
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 minutes
@@ -147,11 +146,15 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  function capitalize(s: string) {
+    return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
+  }
+
   const sessionData = {
     user: {
       id: matchedUser.id,
-      firstName: capitalizeName(matchedUser.firstName),
-      lastName: capitalizeName(matchedUser.lastName),
+      firstName: capitalize(matchedUser.firstName),
+      lastName: capitalize(matchedUser.lastName),
     },
     memberships: memberships.map((m) => ({
       id: m.id,

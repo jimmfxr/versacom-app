@@ -1,7 +1,6 @@
 import { redirect, notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
-import { capitalizeName } from '@/lib/format-name'
 import { KioskClient } from './kiosk-client'
 
 export const dynamic = 'force-dynamic'
@@ -55,8 +54,8 @@ export default async function KioskPage({
   const pending = pendingMembers
     .map((m) => ({
       id: m.id,
-      firstName: capitalizeName(m.user.firstName),
-      lastName: capitalizeName(m.user.lastName),
+      firstName: m.user.firstName,
+      lastName: m.user.lastName,
       position: m.position,
       // Sort equipment names naturally so "100A, 100B, 200A" reads in order.
       equipmentNames: m.equipment

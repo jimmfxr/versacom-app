@@ -2,7 +2,6 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
-import { capitalizeName } from '@/lib/format-name'
 import { TasksPageClient } from './tasks-page-client'
 
 export const dynamic = 'force-dynamic'
@@ -130,7 +129,7 @@ export default async function TasksPage({
       assignedTo:
         e.assignedTo && e.assignedTo.user
           ? {
-              name: `${capitalizeName(e.assignedTo.user.firstName)} ${capitalizeName(e.assignedTo.user.lastName)}`,
+              name: `${e.assignedTo.user.firstName} ${e.assignedTo.user.lastName}`,
               position: e.assignedTo.position ?? null,
             }
           : null,

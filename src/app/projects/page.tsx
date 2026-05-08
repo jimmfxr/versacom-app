@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
-import { capitalizeName } from '@/lib/format-name'
 import { ProjectsContent } from './projects-content'
 
 export const dynamic = 'force-dynamic'
@@ -50,7 +49,7 @@ export default async function ProjectsPage() {
         name: p.name,
         status: p.status,
         createdAt: p.createdAt.toISOString(),
-        createdBy: { firstName: capitalizeName(p.createdBy.firstName), lastName: capitalizeName(p.createdBy.lastName) },
+        createdBy: { firstName: p.createdBy.firstName, lastName: p.createdBy.lastName },
         memberCount: p._count.members,
         equipmentCount: p._count.equipment,
       }))}

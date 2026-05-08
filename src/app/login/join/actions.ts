@@ -3,7 +3,6 @@
 import bcrypt from 'bcryptjs'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
-import { capitalizeName } from '@/lib/format-name'
 
 export async function joinProject(firstName: string, lastName: string, projectPin: string) {
   if (!firstName.trim() || !lastName.trim()) {
@@ -171,11 +170,15 @@ export async function createPersonalPin(
     include: { project: true },
   })
 
+  function capitalize(s: string) {
+    return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
+  }
+
   const sessionData = {
     user: {
       id: userIdForSession,
-      firstName: capitalizeName(firstNameForSession),
-      lastName: capitalizeName(lastNameForSession),
+      firstName: capitalize(firstNameForSession),
+      lastName: capitalize(lastNameForSession),
     },
     memberships: memberships.map((m) => ({
       id: m.id,
