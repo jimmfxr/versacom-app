@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
+import { notifyDeployStatusChanged } from '@/lib/notifications'
 
 async function getSession() {
   const cookieStore = await cookies()
@@ -40,6 +41,11 @@ export async function markDeployed(equipmentId: number) {
     where: { id: equipmentId },
     data: { deployStatus: 'deployed' },
   })
+  void notifyDeployStatusChanged({
+    equipmentId,
+    newStatus: 'deployed',
+    actorUserId: session.user.id,
+  })
   revalidatePath('/tasks')
   revalidatePath('/')
   revalidatePath('/my-equipment')
@@ -73,6 +79,11 @@ export async function markReturned(equipmentId: number) {
   await prisma.equipment.update({
     where: { id: equipmentId },
     data: { deployStatus: 'returned' },
+  })
+  void notifyDeployStatusChanged({
+    equipmentId,
+    newStatus: 'returned',
+    actorUserId: session.user.id,
   })
   revalidatePath('/tasks')
   revalidatePath('/')

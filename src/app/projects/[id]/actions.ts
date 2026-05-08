@@ -3,6 +3,10 @@
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
+import {
+  notifyProjectArchived,
+  notifyReturnPhaseActivated,
+} from '@/lib/notifications'
 
 async function getSession() {
   const cookieStore = await cookies()
@@ -105,6 +109,14 @@ export async function setProjectStatus(projectId: number, status: 'active' | 'ar
     const msg = e instanceof Error ? e.message : String(e)
     console.error('setProjectStatus error:', msg, e)
     return { error: `Failed to update status: ${msg}` }
+  }
+
+  // Notify members on archive only — re-activating doesn't need a buzz.
+  if (status === 'archived') {
+    void notifyProjectArchived({
+      projectId,
+      actorUserId: session.user.id,
+    })
   }
 
   revalidatePath('/projects')
@@ -308,10 +320,25 @@ export async function setReturnPhase(projectId: number, active: boolean) {
     !!globalAdmin || membership?.role === 'admin' || membership?.role === 'manager'
   if (!canEdit) return { error: 'Not authorized to change return phase' }
 
+  // Read previous value so we only buzz on the off→on transition.
+  // Toggling off (or re-activating something already on) shouldn't
+  // alert crew again.
+  const before = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { returnPhaseActive: true },
+  })
+
   await prisma.project.update({
     where: { id: projectId },
     data: { returnPhaseActive: active },
   })
+
+  if (active && before && !before.returnPhaseActive) {
+    void notifyReturnPhaseActivated({
+      projectId,
+      actorUserId: session.user.id,
+    })
+  }
 
   revalidatePath('/')
   revalidatePath(`/projects/${projectId}`)

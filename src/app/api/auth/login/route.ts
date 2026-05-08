@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/db'
+import { notifyUserLocked } from '@/lib/notifications'
 
 const MAX_ATTEMPTS = 10
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 minutes
@@ -100,6 +101,9 @@ export async function POST(request: NextRequest) {
         where: { id: user.id },
         data: { failedAttempts: attempts, lockedUntil, lastFailedAt: new Date() },
       })
+      // Buzz every admin on every project this user belongs to so
+      // someone can unlock them or just be aware. Fire-and-forget.
+      void notifyUserLocked({ lockedUserId: user.id })
       const remaining = Math.ceil(LOCKOUT_DURATION_MS / 60000)
       return NextResponse.json(
         {

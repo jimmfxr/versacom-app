@@ -3,6 +3,7 @@
 import bcrypt from 'bcryptjs'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
+import { notifyMemberJoined } from '@/lib/notifications'
 
 export async function joinProject(firstName: string, lastName: string, projectPin: string) {
   if (!firstName.trim() || !lastName.trim()) {
@@ -58,6 +59,13 @@ export async function joinProject(firstName: string, lastName: string, projectPi
     // Add existing user to project
     await prisma.projectMember.create({
       data: { userId: existingUser.id, projectId: project.id, role: 'user' },
+    })
+
+    // Fire-and-forget: tell project admins someone returning joined.
+    void notifyMemberJoined({
+      projectId: project.id,
+      memberName: `${existingUser.firstName} ${existingUser.lastName}`,
+      role: 'user',
     })
 
     // If user has no PIN, send to create-PIN step
@@ -131,9 +139,18 @@ export async function createPersonalPin(
     const membership = await prisma.projectMember.findUnique({
       where: { userId_projectId: { userId: existingUser.id, projectId } },
     })
+    let didCreateMembership = false
     if (!membership) {
       await prisma.projectMember.create({
         data: { userId: existingUser.id, projectId, role: 'user' },
+      })
+      didCreateMembership = true
+    }
+    if (didCreateMembership) {
+      void notifyMemberJoined({
+        projectId,
+        memberName: `${existingUser.firstName} ${existingUser.lastName}`,
+        role: 'user',
       })
     }
 
@@ -152,6 +169,12 @@ export async function createPersonalPin(
 
     await prisma.projectMember.create({
       data: { userId: user.id, projectId, role: 'user' },
+    })
+
+    void notifyMemberJoined({
+      projectId,
+      memberName: `${user.firstName} ${user.lastName}`,
+      role: 'user',
     })
 
     userIdForSession = user.id

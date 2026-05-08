@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
+import { notifyDeployStatusChanged } from '@/lib/notifications'
 
 async function getSession() {
   const cookieStore = await cookies()
@@ -259,10 +260,28 @@ export async function updateEquipment(
   const session = await getSession()
   if (!session) return { error: 'Not authenticated' }
 
+  // Read the previous deployStatus before the update so we only fire
+  // a push when the status actually changed (not when a name / location
+  // edit happens to be saved with the same status alongside).
+  const before = data.deployStatus !== undefined
+    ? await prisma.equipment.findUnique({
+        where: { id: equipmentId },
+        select: { deployStatus: true },
+      })
+    : null
+
   await prisma.equipment.update({
     where: { id: equipmentId },
     data,
   })
+
+  if (data.deployStatus && before && before.deployStatus !== data.deployStatus) {
+    void notifyDeployStatusChanged({
+      equipmentId,
+      newStatus: data.deployStatus,
+      actorUserId: session.user.id,
+    })
+  }
 
   revalidatePath(`/projects/${projectId}`)
   return { success: true }
