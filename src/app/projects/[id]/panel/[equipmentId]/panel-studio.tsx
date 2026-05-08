@@ -3070,17 +3070,15 @@ function BrowseProjectDropdown({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`flex w-full items-center justify-between gap-2.5 rounded-lg border px-3.5 py-2 text-sm font-medium text-gray-200 transition-colors ${
-          open
-            ? 'border-[#22a7d3]/50 bg-white/[0.04]'
-            : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
+        className={`flex w-full items-center justify-between gap-2.5 rounded-lg border-2 bg-[#202020] px-3.5 py-2 text-sm font-medium text-white transition-colors ${
+          open ? 'border-[#0178a3]' : 'border-white/10 hover:border-white/20'
         }`}
       >
         <span className="truncate">{project.name}</span>
         <svg className={`size-3.5 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
       </button>
       {open && (
-        <div className="absolute left-0 right-0 top-full z-30 mt-1 flex max-h-[320px] flex-col rounded-lg border border-white/10 bg-[#2a2a2a] shadow-2xl sm:left-auto sm:min-w-[240px]">
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 flex max-h-[320px] flex-col rounded-lg border border-white/10 bg-[#2a2a2a] shadow-2xl">
           <input
             ref={inputRef}
             type="text"
@@ -3211,11 +3209,14 @@ function BrowseMemberSwitcher({
 
   return (
     <div ref={ref} className={`flex w-full items-center gap-1 sm:w-auto ${className}`}>
+      {/* Prev / Next steppers — hidden on mobile so the dropdown
+          itself can be full-width. The dropdown lets you jump to
+          any user anyway, so the steppers are a desktop nicety. */}
       <button
         type="button"
         onClick={() => jumpByOffset(-1)}
         aria-label="Previous user"
-        className="flex h-[38px] w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white hover:text-white"
+        className="hidden sm:flex h-[38px] w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white hover:text-white"
       >
         <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
       </button>
@@ -3223,17 +3224,15 @@ function BrowseMemberSwitcher({
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className={`flex w-full items-center justify-between gap-2.5 rounded-lg border px-3.5 py-2 text-sm font-medium text-gray-200 transition-colors ${
-            open
-              ? 'border-[#22a7d3]/50 bg-white/[0.04]'
-              : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
+          className={`flex w-full items-center justify-between gap-2.5 rounded-lg border-2 bg-[#202020] px-3.5 py-2 text-sm font-medium text-white transition-colors ${
+            open ? 'border-[#0178a3]' : 'border-white/10 hover:border-white/20'
           }`}
         >
           <span className="truncate">{memberLabel}</span>
           <svg className={`size-3.5 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
         </button>
         {open && (
-          <div className="absolute left-0 right-0 top-full z-30 mt-1 flex max-h-[360px] flex-col rounded-lg border border-white/10 bg-[#2a2a2a] shadow-2xl sm:left-1/2 sm:right-auto sm:min-w-[280px] sm:-translate-x-1/2">
+          <div className="absolute left-0 right-0 top-full z-30 mt-1 flex max-h-[360px] flex-col rounded-lg border border-white/10 bg-[#2a2a2a] shadow-2xl">
             <input
               ref={inputRef}
               type="text"
@@ -3286,7 +3285,7 @@ function BrowseMemberSwitcher({
         type="button"
         onClick={() => jumpByOffset(1)}
         aria-label="Next user"
-        className="flex h-[38px] w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white hover:text-white"
+        className="hidden sm:flex h-[38px] w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white hover:text-white"
       >
         <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
       </button>

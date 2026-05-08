@@ -311,12 +311,10 @@ function TabsMobileDropdown({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`flex w-full items-center justify-between gap-2.5 rounded-lg border font-medium text-gray-200 transition-colors ${
-          compact ? 'px-3.5 py-2 text-sm' : 'px-3.5 py-2.5 text-base'
+        className={`flex w-full items-center justify-between gap-2.5 rounded-lg border-2 bg-[#202020] font-medium text-white transition-colors ${
+          compact ? 'px-3.5 py-1.5 text-sm' : 'px-3.5 py-2 text-base'
         } ${
-          open
-            ? 'border-[#22a7d3]/50 bg-white/[0.04]'
-            : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
+          open ? 'border-[#0178a3]' : 'border-white/10 hover:border-white/20'
         }`}
       >
         <span className="flex items-center gap-2">
