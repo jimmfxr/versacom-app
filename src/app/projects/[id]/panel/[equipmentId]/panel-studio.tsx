@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useTransition, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { ChevronLeftIcon } from '@heroicons/react/24/outline'
 import {
@@ -2706,15 +2707,23 @@ function PickerSelect({
   const ref = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  // Portal-rendered panel position. Tracked via getBoundingClientRect
+  // so the panel can render into document.body and escape any
+  // overflow-hidden ancestors (the picker card has several). Updated
+  // on open + on scroll/resize while open.
+  const [panelPos, setPanelPos] = useState<{ top: number; left: number; width: number } | null>(null)
 
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      const target = e.target as Node
+      // Click outside both the trigger AND the portal-rendered panel.
+      if (ref.current && !ref.current.contains(target) && listRef.current && !listRef.current.contains(target)) setOpen(false)
+      else if (ref.current && !ref.current.contains(target) && !listRef.current) setOpen(false)
     }
-    // focusin: close when focus moves outside (Tab to next field).
-    // More reliable than onBlur + relatedTarget.
     function onFocusIn(e: FocusEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      const target = e.target as Node
+      if (ref.current && !ref.current.contains(target) && listRef.current && !listRef.current.contains(target)) setOpen(false)
+      else if (ref.current && !ref.current.contains(target) && !listRef.current) setOpen(false)
     }
     if (open) {
       document.addEventListener('mousedown', onMouseDown)
@@ -2723,6 +2732,28 @@ function PickerSelect({
     return () => {
       document.removeEventListener('mousedown', onMouseDown)
       document.removeEventListener('focusin', onFocusIn)
+    }
+  }, [open])
+
+  // Compute panel position when opening + on scroll/resize while open.
+  useLayoutEffect(() => {
+    if (!open) { setPanelPos(null); return }
+    function updatePos() {
+      const btn = buttonRef.current
+      if (!btn) return
+      const rect = btn.getBoundingClientRect()
+      setPanelPos({
+        top: rect.bottom + 4, // 4px gap below trigger (mt-1)
+        left: rect.left,
+        width: rect.width,
+      })
+    }
+    updatePos()
+    window.addEventListener('scroll', updatePos, true)
+    window.addEventListener('resize', updatePos)
+    return () => {
+      window.removeEventListener('scroll', updatePos, true)
+      window.removeEventListener('resize', updatePos)
     }
   }, [open])
 
@@ -2805,14 +2836,20 @@ function PickerSelect({
           <polyline points="5 8 10 13 15 8" />
         </svg>
       </button>
-      {open && (
-        <div ref={listRef} className="absolute left-0 right-0 top-full z-30 mt-1 max-h-[260px] overflow-y-auto rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl">
+      {open && panelPos && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={listRef}
+          className="z-[1000] max-h-[260px] overflow-y-auto rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl"
+          style={{
+            position: 'fixed',
+            top: panelPos.top,
+            left: panelPos.left,
+            width: panelPos.width,
+          }}
+        >
           {options.map((o, idx) => {
             const isActive = o.value === value
             const isHighlight = idx === highlight
-            // Selected option fills with the brand cyan + white text
-            // (matches the SearchableSelect dropdown). Keyboard /
-            // mouse highlight on non-selected rows is just a soft band.
             const stateClass = isActive
               ? 'bg-[#0178a3] text-white'
               : isHighlight
@@ -2836,7 +2873,8 @@ function PickerSelect({
               </button>
             )
           })}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

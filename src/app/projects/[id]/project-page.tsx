@@ -312,7 +312,7 @@ function TabsMobileDropdown({
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={`flex w-full items-center justify-between gap-2.5 rounded-lg border-2 bg-[#202020] font-medium text-white transition-colors ${
-          compact ? 'px-3.5 py-1.5 text-sm' : 'px-3.5 py-2 text-base'
+          compact ? 'px-3.5 py-1.5 text-sm' : 'px-3 py-1.5 text-sm'
         } ${
           open ? 'border-[#0178a3]' : 'border-white/10 hover:border-white/20'
         }`}
@@ -1434,7 +1434,7 @@ export function ProjectPage({
                       type="button"
                       onClick={() => setMobileSearchOpen(true)}
                       aria-label="Search"
-                      className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                      className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
                     >
                       <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.343-4.343m0 0A8 8 0 1 0 5.343 5.343a8 8 0 0 0 11.314 11.314Z" />
@@ -1445,22 +1445,22 @@ export function ProjectPage({
                       search icon. Each branch matches the per-tab
                       Add behavior the desktop header has. */}
                   {activeTab === 'equipment' && canAddEquipment && !showAdd && (
-                    <button type="button" onClick={() => setShowAdd(true)} aria-label="Add Equipment" className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
+                    <button type="button" onClick={() => setShowAdd(true)} aria-label="Add Equipment" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
                   )}
                   {activeTab === 'equipment' && !canAddEquipment && isCrew && !showTeamQr && (
-                    <button type="button" onClick={() => setShowTeamQr(true)} aria-label="Show QR" className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
+                    <button type="button" onClick={() => setShowTeamQr(true)} aria-label="Show QR" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
                   )}
                   {activeTab === 'team' && canEditTeam && !showAddMember && (
-                    <button type="button" onClick={() => setShowAddMember(true)} aria-label="Add Member" className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
+                    <button type="button" onClick={() => setShowAddMember(true)} aria-label="Add Member" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
                   )}
                   {activeTab === 'team' && !canEditTeam && isCrew && !showTeamQr && (
-                    <button type="button" onClick={() => setShowTeamQr(true)} aria-label="Show QR" className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
+                    <button type="button" onClick={() => setShowTeamQr(true)} aria-label="Show QR" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
                   )}
                   {activeTab === 'picklist' && canEditPickList && !showAddPl && (
-                    <button type="button" onClick={() => setShowAddPl(true)} aria-label="Add Function" className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
+                    <button type="button" onClick={() => setShowAddPl(true)} aria-label="Add Function" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
                   )}
                   {activeTab === 'stage-plots' && isAdmin && !showAddPlot && (
-                    <button type="button" onClick={() => setShowAddPlot(true)} aria-label="Add Plot" className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
+                    <button type="button" onClick={() => setShowAddPlot(true)} aria-label="Add Plot" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
                   )}
                 </div>
 
@@ -1500,7 +1500,7 @@ export function ProjectPage({
                       type="button"
                       onClick={() => setMobileSearchOpen(false)}
                       aria-label="Close search"
-                      className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                      className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
                     >
                       <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -1761,11 +1761,11 @@ export function ProjectPage({
               {filteredEquipment.length === 0 ? (
                 <EmptyState icon={<WrenchIcon />} title={eqSearch ? 'No matches found' : 'No equipment yet'} message={eqSearch ? 'Try a different search term.' : 'Add equipment using the button above.'} />
               ) : (
-                <div className="space-y-2">
+                <div className="divide-y divide-white/[0.06]">
                   {filteredEquipment.map((item) => {
                     const isEditing = editingEqId === item.id
                     return (
-                      <div key={item.id} className="flex items-start gap-4 rounded-2xl bg-[#2a2a2a] px-5 py-4 transition-colors hover:bg-[#313131]">
+                      <div key={item.id} className="flex items-start gap-4 px-5 py-3 transition-colors hover:bg-white/[0.04]">
                         {/* Content */}
                         <div className="min-w-0 flex-1">
                           {isEditing ? (
@@ -2276,11 +2276,11 @@ export function ProjectPage({
               {filteredMembers.length === 0 ? (
                 <EmptyState icon={<UsersIcon />} title={teamSearch ? 'No matches found' : 'No team members yet'} message={teamSearch ? 'Try a different search term.' : 'Members join via the project PIN.'} />
               ) : (
-                <div className="space-y-2">
+                <div className="divide-y divide-white/[0.06]">
                   {filteredMembers.map((m) => {
                     const isEditing = editingMemberId === m.id
                     return (
-                      <div key={m.id} className="rounded-2xl bg-[#2a2a2a] px-5 py-4 transition-colors hover:bg-[#313131]">
+                      <div key={m.id} className="px-5 py-3 transition-colors hover:bg-white/[0.04]">
                         {isEditing ? (
                           <form
                             data-edit-form="team"
@@ -2478,11 +2478,11 @@ export function ProjectPage({
               {filteredPickList.length === 0 ? (
                 <EmptyState icon={<ListIcon />} title={plSearch ? 'No matches found' : 'No functions yet'} message={plSearch ? 'Try a different search term.' : 'Add communication functions using the button above.'} />
               ) : (
-                <div className="space-y-2">
+                <div className="divide-y divide-white/[0.06]">
                   {filteredPickList.map((item) => {
                     const isEditing = editingPlId === item.id
                     return (
-                      <div key={item.id} className="rounded-2xl bg-[#2a2a2a] px-5 py-4 transition-colors hover:bg-[#313131]">
+                      <div key={item.id} className="px-5 py-3 transition-colors hover:bg-white/[0.04]">
                         {isEditing ? (
                           <form
                             data-edit-form="picklist"
@@ -2645,11 +2645,11 @@ export function ProjectPage({
                   message={plotSearch ? 'Try a different search term.' : isAdmin ? 'Add a PDF link to share venue layouts with your crew.' : 'No stage plots have been added yet.'}
                 />
               ) : (
-                <div className="space-y-2">
+                <div className="divide-y divide-white/[0.06]">
                   {filteredPlots.map((plot) => {
                     const isEditingPlot = editingPlotId === plot.id
                     return (
-                      <div key={plot.id} className="rounded-2xl bg-[#2a2a2a] px-5 py-4 transition-colors hover:bg-[#313131]">
+                      <div key={plot.id} className="px-5 py-3 transition-colors hover:bg-white/[0.04]">
                         {isEditingPlot ? (
                           <>
                             <div className="flex flex-col gap-3">
@@ -2756,11 +2756,11 @@ export function ProjectPage({
                 {myEquipment.length === 0 ? (
                   <EmptyState icon={<WrenchIcon />} title="No equipment assigned" message="You don't have any equipment assigned to you yet." />
                 ) : (
-                  <div className="space-y-2">
+                  <div className="divide-y divide-white/[0.06]">
                     {myEquipment.map((item) => (
                       <div
                         key={item.id}
-                        className={`flex items-start gap-4 rounded-2xl bg-[#2a2a2a] px-5 py-4 transition-colors ${isPanelType(item.category) ? 'cursor-pointer hover:bg-[#313131]' : ''}`}
+                        className={`flex items-start gap-4 px-5 py-3 transition-colors ${isPanelType(item.category) ? 'cursor-pointer hover:bg-[#313131]' : ''}`}
                         onClick={isPanelType(item.category) ? () => router.push(`/projects/${project.id}/panel/${item.id}`) : undefined}
                       >
                         <div className="min-w-0 flex-1">

@@ -445,7 +445,7 @@ function StatusHero({
   const colorClass = color === 'cyan' ? 'text-[#22a7d3]' : 'text-[#c084fc]'
   const fillClass = color === 'cyan' ? 'bg-[#22a7d3]' : 'bg-[#c084fc]'
   return (
-    <div className="flex flex-col gap-3 rounded-2xl bg-[#2a2a2a] p-4 sm:flex-row sm:items-center sm:gap-5 sm:p-5 sm:px-6">
+    <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-5 sm:p-5 sm:px-6">
       <div className="flex items-baseline gap-2 sm:block">
         <div className={`text-[32px] font-bold leading-none tabular-nums sm:text-[38px] ${colorClass}`}>
           {pct}%
@@ -663,7 +663,7 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
     || quarterXlrmTracked || db9XlrfTracked || rj45XlrmfTracked
 
   return (
-    <div className="space-y-3 sm:space-y-5">
+    <div className="divide-y divide-white/[0.06] [&>div]:py-3 sm:[&>div]:py-4">
       {/* Deployment status — single combined card */}
       <div>
         <SectionHeader>Deployment status</SectionHeader>
@@ -673,7 +673,7 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
             through to the page's vertical scroll. Without this iOS
             Safari was sometimes treating a flat horizontal drag
             here like a carousel swipe + page scroll combo. */}
-        <div className="rounded-2xl bg-[#2a2a2a] p-4 sm:p-5 sm:px-6" style={{ touchAction: 'pan-y' }}>
+        <div className="p-4 sm:p-5 sm:px-6 sm:px-0" style={{ touchAction: 'pan-y' }}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
             {/* Headline % — the stage currently leading */}
             <div className="flex items-baseline gap-2 sm:block">
@@ -721,7 +721,7 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
         <SectionHeader>Distribution</SectionHeader>
         {(() => {
           const cardClass =
-            'flex h-full flex-col rounded-2xl bg-[#2a2a2a] p-4 sm:p-5'
+            'flex h-full flex-col rounded-lg border border-white/10 p-4 sm:p-5'
 
           const assignmentCard = (
             <div className={cardClass}>

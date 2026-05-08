@@ -366,7 +366,7 @@ function TaskSection({
                 {projectName}
               </div>
             )}
-            <div className="space-y-2">
+            <div className="divide-y divide-white/[0.06]">
               {items.map((task) => (
                 <TaskCardItem
                   key={task.id}
@@ -403,8 +403,8 @@ function TaskCardItem({
 
   return (
     <div
-      className={`flex items-start gap-4 rounded-2xl bg-[#2a2a2a] px-5 py-4 transition-all ${
-        state === 'idle' ? 'hover:bg-[#313131]' : 'opacity-60'
+      className={`flex items-start gap-4 px-5 py-3 transition-all ${
+        state === 'idle' ? 'hover:bg-white/[0.04]' : 'opacity-60'
       }`}
     >
       {/* Content — matches the equipment row layout on the project page */}
