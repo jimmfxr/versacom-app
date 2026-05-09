@@ -217,3 +217,162 @@ export async function notifyManagerEndorsed(args: {
     tag: `endorse-${args.changeRequestId}`,
   })
 }
+
+// ─── Equipment edited (Mockup C — most-impactful headline) ──────────
+//
+// Fires from updateEquipment when crew/admin saves a change to any
+// non-deployStatus field on a piece of gear. Picks the most
+// operationally significant changed field for the headline so the
+// admin sees what mattered at a glance. Body line stays short:
+// "{actor} · {project}".
+//
+// deployStatus is intentionally NOT handled here — it has its own
+// dedicated `notifyDeployStatusChanged` helper.
+
+type EquipmentDiff = {
+  // Each field provides before + after only when it changed. Caller
+  // is responsible for diffing — this helper just renders.
+  name?: { before: string | null; after: string | null }
+  hardwareType?: { before: string | null; after: string | null }
+  position?: { before: string | null; after: string | null }
+  location?: { before: string | null; after: string | null }
+  headsetType?: { before: string | null; after: string | null }
+  ipAddress?: { before: string | null; after: string | null }
+  patch?: { before: string | null; after: string | null }
+  assignedToId?: {
+    before: number | null
+    after: number | null
+    afterName: string | null
+  }
+  gooseneck?: { before: boolean; after: boolean }
+  footswitches?: { before: number; after: number }
+  speakers?: { before: number; after: number }
+}
+
+const EDIT_PRIORITY: Array<keyof EquipmentDiff> = [
+  'assignedToId',
+  'location',
+  'hardwareType',
+  'headsetType',
+  'ipAddress',
+  'name',
+  'gooseneck',
+  'footswitches',
+  'speakers',
+  'position',
+  'patch',
+]
+
+function renderEquipmentHeadline(
+  field: keyof EquipmentDiff,
+  diff: EquipmentDiff,
+  eqName: string,
+): string {
+  switch (field) {
+    case 'assignedToId': {
+      const d = diff.assignedToId!
+      if (d.after == null) return `${eqName} unassigned`
+      return `${eqName} assigned to ${d.afterName ?? 'a member'}`
+    }
+    case 'location': {
+      const d = diff.location!
+      if (!d.after) return `${eqName} location cleared`
+      return `${eqName} moved to ${d.after}`
+    }
+    case 'hardwareType': {
+      const d = diff.hardwareType!
+      if (!d.after) return `${eqName} hardware cleared`
+      return `${eqName} changed to ${d.after}`
+    }
+    case 'headsetType': {
+      const d = diff.headsetType!
+      if (!d.after) return `${eqName} headset cleared`
+      return `${eqName} headset set to ${d.after}`
+    }
+    case 'ipAddress': {
+      const d = diff.ipAddress!
+      if (!d.after) return `${eqName} IP cleared`
+      return `${eqName} IP set to ${d.after}`
+    }
+    case 'name': {
+      const d = diff.name!
+      return `${d.before ?? eqName} renamed to ${d.after ?? '(blank)'}`
+    }
+    case 'gooseneck':
+      return `${eqName} gooseneck ${diff.gooseneck!.after ? 'added' : 'removed'}`
+    case 'footswitches':
+      return `${eqName} footswitches: ${diff.footswitches!.before} → ${diff.footswitches!.after}`
+    case 'speakers':
+      return `${eqName} speakers: ${diff.speakers!.before} → ${diff.speakers!.after}`
+    case 'position': {
+      const d = diff.position!
+      if (!d.after) return `${eqName} position cleared`
+      return `${eqName} position set to ${d.after}`
+    }
+    case 'patch': {
+      const d = diff.patch!
+      if (!d.after) return `${eqName} patch cleared`
+      return `${eqName} patch set to ${d.after}`
+    }
+  }
+}
+
+export async function notifyEquipmentEdited(args: {
+  equipmentId: number
+  actorUserId: number
+  diff: EquipmentDiff
+}): Promise<void> {
+  // Find the highest-priority field that actually changed.
+  const topField = EDIT_PRIORITY.find((f) => args.diff[f] !== undefined)
+  if (!topField) return // nothing changed (deployStatus-only saves land here)
+
+  const eq = await prisma.equipment.findUnique({
+    where: { id: args.equipmentId },
+    select: { name: true, projectId: true },
+  })
+  if (!eq) return
+
+  const recipients = await adminUserIds(eq.projectId, args.actorUserId)
+  if (recipients.length === 0) return
+
+  const eqName = eq.name ?? 'Equipment'
+  const headline = renderEquipmentHeadline(topField, args.diff, eqName)
+  const actor = await userFullName(args.actorUserId)
+  const project = await projectName(eq.projectId)
+
+  await safeSend(recipients, {
+    title: headline,
+    body: `${actor} · ${project}`,
+    url: `/projects/${eq.projectId}`,
+    tag: `eq-edit-${args.equipmentId}-${Date.now()}`,
+  })
+}
+
+// ─── Equipment newly assigned (to the assignee) ─────────────────────
+//
+// Personal "you've got new gear" buzz when someone gets reassigned
+// a piece of equipment. Distinct from notifyEquipmentEdited which
+// goes to admins; this one only fires for the new assignee so they
+// know they're now responsible for the gear.
+
+export async function notifyEquipmentAssigned(args: {
+  equipmentId: number
+  newAssigneeUserId: number
+  actorUserId: number
+}): Promise<void> {
+  if (args.newAssigneeUserId === args.actorUserId) return // self-assign — no buzz
+  const eq = await prisma.equipment.findUnique({
+    where: { id: args.equipmentId },
+    select: { name: true, projectId: true },
+  })
+  if (!eq) return
+  const eqName = eq.name ?? 'a panel'
+  const actor = await userFullName(args.actorUserId)
+  const project = await projectName(eq.projectId)
+  await safeSend([args.newAssigneeUserId], {
+    title: `You're now on ${eqName}`,
+    body: `${actor} · ${project}`,
+    url: `/projects/${eq.projectId}/panel/${args.equipmentId}`,
+    tag: `eq-assign-${args.equipmentId}-${args.newAssigneeUserId}`,
+  })
+}

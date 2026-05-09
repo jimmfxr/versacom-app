@@ -3,7 +3,11 @@
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
-import { notifyDeployStatusChanged } from '@/lib/notifications'
+import {
+  notifyDeployStatusChanged,
+  notifyEquipmentEdited,
+  notifyEquipmentAssigned,
+} from '@/lib/notifications'
 
 async function getSession() {
   const cookieStore = await cookies()
@@ -260,27 +264,129 @@ export async function updateEquipment(
   const session = await getSession()
   if (!session) return { error: 'Not authenticated' }
 
-  // Read the previous deployStatus before the update so we only fire
-  // a push when the status actually changed (not when a name / location
-  // edit happens to be saved with the same status alongside).
-  const before = data.deployStatus !== undefined
-    ? await prisma.equipment.findUnique({
-        where: { id: equipmentId },
-        select: { deployStatus: true },
-      })
-    : null
+  // Read the full before-state so we can diff every field that crew /
+  // admins can edit. The diff drives both notifications:
+  //   - notifyDeployStatusChanged when deployStatus moved
+  //   - notifyEquipmentEdited (Mockup C — most-impactful headline)
+  //     for any other field change. deployStatus is excluded from
+  //     the edit diff so we don't double-buzz on a save that only
+  //     touched deployStatus.
+  //   - notifyEquipmentAssigned to the NEW assignee when the
+  //     assignment changes to someone other than the actor.
+  const before = await prisma.equipment.findUnique({
+    where: { id: equipmentId },
+    select: {
+      name: true,
+      hardwareType: true,
+      position: true,
+      location: true,
+      headsetType: true,
+      ipAddress: true,
+      patch: true,
+      deployStatus: true,
+      assignedToId: true,
+      gooseneck: true,
+      footswitches: true,
+      speakers: true,
+    },
+  })
 
   await prisma.equipment.update({
     where: { id: equipmentId },
     data,
   })
 
-  if (data.deployStatus && before && before.deployStatus !== data.deployStatus) {
-    void notifyDeployStatusChanged({
-      equipmentId,
-      newStatus: data.deployStatus,
-      actorUserId: session.user.id,
-    })
+  if (before) {
+    // ─── Deploy status (existing notification path) ───
+    if (data.deployStatus && before.deployStatus !== data.deployStatus) {
+      void notifyDeployStatusChanged({
+        equipmentId,
+        newStatus: data.deployStatus,
+        actorUserId: session.user.id,
+      })
+    }
+
+    // ─── Edit diff (new) ───
+    const diff: Parameters<typeof notifyEquipmentEdited>[0]['diff'] = {}
+    if (data.name !== undefined && data.name !== before.name) {
+      diff.name = { before: before.name, after: data.name }
+    }
+    if (data.hardwareType !== undefined && data.hardwareType !== before.hardwareType) {
+      diff.hardwareType = { before: before.hardwareType, after: data.hardwareType }
+    }
+    if (data.position !== undefined && data.position !== before.position) {
+      diff.position = { before: before.position, after: data.position }
+    }
+    if (data.location !== undefined && data.location !== before.location) {
+      diff.location = { before: before.location, after: data.location }
+    }
+    if (data.headsetType !== undefined && data.headsetType !== before.headsetType) {
+      diff.headsetType = { before: before.headsetType, after: data.headsetType }
+    }
+    if (data.ipAddress !== undefined && data.ipAddress !== before.ipAddress) {
+      diff.ipAddress = { before: before.ipAddress, after: data.ipAddress }
+    }
+    if (data.patch !== undefined && data.patch !== before.patch) {
+      diff.patch = { before: before.patch, after: data.patch }
+    }
+    if (
+      data.assignedToId !== undefined &&
+      data.assignedToId !== before.assignedToId
+    ) {
+      // Resolve the new assignee's name once for the headline.
+      let afterName: string | null = null
+      if (data.assignedToId != null) {
+        const m = await prisma.projectMember.findUnique({
+          where: { id: data.assignedToId },
+          select: { user: { select: { firstName: true, lastName: true } } },
+        })
+        if (m) afterName = `${m.user.firstName} ${m.user.lastName}`
+      }
+      diff.assignedToId = {
+        before: before.assignedToId,
+        after: data.assignedToId,
+        afterName,
+      }
+    }
+    if (data.gooseneck !== undefined && data.gooseneck !== before.gooseneck) {
+      diff.gooseneck = { before: before.gooseneck, after: data.gooseneck }
+    }
+    if (
+      data.footswitches !== undefined &&
+      data.footswitches !== before.footswitches
+    ) {
+      diff.footswitches = { before: before.footswitches, after: data.footswitches }
+    }
+    if (data.speakers !== undefined && data.speakers !== before.speakers) {
+      diff.speakers = { before: before.speakers, after: data.speakers }
+    }
+    const anyEdit = Object.keys(diff).length > 0
+    if (anyEdit) {
+      void notifyEquipmentEdited({
+        equipmentId,
+        actorUserId: session.user.id,
+        diff,
+      })
+    }
+
+    // ─── New-assignee personal buzz ───
+    if (
+      data.assignedToId !== undefined &&
+      data.assignedToId !== before.assignedToId &&
+      data.assignedToId != null
+    ) {
+      const newMember = await prisma.projectMember.findUnique({
+        where: { id: data.assignedToId },
+        select: { userId: true },
+      })
+      if (newMember) {
+        void notifyEquipmentAssigned({
+          equipmentId,
+          newAssigneeUserId: newMember.userId,
+          actorUserId: session.user.id,
+        })
+      }
+    }
   }
 
   revalidatePath(`/projects/${projectId}`)
