@@ -11,7 +11,7 @@ import { EmptyState } from '@/components/empty-state'
 import { StatusBadge } from '@/components/status-badge'
 import { IconButton } from '@/components/icon-button'
 import { FormInput } from '@/components/form-field'
-import { createProject } from './actions'
+import { createProject, cloneProject } from './actions'
 import { setProjectStatus } from './[id]/actions'
 
 type Project = {
@@ -32,6 +32,39 @@ function formatDate(dateStr: string) {
   })
 }
 
+// Tiny iOS-style toggle switch. Track is gray when off, green when
+// on. Knob slides left ↔ right. Used inline in the Clone form
+// alongside per-category labels. Plain <button> so keyboard users
+// can space-bar toggle.
+function Switch({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean
+  onChange: (next: boolean) => void
+  label: string
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors ${
+        checked ? 'bg-green-500' : 'bg-white/15'
+      }`}
+    >
+      <span
+        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+          checked ? 'translate-x-[22px]' : 'translate-x-0.5'
+        }`}
+      />
+    </button>
+  )
+}
+
 function FolderIcon() {
   return (
     <svg className="size-12 text-gray-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -42,6 +75,17 @@ function FolderIcon() {
 
 export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showMyEquipment }: { projects: Project[]; userName?: string; isAdmin?: boolean; isUserOnly?: boolean; showMyEquipment?: boolean }) {
   const [showForm, setShowForm] = useState(false)
+  // Clone-mode toggles inside the New Project card. When `cloneOpen`
+  // is true, the form switches from the simple name input to the
+  // clone form: source picker + 4 toggle switches + new name. The
+  // toggles default to ON so a user just hits Save and gets a full
+  // copy. Each can be flipped off independently.
+  const [cloneOpen, setCloneOpen] = useState(false)
+  const [cloneSourceId, setCloneSourceId] = useState<number | null>(null)
+  const [cloneTeam, setCloneTeam] = useState(true)
+  const [cloneEquipment, setCloneEquipment] = useState(true)
+  const [clonePickList, setClonePickList] = useState(true)
+  const [cloneInventory, setCloneInventory] = useState(true)
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -75,7 +119,34 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
 
   function closeForm() {
     setShowForm(false)
+    setCloneOpen(false)
+    setCloneSourceId(null)
     setError('')
+  }
+
+  // Submit handler for the Clone form. Mirrors handleSubmit but calls
+  // the cloneProject action with the source + 4 toggle flags.
+  async function handleCloneSubmit(formData: FormData) {
+    if (cloneSourceId == null) {
+      setError('Pick a project to clone from')
+      return
+    }
+    const name = (formData.get('name') as string)?.trim()
+    if (!name) { setError('New project name is required'); return }
+    if (name.length > 100) { setError('Name must be 100 characters or less'); return }
+    setError('')
+    formData.set('sourceId', String(cloneSourceId))
+    formData.set('team', cloneTeam ? '1' : '0')
+    formData.set('equipment', cloneEquipment ? '1' : '0')
+    formData.set('pickList', clonePickList ? '1' : '0')
+    formData.set('inventory', cloneInventory ? '1' : '0')
+    startTransition(async () => {
+      const result = await cloneProject(formData)
+      if (result.error) { setError(result.error); return }
+      showToast('success', `${result.name} cloned`)
+      closeForm()
+      router.refresh()
+    })
   }
 
   async function handleSubmit(formData: FormData) {
@@ -108,12 +179,13 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
         inlineAction
         stickyHeader
         bottomBorder
-        action={!showForm ? (
+        action={
           <div className="flex items-center gap-3">
-            {/* Desktop-only inline search bar — sits left of the
-                New Project button so the whole top row is one strip
-                (search + create). Mobile keeps the standalone sticky
-                search below the title for thumb reach. */}
+            {/* Desktop-only inline search bar — stays visible whether
+                or not the create form is open. Hiding it when the
+                form opens used to make the header reflow and looked
+                like the search "disappeared". Now the only thing
+                that toggles is the + button. */}
             {projects.length > 0 && (
               <input
                 type="text"
@@ -123,25 +195,82 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                 className="hidden w-64 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white focus:border-[#0178a3] sm:block"
               />
             )}
-            <Button onClick={() => setShowForm(true)} aria-label="New Project">+</Button>
+            {!showForm && (
+              <Button onClick={() => setShowForm(true)} aria-label="New Project">+</Button>
+            )}
           </div>
-        ) : undefined}
+        }
       >
-        {/* Inline create form */}
+        {/* Inline create form. Two modes:
+              - default (cloneOpen=false): single name input, classic
+                "create blank project" flow.
+              - clone (cloneOpen=true): adds a source picker + four
+                toggle switches above the name, calling cloneProject
+                instead of createProject on submit. The "Clone from
+                existing" button toggles between the two. */}
         {showForm && (
           <Card className="mb-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-white">New Project</h3>
+              <h3 className="text-sm font-semibold text-white">
+                {cloneOpen ? 'Clone Project' : 'New Project'}
+              </h3>
               <IconButton onClick={closeForm}>
                 <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                 </svg>
               </IconButton>
             </div>
-            <form action={handleSubmit}>
+            <form action={cloneOpen ? handleCloneSubmit : handleSubmit}>
+              {cloneOpen && (
+                <div className="mt-4 flex flex-col gap-4">
+                  {/* Source project picker — only projects the user
+                      can read appear in the parent's `projects` prop,
+                      so that's the canonical list. Archived projects
+                      are still cloneable (sometimes useful for
+                      revisiting a tour stop config). */}
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="sourceId" className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                      Source project
+                    </label>
+                    <select
+                      id="sourceId"
+                      value={cloneSourceId ?? ''}
+                      onChange={(e) => {
+                        setCloneSourceId(e.target.value ? parseInt(e.target.value, 10) : null)
+                        setError('')
+                      }}
+                      className="w-full rounded-lg border border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+                    >
+                      <option value="">Select a project…</option>
+                      {projects.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}{p.status === 'archived' ? ' (archived)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {/* Toggle switches — left label, right switch. */}
+                  <div className="flex flex-col gap-3">
+                    {([
+                      { label: 'Team members', checked: cloneTeam, onChange: setCloneTeam, hint: 'Crew + roles + positions' },
+                      { label: 'Equipment list', checked: cloneEquipment, onChange: setCloneEquipment, hint: 'Gear list (unassigned, deploy reset)' },
+                      { label: 'Pick list', checked: clonePickList, onChange: setClonePickList, hint: 'CONF / IFB / Audio_IO / GRP items' },
+                      { label: 'Inventory totals', checked: cloneInventory, onChange: setCloneInventory, hint: 'Headsets + panel misc brought-to-show counts' },
+                    ] as const).map((row) => (
+                      <div key={row.label} className="flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm text-gray-200">{row.label}</div>
+                          <div className="text-[11px] text-gray-500">{row.hint}</div>
+                        </div>
+                        <Switch checked={row.checked} onChange={row.onChange} label={row.label} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="mt-4">
                 <FormInput
-                  label="Project name"
+                  label={cloneOpen ? 'New project name' : 'Project name'}
                   id="name"
                   name="name"
                   type="text"
@@ -152,12 +281,32 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                 />
               </div>
               {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
-              <div className="mt-4 flex items-center justify-end gap-2">
-                <Button type="button" variant="secondary" size="sm" onClick={closeForm} disabled={isPending}>
+              {/* Action row — all three buttons right-aligned. Clone
+                  and Cancel share the chip-inactive style (transparent
+                  fill + thin border) used elsewhere for Edit / Back
+                  buttons; Save is the cyan primary. Clone sits to the
+                  left of Cancel. */}
+              <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setCloneOpen((v) => !v); setError('') }}
+                  disabled={isPending}
+                  className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:opacity-50"
+                >
+                  {cloneOpen ? 'New project' : 'Clone'}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeForm}
+                  disabled={isPending}
+                  className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:opacity-50"
+                >
                   Cancel
-                </Button>
+                </button>
                 <Button type="submit" size="sm" disabled={isPending}>
-                  {isPending ? 'Saving...' : 'Save Project'}
+                  {isPending
+                    ? (cloneOpen ? 'Cloning…' : 'Saving…')
+                    : (cloneOpen ? 'Clone Project' : 'Save Project')}
                 </Button>
               </div>
             </form>
