@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { notifyReviewStarted } from '@/lib/notifications'
 import { PanelStudio } from './panel-studio'
 
 export const dynamic = 'force-dynamic'
@@ -376,6 +377,34 @@ export default async function PanelStudioPage({
         expansion: item.panelKey.expansion,
       })),
     }))
+
+    // Bundle CRs by submitter so each person gets ONE push per
+    // review session (not one per individual request). Tag dedup
+    // on the device side also keeps reloads from stacking buzzes.
+    // Fire-and-forget so a slow push service never delays the
+    // page render.
+    type ByCRSubmitter = Map<number, { projectId: number; ids: number[] }>
+    const bySubmitter: ByCRSubmitter = new Map()
+    for (const cr of rawCRs) {
+      const existing = bySubmitter.get(cr.submittedById)
+      if (existing) {
+        existing.ids.push(cr.id)
+      } else {
+        bySubmitter.set(cr.submittedById, {
+          projectId: cr.projectId,
+          ids: [cr.id],
+        })
+      }
+    }
+    for (const [submitterId, group] of bySubmitter) {
+      void notifyReviewStarted({
+        submitterUserId: submitterId,
+        reviewerUserId: session.user.id,
+        changeRequestIds: group.ids,
+        equipmentId: equipment.id,
+        projectId: group.projectId,
+      })
+    }
   }
 
   // Recent resolutions of this member's change requests — used by the

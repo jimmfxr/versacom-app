@@ -348,6 +348,66 @@ export async function notifyEquipmentEdited(args: {
   })
 }
 
+// ─── Admin opened a change request for review ──────────────────────
+//
+// Heads-up to the submitter that someone is looking at their request
+// right now. Fires when an admin lands on the Panel Studio page with
+// `?review={memberId}`. One push per (CR, admin) — dedupe is via the
+// Web Push `tag` field so reloads / re-opens don't stack notifications
+// on the user's device (the OS replaces the previous one).
+
+export async function notifyReviewStarted(args: {
+  // The submitter's CRs being reviewed in this session, grouped at
+  // the call site. Bundling multiple CRs into a single push prevents
+  // spamming the user when one admin opens a review covering several
+  // of their pending requests at once.
+  submitterUserId: number
+  reviewerUserId: number
+  changeRequestIds: number[]
+  equipmentId: number
+  projectId: number
+}): Promise<void> {
+  if (args.submitterUserId === args.reviewerUserId) return
+  if (args.changeRequestIds.length === 0) return
+
+  const [reviewer, project, equipment] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: args.reviewerUserId },
+      select: { firstName: true, lastName: true },
+    }),
+    prisma.project.findUnique({
+      where: { id: args.projectId },
+      select: { name: true },
+    }),
+    prisma.equipment.findUnique({
+      where: { id: args.equipmentId },
+      select: { name: true },
+    }),
+  ])
+  const reviewerName = reviewer
+    ? `${reviewer.firstName} ${reviewer.lastName}`
+    : 'Admin'
+  const projectNameStr = project?.name ?? 'a show'
+  const eqName = equipment?.name ?? 'your panel'
+  const count = args.changeRequestIds.length
+  const title =
+    count === 1
+      ? `${reviewerName} is reviewing your request`
+      : `${reviewerName} is reviewing ${count} of your requests`
+
+  await safeSend([args.submitterUserId], {
+    title,
+    body: `${eqName} · ${projectNameStr}`,
+    url: `/projects/${args.projectId}/panel/${args.equipmentId}`,
+    // Tag scoped to (submitter, reviewer) so reloads / reopens by
+    // the same admin replace the previous notification on the
+    // device instead of stacking. Different admins reviewing the
+    // same submitter's requests still each get their own buzz
+    // because the reviewer ID is part of the tag.
+    tag: `review-${args.submitterUserId}-${args.reviewerUserId}`,
+  })
+}
+
 // ─── Equipment newly assigned (to the assignee) ─────────────────────
 //
 // Personal "you've got new gear" buzz when someone gets reassigned
