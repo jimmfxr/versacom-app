@@ -355,6 +355,10 @@ export function PanelStudio({
   // Live drag-offset in pixels while the user has the handle held.
   // null when not dragging — the snap position drives the height.
   const [dragOffsetY, setDragOffsetY] = useState<number | null>(null)
+  // Remembers the snap state we collapsed FROM when a chip-drag
+  // begins, so on drop we can restore the user's previous size
+  // instead of always opening at full.
+  const preChipDragSnapRef = useRef<'peek' | 'half' | 'full' | null>(null)
   // `mounted` flag so the inline-style height (which depends on
   // window.innerHeight / innerWidth) is only emitted on the client.
   // Server-side render skips the style and the first client render
@@ -1373,6 +1377,15 @@ export function PanelStudio({
     } else if (data.kind === 'picklist') {
       setDragSourceId(null)
       setActiveDragChip(data.item)
+      // Mobile only: auto-collapse the bottom sheet to peek the
+      // moment a chip drag starts. Reveals the chassis above so the
+      // user can see where to drop. Desktop's picker is a right-
+      // side floating panel — nothing to collapse there, so we
+      // skip the snap mutation entirely on lg+.
+      if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+        preChipDragSnapRef.current = pickerSnap
+        setPickerSnap('peek')
+      }
     }
   }
 
@@ -1438,11 +1451,23 @@ export function PanelStudio({
 
     setDragSourceId(null)
     setActiveDragChip(null)
+    // Restore the bottom-sheet to whatever snap state we collapsed
+    // FROM when the chip drag started. Restores even on a missed
+    // drop (event.over === null) so the user doesn't get stuck at
+    // peek after letting go in empty space.
+    if (preChipDragSnapRef.current) {
+      setPickerSnap(preChipDragSnapRef.current)
+      preChipDragSnapRef.current = null
+    }
   }
 
   function handleDndCancel() {
     setDragSourceId(null)
     setActiveDragChip(null)
+    if (preChipDragSnapRef.current) {
+      setPickerSnap(preChipDragSnapRef.current)
+      preChipDragSnapRef.current = null
+    }
   }
 
   /* ─── Build picker items (PickList + PTP) ─── */
