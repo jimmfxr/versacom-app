@@ -536,7 +536,13 @@ export function PanelStudio({
     triggerMode: string
     talkMode: string
   }
-  type PanelClipboard = { sourceLabel: string; entries: PanelClipboardEntry[] }
+  type PanelClipboard = {
+    sourceLabel: string
+    entries: PanelClipboardEntry[]
+    // Unix ms when the panel was last copied. Used by the long-press
+    // preview to show "Copied N minutes ago".
+    createdAt?: number
+  }
   const [panelClipboard, setPanelClipboard] = useState<PanelClipboard | null>(null)
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -737,6 +743,12 @@ export function PanelStudio({
 
   const inspectorRef = useRef<HTMLElement>(null)
   const chassisRef = useRef<HTMLDivElement>(null)
+  // Outer scroller around the chassis — used by the chip-drag auto-
+  // scroll effect below to nudge the chassis up/down when the user's
+  // finger is near the top/bottom edge during a chip drag. The
+  // existing `chassisRef` points at the inner content div, which
+  // doesn't carry the overflow.
+  const chassisScrollerRef = useRef<HTMLDivElement>(null)
 
   // Measures the chassis width so the header layout can switch:
   // wide chassis → identity left / legend+buttons right on a single
@@ -1070,7 +1082,7 @@ export function PanelStudio({
       triggerMode: k.triggerMode,
       talkMode: k.talkMode,
     }))
-    const payload: PanelClipboard = { sourceLabel, entries }
+    const payload: PanelClipboard = { sourceLabel, entries, createdAt: Date.now() }
     setPanelClipboard(payload)
     try {
       sessionStorage.setItem('panel-clipboard', JSON.stringify(payload))
@@ -1086,8 +1098,235 @@ export function PanelStudio({
     showToast('success', `Copied ${entries.length} keys`)
   }
 
+  // Long-press on the Paste button opens this preview before paste
+  // commits. Quick taps still paste immediately (existing behaviour).
+  // Preview shows source label, copied-at age, and the first few keys
+  // so the user can see what's about to overwrite this panel.
+  const [pastePreviewOpen, setPastePreviewOpen] = useState(false)
+  // Long-press plumbing — refs so the timer + fired flag persist
+  // across renders and across both Paste buttons (desktop + mobile).
+  // Only one is visible at a time based on breakpoint, so sharing
+  // refs is safe.
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const longPressFiredRef = useRef(false)
+  // Tracks whether the long-press FORCED the inspector open (mobile
+  // path). If we did, closing the preview should also close the
+  // inspector so the user lands back where they were — not stuck
+  // looking at an empty inspector ("ghost picker") behind the
+  // closed preview.
+  const longPressOpenedInspectorRef = useRef(false)
+  function startLongPress() {
+    longPressFiredRef.current = false
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current)
+    longPressTimerRef.current = setTimeout(() => {
+      longPressFiredRef.current = true
+      // Ensure the bottom-sheet aside is open so the mobile preview
+      // body has a visible container. On desktop the preview slots
+      // into the inline card location and doesn't need this.
+      if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+        if (!inspectorOpen) {
+          longPressOpenedInspectorRef.current = true
+          setInspectorOpen(true)
+        }
+      }
+      setPastePreviewOpen(true)
+    }, 500)
+  }
+  // Whenever the preview closes, restore the inspector if WE forced
+  // it open. Avoids the "ghost picker" — an empty inspector lingering
+  // after the preview is dismissed.
+  useEffect(() => {
+    if (!pastePreviewOpen && longPressOpenedInspectorRef.current) {
+      longPressOpenedInspectorRef.current = false
+      setInspectorOpen(false)
+    }
+  }, [pastePreviewOpen])
+  function cancelLongPress() {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }
+  // Click handler used by both Paste buttons. If a long-press fired
+  // it OPENED the preview already — swallow the synthetic click that
+  // pointerup generates so we don't also paste immediately.
+  function handlePasteClick() {
+    if (longPressFiredRef.current) {
+      longPressFiredRef.current = false
+      return
+    }
+    handlePastePanel()
+  }
+
+  // Preview body shared by mobile + desktop renderers below. Renders
+  // a MINI version of the actual panel chassis with each key shown
+  // in its real layout position, so the user can see the orientation
+  // they're about to paste — not just a flat list. Empty cells are
+  // outlined; populated cells show the pick-list item name truncated.
+  function PastePreviewBody() {
+    if (!panelClipboard) return null
+    const ageMs = panelClipboard.createdAt ? Date.now() - panelClipboard.createdAt : null
+    const ageLabel = ageMs == null
+      ? null
+      : ageMs < 60_000
+        ? 'just now'
+        : ageMs < 3_600_000
+          ? `${Math.round(ageMs / 60_000)} minute${Math.round(ageMs / 60_000) === 1 ? '' : 's'} ago`
+          : `${Math.round(ageMs / 3_600_000)} hour${Math.round(ageMs / 3_600_000) === 1 ? '' : 's'} ago`
+
+    // Use the CURRENT panel's layout to render the mini chassis.
+    // The clipboard entries are matched by (keyIndex, page, expansion)
+    // when pasting; rendering with the destination layout previews
+    // exactly what positions on THIS panel will be overwritten.
+    const layoutDef = layout
+    const keysPerBlock = layoutDef.colsPerBlock * layoutDef.rowsPerBlock
+    // Filter to main page + expansion 0 — the most common slice. If
+    // no main entries exist, fall back to any populated entry.
+    const mainEntries = panelClipboard.entries.filter(
+      (e) => e.page === 'main' && e.expansion === 0,
+    )
+    const populatedCount = panelClipboard.entries.filter((e) => e.pickListItemId != null).length
+
+    function renderKey(keyIndex: number) {
+      const entry = mainEntries.find((e) => e.keyIndex === keyIndex)
+      const clipboardPickId = entry?.pickListItemId ?? null
+      // Compare against the CURRENT destination key (this panel's
+      // main page expansion 0) to highlight only the keys that will
+      // actually change. Same-value matches are left neutral.
+      const destKey = keys.find(
+        (k) => k.keyIndex === keyIndex && k.page === 'main' && k.expansion === 0,
+      )
+      const destPickId = destKey?.pickListItemId ?? null
+      const willChange = clipboardPickId !== destPickId
+      const populated = clipboardPickId != null
+      // Border-only highlight when this key will actually change.
+      // Background stays the same as a normal key so the chassis
+      // reads consistently — only the cyan outline calls out the
+      // delta. Drop shadow + border-2 mirror the real PanelKeyTile
+      // chrome so the mini reads as a faithful preview.
+      let chipClass = 'relative flex h-12 w-[60px] flex-col items-center justify-center rounded-[4px] border-2 px-1 text-[10px] font-semibold leading-tight bg-[#202020] shadow-[0_4px_6px_rgba(0,0,0,0.3)] '
+      if (willChange) {
+        chipClass += 'border-[#22a7d3] text-white'
+      } else if (populated) {
+        chipClass += 'border-[#3a3a3a] text-white'
+      } else {
+        chipClass += 'border-[#2a2a2a] text-white/30'
+      }
+      // Talk-mode + trigger-mode indicators along the bottom of the
+      // chip — same positions / colors as the real panel keys so
+      // the mini reads as a faithful preview, not just a chip list.
+      const tm = entry?.talkMode ?? 'tl'
+      const trg = entry?.triggerMode ?? 'latch'
+      const trgLabel = trg === 'momentary' ? 'M' : trg === 'auto' ? 'A' : 'L'
+      return (
+        <div
+          key={keyIndex}
+          className={chipClass}
+          title={populated ? entry?.pickListItemName ?? undefined : `Key ${keyIndex + 1} (empty)`}
+        >
+          <span className="truncate w-full text-center">
+            {populated ? entry?.pickListItemName ?? '?' : ''}
+          </span>
+          {populated && (
+            <>
+              <span className="absolute bottom-0.5 left-1 text-[7px] font-extrabold uppercase text-[#22a7d3] opacity-85">
+                {tm === 't' ? 'T' : tm === 'l' ? 'L' : 'TL'}
+              </span>
+              <span className="absolute bottom-0.5 right-1 text-[7px] font-extrabold uppercase text-[#f59e0b] opacity-85">
+                {trgLabel}
+              </span>
+            </>
+          )}
+        </div>
+      )
+    }
+
+    return (
+      <div className="flex h-full min-h-0 flex-col gap-3">
+        {/* Header — title on the left, big close X on the right.
+            Same X chrome as the inspector panel header so the close
+            affordance reads consistently across both surfaces. */}
+        <div className="flex items-center justify-between gap-2.5">
+          <div className="text-sm font-semibold text-white">
+            Paste from {panelClipboard.sourceLabel}
+          </div>
+          <button
+            type="button"
+            onClick={() => setPastePreviewOpen(false)}
+            aria-label="Close preview"
+            // Same chrome as Project Details > Edit card's close
+            // button: size-8, gray-400 → white on hover, SVG x.
+            className="flex size-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:text-white"
+          >
+            <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        {/* Mini chassis — wrapped in a panel-style card (same
+            chrome as the real chassis on the workspace: dark fill,
+            thin border, rounded corners, generous inner padding) so
+            it visually reads as a panel. Fixed chip width keeps the
+            mini panel the same size regardless of viewport; if it
+            overflows the available width (32-key panel on mobile)
+            the row scrolls horizontally. The flex + justify-center
+            on the scroller plus margin-auto on the inner card
+            ensures the card is horizontally centered when it fits
+            the available width (small panels like DBP4) and aligns
+            naturally to the start when it overflows (32-key). */}
+        <div className="min-h-0 flex-1 flex justify-center overflow-x-auto overflow-y-auto py-1">
+          <div className="m-auto flex w-fit shrink-0 flex-col gap-2 rounded-[10px] border border-white/[0.06] bg-[#2a2a2a] p-3">
+            {Array.from({ length: layoutDef.panelRows }).map((_, panelRowI) => (
+              <div key={panelRowI} className="flex gap-2">
+                {Array.from({ length: layoutDef.blocksPerPanelRow }).map((_, blockInRow) => {
+                  const blockIdx = panelRowI * layoutDef.blocksPerPanelRow + blockInRow
+                  if (blockIdx >= layoutDef.blockCount) return null
+                  return (
+                    <div
+                      key={blockIdx}
+                      className="flex gap-1"
+                      style={{
+                        // Each block lays its keys out in a fixed-
+                        // width grid so the panel size is consistent
+                        // across breakpoints. Use a regular flex
+                        // wrap with explicit colsPerBlock to keep
+                        // rowsPerBlock layout intact.
+                        flexWrap: 'wrap',
+                        width: `${layoutDef.colsPerBlock * 60 + (layoutDef.colsPerBlock - 1) * 4}px`,
+                      }}
+                    >
+                      {Array.from({ length: keysPerBlock }).map((_, cellI) => {
+                        const keyIndex = blockIdx * keysPerBlock + cellI
+                        if (keyIndex >= keyCount) return null
+                        return renderKey(keyIndex)
+                      })}
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Metadata footer — sits centered below the mini chassis
+            so the chassis itself has the most visual weight at the
+            top. No action row needed; the existing Paste button in
+            the panel header commits + closes the preview, and the
+            X in this card's top-right cancels without pasting. */}
+        <div className="text-center text-[11px] uppercase tracking-wider text-gray-500">
+          {ageLabel ? `Copied ${ageLabel} · ` : ''}
+          {populatedCount}/{panelClipboard.entries.length} populated
+        </div>
+      </div>
+    )
+  }
+
   function handlePastePanel() {
     if (!panelClipboard) return
+    // Always close the preview when the paste commits, so a tap on
+    // the header Paste button while the preview is up applies the
+    // paste AND restores whatever was on screen before (picker or
+    // chassis only).
+    setPastePreviewOpen(false)
     let pasted = 0
     for (const entry of panelClipboard.entries) {
       const target = keys.find(
@@ -1358,6 +1597,68 @@ export function PanelStudio({
   // chip dragged out of its scroll-column doesn't get clipped (the
   // overlay renders outside the column at the document root).
   const [activeDragChip, setActiveDragChip] = useState<PickerItem | null>(null)
+
+  // Auto-scroll the chassis container while a chip is being dragged
+  // near its top or bottom edge. dnd-kit's built-in autoscroll only
+  // walks ANCESTORS of the active draggable, but the chip's draggable
+  // lives inside the bottom-sheet picker — a sibling of the chassis,
+  // not an ancestor. So we listen to pointermove / touchmove during
+  // the drag and scroll the chassis manually.
+  useEffect(() => {
+    if (!activeDragChip) return
+    if (typeof window === 'undefined') return
+    const scroller = chassisScrollerRef.current
+    if (!scroller) return
+
+    const EDGE_PX = 80 // distance from edge that triggers scrolling
+    const MAX_SPEED = 18 // pixels per frame at the very edge
+    let pointerY = -1
+    let raf = 0
+
+    function onPointerMove(e: PointerEvent | TouchEvent) {
+      if ('touches' in e) {
+        if (e.touches.length === 0) return
+        pointerY = e.touches[0].clientY
+      } else {
+        pointerY = e.clientY
+      }
+    }
+
+    function step() {
+      const sc = chassisScrollerRef.current
+      if (!sc) {
+        raf = requestAnimationFrame(step)
+        return
+      }
+      const rect = sc.getBoundingClientRect()
+      const fromTop = pointerY - rect.top
+      const fromBottom = rect.bottom - pointerY
+      let dy = 0
+      if (pointerY >= 0) {
+        if (fromTop < EDGE_PX && fromTop >= 0) {
+          // Closer to the edge → faster scroll. Ratio is 0..1.
+          const ratio = 1 - fromTop / EDGE_PX
+          dy = -Math.round(MAX_SPEED * ratio)
+        } else if (fromBottom < EDGE_PX && fromBottom >= 0) {
+          const ratio = 1 - fromBottom / EDGE_PX
+          dy = Math.round(MAX_SPEED * ratio)
+        }
+      }
+      if (dy !== 0) {
+        sc.scrollTop += dy
+      }
+      raf = requestAnimationFrame(step)
+    }
+
+    window.addEventListener('pointermove', onPointerMove, { passive: true })
+    window.addEventListener('touchmove', onPointerMove, { passive: true })
+    raf = requestAnimationFrame(step)
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('touchmove', onPointerMove)
+      cancelAnimationFrame(raf)
+    }
+  }, [activeDragChip])
 
   function handleDndStart(event: DragStartEvent) {
     if (!canEditKeys) return
@@ -1898,7 +2199,7 @@ export function PanelStudio({
               />
             )}
 
-            <div className={`relative flex flex-col items-center flex-1 min-h-0 ${pickerMode && canEditKeys ? 'justify-center sm:justify-start' : 'justify-center'}`}>
+            <div className={`relative flex flex-col items-center flex-1 min-h-0 ${(pickerMode && canEditKeys) || pastePreviewOpen ? 'justify-center sm:justify-start' : 'justify-center'}`}>
 
               {/* ─── Inline picker card (desktop only) ───
                   Sits at the very top of the studio workspace, between
@@ -1912,7 +2213,25 @@ export function PanelStudio({
                   right-side inspector picker is hidden on desktop so
                   this card is the only picker UI; mobile keeps the
                   inspector picker untouched. */}
-              {pickerMode && canEditKeys && (
+              {/* Desktop paste-preview card — slots into the same
+                  outer wrapper as the inline picker card so it gets
+                  the same width / vertical alignment / chrome.
+                  Visible only when the user long-presses Paste. While
+                  it's up the picker card is suppressed (so the user
+                  can focus on the preview); cancelling or pasting
+                  closes this and the picker comes back if it was on. */}
+              {pastePreviewOpen && panelClipboard && (
+                <div className="mx-auto hidden min-h-0 w-full max-w-7xl flex-shrink overflow-hidden px-4 pt-3 sm:px-6 lg:flex lg:px-8 lg:pt-4">
+                  {/* Same chrome as the picker card: transparent
+                      background, single bottom-border separator,
+                      capped height. Reads as part of the workspace
+                      rather than a stacked card. */}
+                  <div className="relative flex max-h-[min(35vh,280px)] min-h-0 w-full flex-col gap-3 border-b border-white/10 pb-4">
+                    <PastePreviewBody />
+                  </div>
+                </div>
+              )}
+              {pickerMode && canEditKeys && !pastePreviewOpen && (
                 // Outer wrapper matches the chassis scrollable's
                 // padding so vertical alignment looks right. Inner
                 // wrapper sets its width to the measured chassis
@@ -2294,8 +2613,12 @@ export function PanelStudio({
                           {panelClipboard && panelClipboard.entries.length > 0 && (
                             <button
                               type="button"
-                              onClick={handlePastePanel}
-                              title={`Paste from ${panelClipboard.sourceLabel}`}
+                              onClick={handlePasteClick}
+                              onPointerDown={startLongPress}
+                              onPointerUp={cancelLongPress}
+                              onPointerLeave={cancelLongPress}
+                              onPointerCancel={cancelLongPress}
+                              title={`Paste from ${panelClipboard.sourceLabel} (hold to preview)`}
                               className="shrink-0 rounded-md border border-white/10 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
                             >
                               Paste
@@ -2383,6 +2706,7 @@ export function PanelStudio({
 
               {/* ─── Scrollable panel content ─── */}
               <div
+                ref={chassisScrollerRef}
                 className={`flex-[0_1_auto] min-h-0 w-full overflow-auto p-4 sm:px-6 lg:p-5 lg:px-8 flex transition-[padding-right] duration-300 ${inspectorOpen && !(pickerMode && canEditKeys) ? 'xl:pr-[420px] 2xl:pr-10' : ''}`}
               >
                 <div className="min-w-min mx-auto" ref={chassisRef}>
@@ -2559,8 +2883,12 @@ export function PanelStudio({
                             {panelClipboard && panelClipboard.entries.length > 0 && (
                               <button
                                 type="button"
-                                onClick={handlePastePanel}
-                                title={`Paste from ${panelClipboard.sourceLabel}`}
+                                onClick={handlePasteClick}
+                                onPointerDown={startLongPress}
+                                onPointerUp={cancelLongPress}
+                                onPointerLeave={cancelLongPress}
+                                onPointerCancel={cancelLongPress}
+                                title={`Paste from ${panelClipboard.sourceLabel} (hold to preview)`}
                                 className="shrink-0 rounded-md border border-white/10 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
                               >
                                 Paste
@@ -2614,7 +2942,7 @@ export function PanelStudio({
               while picker+edit is active so the whole sub-tree (incl.
               the aside) is hidden on lg. Below lg the bottom-sheet
               inspector is still the picker UI on mobile/tablet. */}
-          <div className={`contents ${pickerMode && canEditKeys ? 'lg:hidden' : ''}`}>
+          <div className={`contents ${(pickerMode && canEditKeys) || pastePreviewOpen ? 'lg:hidden' : ''}`}>
           <aside
             ref={inspectorRef}
             // Mobile-only inline height: explicit pixel height driven
@@ -2670,7 +2998,11 @@ export function PanelStudio({
                 a key-summary on the left and a big close X on the
                 right. No bottom border on the picker-mode header
                 because the controls section below has its own
-                border-b that doubles as the divider. */}
+                border-b that doubles as the divider. Hidden when
+                the paste preview is up so the bottom sheet shows
+                ONLY the preview's header \u2014 no double-X / stacked
+                surfaces. */}
+            {!pastePreviewOpen && (
             <div className={`px-[18px] py-4 flex items-center justify-between gap-2.5 flex-shrink-0 ${pickerMode ? '' : 'border-b border-white/[0.06]'}`}>
               <div className="flex-1 min-w-0 flex items-center gap-2.5">
                 {pickerMode ? (
@@ -2709,9 +3041,22 @@ export function PanelStudio({
                 &times;
               </button>
             </div>
+            )}
+
+            {/* Mobile paste-preview view — replaces the inspector
+                detail / picker UI when the user long-presses Paste.
+                Same flex layout so the bottom sheet's height +
+                drag-handle behaviour stay consistent. Cancel /
+                Paste anyway both close the preview and the inspector
+                returns to whatever it was showing before. */}
+            {pastePreviewOpen && panelClipboard && (
+              <div className="px-[18px] py-3.5 flex-1 flex flex-col min-h-0 sm:hidden">
+                <PastePreviewBody />
+              </div>
+            )}
 
             {/* Inspector body (detail view) */}
-            {!pickerMode && (
+            {!pastePreviewOpen && !pickerMode && (
               <div className="px-[18px] py-4 flex flex-col gap-[18px] overflow-y-auto flex-1">
                 {/* Destination */}
                 <div className="flex flex-col gap-1.5">
@@ -2758,8 +3103,10 @@ export function PanelStudio({
 
             {/* Picker view — mobile only. On desktop the floating
                 picker card on top of the chassis is the single source
-                of truth, so hide this in-inspector picker view there. */}
-            {pickerMode && (
+                of truth, so hide this in-inspector picker view there.
+                Also hidden while the paste preview is up so the
+                preview takes over the same area. */}
+            {pickerMode && !pastePreviewOpen && (
               <div className="flex flex-col flex-1 min-h-0 sm:hidden">
                 {/* Picker controls — all dropdowns use the shared
                     PickerSelect component (same as the desktop card)
@@ -2978,6 +3325,7 @@ export function PanelStudio({
         ) : null}
       </DragOverlay>
       </DndContext>
+
     </>
   )
 }
