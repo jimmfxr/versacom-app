@@ -21,6 +21,7 @@ import {
   type DragStartEvent,
   type Modifier,
 } from '@dnd-kit/core'
+import { useDrag } from '@use-gesture/react'
 
 /* dnd-kit modifier: pin the centre of the dragged chip to the cursor.
  * Without this the chip floats at whatever offset the user clicked,
@@ -343,6 +344,104 @@ export function PanelStudio({
   const [activePage, setActivePage] = useState<'main' | 'shift'>('main')
   const [selectedKeyId, setSelectedKeyId] = useState<string | null>(null)
   const [inspectorOpen, setInspectorOpen] = useState(false)
+  // Bottom-sheet snap state (mobile only). Three positions:
+  //   full — picker takes the whole comfortable height (default open)
+  //   half — picker covers ~50% of the viewport so the chassis above
+  //          stays visible; chips can still be dragged onto keys
+  //   peek — just the header + drag handle, leaves the chassis open
+  // Resets to 'full' whenever the picker re-opens so each interaction
+  // starts the same way regardless of the previous user's last drag.
+  const [pickerSnap, setPickerSnap] = useState<'peek' | 'half' | 'full'>('full')
+  // Live drag-offset in pixels while the user has the handle held.
+  // null when not dragging — the snap position drives the height.
+  const [dragOffsetY, setDragOffsetY] = useState<number | null>(null)
+  // `mounted` flag so the inline-style height (which depends on
+  // window.innerHeight / innerWidth) is only emitted on the client.
+  // Server-side render skips the style and the first client render
+  // matches it — no hydration mismatch. After mount we apply the
+  // real style and React patches it in.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+  // Reset to full whenever the inspector reopens so each new pick
+  // session starts from a known state.
+  useEffect(() => {
+    if (inspectorOpen) setPickerSnap('full')
+  }, [inspectorOpen])
+
+  // Resolve a snap position to a pixel height. Mobile only — desktop
+  // ignores these and uses the absolute-positioned panel layout.
+  function snapHeightPx(snap: 'peek' | 'half' | 'full'): number {
+    if (typeof window === 'undefined') return 480
+    const vh = window.innerHeight
+    if (snap === 'peek') return 180
+    if (snap === 'half') return Math.round(vh * 0.5)
+    return Math.round(vh * 0.75) // full
+  }
+
+  // Bind the drag handle pill at the top of the bottom sheet. Drag
+  // up grows the sheet; drag down shrinks it. On release we snap to
+  // the closest of the three positions, accounting for swipe
+  // velocity so a fast flick down dismisses past the nearest snap
+  // point and lands on the next one.
+  const sheetDragBind = useDrag(({ down, movement: [, my], velocity: [, vy], direction: [, dy] }) => {
+    if (down) {
+      // Live update during the drag — height = base - my (because
+      // dragging UP means my is negative and height should grow).
+      setDragOffsetY(my)
+      return
+    }
+    // Drag released — figure out target snap (or dismiss).
+    const base = snapHeightPx(pickerSnap)
+    const liveHeight = base - my
+    const order: Array<'peek' | 'half' | 'full'> = ['peek', 'half', 'full']
+    const heights = order.map(snapHeightPx)
+    let nextSnap: 'peek' | 'half' | 'full' = pickerSnap
+
+    // Dismissal: dragging past peek (or fast-flicking down from peek)
+    // closes the picker entirely. Lets users fully clear the sheet
+    // off-screen with a single gesture, instead of being stuck at a
+    // 180px peek they still can't see past.
+    const peekHeight = snapHeightPx('peek')
+    if (
+      liveHeight < peekHeight - 30 ||
+      (pickerSnap === 'peek' && vy > 0.5 && dy > 0)
+    ) {
+      setDragOffsetY(null)
+      closeInspector()
+      return
+    }
+
+    // Velocity-driven jump for flicks. dy is the sign of recent
+    // movement (-1 up, +1 down). vy is magnitude.
+    if (vy > 0.5 && dy > 0) {
+      // Fast flick down — go one snap smaller.
+      const idx = order.indexOf(pickerSnap)
+      nextSnap = order[Math.max(0, idx - 1)]
+    } else if (vy > 0.5 && dy < 0) {
+      // Fast flick up — go one snap larger.
+      const idx = order.indexOf(pickerSnap)
+      nextSnap = order[Math.min(2, idx + 1)]
+    } else {
+      // Otherwise snap to nearest height.
+      let bestI = 0
+      let bestD = Infinity
+      heights.forEach((h, i) => {
+        const d = Math.abs(h - liveHeight)
+        if (d < bestD) {
+          bestD = d
+          bestI = i
+        }
+      })
+      nextSnap = order[bestI]
+    }
+    setPickerSnap(nextSnap)
+    setDragOffsetY(null)
+  }, {
+    // Filter out tiny moves so taps on the handle don't register
+    // as a drag (and start fighting clicks on nearby buttons).
+    filterTaps: true,
+    axis: 'y',
+  })
   // Persist the picker card's open/closed state across panel navigations
   // (e.g. when the user uses the BrowseMemberSwitcher to jump between
   // equipment) so an admin who opened the picker on one user keeps it
@@ -2464,9 +2563,20 @@ export function PanelStudio({
 
           {/* ─── Scrim (mobile bottom-sheet backdrop) ─── */}
           {inspectorOpen && (
+            // Scrim opacity + click behaviour adapts to the snap
+            // position. At "full" the scrim is opaque + tappable to
+            // close (current behaviour). At "half" / "peek" the scrim
+            // dims less and is `pointer-events-none` so the user can
+            // still tap / drag chips onto keys above the sheet.
             <div
-              className="fixed inset-0 bg-black/50 z-[199] lg:hidden"
-              onClick={closeInspector}
+              className={`fixed inset-0 z-[199] lg:hidden transition-colors duration-200 ${
+                pickerSnap === 'full'
+                  ? 'bg-black/50'
+                  : pickerSnap === 'half'
+                  ? 'bg-black/20 pointer-events-none'
+                  : 'bg-transparent pointer-events-none'
+              }`}
+              onClick={pickerSnap === 'full' ? closeInspector : undefined}
             />
           )}
 
@@ -2482,21 +2592,54 @@ export function PanelStudio({
           <div className={`contents ${pickerMode && canEditKeys ? 'lg:hidden' : ''}`}>
           <aside
             ref={inspectorRef}
+            // Mobile-only inline height: explicit pixel height driven
+            // by the snap state, with a live offset while the user is
+            // actively dragging the handle. Desktop ignores the
+            // inline height — `lg:!h-auto` lets the absolute-
+            // positioned panel size to its content like before.
+            // Gated on `mounted` so the server emits no style, the
+            // first client render matches, and the height appears
+            // post-hydration. Avoids the SSR/CSR style mismatch.
+            style={(() => {
+              if (!mounted) return undefined
+              if (window.innerWidth >= 1024) return undefined
+              const base = snapHeightPx(pickerSnap)
+              const live = dragOffsetY != null
+                ? Math.max(120, Math.min(window.innerHeight * 0.92, base - dragOffsetY))
+                : base
+              return { height: `${Math.round(live)}px` }
+            })()}
             className={`
-              w-full lg:w-[360px] bg-[#202020] lg:bg-[#2a2a2a] border-white/[0.06] flex-col overflow-hidden z-[200]
+              w-full lg:!h-auto lg:w-[360px] bg-[#202020] lg:bg-[#2a2a2a] border-white/[0.06] flex-col overflow-hidden z-[200]
               /* Mobile: bottom sheet */
               fixed left-0 right-0 bottom-0 lg:top-auto
-              max-h-[65vh] landscape:max-h-[92dvh] lg:max-h-[calc(100%-48px)] lg:landscape:max-h-[calc(100%-48px)]
+              lg:max-h-[calc(100%-48px)] lg:landscape:max-h-[calc(100%-48px)]
               rounded-t-[20px] lg:rounded-[14px]
               lg:border
               shadow-[0_-10px_40px_rgba(0,0,0,0.6)] lg:shadow-[-15px_10px_40px_rgba(0,0,0,0.6)]
-              transition-transform duration-[350ms] ease-[cubic-bezier(0.4,0,0.2,1)]
+              ${dragOffsetY == null ? 'transition-[height,transform] duration-[280ms] ease-[cubic-bezier(0.4,0,0.2,1)]' : ''}
               lg:transition-none
               /* Desktop: absolute overlay */
               lg:absolute lg:right-6 lg:top-6 lg:bottom-auto lg:left-auto
               ${inspectorOpen ? 'flex translate-y-0 lg:flex' : 'flex translate-y-full lg:hidden'}
             `}
           >
+            {/* Drag handle — visible pill at the top of the bottom
+                sheet on mobile only. Acts as the snap-point trigger:
+                drag up to grow, drag down to shrink, release to snap
+                to the nearest of peek / half / full. Tap toggles
+                between full and half so users who don't realize it's
+                draggable still have a way to get a half-screen view. */}
+            <div
+              {...sheetDragBind()}
+              onClick={() =>
+                setPickerSnap((s) => (s === 'full' ? 'half' : 'full'))
+              }
+              className="lg:hidden flex flex-shrink-0 cursor-grab touch-none select-none items-center justify-center pt-3 pb-2 active:cursor-grabbing"
+              aria-label="Drag to resize, tap to toggle"
+            >
+              <div className="h-1.5 w-12 rounded-full bg-white/60" />
+            </div>
             {/* Inspector header \u2014 picker mode strips the back arrow
                 and "Pick destination" label so the row just holds
                 a key-summary on the left and a big close X on the
