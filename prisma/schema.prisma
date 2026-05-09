@@ -30,6 +30,7 @@ model User {
   keyDrafts         KeyDraft[]
   nfgReports        NfgReport[]
   pushSubscriptions PushSubscription[]
+  panelPresences    PanelPresence[]
 }
 
 // Web Push subscription registered by the user from one device. Stored
@@ -51,6 +52,28 @@ model PushSubscription {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// Soft "who's looking at this panel" indicator. One row per (user,
+// equipment) pair. Heartbeat-driven: the client posts to refresh
+// `lastSeen` every ~10s while the panel is open. Reader queries
+// filter on `lastSeen` within the last ~30s — older rows are stale
+// and don't appear. No locking — purely informational so a second
+// editor knows somebody else is in the room.
+model PanelPresence {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  equipmentId Int
+  // 'viewing' or 'editing' — editing fires when the client has
+  // unsaved changes to flag a more active state.
+  state       String   @default("viewing")
+  lastSeen    DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, equipmentId])
+  @@index([equipmentId, lastSeen])
 }
 
 model Project {
@@ -257,6 +280,7 @@ model Equipment {
   nfgReports     NfgReport[]
   panelKeys      PanelKey[]
   changeRequests ChangeRequest[]
+  panelPresences PanelPresence[]
 }
 
 model Asset {

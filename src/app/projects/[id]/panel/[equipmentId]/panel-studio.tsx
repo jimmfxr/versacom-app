@@ -4,6 +4,7 @@ import { useState, useEffect, useLayoutEffect, useCallback, useRef, useTransitio
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { ChevronLeftIcon } from '@heroicons/react/24/outline'
+import { EyeIcon, PencilIcon } from '@heroicons/react/16/solid'
 import { PageHeader } from '@/components/page-header'
 import {
   DndContext,
@@ -49,6 +50,7 @@ const snapCenterToCursor: Modifier = ({ activatorEvent, draggingNodeRect, transf
   }
 }
 import { Button } from '@/components/button'
+import { usePanelPresence } from '@/hooks/use-panel-presence'
 import { showToast } from '@/components/toast'
 import { VerticalScroller } from '@/components/vertical-scroller'
 import { saveKeys, saveDraftKeys, submitChanges, addExpansion, removeExpansion, resolveChangeRequests } from './actions'
@@ -789,6 +791,17 @@ export function PanelStudio({
 
   /* ─── Get changed keys count ─── */
   const changedKeysCount = keys.filter((k) => k.status === 'changed').length
+
+  /* ─── Soft presence ───
+   * Heartbeat to /api/panel-presence so anyone else viewing this same
+   * equipment sees us in the top strip, and we see them. State flips
+   * to 'editing' whenever there are unsaved changes — gives the other
+   * viewer a stronger signal that we're actively touching the panel.
+   */
+  const presenceViewers = usePanelPresence(
+    equipment?.id ?? null,
+    changedKeysCount > 0,
+  )
 
   /* ─── Key actions ─── */
   function clearKey(id: string) {
@@ -1986,6 +1999,36 @@ export function PanelStudio({
                     off-screen on narrow viewports — but the parent is
                     flex-nowrap so the two GROUPS stay on one row. */}
                 <div className={`flex min-w-0 flex-col gap-y-0.5 overflow-hidden ${stackHeader ? 'items-center sm:max-lg:flex-1 sm:max-lg:items-start' : 'flex-1 items-center sm:items-start'}`}>
+                  {/* Row 0: soft presence — other people currently
+                      looking at this same panel. Names in white;
+                      state shown as a cyan icon (eye = viewing,
+                      pencil = editing) instead of a word. Hidden
+                      when no one else is here. */}
+                  {presenceViewers.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px]">
+                      {presenceViewers.map((v, i) => (
+                        <span key={v.userId} className="inline-flex items-center">
+                          {i > 0 && (
+                            <span className="mr-2 text-[#3a3a3a]">&middot;</span>
+                          )}
+                          <span className="text-white">
+                            {v.firstName} {v.lastName}
+                          </span>
+                          {v.state === 'editing' ? (
+                            <PencilIcon
+                              aria-label="editing"
+                              className="ml-1.5 size-3 text-[#22a7d3]"
+                            />
+                          ) : (
+                            <EyeIcon
+                              aria-label="viewing"
+                              className="ml-1.5 size-3 text-[#22a7d3]"
+                            />
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {/* Row 1: ID · firstName lastName · position · location */}
                   <div className={`flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 justify-center ${stackHeader ? 'sm:max-lg:justify-start' : 'sm:justify-start'}`}>
                     {equipment.name && (
