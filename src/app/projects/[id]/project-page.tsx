@@ -1981,31 +1981,65 @@ export function ProjectPage({
                           )}
                         </div>
 
-                        {/* Status + Edit */}
-                        {!isEditing && (
-                          <div className="flex shrink-0 items-center gap-2">
-                            {canChangeStatus ? (
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-[10px] font-medium text-gray-400">Status</span>
-                                <DeployStatusSelect
-                                  value={item.deployStatus}
-                                  onChange={(newStatus) => {
+                        {/* Status + Edit (or single "Mark returned"
+                            during return phase). When the project's
+                            in return phase AND this row isn't already
+                            returned/damaged, the Status dropdown +
+                            Edit button collapse into ONE primary cyan
+                            button. Click → status flips to RETURNED;
+                            row reverts to normal display next render
+                            because it no longer matches the gate. */}
+                        {!isEditing && (() => {
+                          const inReturnFlow =
+                            returnPhaseActive &&
+                            item.deployStatus !== 'returned' &&
+                            item.deployStatus !== 'damaged' &&
+                            canChangeStatus
+                          if (inReturnFlow) {
+                            return (
+                              <div className="flex shrink-0 items-center gap-2">
+                                <button
+                                  type="button"
+                                  disabled={isPending}
+                                  onClick={() => {
                                     startTransition(async () => {
-                                      const result = await updateEquipment(project.id, item.id, { deployStatus: newStatus })
+                                      const result = await updateEquipment(project.id, item.id, { deployStatus: 'returned' })
                                       if (result.error) { showToast('error', result.error); return }
                                       router.refresh()
                                     })
                                   }}
-                                />
+                                  className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:opacity-50"
+                                >
+                                  Returned
+                                </button>
                               </div>
-                            ) : (
-                              <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_BADGE_STYLES[item.deployStatus] || STATUS_BADGE_STYLES.na}`}>
-                                {getStatusLabel(item.deployStatus)}
-                              </span>
-                            )}
-                            {canEditEquipment && <button type="button" data-edit-button={`equipment-${item.id}`} onClick={() => startEqEdit(item)} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white">Edit</button>}
-                          </div>
-                        )}
+                            )
+                          }
+                          return (
+                            <div className="flex shrink-0 items-center gap-2">
+                              {canChangeStatus ? (
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[10px] font-medium text-gray-400">Status</span>
+                                  <DeployStatusSelect
+                                    value={item.deployStatus}
+                                    onChange={(newStatus) => {
+                                      startTransition(async () => {
+                                        const result = await updateEquipment(project.id, item.id, { deployStatus: newStatus })
+                                        if (result.error) { showToast('error', result.error); return }
+                                        router.refresh()
+                                      })
+                                    }}
+                                  />
+                                </div>
+                              ) : (
+                                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_BADGE_STYLES[item.deployStatus] || STATUS_BADGE_STYLES.na}`}>
+                                  {getStatusLabel(item.deployStatus)}
+                                </span>
+                              )}
+                              {canEditEquipment && <button type="button" data-edit-button={`equipment-${item.id}`} onClick={() => startEqEdit(item)} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white">Edit</button>}
+                            </div>
+                          )
+                        })()}
                       </div>
                     )
                   })}

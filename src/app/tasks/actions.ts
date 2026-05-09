@@ -69,13 +69,24 @@ export async function undoDeployed(equipmentId: number) {
   return { success: true }
 }
 
-/** Crew action: mark a "done" piece of equipment returned (back in case). */
+/**
+ * Crew action: mark a piece of equipment returned (back in case).
+ * Accepts items in any prior state since the Return queue now
+ * includes na/deployed/done/not-needed alongside done — anything
+ * that needs accounting at end of show. Returns the previous
+ * deployStatus so the client can pass it to undoReturned and
+ * restore the right state instead of always landing on 'done'.
+ */
 export async function markReturned(equipmentId: number) {
   const session = await getSession()
   if (!session) return { error: 'Not authenticated' }
   if (!(await userBelongsToProject(session.user.id, equipmentId))) {
     return { error: 'Not authorized' }
   }
+  const before = await prisma.equipment.findUnique({
+    where: { id: equipmentId },
+    select: { deployStatus: true },
+  })
   await prisma.equipment.update({
     where: { id: equipmentId },
     data: { deployStatus: 'returned' },
@@ -88,11 +99,19 @@ export async function markReturned(equipmentId: number) {
   revalidatePath('/tasks')
   revalidatePath('/')
   revalidatePath('/my-equipment')
-  return { success: true }
+  return { success: true, previousStatus: before?.deployStatus ?? 'done' }
 }
 
-/** Reverts a markReturned within the 10-second undo window. */
-export async function undoReturned(equipmentId: number) {
+/**
+ * Reverts a markReturned within the 10-second undo window. Restores
+ * to the prior status the client captured at mark time (passed
+ * back via markReturned's `previousStatus`). Falls back to 'done'
+ * if no previous is provided so existing callers stay compatible.
+ */
+export async function undoReturned(
+  equipmentId: number,
+  previousStatus: string = 'done',
+) {
   const session = await getSession()
   if (!session) return { error: 'Not authenticated' }
   if (!(await userBelongsToProject(session.user.id, equipmentId))) {
@@ -100,7 +119,7 @@ export async function undoReturned(equipmentId: number) {
   }
   await prisma.equipment.update({
     where: { id: equipmentId },
-    data: { deployStatus: 'done' },
+    data: { deployStatus: previousStatus },
   })
   revalidatePath('/tasks')
   revalidatePath('/')

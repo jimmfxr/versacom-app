@@ -137,8 +137,12 @@ export default async function TasksPage({
   })
 
   // Deploy cards = na items that are planned (assigned or located).
+  // Skipped entirely when the project's in return phase — those
+  // NA items roll into the Return queue instead so crew gets ONE
+  // accounting task per piece, not two.
   const deployCards = allGear
     .filter((e) => {
+      if (returnPhaseProjectIds.has(e.projectId)) return false
       if (e.deployStatus !== 'na') return false
       if (ASSIGNABLE_CATEGORIES.includes(e.category)) return e.assignedToId != null
       if (INFRA_CATEGORIES.includes(e.category)) return !!(e.location && e.location.trim())
@@ -146,12 +150,17 @@ export default async function TasksPage({
     })
     .map((e) => ({ ...e, mode: 'deploy' as const }))
 
-  // Return cards = done items in projects whose admin has activated the
-  // Return phase. Same eligibility rules as deploy (must be planned).
+  // Return cards = anything not yet RETURNED (and not DAMAGED) in
+  // projects whose admin has activated the Return phase. Includes
+  // NA gear too — at end of show, crew should account for every
+  // piece of planned equipment, even ones that never left the case.
+  // DAMAGED is excluded because flipping it to RETURNED would erase
+  // the broken-gear flag silently; admin handles those manually.
+  // Same "planned" eligibility as deploy.
   const returnCards = allGear
     .filter((e) => {
-      if (e.deployStatus !== 'done') return false
       if (!returnPhaseProjectIds.has(e.projectId)) return false
+      if (e.deployStatus === 'returned' || e.deployStatus === 'damaged') return false
       if (ASSIGNABLE_CATEGORIES.includes(e.category)) return e.assignedToId != null
       if (INFRA_CATEGORIES.includes(e.category)) return !!(e.location && e.location.trim())
       return false

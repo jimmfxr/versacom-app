@@ -144,6 +144,13 @@ export function TaskCardList({
     }
   }
 
+  // Captured "previous status" returned by markReturned for each
+  // task — kept around so handleUndo can pass it back to
+  // undoReturned and restore the right state (the Return queue now
+  // includes na/deployed/done/not-needed, so always restoring to
+  // 'done' would corrupt items that started elsewhere).
+  const [prevStatusByTask, setPrevStatusByTask] = useState<Record<number, string>>({})
+
   function handlePrimary(id: number) {
     // Snapshot the task data NOW so we can keep rendering the card during its
     // 10s undo window even though the server-side revalidation will remove it
@@ -166,6 +173,12 @@ export function TaskCardList({
         })
         return
       }
+      // Stash previousStatus from the markReturned response so the
+      // 10s undo can restore to it. markDeployed doesn't return one.
+      const prev = (res as { previousStatus?: string } | undefined)?.previousStatus
+      if (prev) {
+        setPrevStatusByTask((m) => ({ ...m, [id]: prev }))
+      }
       startUndoTimer(id)
     })
   }
@@ -174,13 +187,21 @@ export function TaskCardList({
     cancelUndoTimer(id)
     setStateById((s) => ({ ...s, [id]: 'reverting' }))
     const task = tasks.find((t) => t.id === id) ?? frozenTasks[id]
-    const action = task?.mode === 'return' ? undoReturned : undoDeployed
-    void action(id).then((res) => {
+    const isReturn = task?.mode === 'return'
+    const undoCall = isReturn
+      ? () => undoReturned(id, prevStatusByTask[id])
+      : () => undoDeployed(id)
+    void undoCall().then((res) => {
       if (res?.error) {
         setStateById((s) => ({ ...s, [id]: 'idle' }))
         return
       }
       setStateById((s) => ({ ...s, [id]: 'idle' }))
+      setPrevStatusByTask((m) => {
+        const next = { ...m }
+        delete next[id]
+        return next
+      })
       // Drop the frozen snapshot — the server will repopulate this card
       // through `tasks` on the next render cycle.
       setFrozenTasks((f) => {
