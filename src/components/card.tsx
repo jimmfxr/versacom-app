@@ -4,15 +4,19 @@ type CardProps = {
   padding?: 'sm' | 'md' | 'lg'
 }
 
+// Vertical-only padding — content sits flush with the page gutter
+// horizontally so editor cards (Add Project, Project edit, Add
+// Equipment / Team / Pick List / Plot) line up with the chip rows
+// + list rows on the same surface, no inset border.
 const paddings = {
-  sm: 'p-4',
-  md: 'p-5',
-  lg: 'p-6',
+  sm: 'py-4',
+  md: 'py-5',
+  lg: 'py-6',
 }
 
 export function Card({ children, className = '', padding = 'md' }: CardProps) {
   return (
-    <div className={`rounded-lg border border-white/10 ${paddings[padding]} ${className}`}>
+    <div className={`${paddings[padding]} ${className}`}>
       {children}
     </div>
   )
