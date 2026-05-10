@@ -3252,7 +3252,14 @@ export function PanelStudio({
                     </div>
                     <button
                       type="button"
-                      onClick={() => { if (selectedKeyId) clearKey(selectedKeyId) }}
+                      onClick={() => {
+                        if (selectedKeyId) clearKey(selectedKeyId)
+                        // Mobile: close the picker sheet after the
+                        // clear so the user lands back on the
+                        // chassis with the now-empty key visible —
+                        // saves a tap to dismiss.
+                        closeInspector()
+                      }}
                       className="min-w-0 flex-1 truncate rounded-lg border border-white/10 px-2 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
                     >
                       {selectedKey?.pickListItemId ? 'Clear Key' : 'Unassigned'}
