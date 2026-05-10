@@ -351,7 +351,13 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                 <RowCard
                   key={project.id}
                   className={isArchived ? 'opacity-60' : ''}
-                  onClick={() => router.push(`/projects/${project.id}`)}
+                  onClick={() => {
+                    // Tapping a show here is an explicit pick — propagate it to
+                    // Dashboard / Tasks / My Equipment via the shared cookie so
+                    // every page reflects the same selection next visit.
+                    document.cookie = `selectedProject=${project.id};path=/;max-age=${60 * 60 * 24 * 365}`
+                    router.push(`/projects/${project.id}`)
+                  }}
                 >
                   <div className={`flex size-10 shrink-0 items-center justify-center rounded-full ${isArchived ? 'bg-gray-500/15' : 'bg-[#0178a3]/15'}`}>
                     <svg className={`size-5 ${isArchived ? 'text-gray-500' : 'text-[#0178a3]'}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">

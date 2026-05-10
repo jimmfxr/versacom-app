@@ -488,7 +488,11 @@ export function ProjectPage({
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
-  // Remember this project so the "Projects" nav link comes back here
+  // Remember this project so the "Projects" nav link comes back here.
+  // We do NOT write the shared `selectedProject` cookie from here —
+  // visiting Project Details should not override the user's pick on
+  // Dashboard / Tasks / My Equipment. That cookie is only set by the
+  // explicit ProjectSwitcher dropdown picks on those pages.
   useEffect(() => {
     document.cookie = `lastProject=${project.id};path=/;max-age=${60 * 60 * 24 * 365}`
   }, [project.id])
@@ -1223,10 +1227,16 @@ export function ProjectPage({
         // the slot is no longer used.
         action={
           <div className="flex items-center gap-3">
-            {/* Layout: Edit + Back on the left, then the tab
-                dropdown on the right. Matches the user request to
-                swap the dropdown to the right side of the header
-                action area. */}
+            {/* Layout: Projects + Edit on the left, then the tab
+                dropdown on the right. Projects sits before Edit so
+                the back-to-list affordance is the leftmost item. */}
+            <button
+              type="button"
+              onClick={() => router.push('/projects')}
+              className="inline-flex rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+            >
+              Projects
+            </button>
             {canSeeSettings && !showSettings && (
               <button
                 type="button"
@@ -1237,13 +1247,6 @@ export function ProjectPage({
                 Edit
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => router.push('/projects')}
-              className="inline-flex rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
-            >
-              Projects
-            </button>
             {/* Desktop tab dropdown — fixed 280px wide on sm+ so
                 the trigger lines up with Dashboard / Tasks / My
                 Equipment widths and doesn't jump as the active
@@ -1902,9 +1905,9 @@ export function ProjectPage({
                                 )}
                               </div>
                               <div className="mt-3 flex items-center justify-end gap-3">
-                                <Button type="submit" size="sm" disabled={isPending}>Save</Button>
                                 <button type="button" onClick={() => handleDeleteEquipment(item)} disabled={isPending} className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50">Delete</button>
                                 <button type="button" onClick={() => setEditingEqId(null)} disabled={isPending} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
+                                <Button type="submit" size="sm" disabled={isPending}>Save</Button>
                               </div>
                             </form>
                           ) : (
@@ -2371,9 +2374,9 @@ export function ProjectPage({
                               />
                             </div>
                             <div className="mt-3 flex items-center justify-end gap-3">
-                              <Button type="submit" size="sm" disabled={isPending}>Save</Button>
                               <button type="button" onClick={() => handleDeleteMember(m)} disabled={isPending} className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50">Delete</button>
                               <button type="button" onClick={() => setEditingMemberId(null)} disabled={isPending} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
+                              <Button type="submit" size="sm" disabled={isPending}>Save</Button>
                             </div>
                           </form>
                         ) : (
@@ -2554,9 +2557,9 @@ export function ProjectPage({
                               />
                             </div>
                             <div className="mt-3 flex items-center justify-end gap-3">
-                              <Button type="submit" size="sm" disabled={isPending}>Save</Button>
                               <button type="button" onClick={() => handleDeletePl(item)} disabled={isPending} className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50">Delete</button>
                               <button type="button" onClick={() => setEditingPlId(null)} disabled={isPending} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
+                              <Button type="submit" size="sm" disabled={isPending}>Save</Button>
                             </div>
                           </form>
                         ) : (
@@ -2734,6 +2737,8 @@ export function ProjectPage({
                               </div>
                             </div>
                             <div className="mt-3 flex items-center justify-end gap-3">
+                              <button type="button" onClick={() => setMockPlots((prev) => prev.filter((p) => p.id !== plot.id))} className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white">Delete</button>
+                              <button type="button" onClick={() => setEditingPlotId(null)} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white">Cancel</button>
                               <Button
                                 size="sm"
                                 disabled={!editPlotData.label.trim() || !editPlotData.url.trim()}
@@ -2744,8 +2749,6 @@ export function ProjectPage({
                               >
                                 Save
                               </Button>
-                              <button type="button" onClick={() => setMockPlots((prev) => prev.filter((p) => p.id !== plot.id))} className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white">Delete</button>
-                              <button type="button" onClick={() => setEditingPlotId(null)} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white">Cancel</button>
                             </div>
                           </>
                         ) : (

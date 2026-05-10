@@ -57,10 +57,20 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
   const searchParams = useSearchParams()
   const inMyEquipmentBrowse = searchParams.get('from') === 'my-equipment'
 
+  // The "Projects" nav link should land on whichever show is currently
+  // active across Dashboard / Tasks / My Equipment — that's the shared
+  // `selectedProject` cookie set by ProjectSwitcher. Fall back to
+  // `lastProject` (last project page actually visited) only when the
+  // shared selection isn't set yet.
   const [lastProjectId, setLastProjectId] = useState<string | null>(null)
   useEffect(() => {
-    const match = document.cookie.match(/lastProject=(\d+)/)
-    setLastProjectId(match ? match[1] : null)
+    const selected = document.cookie.match(/selectedProject=(\d+)/)
+    if (selected) {
+      setLastProjectId(selected[1])
+      return
+    }
+    const last = document.cookie.match(/lastProject=(\d+)/)
+    setLastProjectId(last ? last[1] : null)
   }, [pathname])
 
   // Poll the admin task count so the Tasks badge stays fresh on every page,
