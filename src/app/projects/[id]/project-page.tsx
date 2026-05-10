@@ -2542,7 +2542,7 @@ export function ProjectPage({
                             <div className="flex items-center gap-2">
                               {item.code && <span className="text-sm font-semibold text-white">{item.code}</span>}
                               <span className="text-sm font-semibold text-white">{item.name}</span>
-                              <span className="rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-medium text-gray-300">{FUNCTION_TYPE_LABELS[item.type] || item.type}</span>
+                              <span className="inline-flex items-center rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200">{FUNCTION_TYPE_LABELS[item.type] || item.type}</span>
                             </div>
                             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
                               <FormInput compact label="ID" type="text" value={editPlData.code} onChange={(e) => setEditPlData({ ...editPlData, code: e.target.value })} />
@@ -2568,7 +2568,7 @@ export function ProjectPage({
                               <div className="flex flex-wrap items-center gap-2">
                                 {item.code && <span className="text-sm font-semibold text-white">{item.code}</span>}
                                 <span className="text-sm font-semibold text-white">{item.name}</span>
-                                <span className="rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-medium text-gray-300">{FUNCTION_TYPE_LABELS[item.type] || item.type}</span>
+                                <span className="inline-flex items-center rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200">{FUNCTION_TYPE_LABELS[item.type] || item.type}</span>
                               </div>
                               {item.users.length > 0 ? (
                                 <PickListUsers users={item.users} />
