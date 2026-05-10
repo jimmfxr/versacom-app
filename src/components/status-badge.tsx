@@ -1,21 +1,26 @@
-const COLORS: Record<string, string> = {
-  green: 'bg-green-500/15 text-green-400',
-  red: 'bg-red-500/15 text-red-400',
-  amber: 'bg-amber-500/15 text-amber-400',
-  blue: 'bg-blue-500/15 text-blue-400',
-  purple: 'bg-purple-500/15 text-purple-400',
-  yellow: 'bg-yellow-500/15 text-yellow-400',
-  gray: 'bg-gray-500/15 text-gray-400',
+// Chip-bordered status badge — same chrome as the deploy-status chips
+// on Project Details and the Active/Archived chips on the project list:
+// rounded-lg, thin tinted border, gray-200 text. The color prop tints
+// only the border so the badge sits visually next to the chip-inactive
+// buttons (Edit, Returned, Cancel) used elsewhere in the row.
+const BORDERS: Record<string, string> = {
+  green: 'border-green-400/60',
+  red: 'border-red-400/60',
+  amber: 'border-amber-400/60',
+  blue: 'border-blue-400/60',
+  purple: 'border-purple-400/60',
+  yellow: 'border-yellow-400/60',
+  gray: 'border-white/10',
 }
 
 type StatusBadgeProps = {
   label: string
-  color: keyof typeof COLORS
+  color: keyof typeof BORDERS
 }
 
 export function StatusBadge({ label, color }: StatusBadgeProps) {
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${COLORS[color] || COLORS.gray}`}>
+    <span className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-xs font-medium text-gray-200 ${BORDERS[color] || BORDERS.gray}`}>
       {label}
     </span>
   )

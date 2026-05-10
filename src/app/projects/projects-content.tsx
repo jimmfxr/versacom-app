@@ -8,7 +8,6 @@ import { PageLayout } from '@/components/page-layout'
 import { Card } from '@/components/card'
 import { RowCard } from '@/components/row-card'
 import { EmptyState } from '@/components/empty-state'
-import { StatusBadge } from '@/components/status-badge'
 import { IconButton } from '@/components/icon-button'
 import { FormInput } from '@/components/form-field'
 import { createProject, cloneProject } from './actions'
@@ -367,7 +366,15 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className={`text-sm font-semibold ${isArchived ? 'text-gray-400' : 'text-white'}`}>{project.name}</span>
-                      <StatusBadge label={project.status} color={isArchived ? 'gray' : 'green'} />
+                      {/* Status chip — matches the deploy-status chip
+                          chrome on Project Details: rounded-lg, thin
+                          tinted border (green = active, neutral
+                          white/10 = archived), gray-200 label. Replaces
+                          the older soft-tint pill so all status
+                          indicators across the app share one look. */}
+                      <span className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-xs font-medium text-gray-200 ${isArchived ? 'border-white/10' : 'border-green-400/60'}`}>
+                        {project.status}
+                      </span>
                     </div>
                     <div className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
                       <span>{project.memberCount} members</span>

@@ -1832,6 +1832,21 @@ export function PanelStudio({
   }))
 
   const filterTypes = ['All', 'PTP', 'CONF', 'IFB', 'Audio', 'GRP']
+  // Picker filter labels are spelled out — abbreviations like CONF /
+  // PTP / GRP read fine in the data model but on the user-facing
+  // dropdown the full word is clearer for crew browsing the picker.
+  // IFB stays (industry standard acronym), Audio I/O reads cleanest.
+  const filterTypeLabel = (t: string) => {
+    switch (t) {
+      case 'All': return 'All function types'
+      case 'PTP': return 'Point to Point'
+      case 'CONF': return 'Conferences'
+      case 'IFB': return 'IFB'
+      case 'Audio': return 'Audio'
+      case 'GRP': return 'Group'
+      default: return t
+    }
+  }
 
   const filteredPickerItems = allPickerItems.filter((item) => {
     const matchesFilter =
@@ -2323,7 +2338,7 @@ export function PanelStudio({
                         onChange={setPickerFilter}
                         options={filterTypes.map((t) => ({
                           value: t,
-                          label: t === 'All' ? 'All function types' : t === 'Audio' ? 'Audio I/O' : t,
+                          label: filterTypeLabel(t),
                         }))}
                       />
 
@@ -3175,7 +3190,7 @@ export function PanelStudio({
                         onChange={setPickerFilter}
                         options={filterTypes.map((t) => ({
                           value: t,
-                          label: t === 'All' ? 'All function types' : t === 'Audio' ? 'Audio I/O' : t,
+                          label: filterTypeLabel(t),
                         }))}
                       />
                     </div>
@@ -3571,7 +3586,6 @@ function PickerSelect({
                 className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors ${stateClass}`}
               >
                 <span className="truncate">{o.label}</span>
-                {isActive && <span className="text-xs">✓</span>}
               </button>
             )
           })}

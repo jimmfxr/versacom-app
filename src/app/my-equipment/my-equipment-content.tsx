@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PageLayout } from '@/components/page-layout'
 import { EmptyState } from '@/components/empty-state'
-import { STATUS_BADGE_STYLES, getStatusLabel } from '@/lib/deploy-status'
+import { STATUS_BORDER_STYLES, getStatusLabel } from '@/lib/deploy-status'
 import { ProjectSwitcher } from '@/app/project-dashboard'
 import { useBackgroundRefresh } from '@/hooks/use-background-refresh'
 
@@ -234,11 +234,13 @@ export function MyEquipmentContent({
                     </div>
                   </div>
 
-                  {/* Status badge (read-only) */}
+                  {/* Status chip (read-only) — same chip chrome as
+                      the deploy-status chips on Project Details:
+                      rounded-lg, thin colored border, gray-200 label. */}
                   <span
-                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_BADGE_STYLES[item.deployStatus] || STATUS_BADGE_STYLES.na}`}
+                    className={`inline-flex shrink-0 items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium text-gray-200 ${STATUS_BORDER_STYLES[item.deployStatus] || STATUS_BORDER_STYLES.na}`}
                   >
-                    {getStatusLabel(item.deployStatus)}
+                    <span className="min-w-[4.5rem]">{getStatusLabel(item.deployStatus)}</span>
                   </span>
                 </div>
               )

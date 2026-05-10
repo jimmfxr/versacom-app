@@ -184,7 +184,7 @@ export function LocationSummary({
   const [collapsed, setCollapsed] = useState(false)
 
   return (
-    <div className="mb-4 rounded-lg border border-white/10 p-4 sm:p-5">
+    <div className="mb-4 border-b border-white/10 py-4 sm:py-5">
       <button
         type="button"
         onClick={() => setCollapsed((v) => !v)}

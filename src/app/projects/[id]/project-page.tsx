@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useTransition, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { PencilIcon, XMarkIcon, ChevronLeftIcon } from '@heroicons/react/24/outline'
 import { QRCodeSVG } from 'qrcode.react'
-import { STATUS_BADGE_STYLES, getStatusLabel } from '@/lib/deploy-status'
+import { STATUS_BORDER_STYLES, getStatusLabel } from '@/lib/deploy-status'
 import { DeployStatusSelect } from '@/components/deploy-status-select'
 import { useDeviceReachability } from '@/hooks/use-device-reachability'
 import { useBackgroundRefresh } from '@/hooks/use-background-refresh'
@@ -2042,8 +2042,8 @@ export function ProjectPage({
                                   />
                                 </div>
                               ) : (
-                                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_BADGE_STYLES[item.deployStatus] || STATUS_BADGE_STYLES.na}`}>
-                                  {getStatusLabel(item.deployStatus)}
+                                <span className={`inline-flex items-center gap-2 rounded-lg border ${STATUS_BORDER_STYLES[item.deployStatus] || STATUS_BORDER_STYLES.na} px-3 py-1.5 text-xs font-medium text-gray-200`}>
+                                  <span className="min-w-[4.5rem]">{getStatusLabel(item.deployStatus)}</span>
                                 </span>
                               )}
                               {canEditEquipment && <button type="button" data-edit-button={`equipment-${item.id}`} onClick={() => startEqEdit(item)} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white">Edit</button>}
@@ -2826,8 +2826,8 @@ export function ProjectPage({
                             {item.ipAddress && <><span className="text-gray-500">·</span><span className="hidden sm:inline text-gray-500">IP: </span><a href={`http://${item.ipAddress}${item.category === 'panels' ? '/remote-control/' : ''}`} target="_blank" rel="noopener noreferrer" className="text-[#22a7d3] hover:text-[#019bc7]" onClick={(e) => e.stopPropagation()}>{item.ipAddress}</a></>}
                           </div>
                         </div>
-                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_BADGE_STYLES[item.deployStatus] || STATUS_BADGE_STYLES.na}`}>
-                          {getStatusLabel(item.deployStatus)}
+                        <span className={`inline-flex shrink-0 items-center gap-2 rounded-lg border ${STATUS_BORDER_STYLES[item.deployStatus] || STATUS_BORDER_STYLES.na} px-3 py-1.5 text-xs font-medium text-gray-200`}>
+                          <span className="min-w-[4.5rem]">{getStatusLabel(item.deployStatus)}</span>
                         </span>
                       </div>
                     ))}

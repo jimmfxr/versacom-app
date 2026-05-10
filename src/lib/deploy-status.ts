@@ -38,6 +38,18 @@ export const STATUS_DOT_STYLES: Record<string, string> = {
   damaged: 'bg-purple-400',
 }
 
+/** Border color for the status chip — replaces the colored dot. N/A
+ *  keeps the neutral white/10 chip border so it reads as "no status";
+ *  every other status tints the chip outline. */
+export const STATUS_BORDER_STYLES: Record<string, string> = {
+  na: 'border-white/10',
+  deployed: 'border-yellow-400/60',
+  done: 'border-green-400/60',
+  returned: 'border-blue-400/60',
+  'not-needed': 'border-red-400/60',
+  damaged: 'border-purple-400/60',
+}
+
 export function getStatusLabel(value: string): string {
   return DEPLOY_STATUSES.find((s) => s.value === value)?.label ?? 'N/A'
 }
