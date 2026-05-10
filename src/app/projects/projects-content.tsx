@@ -306,7 +306,7 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                 <Button type="submit" size="sm" disabled={isPending}>
                   {isPending
                     ? (cloneOpen ? 'Cloning…' : 'Saving…')
-                    : (cloneOpen ? 'Clone Project' : 'Save Project')}
+                    : (cloneOpen ? 'Clone Project' : 'Save')}
                 </Button>
               </div>
             </form>
