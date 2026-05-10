@@ -359,6 +359,10 @@ export function PanelStudio({
   // begins, so on drop we can restore the user's previous size
   // instead of always opening at full.
   const preChipDragSnapRef = useRef<'peek' | 'half' | 'full' | null>(null)
+  // Tracks whether a key→key drag temporarily hid the bottom-sheet
+  // inspector on mobile. Restored on drop/cancel so the user lands
+  // back where they were (picker open if it was open before the drag).
+  const keyDragHidInspectorRef = useRef<boolean>(false)
   // `mounted` flag so the inline-style height (which depends on
   // window.innerHeight / innerWidth) is only emitted on the client.
   // Server-side render skips the style and the first client render
@@ -1597,6 +1601,15 @@ export function PanelStudio({
   // chip dragged out of its scroll-column doesn't get clipped (the
   // overlay renders outside the column at the document root).
   const [activeDragChip, setActiveDragChip] = useState<PickerItem | null>(null)
+  // Mirror of activeDragChip but for key→key drags. Holds the
+  // source key's pick-list info so the DragOverlay can render the
+  // SAME chip-style preview as a picker chip drag — consistent
+  // visual language regardless of where the drag started.
+  const [activeDragKeyChip, setActiveDragKeyChip] = useState<{
+    name: string
+    code: string | null
+    type: string | null
+  } | null>(null)
 
   // Auto-scroll the chassis container while a chip is being dragged
   // near its top or bottom edge. dnd-kit's built-in autoscroll only
@@ -1666,15 +1679,43 @@ export function PanelStudio({
     if (!data) return
     if (data.kind === 'key') {
       setDragSourceId(data.sourceId)
-      // Bypass selectKey() — its tap-to-toggle logic closes the
-      // picker when the dragged key was already selected, which
-      // makes the picker card flicker in/out during a touch drag
-      // on iPad. Set state directly so the picker stays open
-      // throughout the drag.
       setSelectedKeyId(data.sourceId)
-      setInspectorOpen(true)
-      if (canEditKeys) setPickerMode(true)
       setActiveDragChip(null)
+      // Capture the source key's pick-list info so the DragOverlay
+      // renders a chip-style floating preview — same look as a chip
+      // dragged out of the picker. Empty source keys won't reach
+      // this branch (canDrag gates on !isEmpty).
+      const src = getKey(data.sourceId)
+      if (src && src.pickListItemId != null) {
+        const code = src.pickListItemId
+          ? pickListItems.find((p) => p.id === src.pickListItemId)?.code ?? null
+          : null
+        setActiveDragKeyChip({
+          name: src.pickListItemName ?? '',
+          code,
+          type: src.pickListItemType ?? null,
+        })
+      } else {
+        setActiveDragKeyChip(null)
+      }
+      // Mobile only: fully hide the bottom-sheet inspector during a
+      // key→key drag so the WHOLE chassis is visible — not just the
+      // top half. Unlike chip drags (which need the picker visible
+      // because that's the drag source), key drags pull from the
+      // chassis itself, so we can clear the sheet entirely. Save the
+      // prior open state + snap so we put it back on drop / cancel.
+      // Desktop is untouched (the picker is a separate floating
+      // panel, not a bottom sheet).
+      if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+        preChipDragSnapRef.current = pickerSnap
+        keyDragHidInspectorRef.current = inspectorOpen
+        if (inspectorOpen) setInspectorOpen(false)
+      } else {
+        // Desktop: keep the inspector + picker visible during drag
+        // (the picker doesn't cover the chassis there).
+        setInspectorOpen(true)
+        if (canEditKeys) setPickerMode(true)
+      }
     } else if (data.kind === 'picklist') {
       setDragSourceId(null)
       setActiveDragChip(data.item)
@@ -1752,22 +1793,28 @@ export function PanelStudio({
 
     setDragSourceId(null)
     setActiveDragChip(null)
-    // Restore the bottom-sheet to whatever snap state we collapsed
-    // FROM when the chip drag started. Restores even on a missed
-    // drop (event.over === null) so the user doesn't get stuck at
-    // peek after letting go in empty space.
+    setActiveDragKeyChip(null)
     if (preChipDragSnapRef.current) {
       setPickerSnap(preChipDragSnapRef.current)
       preChipDragSnapRef.current = null
+    }
+    if (keyDragHidInspectorRef.current) {
+      setInspectorOpen(true)
+      keyDragHidInspectorRef.current = false
     }
   }
 
   function handleDndCancel() {
     setDragSourceId(null)
     setActiveDragChip(null)
+    setActiveDragKeyChip(null)
     if (preChipDragSnapRef.current) {
       setPickerSnap(preChipDragSnapRef.current)
       preChipDragSnapRef.current = null
+    }
+    if (keyDragHidInspectorRef.current) {
+      setInspectorOpen(true)
+      keyDragHidInspectorRef.current = false
     }
   }
 
@@ -2078,7 +2125,7 @@ export function PanelStudio({
         // would only shift the visual, leaving collision behind at
         // the click-offset position — drops would miss the target the
         // user is visually hovering.)
-        modifiers={activeDragChip ? [snapCenterToCursor] : []}
+        modifiers={activeDragChip || activeDragKeyChip ? [snapCenterToCursor] : []}
         // Re-measure droppable rects continuously while dragging so a
         // drop target that grows visually on hover (scale-125) keeps
         // its collision rect in sync with what the user sees. Without
@@ -3310,16 +3357,22 @@ export function PanelStudio({
           </div>
         </div>
       </div>
-      {/* Floating drag preview for picker chips. Without this the
-          dragged chip is clipped by its scroll-column's overflow:auto;
-          DragOverlay renders at the document root so the preview
-          follows the cursor freely across the chassis. */}
+      {/* Floating drag preview. Renders the SAME chip-style pill
+          for both picker-chip drags and key→key drags so the visual
+          language matches regardless of where the drag started. */}
       <DragOverlay dropAnimation={null}>
         {activeDragChip ? (
           <div className="pointer-events-none inline-flex items-center gap-1.5 rounded-md border border-[#0178a3] bg-[#0178a3] px-2.5 py-1 text-xs font-semibold text-white shadow-2xl">
             <span className="overflow-hidden text-ellipsis whitespace-nowrap">{activeDragChip.name}</span>
             {activeDragChip.code && (
               <span className="font-mono text-[10px] text-white/70">{activeDragChip.code}</span>
+            )}
+          </div>
+        ) : activeDragKeyChip ? (
+          <div className="pointer-events-none inline-flex items-center gap-1.5 rounded-md border border-[#0178a3] bg-[#0178a3] px-2.5 py-1 text-xs font-semibold text-white shadow-2xl">
+            <span className="overflow-hidden text-ellipsis whitespace-nowrap">{activeDragKeyChip.name}</span>
+            {activeDragKeyChip.code && (
+              <span className="font-mono text-[10px] text-white/70">{activeDragKeyChip.code}</span>
             )}
           </div>
         ) : null}

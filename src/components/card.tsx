@@ -16,7 +16,11 @@ const paddings = {
 
 export function Card({ children, className = '', padding = 'md' }: CardProps) {
   return (
-    <div className={`${paddings[padding]} ${className}`}>
+    // Bottom-border-only separator — same line treatment as the
+    // page-header's bottomBorder + the [&>*]:border-b list pattern
+    // used elsewhere. Reads as "section divider under the card"
+    // rather than a fully boxed-in card.
+    <div className={`border-b border-white/10 ${paddings[padding]} ${className}`}>
       {children}
     </div>
   )

@@ -1242,7 +1242,7 @@ export function ProjectPage({
               onClick={() => router.push('/projects')}
               className="inline-flex rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
             >
-              Back
+              Projects
             </button>
             {/* Desktop tab dropdown — fixed 280px wide on sm+ so
                 the trigger lines up with Dashboard / Tasks / My
@@ -1288,7 +1288,10 @@ export function ProjectPage({
 
           {/* ─── Settings Panel ─── */}
           {showSettings && (
-            <div className="space-y-4">
+            // mb-4 so the bottom border of the Edit card has the
+            // same 16px breathing room below it as the Add cards
+            // sitting inside their space-y-3/4 scroll containers.
+            <div className="space-y-4 mb-4">
               <Card>
                 {/* Top row: heading on the left, PIN centered, close
                     X on the right. The standalone Project PIN card
@@ -1300,7 +1303,11 @@ export function ProjectPage({
                     type="button"
                     onClick={() => setShowSettings(false)}
                     aria-label="Close settings"
-                    className="absolute right-0 top-0 flex size-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:text-white"
+                    // Same chip-inactive chrome as the IconButton X
+                    // on every other editor card (Add Project,
+                    // Add Equipment, etc.) so the close affordance
+                    // reads the same everywhere.
+                    className="absolute right-0 top-0 flex size-8 items-center justify-center rounded-lg border border-white/10 text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
                   >
                     <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -1333,7 +1340,7 @@ export function ProjectPage({
                 {/* Archive is admin-only, given its own subsection so it's
                     findable instead of buried as a third dropdown. */}
                 {isProjectAdmin && (
-                  <div className="mt-5 border-t border-white/[0.06] pt-4">
+                  <div className="mt-5 pt-4">
                     <div className="min-w-0">
                       <h4 className="text-sm font-semibold text-white">
                         {status === 'archived' ? 'Restore project' : 'Archive project'}
@@ -1386,7 +1393,7 @@ export function ProjectPage({
                     disabled={isPending}
                     className="rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {isPending ? 'Saving...' : 'Save Changes'}
+                    {isPending ? 'Saving...' : 'Save'}
                   </button>
                 </div>
               </Card>
