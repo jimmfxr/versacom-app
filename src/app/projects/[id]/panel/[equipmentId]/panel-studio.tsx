@@ -363,6 +363,15 @@ export function PanelStudio({
   // inspector on mobile. Restored on drop/cancel so the user lands
   // back where they were (picker open if it was open before the drag).
   const keyDragHidInspectorRef = useRef<boolean>(false)
+  // Ref to the mobile picker list scroll container so we can preserve
+  // its scrollTop across a chip drag. When the sheet collapses to
+  // 'peek' during the drag, the visible area shrinks below the
+  // current scroll offset and the browser clamps scrollTop back to 0
+  // — so when the sheet re-expands on drop, the user is at the top
+  // of the list instead of where they were. We snapshot scrollTop on
+  // drag start and restore it on drop / cancel.
+  const mobilePickerScrollRef = useRef<HTMLDivElement | null>(null)
+  const preChipDragScrollTopRef = useRef<number | null>(null)
   // `mounted` flag so the inline-style height (which depends on
   // window.innerHeight / innerWidth) is only emitted on the client.
   // Server-side render skips the style and the first client render
@@ -1726,6 +1735,12 @@ export function PanelStudio({
       // skip the snap mutation entirely on lg+.
       if (typeof window !== 'undefined' && window.innerWidth < 1024) {
         preChipDragSnapRef.current = pickerSnap
+        // Snapshot the picker list's scrollTop before we shrink the
+        // sheet to peek. When the visible area collapses, the browser
+        // clamps scrollTop down to 0 because the (smaller) viewport
+        // now fits the content — we need this number to put the user
+        // back where they were on drop.
+        preChipDragScrollTopRef.current = mobilePickerScrollRef.current?.scrollTop ?? null
         setPickerSnap('peek')
       }
     }
@@ -1802,6 +1817,7 @@ export function PanelStudio({
       setInspectorOpen(true)
       keyDragHidInspectorRef.current = false
     }
+    restorePickerScrollTop()
   }
 
   function handleDndCancel() {
@@ -1816,6 +1832,24 @@ export function PanelStudio({
       setInspectorOpen(true)
       keyDragHidInspectorRef.current = false
     }
+    restorePickerScrollTop()
+  }
+
+  // Defer the scrollTop restore to a rAF after the snap state has
+  // taken effect — the sheet height animates back to its previous
+  // size, and only then can the scroll container actually accept the
+  // saved offset (before that its scrollHeight was smaller than the
+  // target offset, so the assignment would be clamped to 0).
+  function restorePickerScrollTop() {
+    const target = preChipDragScrollTopRef.current
+    preChipDragScrollTopRef.current = null
+    if (target == null) return
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const el = mobilePickerScrollRef.current
+        if (el) el.scrollTop = target
+      })
+    })
   }
 
   /* ─── Build picker items (PickList + PTP) ─── */
@@ -3285,7 +3319,7 @@ export function PanelStudio({
                 {/* Picker list — Unassigned/Clear was promoted into
                     the controls row above next to trigger/talk
                     dropdowns, so it no longer renders here. */}
-                <div className="px-[18px] py-3.5 overflow-y-auto flex-1 flex flex-col gap-[18px]">
+                <div ref={mobilePickerScrollRef} className="px-[18px] py-3.5 overflow-y-auto flex-1 flex flex-col gap-[18px]">
                   {Object.entries(groupedItems).map(([type, items]) => (
                     <div key={type} className="flex flex-col gap-1.5">
                       <div className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider px-1">
