@@ -216,7 +216,11 @@ function hasField(category: string, field: string, hardwareType?: string | null)
   const wirelessFields = ['headsetType']
   const hardwireFields = ['location', 'headsetType', 'ipAddress']
   const switchFields = ['location', 'ipAddress', 'patch']
-  const antennaFields = ['location', 'ipAddress']
+  // Antennas get a free-form "Name" alongside the ANT 1 / ANT 2 ID
+  // so installers can label them by their physical role (e.g. "FOH
+  // Bolero", "PLHQ 2.4"). Stored in the Equipment.position column
+  // (unused for other categories).
+  const antennaFields = ['location', 'ipAddress', 'position']
   const audioFields = ['location']
 
   // IP field is hidden for non-managed switch types (Antaira, TP Link,
@@ -820,6 +824,7 @@ export function ProjectPage({
     setEditEqData({
       name: item.name,
       hardwareType: item.hardwareType || '',
+      position: item.position || '',
       location: item.location || '',
       headsetType: item.headsetType || '',
       ipAddress: seedIp,
@@ -846,7 +851,7 @@ export function ProjectPage({
       const result = await updateEquipment(project.id, item.id, {
         name: editEqData.name || item.name,
         hardwareType: (editEqData.hardwareType as string) || null,
-        position: null,
+        position: hasField(item.category, 'position') ? (editEqData.position as string) || null : null,
         location: normalizedLocation,
         headsetType: hasField(item.category, 'headsetType') ? (editEqData.headsetType as string) || null : null,
         ipAddress: hasField(item.category, 'ipAddress', editEqData.hardwareType as string | null) ? (editEqData.ipAddress as string) || null : null,
@@ -1792,6 +1797,14 @@ export function ProjectPage({
                               onSubmit={(e) => { e.preventDefault(); handleSaveEquipment(item) }}>
                               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                                 <FormInput compact label="ID" type="text" value={(editEqData.name as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, name: e.target.value })} />
+                                {/* Antenna-only free-form "Name" — e.g.
+                                    "FOH Bolero", "PLHQ 2.4". Surfaces
+                                    on the card header above the ANT N
+                                    ID so the rack reads in human
+                                    language. */}
+                                {hasField(item.category, 'position') && (
+                                  <FormInput compact label="Name" type="text" value={(editEqData.position as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, position: e.target.value })} />
+                                )}
                                 <SearchableSelect
                                   compact
                                   label="Hardware"
@@ -1933,12 +1946,24 @@ export function ProjectPage({
                                     {item.name}
                                   </button>
                                 ) : (
-                                  <span
-                                    className={`transition-colors duration-500 ${item.ipAddress && reachable[item.id] ? 'text-green-400' : 'text-white'}`}
-                                    title={item.ipAddress && reachable[item.id] ? `${item.ipAddress} — reachable` : undefined}
-                                  >
-                                    {item.name}
-                                  </span>
+                                  <>
+                                    <span
+                                      className={`transition-colors duration-500 ${item.ipAddress && reachable[item.id] ? 'text-green-400' : 'text-white'}`}
+                                      title={item.ipAddress && reachable[item.id] ? `${item.ipAddress} — reachable` : undefined}
+                                    >
+                                      {item.name}
+                                    </span>
+                                    {/* Antennas: free-form "Name" sits
+                                        to the right of the ANT N ID in
+                                        cyan — same accent treatment as
+                                        the assignee inline label. */}
+                                    {hasField(item.category, 'position') && item.position && (
+                                      <>
+                                        <span className="text-gray-500"> · </span>
+                                        <span className="text-[#22a7d3]">{item.position}</span>
+                                      </>
+                                    )}
+                                  </>
                                 )}
                                 {/* Assignee: inline on desktop, own row on mobile */}
                                 {item.assignedToName ? (
