@@ -1953,14 +1953,25 @@ export function ProjectPage({
                                     >
                                       {item.name}
                                     </span>
-                                    {/* Antennas: free-form "Name" sits
-                                        to the right of the ANT N ID in
-                                        cyan — same accent treatment as
-                                        the assignee inline label. */}
+                                    {/* Antennas: free-form "Name"
+                                        (position field) sits to the
+                                        right of the ANT N ID in cyan
+                                        — same accent treatment as the
+                                        assignee inline label. */}
                                     {hasField(item.category, 'position') && item.position && (
                                       <>
                                         <span className="text-gray-500"> · </span>
                                         <span className="text-[#22a7d3]">{item.position}</span>
+                                      </>
+                                    )}
+                                    {/* Switches: surface the location
+                                        next to the SW N ID in cyan
+                                        too — racks identify by where
+                                        they live, not the auto-ID. */}
+                                    {item.category === 'switches' && item.location && (
+                                      <>
+                                        <span className="text-gray-500"> · </span>
+                                        <span className="text-[#22a7d3]">{item.location}</span>
                                       </>
                                     )}
                                   </>
@@ -1991,7 +2002,11 @@ export function ProjectPage({
                               <div className="mt-1 text-sm text-gray-300">
                                 {/* Mobile: each field on its own row */}
                                 <div className="flex flex-col gap-0.5 sm:hidden">
-                                  {item.location && <span><span className="text-xs text-gray-500">Location: </span>{item.location}</span>}
+                                  {/* Switches surface their location
+                                      next to the ID up top, so we hide
+                                      the duplicate "Location: …" row
+                                      here for that category. */}
+                                  {item.location && item.category !== 'switches' && <span><span className="text-xs text-gray-500">Location: </span>{item.location}</span>}
                                   {item.hardwareType && <span><span className="text-xs text-gray-500">Hardware: </span>{item.hardwareType}</span>}
                                   {item.headsetType && <span><span className="text-xs text-gray-500">Headset: </span>{item.headsetType}</span>}
                                   {item.ipAddress && <span><span className="text-xs text-gray-500">IP: </span><a href={`http://${item.ipAddress}${item.category === 'panels' ? '/remote-control/' : ''}`} target="_blank" rel="noopener noreferrer" className="text-[#22a7d3] hover:text-[#019bc7]">{item.ipAddress}</a></span>}
@@ -2002,7 +2017,7 @@ export function ProjectPage({
                                 </div>
                                 {/* Desktop: inline with dots (original layout) */}
                                 <div className="hidden sm:flex flex-wrap items-center gap-x-1.5">
-                                  {item.location && <><span className="text-xs text-gray-500">Location: </span><span>{item.location}</span><span className="text-gray-500">·</span></>}
+                                  {item.location && item.category !== 'switches' && <><span className="text-xs text-gray-500">Location: </span><span>{item.location}</span><span className="text-gray-500">·</span></>}
                                   {item.hardwareType && <><span className="text-xs text-gray-500">Hardware: </span><span>{item.hardwareType}</span></>}
                                   {item.headsetType && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">Headset: </span><span>{item.headsetType}</span></>}
                                   {item.ipAddress && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">IP: </span><a href={`http://${item.ipAddress}${item.category === 'panels' ? '/remote-control/' : ''}`} target="_blank" rel="noopener noreferrer" className="text-[#22a7d3] hover:text-[#019bc7]">{item.ipAddress}</a></>}
