@@ -2579,7 +2579,14 @@ export function PanelStudio({
                               onPointerLeave={cancelLongPress}
                               onPointerCancel={cancelLongPress}
                               title={`Paste from ${panelClipboard.sourceLabel} (hold to preview)`}
-                              className={`shrink-0 rounded-md border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                              // Suppress iOS Safari's long-press
+                              // callout (Copy / Look up / Translate)
+                              // + Android Chrome's context menu so
+                              // the hold-to-preview gesture fires
+                              // cleanly instead of hijacking the press.
+                              onContextMenu={(e) => e.preventDefault()}
+                              style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
+                              className={`shrink-0 select-none rounded-md border px-3 py-1.5 text-xs font-semibold transition-colors ${
                                 pastePreviewOpen
                                   ? 'border-[#10b981] text-[#10b981] hover:bg-[#10b981]/10'
                                   : 'border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
@@ -2853,7 +2860,18 @@ export function PanelStudio({
                                 onPointerLeave={cancelLongPress}
                                 onPointerCancel={cancelLongPress}
                                 title={`Paste from ${panelClipboard.sourceLabel} (hold to preview)`}
-                                className={`shrink-0 rounded-md border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                                // iOS Safari's default long-press
+                                // callout (Copy / Look up / Translate)
+                                // hijacks our hold-to-preview gesture.
+                                // Disable text selection + the touch
+                                // callout on this button so the long-
+                                // press fires the preview timer
+                                // cleanly. onContextMenu preventDefault
+                                // catches the right-click / long-press
+                                // menu on Android Chrome too.
+                                onContextMenu={(e) => e.preventDefault()}
+                                style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
+                                className={`shrink-0 select-none rounded-md border px-3 py-1.5 text-xs font-semibold transition-colors ${
                                   pastePreviewOpen
                                     ? 'border-[#10b981] text-[#10b981] hover:bg-[#10b981]/10'
                                     : 'border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
