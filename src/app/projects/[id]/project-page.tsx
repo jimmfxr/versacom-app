@@ -261,6 +261,84 @@ function CloseIcon({ className = 'size-5' }: { className?: string }) {
   )
 }
 
+/**
+ * Mode switcher for the Add Equipment card. Replaces the side-by-side
+ * "Equipment" / "Headsets & Misc" tab buttons with a compact dropdown
+ * chip that sits to the left of the card's close X. Chip uses the
+ * standard chip-inactive chrome; selected option in the panel takes
+ * the cyan fill that the rest of the app's dropdowns use.
+ */
+function AddTabSwitcher({
+  value,
+  onChange,
+}: {
+  value: 'equipment' | 'inventory'
+  onChange: (v: 'equipment' | 'inventory') => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    if (open) document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [open])
+
+  const options: Array<{ v: 'equipment' | 'inventory'; label: string }> = [
+    { v: 'equipment', label: 'Add Equipment' },
+    { v: 'inventory', label: 'Add Headsets & Misc' },
+  ]
+  const label = options.find((o) => o.v === value)?.label ?? 'Add Equipment'
+
+  return (
+    // w-full on mobile, fits-content + min-w-[280px] on desktop —
+    // mirrors the ProjectSwitcher / MemberSwitcher dropdown sizing so
+    // every prominent dropdown across the app reads the same size.
+    <div ref={ref} className="relative w-full sm:inline-block sm:w-auto">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`flex w-full items-center justify-between gap-2.5 rounded-lg border-2 bg-[#202020] px-3.5 py-2 text-sm font-medium text-white transition-colors sm:min-w-[280px] ${
+          open ? 'border-[#0178a3]' : 'border-white/10 hover:border-white/20'
+        }`}
+      >
+        <span>{label}</span>
+        <svg
+          className={`size-3.5 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="5 8 10 13 15 8" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 min-w-[260px] rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl">
+          {options.map((o) => {
+            const isActive = value === o.v
+            return (
+              <button
+                key={o.v}
+                type="button"
+                onClick={() => { onChange(o.v); setOpen(false) }}
+                className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2.5 text-left text-[13px] font-medium transition-colors ${
+                  isActive ? 'bg-[#0178a3] text-white' : 'text-gray-200 hover:bg-white/[0.06]'
+                }`}
+              >
+                {o.label}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function WrenchIcon() {
   return (
     <svg className="mx-auto size-12 text-gray-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -1667,42 +1745,35 @@ export function ProjectPage({
               {/* Bulk add card lives INSIDE the scroll so the form
                   doesn't pin above the list and steal vertical space —
                   scrolls naturally with the rest of the tab content.
-                  Two tabs: Add Equipment (default) + Headsets & Misc. */}
+                  Mode switch lives in a dropdown chip to the left of
+                  the close X — Equipment (default) vs Headsets & Misc. */}
               {canAddEquipment && showAdd && (
                 <Card>
-                  <div className="relative flex items-center justify-center gap-2">
-                    <div className="flex flex-wrap justify-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setAddTab('equipment')}
-                        className={`shrink-0 rounded-md px-3.5 py-2 text-sm font-semibold transition-colors ${
-                          addTab === 'equipment'
-                            ? 'bg-[#0178a3] text-white'
-                            : 'border border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
-                        }`}
-                      >
-                        Equipment
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAddTab('inventory')}
-                        className={`shrink-0 rounded-md px-3.5 py-2 text-sm font-semibold transition-colors ${
-                          addTab === 'inventory'
-                            ? 'bg-[#0178a3] text-white'
-                            : 'border border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
-                        }`}
-                      >
-                        Headsets &amp; Misc
-                      </button>
-                    </div>
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2">
-                      <IconButton onClick={() => { setShowAdd(false); setAddError('') }}><CloseIcon /></IconButton>
+                  {/* Header row — on desktop the explanation text
+                      sits to the LEFT of the dropdown + X. On mobile
+                      the dropdown row is on top and the explanation
+                      drops to the next line so the dropdown can take
+                      the full width. */}
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                    {addTab === 'equipment' && (
+                      <p className="order-2 text-xs text-gray-500 sm:order-1 sm:flex-1">
+                        Add equipment. Each item auto-IDs by category (<span className="font-mono">PNL 1</span>, <span className="font-mono">WLBP 1</span>…). Type an ID to customize.
+                      </p>
+                    )}
+                    {addTab === 'inventory' && (
+                      <div className="order-2 sm:order-1 sm:flex-1 sm:min-w-0">
+                        <div className="text-base font-semibold text-white">Manage Inventory</div>
+                        <div className="mt-0.5 text-xs text-gray-500">How many of each you packed for this show</div>
+                      </div>
+                    )}
+                    <div className="order-1 flex items-center justify-end gap-2 sm:order-2">
+                      <AddTabSwitcher value={addTab} onChange={setAddTab} />
+                      <IconButton className="shrink-0" onClick={() => { setShowAdd(false); setAddError('') }}><CloseIcon /></IconButton>
                     </div>
                   </div>
 
                   {addTab === 'equipment' ? (
                     <>
-                      <p className="mt-2 text-xs text-gray-500">Add equipment. Each item auto-IDs by category (<span className="font-mono">PNL 1</span>, <span className="font-mono">WLBP 1</span>…). Type an ID to customize.</p>
                       <form onSubmit={(e) => { e.preventDefault(); handleBulkAdd() }}>
                         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
                           <FormInput

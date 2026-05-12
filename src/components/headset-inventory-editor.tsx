@@ -132,12 +132,10 @@ export function HeadsetInventoryEditor({ projectId, initial, needed, miscInitial
 
   return (
     <div>
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-base font-semibold text-white">Manage Inventory</div>
-          <div className="mt-0.5 text-xs text-gray-500">How many of each you packed for this show</div>
-        </div>
-      </div>
+      {/* The "Manage Inventory" title + subtitle now live in the
+          outer Add card's header (project-page.tsx) so they share a
+          row with the mode dropdown + close X on desktop. Editor
+          body starts straight into the two-column inventory grid. */}
 
       {/* Two-column layout on desktop: Headsets left, Misc right. Stacks
           back to a single column on mobile. Symmetric margins so the
@@ -289,18 +287,22 @@ function SectionHeader({
   onToggle: () => void
 }) {
   return (
+    // Gray uppercase mini-section title — bumped up from the old 10px
+    // to 12px (text-xs) so it actually reads as a heading, with more
+    // breathing room above and below. Hover bumps to gray-200 like
+    // the chip-inactive idiom elsewhere.
     <button
       type="button"
       onClick={onToggle}
-      className="mt-3 flex w-full items-center justify-between border-b border-white/[0.05] pb-1.5 pt-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400 transition-colors first:mt-0 first:pt-0 hover:text-gray-200"
+      className="mt-6 flex w-full items-center justify-between gap-3 border-b border-white/[0.06] pb-3 pt-3 text-left text-xs font-bold uppercase tracking-wider text-gray-400 transition-colors first:mt-0 hover:text-gray-200"
       aria-expanded={!collapsed}
     >
       <span>{children}</span>
       <svg
-        className={`size-3 text-gray-500 transition-transform ${collapsed ? '' : 'rotate-180'}`}
+        className={`size-4 text-gray-400 transition-transform ${collapsed ? '' : 'rotate-180'}`}
         fill="none"
         viewBox="0 0 24 24"
-        strokeWidth={2.5}
+        strokeWidth={2}
         stroke="currentColor"
       >
         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
