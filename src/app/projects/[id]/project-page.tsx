@@ -43,7 +43,7 @@ const HARDWARE_TYPES: Record<string, string[]> = {
   panels: ['RSP-1232', 'RSP-1216', 'DSP-1216', 'KP-5032', 'KP32', 'RSP-2318', 'DSP-2312', 'DKP-3016', 'KP-3016', 'DSPK4'],
   wireless_bp: ['Bolero 1.9', 'Bolero 2.4', 'Freespeak', 'Pliant'],
   hardwire_bp: ['Helixnet', 'DBP4', 'DBP5', 'ST-374', 'ST370', 'C3', 'BP325'],
-  switches: ['26P+4F', '40P+4F', '24X8F8V', '16F', '9P+1F', 'Intellanet Old', 'Intellanet New', 'Media', 'Antaira', 'TP Link'],
+  switches: ['26P+4F', '40P+4F', '24X8F8V', '16F', '9P+1F', 'Intellanet Old', 'Intellanet New', 'Media', 'Antaira', 'TP Link', 'Pliant Copper Hub', 'Pliant Fiber Hub'],
   antennas: ['Bolero 1.9', 'Bolero 2.4', 'Pliant', 'Freespeak 1.9', 'Freespeak 2.4'],
   audio: ['NA2', 'A16r', 'Dark88'],
 }
@@ -83,6 +83,11 @@ const NO_IP_HARDWARE = new Set([
   'Intellanet Old',
   'Intellanet New',
   'Media',
+  // Pliant hubs are unmanaged passive infrastructure — no IP.
+  'Pliant Copper Hub',
+  'Pliant Fiber Hub',
+  // Pliant antenna doesn't sit on the Riedel network either — no IP.
+  'Pliant',
 ])
 
 const HEADSET_TYPES = [
@@ -224,11 +229,13 @@ function hasField(category: string, field: string, hardwareType?: string | null)
   const antennaFields = ['location', 'ipAddress', 'position']
   const audioFields = ['location']
 
-  // IP field is hidden for non-managed switch types (Antaira, TP Link,
-  // Intellanet, Media). Other categories are unaffected.
+  // IP field is hidden for non-managed hardware types — Antaira / TP
+  // Link / Intellanet / Media / Pliant hubs on the switches side, and
+  // the Pliant antenna on the antennas side. NO_IP_HARDWARE applies
+  // to BOTH categories: same hardware name, same rule.
   if (
     field === 'ipAddress' &&
-    category === 'switches' &&
+    (category === 'switches' || category === 'antennas') &&
     hardwareType &&
     NO_IP_HARDWARE.has(hardwareType)
   ) {
