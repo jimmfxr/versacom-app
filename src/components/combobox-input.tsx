@@ -76,6 +76,15 @@ export function ComboboxInput({
   }, [highlight, open])
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    // Tab moves focus to the next field via the browser's default. We
+    // close the suggestion panel synchronously here so it doesn't flash
+    // visible for a frame while the focus transitions — the previous
+    // path relied on the global focusin listener, which fires after
+    // the browser repaints with the new focus state.
+    if (e.key === 'Tab') {
+      setOpen(false)
+      return
+    }
     if (e.key === 'ArrowDown') {
       if (filtered.length === 0) return
       e.preventDefault()
@@ -149,7 +158,11 @@ export function ComboboxInput({
         placeholder={placeholder}
         value={value}
         onChange={(e) => { onChange(e.target.value); setOpen(true) }}
-        onFocus={() => setOpen(true)}
+        // Click opens the suggestion panel; Tab focus does NOT, so
+        // tabbing past the field doesn't pop the dropdown. ArrowDown
+        // / ArrowUp (in handleKeyDown) and typing (onChange) also
+        // open it so keyboard users still have a way in.
+        onClick={() => setOpen(true)}
         onKeyDown={handleKeyDown}
         className={inputClass}
       />

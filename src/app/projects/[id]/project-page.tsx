@@ -682,7 +682,11 @@ export function ProjectPage({
   useEffect(() => {
     if (editingMemberId == null) return
     const form = document.querySelector<HTMLFormElement>(`[data-edit-form="team"][data-card-id="${editingMemberId}"]`)
-    form?.querySelector<HTMLElement>('input:not([type="hidden"])')?.focus()
+    // Focus + select-all on First Name so the user can start typing
+    // to replace the value immediately — same idiom as macOS rename.
+    const input = form?.querySelector<HTMLInputElement>('input:not([type="hidden"])')
+    input?.focus()
+    input?.select()
   }, [editingMemberId])
   useEffect(() => {
     if (editingPlId == null) return

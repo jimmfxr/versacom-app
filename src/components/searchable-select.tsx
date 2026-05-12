@@ -81,6 +81,15 @@ export function SearchableSelect({
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (disabled) return
+    // Tab moves focus to the next field via the browser's default. We
+    // close the panel synchronously here so it doesn't flash visible
+    // for a frame while focus transitions — the previous path relied
+    // on the global focusin listener, which fires after the browser
+    // repaints with the new focus state.
+    if (e.key === 'Tab') {
+      setOpen(false)
+      return
+    }
     // ArrowDown opens the menu (if closed) and moves the highlight.
     if (e.key === 'ArrowDown') {
       e.preventDefault() // stop the page from scrolling
@@ -136,10 +145,12 @@ export function SearchableSelect({
         placeholder={selectedLabel || placeholder}
         value={search}
         onChange={(e) => { setSearch(e.target.value); setOpen(true) }}
-        onFocus={() => { if (!disabled) setOpen(true) }}
-        // (Closing on focus-out is handled by the global focusin
-        // listener in useEffect above — that path is more reliable
-        // across browsers than onBlur + relatedTarget.)
+        // Click opens the dropdown — but Tab focus does NOT, so the
+        // user can tab past this field without a menu popping up.
+        // Typing or ArrowDown / ArrowUp also opens it (see onChange +
+        // handleKeyDown). Closing on focus-out is handled by the
+        // global focusin listener above.
+        onClick={() => { if (!disabled) setOpen(true) }}
         onKeyDown={handleKeyDown}
         disabled={disabled}
         className={inputClass}

@@ -140,8 +140,11 @@ export function HeadsetInventoryEditor({ projectId, initial, needed, miscInitial
       </div>
 
       {/* Two-column layout on desktop: Headsets left, Misc right. Stacks
-          back to a single column on mobile. */}
-      <div className="-mx-1 grid gap-x-6 pr-1 sm:grid-cols-2">
+          back to a single column on mobile. Symmetric margins so the
+          left edge sits flush with the rest of the card (the old
+          -mx-1 + pr-1 combo pulled the column 4px past the gutter
+          and clipped the labels). */}
+      <div className="grid gap-x-6 sm:grid-cols-2">
         {/* Headsets section */}
         <div>
           <SectionHeader
@@ -248,12 +251,18 @@ export function HeadsetInventoryEditor({ projectId, initial, needed, miscInitial
 
       {err && <div className="mt-3 shrink-0 text-xs text-rose-400">{err}</div>}
 
-      <div className="mt-4 flex shrink-0 items-center justify-end gap-2 border-t border-white/[0.06] pt-3">
+      {/* Action row — no top border so it sits flush with the
+          inventory rows above. Cancel uses chip-inactive chrome
+          (rounded-lg, white/10 border, gray-200 text, cyan active)
+          to match every other editor card's Cancel button across
+          the app. Save uses the primary cyan chip — same style as
+          the Equipment / Team / Pick List Save buttons. */}
+      <div className="mt-4 flex shrink-0 items-center justify-end gap-3">
         <button
           type="button"
           onClick={onDone}
           disabled={pending}
-          className="rounded-lg px-3 py-2 text-sm font-semibold text-gray-400 transition-colors hover:text-white disabled:opacity-50"
+          className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
           Cancel
         </button>
@@ -261,7 +270,7 @@ export function HeadsetInventoryEditor({ projectId, initial, needed, miscInitial
           type="button"
           onClick={handleSave}
           disabled={pending}
-          className="rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#019bc7] disabled:opacity-50"
+          className="rounded-lg border border-[#0178a3] bg-[#0178a3] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#019bc7] hover:border-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {pending ? 'Saving…' : 'Save'}
         </button>
