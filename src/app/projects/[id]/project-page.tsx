@@ -43,7 +43,7 @@ const HARDWARE_TYPES: Record<string, string[]> = {
   panels: ['RSP-1232', 'RSP-1216', 'DSP-1216', 'KP-5032', 'KP32', 'RSP-2318', 'DSP-2312', 'DKP-3016', 'KP-3016', 'DSPK4'],
   wireless_bp: ['Bolero 1.9', 'Bolero 2.4', 'Freespeak', 'Pliant'],
   hardwire_bp: ['Helixnet', 'DBP4', 'DBP5', 'ST-374', 'ST370', 'C3', 'BP325'],
-  switches: ['26P+4F', '40P+4F', '16F', '9P+1F', 'Intellanet Old', 'Intellanet New', 'Media', 'Antaira', 'TP Link'],
+  switches: ['26P+4F', '40P+4F', '24X8F8V', '16F', '9P+1F', 'Intellanet Old', 'Intellanet New', 'Media', 'Antaira', 'TP Link'],
   antennas: ['Bolero 1.9', 'Bolero 2.4', 'Pliant', 'Freespeak 1.9', 'Freespeak 2.4'],
   audio: ['NA2', 'A16r', 'Dark88'],
 }
@@ -68,6 +68,7 @@ const IP_PREFIX_BY_HARDWARE: Record<string, string> = {
   // Cisco-style network switches we manage live on 10.249.x.x.
   '26P+4F': '10.249.',
   '40P+4F': '10.249.',
+  '24X8F8V': '10.249.',
   '16F': '10.249.',
   '9P+1F': '10.249.',
 }
