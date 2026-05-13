@@ -14,7 +14,7 @@ export default async function ProjectDetailPage({
   const projectId = parseInt(id, 10)
   if (isNaN(projectId)) notFound()
 
-  const [project, equipment, memberRows, pickListItems, panelKeyUsage, expansionRows, allUsers, distinctPositions, headsetInventory] = await Promise.all([
+  const [project, equipment, memberRows, pickListItems, panelKeyUsage, expansionRows, allUsers, distinctPositions, headsetInventory, plots] = await Promise.all([
     prisma.project.findUnique({
       where: { id: projectId },
       select: {
@@ -162,6 +162,13 @@ export default async function ProjectDetailPage({
     prisma.projectHeadsetInventory.findMany({
       where: { projectId },
       select: { headsetType: true, brought: true },
+    }),
+    // Stage plots — label + external URL (typically Google Drive).
+    // Loaded once per project; mutations go through plot-actions.ts.
+    prisma.plot.findMany({
+      where: { projectId },
+      select: { id: true, label: true, url: true },
+      orderBy: { createdAt: 'asc' },
     }),
   ])
 
@@ -313,6 +320,7 @@ export default async function ProjectDetailPage({
         db9XlrfBrought: project.db9XlrfBrought,
         rj45XlrmfBrought: project.rj45XlrmfBrought,
       }}
+      plots={plots}
     />
   )
 }

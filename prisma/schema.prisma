@@ -107,6 +107,22 @@ model Project {
   equipment      Equipment[]
   rackTemplates  RackTemplate[]
   headsetInventory ProjectHeadsetInventory[]
+  plots          Plot[]
+}
+
+// Per-project stage plots. Stores a label + external URL (typically a
+// Google Drive share link). The PDF itself lives wherever the URL
+// points — Nodal just remembers the pointer per project.
+model Plot {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  label     String
+  url       String
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
 }
 
 model ProjectHeadsetInventory {

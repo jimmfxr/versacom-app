@@ -34,6 +34,7 @@ import { HeadsetInventoryEditor } from '@/components/headset-inventory-editor'
 import { usePersistentState } from '@/lib/use-persistent-state'
 import { updateProject, deleteProject, setReturnPhase } from './actions'
 import { bulkCreateEquipment, updateEquipment, deleteEquipment } from './distribution/actions'
+import { createPlot, updatePlot, deletePlot } from './plot-actions'
 import { createMember, updateMember, deleteMember, bulkCreateMembers } from './team-actions'
 import { createPickListItem, updatePickListItem, deletePickListItem } from './picklist-actions'
 
@@ -607,6 +608,7 @@ export function ProjectPage({
     db9XlrfBrought: 0,
     rj45XlrmfBrought: 0,
   },
+  plots = [],
 }: {
   project: Project
   equipment: EquipmentItem[]
@@ -629,6 +631,9 @@ export function ProjectPage({
     db9XlrfBrought: number
     rj45XlrmfBrought: number
   }
+  /** Persisted stage plots for this project — label + external URL
+   *  (Google Drive share link, typically). Empty on a fresh project. */
+  plots?: Array<{ id: number; label: string; url: string }>
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -899,11 +904,9 @@ export function ProjectPage({
     return false
   }, [editingEqId, editingMemberId, editingPlId, editingPlotId, isPending]))
 
-  const [mockPlots, setMockPlots] = useState([
-    { id: 1, label: 'FOH', url: 'https://example.com/foh.pdf' },
-    { id: 2, label: 'Stage Left', url: 'https://example.com/sl.pdf' },
-    { id: 3, label: 'Venue Blueprint', url: 'https://example.com/venue.pdf' },
-  ])
+  // Plots come from the server now (see page.tsx loader). Mutations
+  // call createPlot / updatePlot / deletePlot then router.refresh()
+  // to re-fetch — no client-side state mirror needed.
 
   // Device reachability — pings IPs from the browser every 30s (only works on same LAN)
   // Skip hardwire_bp (often DHCP — IPs change too frequently to be reliable)
@@ -1384,7 +1387,7 @@ export function ProjectPage({
     // reorder the list immediately.
     .sort((a, b) => plSortAbc ? naturalCompare(a.name, b.name) : a.id - b.id)
 
-  const filteredPlots = mockPlots
+  const filteredPlots = plots
     .filter((p) =>
       !plotSearch || p.label.toLowerCase().includes(plotSearch.toLowerCase())
     )
@@ -1457,7 +1460,7 @@ export function ProjectPage({
                         list.push({ key: 'team', label: 'Team', count: project.members.length })
                         list.push({ key: 'picklist', label: 'Pick List', count: pickListItems.filter((p) => p.type !== 'PTP').length })
                       }
-                      list.push({ key: 'stage-plots', label: 'Plots', count: mockPlots.length })
+                      list.push({ key: 'stage-plots', label: 'Plots', count: plots.length })
                       return list
                     })()
                 return (
@@ -1617,7 +1620,7 @@ export function ProjectPage({
                     list.push({ key: 'team', label: 'Team', count: project.members.length })
                     list.push({ key: 'picklist', label: 'Pick List', count: pickListItems.filter((p) => p.type !== 'PTP').length })
                   }
-                  list.push({ key: 'stage-plots', label: 'Plots', count: mockPlots.length })
+                  list.push({ key: 'stage-plots', label: 'Plots', count: plots.length })
                   return list
                 })()
             return (
@@ -3000,7 +3003,7 @@ export function ProjectPage({
 
               {/* Count text — pinned above the scroll on desktop. */}
               <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
-                {filteredPlots.length} of {mockPlots.length} {mockPlots.length === 1 ? 'plot' : 'plots'}
+                {filteredPlots.length} of {plots.length} {plots.length === 1 ? 'plot' : 'plots'}
                 {plotSearch && ` matching "${plotSearch}"`}
               </p>
 
@@ -3041,15 +3044,22 @@ export function ProjectPage({
                   <div className="mt-4 flex justify-end">
                     <Button
                       type="button"
-                      disabled={!addPlotLabel.trim() || !addPlotUrl.trim()}
+                      disabled={!addPlotLabel.trim() || !addPlotUrl.trim() || isPending}
                       onClick={() => {
-                        setMockPlots((prev) => [...prev, { id: Date.now(), label: addPlotLabel.trim(), url: addPlotUrl.trim() }])
-                        setAddPlotLabel('')
-                        setAddPlotUrl('')
-                        setShowAddPlot(false)
+                        startTransition(async () => {
+                          const result = await createPlot(project.id, {
+                            label: addPlotLabel.trim(),
+                            url: addPlotUrl.trim(),
+                          })
+                          if (result.error) { showToast('error', result.error); return }
+                          setAddPlotLabel('')
+                          setAddPlotUrl('')
+                          setShowAddPlot(false)
+                          router.refresh()
+                        })
                       }}
                     >
-                      Save
+                      {isPending ? 'Saving…' : 'Save'}
                     </Button>
                   </div>
                 </Card>
@@ -3093,17 +3103,38 @@ export function ProjectPage({
                               </div>
                             </div>
                             <div className="mt-3 flex items-center justify-end gap-3">
-                              <button type="button" onClick={() => setMockPlots((prev) => prev.filter((p) => p.id !== plot.id))} className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white">Delete</button>
-                              <button type="button" onClick={() => setEditingPlotId(null)} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white">Cancel</button>
+                              <button
+                                type="button"
+                                disabled={isPending}
+                                onClick={() => {
+                                  startTransition(async () => {
+                                    const result = await deletePlot(project.id, plot.id)
+                                    if (result.error) { showToast('error', result.error); return }
+                                    setEditingPlotId(null)
+                                    router.refresh()
+                                  })
+                                }}
+                                className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                Delete
+                              </button>
+                              <button type="button" onClick={() => setEditingPlotId(null)} disabled={isPending} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
                               <Button
                                 size="sm"
-                                disabled={!editPlotData.label.trim() || !editPlotData.url.trim()}
+                                disabled={!editPlotData.label.trim() || !editPlotData.url.trim() || isPending}
                                 onClick={() => {
-                                  setMockPlots((prev) => prev.map((p) => p.id === plot.id ? { ...p, ...editPlotData } : p))
-                                  setEditingPlotId(null)
+                                  startTransition(async () => {
+                                    const result = await updatePlot(project.id, plot.id, {
+                                      label: editPlotData.label.trim(),
+                                      url: editPlotData.url.trim(),
+                                    })
+                                    if (result.error) { showToast('error', result.error); return }
+                                    setEditingPlotId(null)
+                                    router.refresh()
+                                  })
                                 }}
                               >
-                                Save
+                                {isPending ? 'Saving…' : 'Save'}
                               </Button>
                             </div>
                           </>
