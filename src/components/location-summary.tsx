@@ -117,7 +117,11 @@ export function buildLocationSummary(
           cables: cat === 'panels' ? cablesForPanel(fs, spk) : [],
         }
       })
-      .sort((a, b) => a.name.localeCompare(b.name))
+      // Natural-number sort so "PNL 1, PNL 2, ... PNL 10, PNL 11"
+      // reads in human order. Plain localeCompare without `numeric`
+      // gives "PNL 1, PNL 10, PNL 11, ..., PNL 2" because it compares
+      // the "10" and "2" characters lexicographically.
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
     return {
       category: cat,
       label: CATEGORY_LABELS[cat] ?? cat,
