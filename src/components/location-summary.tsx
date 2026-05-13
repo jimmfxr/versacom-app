@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { STATUS_BADGE_STYLES, getStatusLabel } from '@/lib/deploy-status'
+import { compareMultNames } from '@/lib/mults'
 
 const CATEGORY_LABELS: Record<string, string> = {
   panels: 'Panels',
@@ -10,9 +11,10 @@ const CATEGORY_LABELS: Record<string, string> = {
   switches: 'Switches',
   antennas: 'Antennas',
   audio: 'Audio I/O',
+  mults: 'Mults',
 }
 
-const CATEGORY_ORDER = ['panels', 'wireless_bp', 'hardwire_bp', 'switches', 'antennas', 'audio']
+const CATEGORY_ORDER = ['panels', 'wireless_bp', 'hardwire_bp', 'switches', 'antennas', 'audio', 'mults']
 
 /**
  * Minimum shape required to build a location summary. Mapped from the project
@@ -117,11 +119,17 @@ export function buildLocationSummary(
           cables: cat === 'panels' ? cablesForPanel(fs, spk) : [],
         }
       })
-      // Natural-number sort so "PNL 1, PNL 2, ... PNL 10, PNL 11"
-      // reads in human order. Plain localeCompare without `numeric`
-      // gives "PNL 1, PNL 10, PNL 11, ..., PNL 2" because it compares
-      // the "10" and "2" characters lexicographically.
-      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
+      // Sort rule depends on the category:
+      //   - Mults use letter-suffix IDs (FBR A → FBR Z → FBR AA …).
+      //     compareMultNames sorts by suffix LENGTH first then
+      //     alphabet so the doubled-letter convention reads "past Z"
+      //     instead of "between A and B".
+      //   - Everything else uses natural-number sort so
+      //     "PNL 1, PNL 2, … PNL 10, PNL 11" reads in human order.
+      .sort((a, b) => cat === 'mults'
+        ? compareMultNames(a.name, b.name)
+        : a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
+      )
     return {
       category: cat,
       label: CATEGORY_LABELS[cat] ?? cat,

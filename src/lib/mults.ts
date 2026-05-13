@@ -134,6 +134,31 @@ export function letterSuffix(n: number): string {
   return c + c + c
 }
 
+/**
+ * Compare two mult names so they sort in human creation order:
+ *   FBR A < FBR B < ... < FBR Z < FBR AA < FBR BB < ... < FBR ZZ < FBR AAA
+ *
+ * Plain string comparison would give "FBR A < FBR AA < FBR B" because
+ * 'A' < 'AA' < 'B' lexicographically. We compare suffix LENGTH first,
+ * then alphabet, so the doubled-letter convention reads as "after Z"
+ * instead of "between A and B". Names with different prefixes
+ * (FBR vs ETH vs W1 vs CPC) sort alphabetically by prefix first.
+ */
+export function compareMultNames(a: string, b: string): number {
+  const aMatch = a.match(/^(.+?)\s+([A-Z]+)$/)
+  const bMatch = b.match(/^(.+?)\s+([A-Z]+)$/)
+  // Either name doesn't look like a mult-formatted id — fall back to
+  // natural localeCompare so the sort stays deterministic.
+  if (!aMatch || !bMatch) {
+    return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+  }
+  const prefixDiff = aMatch[1].localeCompare(bMatch[1], undefined, { sensitivity: 'base' })
+  if (prefixDiff !== 0) return prefixDiff
+  const lenDiff = aMatch[2].length - bMatch[2].length
+  if (lenDiff !== 0) return lenDiff
+  return aMatch[2].localeCompare(bMatch[2])
+}
+
 /** Build the auto-name for the next mult of a given hardware type. */
 export function nextMultName(type: MultHardwareType, existingNames: string[]): string {
   const prefix = MULT_ID_PREFIX[type]

@@ -7,7 +7,9 @@ import { TasksPageClient } from './tasks-page-client'
 export const dynamic = 'force-dynamic'
 
 const ASSIGNABLE_CATEGORIES = ['panels', 'wireless_bp', 'hardwire_bp']
-const INFRA_CATEGORIES = ['switches', 'antennas', 'audio']
+// Mults are infrastructure too — they get placed at locations, need
+// deploying / returning, and don't have a single assignee.
+const INFRA_CATEGORIES = ['switches', 'antennas', 'audio', 'mults']
 
 export default async function TasksPage({
   searchParams,

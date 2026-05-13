@@ -114,6 +114,11 @@ export function MultStrandList({
 }) {
   const hwType = (mult.hardwareType ?? 'Fiber') as MultHardwareType
   const isAttachable = attachableMult(hwType)
+  // Header collapses the strand list — chevron on the far LEFT of
+  // the "Strands" / "Pairs" label flips rotation between right
+  // (collapsed) and down (expanded). Defaults to expanded since the
+  // list only renders after the user has tapped Edit on the mult.
+  const [expanded, setExpanded] = useState(true)
 
   const allowedCategories = new Set(STRAND_ATTACH_CATEGORIES[hwType])
   const attachOptions = allEquipment.filter((e) => {
@@ -127,10 +132,26 @@ export function MultStrandList({
   if (mult.strands.length === 0) return null
   return (
     <div className="mt-4 space-y-2">
-      <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-        {isAttachable ? 'Strands' : 'Pairs'}
-      </div>
-      {mult.strands.map((strand) => (
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400 transition-colors hover:text-gray-200"
+        aria-expanded={expanded}
+      >
+        <span>{isAttachable ? 'Strands' : 'Pairs'}</span>
+        <svg
+          className={`size-3 transition-transform ${expanded ? 'rotate-180' : ''}`}
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="5 8 10 13 15 8" />
+        </svg>
+      </button>
+      {expanded && mult.strands.map((strand) => (
         <StrandRow
           key={strand.id}
           projectId={projectId}
