@@ -804,8 +804,8 @@ export function ProjectPage({
   const [addPlotUrl, setAddPlotUrl] = useState('')
   const [editingPlotId, setEditingPlotId] = useState<number | null>(null)
   const [editPlotData, setEditPlotData] = useState<{ label: string; url: string }>({ label: '', url: '' })
-  const [plotUploading, setPlotUploading] = useState(false)
-  const [plotUploadError, setPlotUploadError] = useState('')
+  // Upload-related plot state removed — plots are paste-a-link now,
+  // see Add / Edit Plot forms below.
 
   /* ─── Keyboard chain hooks ───
    *  Three useEffects auto-focus the first input when an edit form
@@ -3012,7 +3012,7 @@ export function ProjectPage({
                 <Card>
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-white">Add Stage Plot</h3>
-                    <IconButton onClick={() => { setShowAddPlot(false); setAddPlotLabel(''); setAddPlotUrl(''); setPlotUploadError('') }}><CloseIcon /></IconButton>
+                    <IconButton onClick={() => { setShowAddPlot(false); setAddPlotLabel(''); setAddPlotUrl('') }}><CloseIcon /></IconButton>
                   </div>
                   <div className="mt-4 flex flex-col gap-3">
                     <ComboboxInput
@@ -3022,50 +3022,31 @@ export function ProjectPage({
                       onChange={setAddPlotLabel}
                     />
                     <div>
-                      <label className="mb-1.5 block text-xs font-medium text-gray-400">PDF File</label>
-                      <label className={`flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-6 transition-colors ${addPlotUrl ? 'border-green-500/50 bg-green-500/5' : 'border-white/10 hover:border-white/20'} ${plotUploading ? 'pointer-events-none opacity-50' : ''}`}>
-                        <input
-                          type="file"
-                          accept="application/pdf"
-                          className="sr-only"
-                          disabled={plotUploading}
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0]
-                            if (!file) return
-                            setPlotUploading(true)
-                            setPlotUploadError('')
-                            try {
-                              const form = new FormData()
-                              form.append('file', file)
-                              const res = await fetch('/api/stage-plots/upload', { method: 'POST', body: form })
-                              const data = await res.json()
-                              if (!res.ok) throw new Error(data.error || 'Upload failed')
-                              setAddPlotUrl(data.url)
-                            } catch (err) {
-                              setPlotUploadError(err instanceof Error ? err.message : 'Upload failed')
-                            } finally {
-                              setPlotUploading(false)
-                            }
-                          }}
-                        />
-                        <svg xmlns="http://www.w3.org/2000/svg" className="size-5 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
-                        <span className="text-sm text-gray-300">
-                          {plotUploading ? 'Uploading…' : addPlotUrl ? '✓ Uploaded — tap to replace' : 'Tap to choose PDF'}
-                        </span>
-                      </label>
-                      {plotUploadError && <p className="mt-1.5 text-xs text-red-400">{plotUploadError}</p>}
+                      <label className="mb-1.5 block text-xs font-medium text-gray-400">PDF Link</label>
+                      <input
+                        type="url"
+                        value={addPlotUrl}
+                        onChange={(e) => setAddPlotUrl(e.target.value)}
+                        placeholder="https://drive.google.com/file/d/..."
+                        className="w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+                        autoComplete="off"
+                        spellCheck={false}
+                      />
+                      <p className="mt-1.5 text-[11px] text-gray-500">
+                        Paste a Google Drive (or other) link to the PDF. Sharing must be set to{' '}
+                        <span className="font-medium text-gray-300">Anyone with the link</span> so crew can open it.
+                      </p>
                     </div>
                   </div>
                   <div className="mt-4 flex justify-end">
                     <Button
                       type="button"
-                      disabled={!addPlotLabel.trim() || !addPlotUrl.trim() || plotUploading}
+                      disabled={!addPlotLabel.trim() || !addPlotUrl.trim()}
                       onClick={() => {
                         setMockPlots((prev) => [...prev, { id: Date.now(), label: addPlotLabel.trim(), url: addPlotUrl.trim() }])
                         setAddPlotLabel('')
                         setAddPlotUrl('')
                         setShowAddPlot(false)
-                        setPlotUploadError('')
                       }}
                     >
                       Save
@@ -3095,36 +3076,20 @@ export function ProjectPage({
                                 onChange={(v) => setEditPlotData({ ...editPlotData, label: v })}
                               />
                               <div>
-                                <label className="mb-1.5 block text-xs font-medium text-gray-400">PDF File</label>
-                                <label className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 border-dashed px-4 py-4 transition-colors border-green-500/50 bg-green-500/5 hover:border-white/20 ${plotUploading ? 'pointer-events-none opacity-50' : ''}`}>
-                                  <input
-                                    type="file"
-                                    accept="application/pdf"
-                                    className="sr-only"
-                                    disabled={plotUploading}
-                                    onChange={async (e) => {
-                                      const file = e.target.files?.[0]
-                                      if (!file) return
-                                      setPlotUploading(true)
-                                      setPlotUploadError('')
-                                      try {
-                                        const form = new FormData()
-                                        form.append('file', file)
-                                        const res = await fetch('/api/stage-plots/upload', { method: 'POST', body: form })
-                                        const data = await res.json()
-                                        if (!res.ok) throw new Error(data.error || 'Upload failed')
-                                        setEditPlotData((prev) => ({ ...prev, url: data.url }))
-                                      } catch (err) {
-                                        setPlotUploadError(err instanceof Error ? err.message : 'Upload failed')
-                                      } finally {
-                                        setPlotUploading(false)
-                                      }
-                                    }}
-                                  />
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="size-5 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
-                                  <span className="text-sm text-gray-300">{plotUploading ? 'Uploading…' : '✓ PDF uploaded — tap to replace'}</span>
-                                </label>
-                                {plotUploadError && <p className="mt-1.5 text-xs text-red-400">{plotUploadError}</p>}
+                                <label className="mb-1.5 block text-xs font-medium text-gray-400">PDF Link</label>
+                                <input
+                                  type="url"
+                                  value={editPlotData.url}
+                                  onChange={(e) => setEditPlotData({ ...editPlotData, url: e.target.value })}
+                                  placeholder="https://drive.google.com/file/d/..."
+                                  className="w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+                                  autoComplete="off"
+                                  spellCheck={false}
+                                />
+                                <p className="mt-1.5 text-[11px] text-gray-500">
+                                  Paste a Google Drive (or other) link to the PDF. Sharing must be set to{' '}
+                                  <span className="font-medium text-gray-300">Anyone with the link</span> so crew can open it.
+                                </p>
                               </div>
                             </div>
                             <div className="mt-3 flex items-center justify-end gap-3">
