@@ -13,7 +13,11 @@ export function SearchableSelect({
   compact = false,
   disabled = false,
 }: {
-  label: string
+  /** Optional label rendered above the trigger. Omit to render the
+   *  field without a visible label (useful inside dense rows like
+   *  the mult strand list where another control already labels the
+   *  row). */
+  label?: string
   value: string
   options: Option[]
   onChange: (value: string) => void
@@ -67,7 +71,10 @@ export function SearchableSelect({
   const selectedLabel = options.find((o) => o.value === value)?.label || ''
   const filtered = options
     .filter((o) => !search || o.label.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
+    // `numeric: true` makes "2, 4, 12, 24, 48, 76" sort in natural order
+    // (treats embedded digits as numbers) — without it, plain localeCompare
+    // gives string order "12, 2, 24, 4, 48, 76".
+    .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base', numeric: true }))
 
   // Keep the highlighted row in view as the user arrows through. Need
   // the actual <button> nodes — query by data-attr is simplest.
@@ -139,7 +146,7 @@ export function SearchableSelect({
 
   return (
     <div className="relative" ref={ref}>
-      <label className={labelClass}>{label}</label>
+      {label && <label className={labelClass}>{label}</label>}
       <input
         type="text"
         placeholder={selectedLabel || placeholder}

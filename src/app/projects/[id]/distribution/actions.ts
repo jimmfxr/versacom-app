@@ -8,6 +8,16 @@ import {
   notifyEquipmentEdited,
   notifyEquipmentAssigned,
 } from '@/lib/notifications'
+import {
+  MULT_HARDWARE_TYPES,
+  type MultHardwareType,
+  nextMultName,
+  strandCountFor,
+  FIBER_DEFAULT_STRANDS,
+  FIBER_STRAND_OPTIONS,
+  MULT_LENGTH_OPTIONS,
+  MULT_DEFAULT_LENGTH,
+} from '@/lib/mults'
 
 async function getSession() {
   const cookieStore = await cookies()
@@ -27,6 +37,9 @@ const CATEGORY_PREFIXES: Record<string, string> = {
   switches: 'SW',
   antennas: 'ANT',
   audio: 'AUD',
+  // Mults use a different naming scheme — letter suffix per hardware
+  // type (FBR A / ETH B / W1 C / CPC D) — handled separately below.
+  mults: 'MULT',
 }
 
 /**
@@ -63,6 +76,12 @@ export async function bulkCreateEquipment(
    *  trailing number (e.g. "HWBP 1" → first "HWBP", last "1"). The real
    *  person who eventually checks in via the kiosk replaces them. */
   autoAssign: boolean = true,
+  /** Mults only — strand/pair count for Fiber. Ignored for
+   *  Ethernet/W1/CPC (those have fixed counts) and for non-mult
+   *  categories. */
+  multStrandCount?: number,
+  /** Mults only — physical length in feet (25/50/100/150/300/500/1000). */
+  multLengthFeet?: number,
 ) {
   const session = await getSession()
   if (!session) return { error: 'Not authenticated' }
@@ -72,6 +91,64 @@ export async function bulkCreateEquipment(
   }
   if (quantity < 1 || quantity > 200) {
     return { error: 'Quantity must be between 1 and 200' }
+  }
+
+  // ─── Mults path ─────────────────────────────────────────────────
+  // Mults use a letter-suffix naming convention (FBR A / ETH B / W1
+  // AA / CPC C) and need a MultStrand row per strand/pair on each
+  // new mult. Branch out before the number-based loop below so the
+  // existing logic stays untouched for the other categories.
+  if (category === 'mults') {
+    if (!MULT_HARDWARE_TYPES.includes(hardwareType as MultHardwareType)) {
+      return { error: 'Mult type must be Fiber, Ethernet, W1, or CPC' }
+    }
+    const mht = hardwareType as MultHardwareType
+    const strandCount = mht === 'Fiber'
+      ? (multStrandCount && (FIBER_STRAND_OPTIONS as readonly number[]).includes(multStrandCount)
+          ? multStrandCount
+          : FIBER_DEFAULT_STRANDS)
+      : strandCountFor(mht, null)
+    // Length defaults to the standard 100' when not specified, and
+    // falls back to the same when an unrecognised number is sent.
+    const lengthFeet = multLengthFeet && (MULT_LENGTH_OPTIONS as readonly number[]).includes(multLengthFeet)
+      ? multLengthFeet
+      : MULT_DEFAULT_LENGTH
+
+    // Snapshot existing names in this category so the auto-name
+    // generator can find the next free letter suffix.
+    const existing = await prisma.equipment.findMany({
+      where: { projectId, category: 'mults' },
+      select: { name: true },
+    })
+    const existingNames = existing.map((e) => e.name)
+
+    const createdIds: number[] = []
+    for (let i = 0; i < quantity; i++) {
+      const name = nextMultName(mht, existingNames)
+      existingNames.push(name)
+      const created = await prisma.equipment.create({
+        data: {
+          projectId,
+          name,
+          category: 'mults',
+          hardwareType: mht,
+          strandCount,
+          lengthFeet,
+        },
+        select: { id: true },
+      })
+      createdIds.push(created.id)
+      // Create one MultStrand row per strand/pair.
+      await prisma.multStrand.createMany({
+        data: Array.from({ length: strandCount }, (_, idx) => ({
+          multEquipmentId: created.id,
+          index: idx + 1,
+        })),
+      })
+    }
+
+    revalidatePath(`/projects/${projectId}`)
+    return { success: true, count: createdIds.length, placeholdersCreated: 0 }
   }
 
   const trimmedStartingId = startingId.trim()
@@ -259,6 +336,10 @@ export async function updateEquipment(
     gooseneck?: boolean
     footswitches?: number
     speakers?: number
+    // Mult-only: the switch / Pliant antenna this mult plugs into.
+    trunkEquipmentId?: number | null
+    // Mult-only: physical length in feet.
+    lengthFeet?: number | null
   }
 ) {
   const session = await getSession()
@@ -398,6 +479,42 @@ export async function deleteEquipment(projectId: number, equipmentId: number) {
   if (!session) return { error: 'Not authenticated' }
 
   await prisma.equipment.delete({ where: { id: equipmentId } })
+
+  revalidatePath(`/projects/${projectId}`)
+  return { success: true }
+}
+
+/**
+ * Update a single mult strand row. Used by both the channel-name input
+ * and the attach-to-gear dropdown. Either field can be omitted —
+ * undefined means "don't change". Pass `attachedEquipmentId: null`
+ * explicitly to clear the attachment.
+ */
+export async function updateMultStrand(
+  projectId: number,
+  strandId: number,
+  data: {
+    channelName?: string
+    attachedEquipmentId?: number | null
+  },
+) {
+  const session = await getSession()
+  if (!session) return { error: 'Not authenticated' }
+
+  // Build the update payload defensively — only forward fields that
+  // were actually provided so callers can patch one field at a time.
+  const patch: { channelName?: string; attachedEquipmentId?: number | null } = {}
+  if (data.channelName !== undefined) patch.channelName = data.channelName
+  if (data.attachedEquipmentId !== undefined) patch.attachedEquipmentId = data.attachedEquipmentId
+
+  if (Object.keys(patch).length === 0) {
+    return { success: true }
+  }
+
+  await prisma.multStrand.update({
+    where: { id: strandId },
+    data: patch,
+  })
 
   revalidatePath(`/projects/${projectId}`)
   return { success: true }

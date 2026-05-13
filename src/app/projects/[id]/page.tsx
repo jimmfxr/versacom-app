@@ -65,12 +65,44 @@ export default async function ProjectDetailPage({
         gooseneck: true,
         footswitches: true,
         speakers: true,
+        // Mult-specific columns. Null on non-mult rows.
+        trunkEquipmentId: true,
+        strandCount: true,
+        lengthFeet: true,
         assignedTo: {
           select: {
             id: true,
             position: true,
             user: { select: { firstName: true, lastName: true } },
           },
+        },
+        // Strands belong to mults only — Prisma returns an empty
+        // array for non-mult rows. Ordered by index so the UI can
+        // render the list 1..N without re-sorting.
+        strands: {
+          select: {
+            id: true,
+            index: true,
+            channelName: true,
+            attachedEquipmentId: true,
+          },
+          orderBy: { index: 'asc' },
+        },
+        // Reverse: every mult strand pointing AT this Equipment row.
+        // Lets switches + Pliant antennas display the mult patches
+        // wired to them ("FBR A ch1, ETH B ch5") in their card body.
+        // Empty for rows that nothing attaches to (panels with no
+        // mult wiring yet, etc.).
+        attachedStrands: {
+          select: {
+            id: true,
+            index: true,
+            channelName: true,
+            mult: {
+              select: { id: true, name: true, hardwareType: true },
+            },
+          },
+          orderBy: [{ multEquipmentId: 'asc' }, { index: 'asc' }],
         },
       },
       orderBy: [{ category: 'asc' }, { id: 'asc' }],
@@ -249,6 +281,18 @@ export default async function ProjectDetailPage({
         gooseneck: e.gooseneck,
         footswitches: e.footswitches,
         speakers: e.speakers,
+        trunkEquipmentId: e.trunkEquipmentId,
+        strandCount: e.strandCount,
+        lengthFeet: e.lengthFeet,
+        strands: e.strands,
+        attachedStrands: e.attachedStrands.map((s) => ({
+          id: s.id,
+          index: s.index,
+          channelName: s.channelName,
+          multId: s.mult.id,
+          multName: s.mult.name,
+          multHardwareType: s.mult.hardwareType,
+        })),
       }))}
       assignableMembers={memberRows.map((m) => ({
         id: m.id,

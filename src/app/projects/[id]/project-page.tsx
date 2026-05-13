@@ -5,6 +5,15 @@ import { useRouter } from 'next/navigation'
 import { PencilIcon, XMarkIcon, ChevronLeftIcon } from '@heroicons/react/24/outline'
 import { QRCodeSVG } from 'qrcode.react'
 import { STATUS_BORDER_STYLES, getStatusLabel } from '@/lib/deploy-status'
+import {
+  MULT_HARDWARE_TYPES,
+  FIBER_STRAND_OPTIONS,
+  FIBER_DEFAULT_STRANDS,
+  MULT_LENGTH_OPTIONS,
+  MULT_DEFAULT_LENGTH,
+  type MultHardwareType,
+} from '@/lib/mults'
+import { MultRowHeader, MultStrandList } from '@/components/mult-row'
 import { DeployStatusSelect } from '@/components/deploy-status-select'
 import { useDeviceReachability } from '@/hooks/use-device-reachability'
 import { useBackgroundRefresh } from '@/hooks/use-background-refresh'
@@ -37,6 +46,10 @@ const CATEGORIES = [
   { value: 'switches', label: 'Switches', prefix: 'SW', assignable: false },
   { value: 'antennas', label: 'Antennas', prefix: 'ANT', assignable: false },
   { value: 'audio', label: 'Audio', prefix: 'AUD', assignable: false },
+  // Mults — cable multipliers. Auto-IDs use a LETTER suffix per
+  // hardware-type prefix (FBR A, ETH B, W1 AA, CPC C) instead of the
+  // number-based prefix above. See nextMultName() in lib/mults.ts.
+  { value: 'mults', label: 'Mults', prefix: 'MULT', assignable: false },
 ] as const
 
 const HARDWARE_TYPES: Record<string, string[]> = {
@@ -46,6 +59,7 @@ const HARDWARE_TYPES: Record<string, string[]> = {
   switches: ['26P+4F', '40P+4F', '24X8F8V', '16F', '9P+1F', 'Intellanet Old', 'Intellanet New', 'Media', 'Antaira', 'TP Link', 'Pliant Copper Hub', 'Pliant Fiber Hub'],
   antennas: ['Bolero 1.9', 'Bolero 2.4', 'Pliant', 'Freespeak 1.9', 'Freespeak 2.4'],
   audio: ['NA2', 'A16r', 'Dark88'],
+  mults: ['Fiber', 'Ethernet', 'W1', 'CPC'],
 }
 
 /**
@@ -138,6 +152,22 @@ type Project = {
   returnPhaseActive: boolean
 }
 
+type MultStrandItem = {
+  id: number
+  index: number
+  channelName: string
+  attachedEquipmentId: number | null
+}
+
+type AttachedStrandItem = {
+  id: number
+  index: number
+  channelName: string
+  multId: number
+  multName: string
+  multHardwareType: string | null
+}
+
 type EquipmentItem = {
   id: number
   name: string
@@ -156,6 +186,14 @@ type EquipmentItem = {
   gooseneck: boolean
   footswitches: number
   speakers: number
+  // Mult-only fields; null/empty on non-mult rows.
+  trunkEquipmentId: number | null
+  strandCount: number | null
+  lengthFeet: number | null
+  strands: MultStrandItem[]
+  // Reverse — every mult strand that points AT this row. Switches +
+  // Pliant antennas show this list inline; everywhere else it's empty.
+  attachedStrands: AttachedStrandItem[]
 }
 
 type AssignableMember = { id: number; name: string }
@@ -221,13 +259,28 @@ function hasField(category: string, field: string, hardwareType?: string | null)
   const panelFields = ['location', 'headsetType', 'ipAddress']
   const wirelessFields = ['headsetType']
   const hardwireFields = ['location', 'headsetType', 'ipAddress']
-  const switchFields = ['location', 'ipAddress', 'patch']
+  // Patch isn't editable on switches anymore — mult strand attachments
+  // surface as a "Patched:" line on the switch card automatically, so
+  // the manual free-text Patch input would be a duplicate source of
+  // truth. Pliant antennas still get a manual Patch input via the
+  // antennaFields branch below since their patching workflow is
+  // different.
+  const switchFields = ['location', 'ipAddress']
   // Antennas get a free-form "Name" alongside the ANT 1 / ANT 2 ID
   // so installers can label them by their physical role (e.g. "FOH
   // Bolero", "PLHQ 2.4"). Stored in the Equipment.position column
   // (unused for other categories).
-  const antennaFields = ['location', 'ipAddress', 'position']
+  // Pliant antennas get an extra "Patch" free-text input so admins
+  // can label the patch the antenna sits on at the splitter / hub.
+  // Other antenna hardware types (Bolero / Freespeak) don't get it.
+  const antennaFields = hardwareType === 'Pliant'
+    ? ['location', 'ipAddress', 'position', 'patch']
+    : ['location', 'ipAddress', 'position']
   const audioFields = ['location']
+  // Mults: location + physical length. Wiring is recorded at the
+  // strand level (MultStrand rows + attach dropdowns), not at the
+  // mult level — there's no "trunk parent" concept.
+  const multFields = ['location', 'lengthFeet']
 
   // IP field is hidden for non-managed hardware types — Antaira / TP
   // Link / Intellanet / Media / Pliant hubs on the switches side, and
@@ -248,6 +301,7 @@ function hasField(category: string, field: string, hardwareType?: string | null)
   if (category === 'switches') return switchFields.includes(field)
   if (category === 'antennas') return antennaFields.includes(field)
   if (category === 'audio') return audioFields.includes(field)
+  if (category === 'mults') return multFields.includes(field)
   return false
 }
 
@@ -272,8 +326,8 @@ function AddTabSwitcher({
   value,
   onChange,
 }: {
-  value: 'equipment' | 'inventory'
-  onChange: (v: 'equipment' | 'inventory') => void
+  value: 'equipment' | 'inventory' | 'mults'
+  onChange: (v: 'equipment' | 'inventory' | 'mults') => void
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -285,9 +339,10 @@ function AddTabSwitcher({
     return () => document.removeEventListener('mousedown', onMouseDown)
   }, [open])
 
-  const options: Array<{ v: 'equipment' | 'inventory'; label: string }> = [
+  const options: Array<{ v: 'equipment' | 'inventory' | 'mults'; label: string }> = [
     { v: 'equipment', label: 'Add Equipment' },
     { v: 'inventory', label: 'Add Headsets & Misc' },
+    { v: 'mults', label: 'Add Mults' },
   ]
   const label = options.find((o) => o.v === value)?.label ?? 'Add Equipment'
 
@@ -662,7 +717,7 @@ export function ProjectPage({
   // Which tab inside the open Add Equipment card is active. Default = the
   // gear-add form; flip to 'inventory' to manage headset / misc counts that
   // used to live under the Edit button on the Dashboard headsets card.
-  const [addTab, setAddTab] = useState<'equipment' | 'inventory'>('equipment')
+  const [addTab, setAddTab] = useState<'equipment' | 'inventory' | 'mults'>('equipment')
   const [addEquipmentId, setAddEquipmentId] = useState('')
   const [addCategory, setAddCategory] = useState('panels')
   const [addHardwareType, setAddHardwareType] = useState('')
@@ -671,6 +726,13 @@ export function ProjectPage({
   // members for each piece, ready for the real person to take over via
   // the kiosk. Flip to No when the equipment is for storage / spares.
   const [addAutoAssign, setAddAutoAssign] = useState(true)
+  // Mults-specific add state — separate from the regular gear-add
+  // state so switching the dropdown to Mults doesn't clobber whatever
+  // category/hardware the user had in the equipment form.
+  const [addMultHardwareType, setAddMultHardwareType] = useState<MultHardwareType>('Fiber')
+  const [addMultStrandCount, setAddMultStrandCount] = useState<number>(FIBER_DEFAULT_STRANDS)
+  const [addMultLength, setAddMultLength] = useState<number>(MULT_DEFAULT_LENGTH)
+  const [addMultQuantity, setAddMultQuantity] = useState('1')
   const [addError, setAddError] = useState('')
   const [editingEqId, setEditingEqId] = useState<number | null>(null)
   const [editEqData, setEditEqData] = useState<Partial<EquipmentItem>>({})
@@ -877,6 +939,32 @@ export function ProjectPage({
 
   /* ─── Equipment actions ─── */
 
+  function handleMultBulkAdd() {
+    const qty = parseInt(addMultQuantity, 10)
+    if (!qty || qty < 1) { setAddError('Quantity must be at least 1'); return }
+    if (qty > 200) { setAddError('Quantity must be at most 200'); return }
+    setAddError('')
+    startTransition(async () => {
+      const result = await bulkCreateEquipment(
+        project.id,
+        'mults',
+        addMultHardwareType,
+        qty,
+        '',
+        false,
+        // Strand count only matters for Fiber; the server ignores it for
+        // the fixed-count types (Ethernet/W1/CPC).
+        addMultHardwareType === 'Fiber' ? addMultStrandCount : undefined,
+        addMultLength,
+      )
+      if (result.error) { setAddError(result.error); return }
+      showToast('success', `Added ${result.count} ${addMultHardwareType} mult${result.count === 1 ? '' : 's'}`)
+      setShowAdd(false)
+      setAddMultQuantity('1')
+      router.refresh()
+    })
+  }
+
   function handleBulkAdd() {
     const qty = parseInt(addQuantity, 10)
     if (!qty || qty < 1) { setAddError('Quantity must be at least 1'); return }
@@ -924,6 +1012,7 @@ export function ProjectPage({
       gooseneck: item.gooseneck ?? false,
       footswitches: item.footswitches ?? 0,
       speakers: item.speakers ?? 0,
+      lengthFeet: item.lengthFeet,
     })
   }
 
@@ -945,13 +1034,21 @@ export function ProjectPage({
         location: normalizedLocation,
         headsetType: hasField(item.category, 'headsetType') ? (editEqData.headsetType as string) || null : null,
         ipAddress: hasField(item.category, 'ipAddress', editEqData.hardwareType as string | null) ? (editEqData.ipAddress as string) || null : null,
-        patch: hasField(item.category, 'patch') ? (editEqData.patch as string) || null : null,
+        // Patch — when the row's category doesn't expose a Patch input
+        // (now true for switches), don't touch the column. `undefined`
+        // tells Prisma to skip the field instead of clobbering any
+        // pre-existing value to null on save.
+        patch: hasField(item.category, 'patch') ? (editEqData.patch as string) || null : undefined,
         deployStatus: (editEqData.deployStatus as string) || 'na',
         assignedToId: isAssignable(item.category) ? (editEqData.assignedToId as number | null) : null,
         // Panel-only misc accessories
         gooseneck: item.category === 'panels' ? Boolean(editEqData.gooseneck) : false,
         footswitches: item.category === 'panels' ? Number(editEqData.footswitches ?? 0) : 0,
         speakers: item.category === 'panels' ? Number(editEqData.speakers ?? 0) : 0,
+        // Mult-only: physical length in feet. Null on non-mult rows.
+        lengthFeet: hasField(item.category, 'lengthFeet')
+          ? ((editEqData.lengthFeet as number | null | undefined) ?? null)
+          : null,
       })
       if (result.error) { showToast('error', result.error); return }
       // Chain to the next visible equipment card before clearing the
@@ -1766,6 +1863,11 @@ export function ProjectPage({
                         <div className="mt-0.5 text-xs text-gray-500">How many of each you packed for this show</div>
                       </div>
                     )}
+                    {addTab === 'mults' && (
+                      <p className="order-2 text-xs text-gray-500 sm:order-1 sm:flex-1">
+                        Add mults. Each gets its own card with a strand list. IDs auto-letter per type — <span className="font-mono">FBR A</span>, <span className="font-mono">ETH B</span>, <span className="font-mono">W1 C</span>, <span className="font-mono">CPC D</span>.
+                      </p>
+                    )}
                     <div className="order-1 flex items-center justify-end gap-2 sm:order-2">
                       <AddTabSwitcher value={addTab} onChange={setAddTab} />
                       <IconButton className="shrink-0" onClick={() => { setShowAdd(false); setAddError('') }}><CloseIcon /></IconButton>
@@ -1818,7 +1920,7 @@ export function ProjectPage({
                         {addError && <p className="mt-3 text-sm text-red-400">{addError}</p>}
                       </form>
                     </>
-                  ) : (
+                  ) : addTab === 'inventory' ? (
                     <div className="mt-3">
                       <HeadsetInventoryEditor
                         projectId={project.id}
@@ -1836,6 +1938,66 @@ export function ProjectPage({
                         onDone={() => setShowAdd(false)}
                       />
                     </div>
+                  ) : (
+                    // ─── Mults add form ───
+                    // Three inputs (Hardware Type / Strand Count for Fiber /
+                    // Quantity). Strand count only renders for Fiber; the
+                    // other types are fixed (Ethernet=5, W1=16, CPC=4).
+                    <form onSubmit={(e) => { e.preventDefault(); handleMultBulkAdd() }}>
+                      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+                        <SearchableSelect
+                          label="Hardware"
+                          value={addMultHardwareType}
+                          placeholder="Select..."
+                          options={MULT_HARDWARE_TYPES.map((t) => ({ value: t, label: t }))}
+                          onChange={(v) => {
+                            const next = v as MultHardwareType
+                            setAddMultHardwareType(next)
+                            // Reset strand count to the Fiber default when
+                            // flipping back to Fiber; the count input itself
+                            // hides for the other types so the stored value
+                            // doesn't matter for them.
+                            if (next === 'Fiber') setAddMultStrandCount(FIBER_DEFAULT_STRANDS)
+                          }}
+                        />
+                        {addMultHardwareType === 'Fiber' && (
+                          <SearchableSelect
+                            label="Strands"
+                            value={String(addMultStrandCount)}
+                            placeholder="Select..."
+                            options={FIBER_STRAND_OPTIONS.map((n) => ({ value: String(n), label: String(n) }))}
+                            onChange={(v) => setAddMultStrandCount(parseInt(v, 10) || FIBER_DEFAULT_STRANDS)}
+                          />
+                        )}
+                        <SearchableSelect
+                          label="Length"
+                          value={String(addMultLength)}
+                          placeholder="Select..."
+                          options={MULT_LENGTH_OPTIONS.map((n) => ({ value: String(n), label: `${n}'` }))}
+                          onChange={(v) => setAddMultLength(parseInt(v, 10) || MULT_DEFAULT_LENGTH)}
+                        />
+                        <FormInput
+                          label="Quantity"
+                          type="number"
+                          min={1}
+                          max={200}
+                          value={addMultQuantity}
+                          onChange={(e) => setAddMultQuantity(e.target.value)}
+                        />
+                      </div>
+                      <div className="mt-4 flex items-center justify-end gap-3">
+                        <button
+                          type="button"
+                          onClick={() => { setShowAdd(false); setAddError('') }}
+                          disabled={isPending}
+                          className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                        <Button type="submit" size="sm" disabled={isPending}>{isPending ? 'Adding…' : 'Add'}</Button>
+                      </div>
+                      {addError && <p className="mt-3 text-sm text-red-400">{addError}</p>}
+                    </form>
                   )}
                 </Card>
               )}
@@ -1860,8 +2022,36 @@ export function ProjectPage({
                 <EmptyState icon={<WrenchIcon />} title={eqSearch ? 'No matches found' : 'No equipment yet'} message={eqSearch ? 'Try a different search term.' : 'Add equipment using the button above.'} />
               ) : (
                 <div className="divide-y divide-white/[0.06]">
+                  {/* Pre-compute the "gear already attached to another
+                      mult's strand" set so each MultRow can hide those
+                      from its attach dropdown (1:1 wiring rule). */}
+                  {(() => null)()}
                   {filteredEquipment.map((item) => {
                     const isEditing = editingEqId === item.id
+
+                    // Mults: when NOT editing, render the read-only
+                    // header (no chevron). When editing, the regular
+                    // equipment edit form renders below (further down
+                    // in this map) and a strand list is appended via
+                    // MultStrandList right after the form.
+                    if (item.category === 'mults' && !isEditing) {
+                      return (
+                        <MultRowHeader
+                          key={item.id}
+                          mult={{
+                            id: item.id,
+                            name: item.name,
+                            hardwareType: item.hardwareType,
+                            location: item.location,
+                            lengthFeet: item.lengthFeet,
+                            strands: item.strands,
+                          }}
+                          canEdit={canEditEquipment}
+                          onEdit={() => startEqEdit(item)}
+                        />
+                      )
+                    }
+
                     return (
                       <div key={item.id} className={`flex items-start gap-4 py-3 transition-colors ${isEditing ? '' : 'hover:bg-white/[0.04]'}`}>
                         {/* Content */}
@@ -1954,6 +2144,28 @@ export function ProjectPage({
                                 {hasField(item.category, 'patch') && (
                                   <FormInput compact label="Patch" type="text" value={(editEqData.patch as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, patch: e.target.value })} />
                                 )}
+                                {/* Mult-only length dropdown. Physical
+                                    cable length in feet. */}
+                                {hasField(item.category, 'lengthFeet') && (
+                                  <SearchableSelect
+                                    compact
+                                    label="Length"
+                                    value={editEqData.lengthFeet == null ? '' : String(editEqData.lengthFeet)}
+                                    placeholder="None"
+                                    options={[
+                                      { value: '', label: 'None' },
+                                      ...MULT_LENGTH_OPTIONS.map((n) => ({ value: String(n), label: `${n}'` })),
+                                    ]}
+                                    onChange={(v) => setEditEqData({ ...editEqData, lengthFeet: v ? parseInt(v, 10) : null })}
+                                  />
+                                )}
+                                {/* Mult-only trunk dropdown. Options are
+                                    switches and Pliant antennas — the
+                                    only valid trunk endpoints. */}
+                                {/* Trunk dropdown removed — wiring is
+                                    recorded per strand via the attach
+                                    dropdown inside the strand list
+                                    below. */}
                                 {isAssignable(item.category) && (
                                   <SearchableSelect
                                     compact
@@ -2005,6 +2217,37 @@ export function ProjectPage({
                                 <button type="button" onClick={() => setEditingEqId(null)} disabled={isPending} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
                                 <Button type="submit" size="sm" disabled={isPending}>Save</Button>
                               </div>
+                              {/* Mult-only: strand / pair list appears
+                                  inline under the edit form action row,
+                                  inside the same edit container. Each
+                                  strand auto-saves channel name + attach
+                                  independently of the equipment Save. */}
+                              {item.category === 'mults' && (() => {
+                                const attachedElsewhere = new Set<number>()
+                                for (const m of equipment) {
+                                  if (m.category !== 'mults' || m.id === item.id) continue
+                                  if (m.hardwareType !== item.hardwareType) continue
+                                  for (const s of m.strands) {
+                                    if (s.attachedEquipmentId != null) attachedElsewhere.add(s.attachedEquipmentId)
+                                  }
+                                }
+                                const lookup = equipment.map((e) => ({
+                                  id: e.id,
+                                  name: e.name,
+                                  category: e.category,
+                                  hardwareType: e.hardwareType,
+                                  position: e.position,
+                                  location: e.location,
+                                }))
+                                return (
+                                  <MultStrandList
+                                    projectId={project.id}
+                                    mult={{ id: item.id, hardwareType: item.hardwareType, strands: item.strands }}
+                                    allEquipment={lookup}
+                                    attachedElsewhere={attachedElsewhere}
+                                  />
+                                )
+                              })()}
                             </form>
                           ) : (
                             <>
@@ -2093,7 +2336,7 @@ export function ProjectPage({
                                   {item.hardwareType && <span><span className="text-xs text-gray-500">Hardware: </span>{item.hardwareType}</span>}
                                   {item.headsetType && <span><span className="text-xs text-gray-500">Headset: </span>{item.headsetType}</span>}
                                   {item.ipAddress && <span><span className="text-xs text-gray-500">IP: </span><a href={`http://${item.ipAddress}${item.category === 'panels' ? '/remote-control/' : ''}`} target="_blank" rel="noopener noreferrer" className="text-[#22a7d3] hover:text-[#019bc7]">{item.ipAddress}</a></span>}
-                                  {item.patch && <span><span className="text-xs text-gray-500">Patch: </span><span className="font-mono">{item.patch}</span></span>}
+                                  {item.patch && item.category !== 'switches' && <span><span className="text-xs text-gray-500">Patch: </span><span className="font-mono">{item.patch}</span></span>}
                                   {item.gooseneck && <span><span className="text-xs text-gray-500">Misc: </span>Gooseneck</span>}
                                   {item.footswitches > 0 && <span><span className="text-xs text-gray-500">FS: </span>{item.footswitches}</span>}
                                   {item.speakers > 0 && <span><span className="text-xs text-gray-500">SPK: </span>{item.speakers}</span>}
@@ -2104,12 +2347,37 @@ export function ProjectPage({
                                   {item.hardwareType && <><span className="text-xs text-gray-500">Hardware: </span><span>{item.hardwareType}</span></>}
                                   {item.headsetType && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">Headset: </span><span>{item.headsetType}</span></>}
                                   {item.ipAddress && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">IP: </span><a href={`http://${item.ipAddress}${item.category === 'panels' ? '/remote-control/' : ''}`} target="_blank" rel="noopener noreferrer" className="text-[#22a7d3] hover:text-[#019bc7]">{item.ipAddress}</a></>}
-                                  {item.patch && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">Patch: </span><span className="font-mono">{item.patch}</span></>}
+                                  {item.patch && item.category !== 'switches' && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">Patch: </span><span className="font-mono">{item.patch}</span></>}
                                   {item.gooseneck && <><span className="text-gray-500">·</span><span>Gooseneck</span></>}
                                   {item.footswitches > 0 && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">FS: </span><span>{item.footswitches}</span></>}
                                   {item.speakers > 0 && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">SPK: </span><span>{item.speakers}</span></>}
                                 </div>
                               </div>
+                              {/* Mult patches — every mult strand that
+                                  points AT this Equipment row. Only
+                                  surfaces on switches and Pliant
+                                  antennas (the trunk-end devices that
+                                  mults plug into). Suffix is "strand"
+                                  for Fiber mults and "pair" for the
+                                  copper types (Ethernet / W1 / CPC).
+                                  Channel name shows as a hover tooltip. */}
+                              {item.attachedStrands.length > 0
+                                && (item.category === 'switches'
+                                  || (item.category === 'antennas' && item.hardwareType === 'Pliant'))
+                                && (
+                                  <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-gray-400">
+                                    <span className="text-xs text-gray-500">Patched: </span>
+                                    {item.attachedStrands.map((s, i) => {
+                                      const unit = s.multHardwareType === 'Fiber' ? 'Strand' : 'Pair'
+                                      return (
+                                        <span key={s.id} title={s.channelName || undefined}>
+                                          <span className="text-[#22a7d3]">{s.multName} {unit} {s.index}</span>
+                                          {i < item.attachedStrands.length - 1 && <span className="text-gray-500"> · </span>}
+                                        </span>
+                                      )
+                                    })}
+                                  </div>
+                                )}
                             </>
                           )}
                         </div>

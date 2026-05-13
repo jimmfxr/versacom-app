@@ -257,8 +257,8 @@ model Equipment {
   id           Int     @id @default(autoincrement())
   projectId    Int
   assignedToId Int?
-  name         String  // Auto-generated identifier e.g. PNL 1, WLBP 1, SW 1
-  category     String  // panels, wireless_bp, hardwire_bp, switches, antennas, audio
+  name         String  // Auto-generated identifier e.g. PNL 1, WLBP 1, SW 1, FBR A
+  category     String  // panels, wireless_bp, hardwire_bp, switches, antennas, audio, mults
   hardwareType String?
   position     String?
   location     String?
@@ -272,15 +272,55 @@ model Equipment {
   gooseneck    Boolean @default(false)
   footswitches Int     @default(0)
   speakers     Int     @default(0)
+  // Mult-only: the switch / Pliant antenna this mult plugs INTO at
+  // its trunk end. Multiple mults can trunk into the same device.
+  trunkEquipmentId Int?
+  // Mult-only: number of strands/pairs. Fiber is variable (chosen at
+  // create time: 2/4/12/24/48/76); Ethernet/W1/CPC are fixed at
+  // 5/16/4 but stored here too for consistency.
+  strandCount  Int?
+  // Mult-only: physical length in feet (25 / 50 / 100 / 150 / 300 /
+  // 500 / 1000). Stored as an int so we can sort + filter; rendered
+  // with a trailing apostrophe in the UI.
+  lengthFeet   Int?
 
   // Relations
-  project        Project        @relation(fields: [projectId], references: [id])
-  assignedTo     ProjectMember? @relation(fields: [assignedToId], references: [id])
-  asset          Asset?         @relation(fields: [assetId], references: [id])
-  nfgReports     NfgReport[]
-  panelKeys      PanelKey[]
-  changeRequests ChangeRequest[]
-  panelPresences PanelPresence[]
+  project         Project         @relation(fields: [projectId], references: [id])
+  assignedTo      ProjectMember?  @relation(fields: [assignedToId], references: [id])
+  asset           Asset?          @relation(fields: [assetId], references: [id])
+  nfgReports      NfgReport[]
+  panelKeys       PanelKey[]
+  changeRequests  ChangeRequest[]
+  panelPresences  PanelPresence[]
+  // Mult relations — when this row IS a mult, it has strands. When
+  // another mult trunks into THIS row (e.g. switch / Pliant antenna),
+  // those mults show up in trunkingMults.
+  trunkEquipment  Equipment?      @relation("MultTrunk", fields: [trunkEquipmentId], references: [id])
+  trunkingMults   Equipment[]     @relation("MultTrunk")
+  strands         MultStrand[]    @relation("MultStrands")
+  attachedStrands MultStrand[]    @relation("StrandAttachment")
+}
+
+// One row per strand/pair on a mult. The mult itself lives in
+// Equipment (category='mults'); its strands live here so we can
+// query individual strand wiring across the project.
+model MultStrand {
+  id                  Int    @id @default(autoincrement())
+  // The Equipment row (category='mults') this strand belongs to.
+  multEquipmentId     Int
+  // 1-based strand/pair index inside the mult.
+  index               Int
+  // Free-text channel name the user types ("FOH Mix", "Wireless A return").
+  channelName         String @default("")
+  // What's attached on the FAR end. Nullable — pairs on W1 / CPC
+  // mults are documentation only and stay null.
+  attachedEquipmentId Int?
+
+  mult     Equipment  @relation("MultStrands", fields: [multEquipmentId], references: [id], onDelete: Cascade)
+  attached Equipment? @relation("StrandAttachment", fields: [attachedEquipmentId], references: [id], onDelete: SetNull)
+
+  @@unique([multEquipmentId, index])
+  @@index([attachedEquipmentId])
 }
 
 model Asset {
