@@ -140,7 +140,7 @@ export function MultStrandList({
       >
         <span>{isAttachable ? 'Strands' : 'Pairs'}</span>
         <svg
-          className={`size-3 transition-transform ${expanded ? 'rotate-180' : ''}`}
+          className={`size-5 transition-transform ${expanded ? 'rotate-180' : ''}`}
           viewBox="0 0 20 20"
           fill="none"
           stroke="currentColor"

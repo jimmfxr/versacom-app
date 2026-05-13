@@ -210,7 +210,11 @@ export function LocationSummary({
           <div className="text-base font-semibold text-white">{location}</div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-[#22a7d3]/15 px-2.5 py-1 text-xs font-semibold text-[#22a7d3]">
+          {/* Item-count badge — chip chrome (rounded-lg border-thin)
+              tinted cyan to match the other status / function-type
+              chips across the app. Was an old soft-fill pill that
+              didn't read as part of the chip family. */}
+          <span className="inline-flex items-center rounded-lg border border-[#22a7d3]/60 px-3 py-1.5 text-xs font-medium text-[#22a7d3]">
             {summary.totalGear} {summary.totalGear === 1 ? 'item' : 'items'}
           </span>
           <svg
