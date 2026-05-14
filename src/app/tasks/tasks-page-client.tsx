@@ -21,6 +21,7 @@ export function TasksPageClient({
   userProjects,
   validFilteredId,
   selectedProjectName,
+  plots = [],
 }: {
   cards: TaskCard[]
   allGear: GearItem[]
@@ -28,6 +29,7 @@ export function TasksPageClient({
   userProjects: Array<{ id: number; name: string }>
   validFilteredId: number | null
   selectedProjectName: string | null
+  plots?: Array<{ id: number; label: string; url: string }>
 }) {
   const [search, setSearch] = useState('')
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
@@ -112,6 +114,7 @@ export function TasksPageClient({
           locations={locations}
           searchValue={search}
           onSearchChange={setSearch}
+          plots={plots}
         />
       )}
     </PageLayout>

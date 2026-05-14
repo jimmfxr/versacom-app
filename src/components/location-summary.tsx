@@ -185,15 +185,27 @@ export function LocationSummary({
   location,
   allGear,
   label = 'Pull list',
+  plots = [],
 }: {
   location: string
   allGear: LocationSummaryGear[]
   /** Header label — defaults to "Pull list", switches to "Return list" when
    *  the calling page is in return phase. */
   label?: string
+  /** Project plots so the card can link to the matching PDF in-line.
+   *  Match is case-insensitive on label (so "FOH" plot maps to FOH
+   *  location). Optional — nothing renders when no match exists. */
+  plots?: Array<{ id: number; label: string; url: string }>
 }) {
   const summary = buildLocationSummary(allGear, location)
   const [collapsed, setCollapsed] = useState(false)
+  // Find a plot whose label matches this location (case-insensitive).
+  // Used to surface the "Open PDF" chip directly under the card's
+  // Pull-list header so it's the first action crew see when opening
+  // a location.
+  const matchingPlot = plots.find(
+    (p) => p.label.trim().toLowerCase() === location.trim().toLowerCase(),
+  ) ?? null
 
   return (
     <div className="mb-4 border-b border-white/10 py-4 sm:py-5">
@@ -229,148 +241,155 @@ export function LocationSummary({
         </div>
       </button>
 
+      {/* Plot chip — sits directly under the Pull-list header so it's
+          the first thing crew see when the card is open. Links to the
+          matching stage-plot PDF (case-insensitive label match against
+          this location). Hidden when collapsed or no matching plot. */}
+      {!collapsed && matchingPlot && (
+        <div className="mt-3 flex">
+          <a
+            href={matchingPlot.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center rounded-lg border border-[#22a7d3]/60 px-3 py-1.5 text-xs font-medium text-[#22a7d3] transition-colors hover:bg-[#22a7d3]/10"
+          >
+            {matchingPlot.label}
+          </a>
+        </div>
+      )}
       {!collapsed && (
-        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-500">
-              Gear
-            </div>
-            {summary.byCategory.length === 0 ? (
-              <div className="text-xs text-gray-500">No gear at this location.</div>
-            ) : (
-              <div className="space-y-3">
-                {summary.byCategory.map((g) => (
-                  <div key={g.category}>
-                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                      {g.label}
-                      <span className="ml-1.5 text-gray-500">{g.items.length}</span>
-                    </div>
-                    <div className="space-y-1">
-                      {g.items.map((item) => (
-                        <div key={item.id}>
-                          <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
-                            <span className="font-mono font-semibold tabular-nums text-[#22a7d3]">
-                              {item.name}
-                            </span>
-                            <span className="text-gray-200">
-                              {item.hardwareType || (
-                                <span className="italic text-gray-500">no model</span>
-                              )}
-                            </span>
-                            {item.headsetType && (
-                              <span className="text-xs text-gray-500">· {item.headsetType}</span>
-                            )}
-                            {item.gooseneck && (
-                              <span className="text-xs text-gray-500">· Gooseneck</span>
-                            )}
-                            {item.footswitches > 0 && (
-                              <span className="text-xs text-gray-500">· FS {item.footswitches}</span>
-                            )}
-                            {item.speakers > 0 && (
-                              <span className="text-xs text-gray-500">· SPK {item.speakers}</span>
-                            )}
-                            {item.deployStatus && VISIBLE_STATUSES.has(item.deployStatus) && (
-                              <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${STATUS_BADGE_STYLES[item.deployStatus] || ''}`}>
-                                {getStatusLabel(item.deployStatus)}
-                              </span>
-                            )}
-                          </div>
-                          {/* Cable accessories — second line, only when this
-                              panel actually needs cables. Compact, dim, and
-                              indented to align with the model name. */}
-                          {item.cables.length > 0 && (
-                            <div className="ml-1 flex flex-wrap items-baseline gap-x-1.5 text-[11px] text-gray-500">
-                              {item.cables.map((c, i) => (
-                                <span key={c.label}>
-                                  {i > 0 && <span className="text-gray-600"> · </span>}
-                                  <span className="font-mono tabular-nums">{c.count}× </span>
-                                  {c.label}
-                                </span>
-                              ))}
-                            </div>
+        // CSS multi-column flow on desktop. Each section (gear
+        // category / Headsets / Cables / Misc) is an atomic block with
+        // `break-inside-avoid`, so the browser auto-balances them
+        // across 2 columns to minimise total card height. Long-tail
+        // shows (lots of panels) used to dump the entire gear list
+        // in the left column while the right column sat half-empty —
+        // now the small categories fill that dead space automatically.
+        <div className="mt-3 sm:columns-2 sm:gap-x-4 [&>*]:break-inside-avoid [&>*]:mb-4">
+          {summary.byCategory.length === 0 ? (
+            <div className="text-xs text-gray-500">No gear at this location.</div>
+          ) : (
+            summary.byCategory.map((g) => (
+              <div key={g.category}>
+                <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                  {g.label}
+                  <span className="ml-1.5 text-gray-500">{g.items.length}</span>
+                </div>
+                <div className="space-y-1">
+                  {g.items.map((item) => (
+                    <div key={item.id}>
+                      <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
+                        <span className="font-mono font-semibold tabular-nums text-[#22a7d3]">
+                          {item.name}
+                        </span>
+                        <span className="text-gray-200">
+                          {item.hardwareType || (
+                            <span className="italic text-gray-500">no model</span>
                           )}
+                        </span>
+                        {item.headsetType && (
+                          <span className="text-xs text-gray-500">· {item.headsetType}</span>
+                        )}
+                        {item.gooseneck && (
+                          <span className="text-xs text-gray-500">· Gooseneck</span>
+                        )}
+                        {item.footswitches > 0 && (
+                          <span className="text-xs text-gray-500">· FS {item.footswitches}</span>
+                        )}
+                        {item.speakers > 0 && (
+                          <span className="text-xs text-gray-500">· SPK {item.speakers}</span>
+                        )}
+                        {item.deployStatus && VISIBLE_STATUSES.has(item.deployStatus) && (
+                          <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${STATUS_BADGE_STYLES[item.deployStatus] || ''}`}>
+                            {getStatusLabel(item.deployStatus)}
+                          </span>
+                        )}
+                      </div>
+                      {item.cables.length > 0 && (
+                        <div className="ml-1 flex flex-wrap items-baseline gap-x-1.5 text-[11px] text-gray-500">
+                          {item.cables.map((c, i) => (
+                            <span key={c.label}>
+                              {i > 0 && <span className="text-gray-600"> · </span>}
+                              <span className="font-mono tabular-nums">{c.count}× </span>
+                              {c.label}
+                            </span>
+                          ))}
                         </div>
-                      ))}
+                      )}
                     </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+
+          {/* Headsets — same column flow as gear, lives wherever the
+              column balancer decides to drop it. */}
+          {summary.headsets.length > 0 && (
+            <div>
+              <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                Headsets needed
+                <span className="ml-1.5 text-gray-500">{summary.headsets.length}</span>
+              </div>
+              <div className="space-y-1">
+                {summary.headsets.map((h) => (
+                  <div key={h.type} className="flex items-baseline gap-2 text-sm">
+                    <span className="font-mono font-semibold tabular-nums text-[#22a7d3]">
+                      {h.count}×
+                    </span>
+                    <span className="text-gray-200">{h.type}</span>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
-
-          <div className="space-y-5">
-            <div>
-              <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-500">
-                Headsets needed
-              </div>
-              {summary.headsets.length === 0 ? (
-                <div className="text-xs text-gray-500">
-                  None — no gear at this location has a headset assigned.
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  {summary.headsets.map((h) => (
-                    <div key={h.type} className="flex items-baseline gap-2 text-sm">
-                      <span className="font-mono font-semibold tabular-nums text-[#22a7d3]">
-                        {h.count}×
-                      </span>
-                      <span className="text-gray-200">{h.type}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
+          )}
 
-            {/* Panel-only physical accessories that aren't equipment rows
-                of their own — listed so crew know how many extras to grab
-                from the truck. */}
-            {(summary.goosenecks > 0 || summary.speakers > 0) && (
-              <div>
-                <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-500">
-                  Misc accessories
-                </div>
-                <div className="space-y-1">
-                  {summary.goosenecks > 0 && (
-                    <div className="flex items-baseline gap-2 text-sm">
-                      <span className="font-mono font-semibold tabular-nums text-[#22a7d3]">
-                        {summary.goosenecks}×
-                      </span>
-                      <span className="text-gray-200">Goosenecks</span>
-                    </div>
-                  )}
-                  {summary.speakers > 0 && (
-                    <div className="flex items-baseline gap-2 text-sm">
-                      <span className="font-mono font-semibold tabular-nums text-[#22a7d3]">
-                        {summary.speakers}×
-                      </span>
-                      <span className="text-gray-200">Speakers</span>
-                    </div>
-                  )}
-                </div>
+          {/* Misc — goosenecks + speakers (panel-only accessories). */}
+          {(summary.goosenecks > 0 || summary.speakers > 0) && (
+            <div>
+              <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                Misc accessories
               </div>
-            )}
+              <div className="space-y-1">
+                {summary.goosenecks > 0 && (
+                  <div className="flex items-baseline gap-2 text-sm">
+                    <span className="font-mono font-semibold tabular-nums text-[#22a7d3]">
+                      {summary.goosenecks}×
+                    </span>
+                    <span className="text-gray-200">Goosenecks</span>
+                  </div>
+                )}
+                {summary.speakers > 0 && (
+                  <div className="flex items-baseline gap-2 text-sm">
+                    <span className="font-mono font-semibold tabular-nums text-[#22a7d3]">
+                      {summary.speakers}×
+                    </span>
+                    <span className="text-gray-200">Speakers</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
-            {/* Cable totals derived from each panel's footswitch + speaker
-                accessories at this location. Hidden entirely when no panel
-                here needs any cables. */}
-            {summary.cables.length > 0 && (
-              <div>
-                <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-500">
-                  Cables needed
-                </div>
-                <div className="space-y-1">
-                  {summary.cables.map((c) => (
-                    <div key={c.label} className="flex items-baseline gap-2 text-sm">
-                      <span className="font-mono font-semibold tabular-nums text-[#22a7d3]">
-                        {c.count}×
-                      </span>
-                      <span className="text-gray-200">{c.label}</span>
-                    </div>
-                  ))}
-                </div>
+          {/* Cables — derived from each panel's FS / SPK accessories. */}
+          {summary.cables.length > 0 && (
+            <div>
+              <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                Cables needed
+                <span className="ml-1.5 text-gray-500">{summary.cables.length}</span>
               </div>
-            )}
-          </div>
+              <div className="space-y-1">
+                {summary.cables.map((c) => (
+                  <div key={c.label} className="flex items-baseline gap-2 text-sm">
+                    <span className="font-mono font-semibold tabular-nums text-[#22a7d3]">
+                      {c.count}×
+                    </span>
+                    <span className="text-gray-200">{c.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

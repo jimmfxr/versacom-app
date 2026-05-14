@@ -54,6 +54,7 @@ export function TaskCardList({
   locations,
   searchValue,
   onSearchChange,
+  plots = [],
 }: {
   tasks: TaskCard[]
   allGear: GearItem[]
@@ -63,6 +64,9 @@ export function TaskCardList({
    *  the page header) and feeds the value down through this prop. */
   searchValue?: string
   onSearchChange?: (v: string) => void
+  /** Project plots so the inline Pull-list card on the crew /tasks
+   *  page can surface the matching stage-plot PDF chip. Optional. */
+  plots?: Array<{ id: number; label: string; url: string }>
 }) {
   const router = useRouter()
   // Track per-card state so each card has its own independent undo timer.
@@ -310,7 +314,7 @@ export function TaskCardList({
       <div className="flex min-h-0 flex-1 flex-col">
         {SearchBar}
         <div data-scroll-container className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-none pb-4 pt-1 sm:pb-20">
-          {selectedLocation && <LocationSummary location={selectedLocation} allGear={allGear} />}
+          {selectedLocation && <LocationSummary location={selectedLocation} allGear={allGear} plots={plots} />}
           <div className="flex flex-col items-center px-6 py-12 text-center">
           <svg className="size-12 text-green-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
@@ -353,6 +357,7 @@ export function TaskCardList({
             location={selectedLocation}
             allGear={allGear}
             label={returnVisible.length > 0 && deployVisible.length === 0 ? 'Return list' : 'Pull list'}
+            plots={plots}
           />
         )}
         <TaskSection

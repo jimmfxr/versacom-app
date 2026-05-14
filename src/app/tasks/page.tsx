@@ -104,6 +104,15 @@ export default async function TasksPage({
         orderBy: [{ projectId: 'asc' }, { category: 'asc' }, { hardwareType: 'asc' }],
       })
 
+  // Stage plots for the projects this user has access to. Lets the
+  // crew Pull-list card surface the matching PDF chip per location.
+  const plotRows = projectIds.length === 0
+    ? []
+    : await prisma.plot.findMany({
+        where: { projectId: { in: projectIds } },
+        select: { id: true, label: true, url: true, projectId: true },
+      })
+
   // Resolve "effective location" for each piece of gear. Equipment's own
   // location wins; for assignable gear that has no equipment-level location
   // set, we fall back to the assigned user's location. The key is *location* —
@@ -176,6 +185,14 @@ export default async function TasksPage({
     new Set(allGear.map((g) => g.effectiveLocation).filter((l): l is string => !!l)),
   ).sort()
 
+  // Filter plots to whichever project the user is currently looking at
+  // (the dropdown switcher value). If they're viewing "All shows"
+  // (validFilteredId === null), include every plot — but in practice
+  // the LocationSummary uses label-match so collisions are unlikely.
+  const visiblePlots = validFilteredId == null
+    ? plotRows
+    : plotRows.filter((p) => p.projectId === validFilteredId)
+
   return (
     <TasksPageClient
       cards={cards}
@@ -184,6 +201,7 @@ export default async function TasksPage({
       userProjects={userProjects}
       validFilteredId={validFilteredId}
       selectedProjectName={validFilteredId != null ? (userProjectsMap.get(validFilteredId)?.name ?? null) : null}
+      plots={visiblePlots.map((p) => ({ id: p.id, label: p.label, url: p.url }))}
     />
   )
 }

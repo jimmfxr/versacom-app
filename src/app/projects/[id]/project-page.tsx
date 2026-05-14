@@ -2019,6 +2019,7 @@ export function ProjectPage({
                     speakers: e.speakers,
                     deployStatus: e.deployStatus,
                   }))}
+                  plots={plots}
                 />
               )}
               {filteredEquipment.length === 0 ? (
@@ -3148,7 +3149,7 @@ export function ProjectPage({
                                 rel="noopener noreferrer"
                                 className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
                               >
-                                Open PDF
+                                Open
                               </a>
                               {isAdmin && (
                                 <button
