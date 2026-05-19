@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 type LoginError =
@@ -41,7 +41,6 @@ function LoginPageInner() {
   const [pinDigits, setPinDigits] = useState(['', '', '', ''])
   const [error, setError] = useState<LoginError | null>(null)
   const [loading, setLoading] = useState(false)
-  const router = useRouter()
 
   // Step 2: create personal PIN
   const [setupInfo, setSetupInfo] = useState<SetupInfo | null>(null)
@@ -149,9 +148,15 @@ function LoginPageInner() {
         return
       }
 
-      // Redirect based on role
+      // Hard navigation rather than router.push — soft routing keeps
+      // the root layout's RSC tree cached from the /login render
+      // (where session was null and AppShell wasn't rendered), so the
+      // navbar wouldn't appear until something else re-evaluated the
+      // layout. window.location forces a fresh server-side render of
+      // the layout with the just-set session cookie, so the navbar +
+      // page content paint together.
       const isUserOnly = data.memberships?.every((m: { role: string }) => m.role === 'user')
-      router.push(isUserOnly ? '/my-equipment' : '/')
+      window.location.href = isUserOnly ? '/my-equipment' : '/'
     } catch {
       setError({ type: 'invalid', message: 'Something went wrong. Please try again.' })
       setPinDigits(['', '', '', ''])
@@ -192,9 +197,12 @@ function LoginPageInner() {
         return
       }
 
-      // Auto-logged in — redirect based on role
+      // Auto-logged in — hard navigation so the root layout re-renders
+      // server-side with the new session cookie (see the same reasoning
+      // in handleLogin above; router.push leaves the layout cached
+      // without AppShell and delays the navbar painting).
       const isUserOnly = data.memberships?.every((m: { role: string }) => m.role === 'user')
-      router.push(isUserOnly ? '/my-equipment' : '/')
+      window.location.href = isUserOnly ? '/my-equipment' : '/'
     } catch {
       setSetupError('Something went wrong. Please try again.')
     } finally {

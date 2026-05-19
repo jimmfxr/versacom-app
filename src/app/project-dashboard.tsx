@@ -38,6 +38,12 @@ type ProjectDashboardProps = {
   headsetInventory: HeadsetInventoryRow[]
   miscInventory: MiscInventory
   canEditInventory: boolean
+  /** Project totals for the small stats line rendered on the right
+   *  side of the "Deployment status" header on desktop. Hidden on
+   *  mobile (the same info already lives in the DashboardHeaderAction
+   *  block below the title). */
+  memberCount: number
+  equipmentCount: number
 }
 
 type DashboardHeaderActionProps = {
@@ -55,38 +61,16 @@ export function DashboardHeaderAction({
   equipmentCount,
   userProjects,
 }: DashboardHeaderActionProps) {
+  // memberCount + equipmentCount are no longer rendered here — the
+  // stats line moved to the right side of the "Deployment status"
+  // section header within ProjectDashboard so they share a row on
+  // both mobile and desktop. The props are kept on the type for
+  // backwards-compat with the page caller.
+  void memberCount
+  void equipmentCount
   return (
     <div className="flex w-full flex-col items-start sm:w-auto sm:items-end">
       <ProjectSwitcher projectId={projectId} projectName={projectName} userProjects={userProjects} />
-      {/* Mobile: stats line stays inside the header (left-aligned
-          under the project switcher). Desktop renders this same
-          summary as a separate row below the page header divider —
-          see DashboardStatsLine. */}
-      <div className="mt-2 text-xs text-gray-500 sm:hidden">
-        {memberCount} {memberCount === 1 ? 'member' : 'members'} · {equipmentCount}{' '}
-        {equipmentCount === 1 ? 'equipment item' : 'equipment items'}
-      </div>
-    </div>
-  )
-}
-
-/**
- * Desktop-only stats summary (members / equipment count) that lives
- * directly under the page header's bottomBorder line, right-aligned
- * to match the project switcher's column on desktop. Hidden on mobile
- * because the same info is rendered inline in DashboardHeaderAction.
- */
-export function DashboardStatsLine({
-  memberCount,
-  equipmentCount,
-}: {
-  memberCount: number
-  equipmentCount: number
-}) {
-  return (
-    <div className="hidden text-right text-xs text-gray-500 sm:block">
-      {memberCount} {memberCount === 1 ? 'member' : 'members'} · {equipmentCount}{' '}
-      {equipmentCount === 1 ? 'equipment item' : 'equipment items'}
     </div>
   )
 }
@@ -470,7 +454,7 @@ function StatusHero({
 
 /* ─── Main component ─── */
 
-export function ProjectDashboard({ projectId, equipment, headsetInventory, miscInventory, canEditInventory }: ProjectDashboardProps) {
+export function ProjectDashboard({ projectId, equipment, headsetInventory, miscInventory, canEditInventory, memberCount, equipmentCount }: ProjectDashboardProps) {
   // Inventory editing was removed from the dashboard — it now lives under
   // the project's Equipment tab (Add Equipment card → Inventory tab). The
   // canEditInventory prop and projectId are retained on the props type for
@@ -693,7 +677,19 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
           paddingBottom: 0,
         }}
       >
-        <SectionHeader>Deployment status</SectionHeader>
+        {/* Inline header so the right side can carry the project
+            stats (members / equipment counts). Renders on both mobile
+            and desktop now — the duplicate stats line under the title
+            in DashboardHeaderAction was removed alongside this change. */}
+        <div className="mb-2.5 mt-2 flex items-baseline justify-between gap-3">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            Deployment status
+          </div>
+          <div className="text-xs text-gray-500">
+            {memberCount} {memberCount === 1 ? 'member' : 'members'} · {equipmentCount}{' '}
+            {equipmentCount === 1 ? 'equipment item' : 'equipment items'}
+          </div>
+        </div>
         <div className="pt-4 sm:pt-5">
           {/* Always row: pct on the left, progress bar on the right.
               Pct + label always stacked vertically (label sits

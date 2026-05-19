@@ -8,7 +8,7 @@ import { ScrollToTop } from '@/components/scroll-to-top'
 import { StepCarousel } from '@/components/step-carousel'
 import { PageLayout } from '@/components/page-layout'
 import { EmptyState } from '@/components/empty-state'
-import { ProjectDashboard, DashboardHeaderAction, DashboardStatsLine } from './project-dashboard'
+import { ProjectDashboard, DashboardHeaderAction } from './project-dashboard'
 
 export const dynamic = 'force-dynamic'
 
@@ -385,19 +385,14 @@ export default async function HomePage({
         />
       }
     >
-      {/* Sticky chrome: title + ProjectSwitcher come from PageLayout's
-          stickyHeader path; the # members / # equipment line below
-          the divider is also pinned (flex-shrink-0). Only the
-          ProjectDashboard sections scroll. Wrappers kept tight (no
-          extra pt) so the kiosk header doesn't eat into the
-          scroll region's height — important on iPhone Pro Max
-          where the dashboard previously fit on one screen. */}
-      <div className="flex-shrink-0">
-        <DashboardStatsLine memberCount={memberCount} equipmentCount={equipment.length} />
-      </div>
+      {/* Stats line ("X members · Y equipment items") moved into the
+          Deployment status section header on the right side, so the
+          dashboard above-the-fold reads a row tighter. */}
       <div data-scroll-container className="min-h-0 flex-1 overflow-y-auto">
         <ProjectDashboard
           projectId={project.id}
+          memberCount={memberCount}
+          equipmentCount={equipment.length}
           equipment={equipment}
           headsetInventory={headsetInventory}
           miscInventory={{

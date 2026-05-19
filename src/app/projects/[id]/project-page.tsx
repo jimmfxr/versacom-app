@@ -453,19 +453,23 @@ function TabsMobileDropdown({
   const active = tabs.find((t) => t.key === activeTab) ?? tabs[0]
 
   return (
-    <div ref={ref} className="relative w-full">
+    // Wrapper + button sizing tuned to match the shared ProjectSwitcher
+    // (px-3.5 py-2 text-sm border-2 sm:min-w-[280px]) so the Project
+    // Details tab dropdown lines up at the same width + height as the
+    // project dropdowns on Dashboard / Tasks / My Equipment.
+    <div ref={ref} className={`relative w-full ${compact ? 'sm:inline-block sm:w-auto' : ''}`}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`flex w-full items-center justify-between gap-2.5 rounded-lg border-2 bg-[#202020] font-medium text-white transition-colors ${
-          compact ? 'px-3.5 py-1.5 text-sm' : 'px-3 py-1.5 text-sm'
+        className={`flex w-full items-center justify-between gap-2.5 rounded-lg border-2 bg-[#202020] px-3.5 py-2 text-sm font-medium text-white transition-colors ${
+          compact ? 'sm:min-w-[280px]' : ''
         } ${
           open ? 'border-[#0178a3]' : 'border-white/10 hover:border-white/20'
         }`}
       >
         <span className="flex items-center gap-2">
           <span>{active.label}</span>
-          <span className={`text-gray-500 ${compact ? 'text-[11px]' : 'text-xs'}`}>{active.count}</span>
+          <span className="text-xs text-gray-500">{active.count}</span>
         </span>
         <svg className={`size-3.5 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="5 8 10 13 15 8" />

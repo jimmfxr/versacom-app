@@ -381,7 +381,14 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                       <span>·</span>
                       <span>{project.equipmentCount} equipment</span>
                       <span>·</span>
-                      <span>{formatDate(project.createdAt)}</span>
+                      {/* suppressHydrationWarning — the server formats
+                          createdAt in UTC, the browser in the user's
+                          local timezone, so dates created near midnight
+                          render one day off across the boundary. The
+                          client value is the correct one to show; this
+                          flag tells React to keep it without flagging
+                          a hydration mismatch. */}
+                      <span suppressHydrationWarning>{formatDate(project.createdAt)}</span>
                     </div>
                   </div>
                   {isArchived && isAdmin && (
