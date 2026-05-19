@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { Navbar, type NavItem, type NavUser } from '@/components/navbar'
 import { ToastContainer } from '@/components/toast'
 import { ScrollToTop } from '@/components/scroll-to-top'
@@ -52,7 +52,6 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
     email: '',
     imageUrl: '',
   }
-  const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const inMyEquipmentBrowse = searchParams.get('from') === 'my-equipment'
@@ -134,7 +133,13 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
 
   async function handleSignOut() {
     await fetch('/api/auth/logout', { method: 'POST' })
-    router.push('/login')
+    // Hard navigation rather than router.push — soft routing keeps
+    // the root layout (with this AppShell + navbar) in the cached
+    // tree, so /login would render with the navbar still visible.
+    // window.location forces a fresh server render of the layout
+    // with the now-cleared session cookie, which bypasses AppShell
+    // entirely and shows /login chrome-free.
+    window.location.href = '/login'
   }
 
   // Global haptic feedback for taps on actionable elements. Fires
