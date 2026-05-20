@@ -26,13 +26,17 @@ function getNavigation(
   // really inside the My Equipment surface. Use the from=my-equipment search
   // param to flip the active highlight away from Projects and onto My Equipment.
   const onMyEquipment = pathname.startsWith('/my-equipment') || inMyEquipmentBrowse
-  // Single context-aware Projects tab. When the user is INSIDE a specific
-  // /projects/<id> route, the tab labels itself with that show's name so
-  // the nav reflects context. Anywhere else (including the bare /projects
-  // list) it just says "All projects". Tapping it always navigates back
-  // to the list — the project name is informational, not a self-link.
+  // Single context-aware Projects tab. The label tracks the user's
+  // currently-selected show (via the selectedProject / lastProject
+  // cookies) across EVERY page — Dashboard, Tasks, My Equipment, the
+  // project pages themselves — so the nav constantly reflects which
+  // show they're operating on. Only the /projects list page (the user
+  // explicitly visiting "All projects") and the no-selection state
+  // collapse the label back to "All projects". Tapping always
+  // navigates to the list — the project name is informational.
   const onProjectsRoute = pathname.startsWith('/projects') && !inMyEquipmentBrowse
-  const insideProject = onProjectsRoute && pathname !== '/projects'
+  const onAllProjectsList = pathname === '/projects'
+  const showProjectName = !onAllProjectsList && !!lastProjectName
 
   const items: NavItem[] = []
   items.push({ name: 'Dashboard', href: '/', current: pathname === '/' })
@@ -42,8 +46,12 @@ function getNavigation(
     items.push({ name: 'Tasks', href: '/tasks', current: pathname.startsWith('/tasks'), badge: taskCount })
   }
   items.push({
-    name: insideProject ? (lastProjectName || 'All projects') : 'All projects',
-    href: '/projects',
+    name: showProjectName ? lastProjectName : 'All projects',
+    // When the tab is labelled with a project name, tapping it jumps
+    // straight to that project's details page. When the label is
+    // "All projects" (on the list itself, or with no project picked
+    // yet), the tap goes to the list as before.
+    href: showProjectName && lastProjectId ? `/projects/${lastProjectId}` : '/projects',
     current: onProjectsRoute,
   })
   if (!isUserOnly) {
@@ -52,7 +60,27 @@ function getNavigation(
   return items
 }
 
-export function AppShell({ children, userName, isAdmin = false, isUserOnly = false, showMyEquipment = false }: { children: React.ReactNode; userName?: string; isAdmin?: boolean; isUserOnly?: boolean; showMyEquipment?: boolean }) {
+export function AppShell({
+  children,
+  userName,
+  isAdmin = false,
+  isUserOnly = false,
+  showMyEquipment = false,
+  initialProjectId = null,
+  initialProjectName = null,
+}: {
+  children: React.ReactNode
+  userName?: string
+  isAdmin?: boolean
+  isUserOnly?: boolean
+  showMyEquipment?: boolean
+  /** Server-read cookie values so the very first SSR + hydration render
+   *  shows the correct project name on the navbar tab. Without these,
+   *  the navbar briefly says "All projects" until the client useEffect
+   *  reads document.cookie. */
+  initialProjectId?: string | null
+  initialProjectName?: string | null
+}) {
   const navUser: NavUser = {
     name: userName || 'User',
     email: '',
@@ -67,8 +95,8 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
   // ProjectSwitcher (selectedProject*) and the project page itself
   // (lastProject*). selectedProject* wins when both are set so the nav
   // matches whatever the user last picked via the dropdown.
-  const [lastProjectId, setLastProjectId] = useState<string | null>(null)
-  const [lastProjectName, setLastProjectName] = useState<string | null>(null)
+  const [lastProjectId, setLastProjectId] = useState<string | null>(initialProjectId)
+  const [lastProjectName, setLastProjectName] = useState<string | null>(initialProjectName)
   useEffect(() => {
     function readName(key: string): string | null {
       const m = document.cookie.match(new RegExp(`${key}=([^;]+)`))

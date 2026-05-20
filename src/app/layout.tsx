@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NoZoom } from "@/components/no-zoom";
 import { ServiceWorkerRegister } from "@/components/sw-register";
@@ -71,6 +72,31 @@ export default async function RootLayout({
   const isAdmin = session?.memberships.some((m) => m.role === "admin") ?? false;
   const isUserOnly = session ? session.memberships.every((m) => m.role === "user") : false;
   const showMyEquipment = session?.memberships.some((m) => m.role === "crew") ?? false;
+
+  // Read the same cookies AppShell hydrates from on the client, but
+  // server-side, so the very first SSR render already renders the
+  // navbar tab with the correct project name. Without this, the tab
+  // briefly flashes "All projects" on every cold render until the
+  // client useEffect catches up. selectedProject* wins over
+  // lastProject* (matches the client priority).
+  const cookieStore = await cookies();
+  const initialProjectId =
+    cookieStore.get("selectedProject")?.value ??
+    cookieStore.get("lastProject")?.value ??
+    null;
+  const rawInitialName =
+    cookieStore.get("selectedProjectName")?.value ??
+    cookieStore.get("lastProjectName")?.value ??
+    null;
+  const initialProjectName = rawInitialName
+    ? (() => {
+        try {
+          return decodeURIComponent(rawInitialName);
+        } catch {
+          return rawInitialName;
+        }
+      })()
+    : null;
   return (
     <html
       lang="en"
@@ -81,7 +107,14 @@ export default async function RootLayout({
         <NoZoom />
         <ServiceWorkerRegister />
         {session ? (
-          <AppShell userName={userName} isAdmin={isAdmin} isUserOnly={isUserOnly} showMyEquipment={showMyEquipment}>
+          <AppShell
+            userName={userName}
+            isAdmin={isAdmin}
+            isUserOnly={isUserOnly}
+            showMyEquipment={showMyEquipment}
+            initialProjectId={initialProjectId}
+            initialProjectName={initialProjectName}
+          >
             {children}
           </AppShell>
         ) : (
