@@ -376,7 +376,7 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                         {project.status}
                       </span>
                     </div>
-                    <div className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
+                    <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-gray-500">
                       <span>{project.memberCount} members</span>
                       <span>·</span>
                       <span>{project.equipmentCount} equipment</span>
@@ -389,6 +389,13 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                           flag tells React to keep it without flagging
                           a hydration mismatch. */}
                       <span suppressHydrationWarning>{formatDate(project.createdAt)}</span>
+                      <span>·</span>
+                      {/* Creator admin's name in cyan — same accent
+                          color the app uses elsewhere for assignee
+                          labels and trunk references. "by" stays dim
+                          gray so the name reads as the highlighted
+                          piece. */}
+                      <span>by <span className="text-[#22a7d3]">{project.createdBy.firstName} {project.createdBy.lastName}</span></span>
                     </div>
                   </div>
                   {isArchived && isAdmin && (

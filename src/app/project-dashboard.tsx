@@ -488,7 +488,7 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
   // Headline = whichever stage currently leads. Ties break: done > deployed > returned (most actionable).
   const headlineStat = (() => {
     const stats = [
-      { key: 'done', pct: donePct, label: 'Done', color: 'text-green-500/80' },
+      { key: 'done', pct: donePct, label: 'Faxed', color: 'text-green-500/80' },
       { key: 'deployed', pct: deployedPct, label: 'Deployed', color: 'text-yellow-500/80' },
       { key: 'returned', pct: returnedPct, label: 'Returned', color: 'text-blue-500/80' },
     ]
@@ -730,7 +730,7 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
               {/* Mini stats row */}
               <div className="mt-3 grid grid-cols-3 gap-2 text-[11px] sm:text-xs">
                 <StatusStat dotClass="bg-yellow-500/80" pctClass="text-yellow-500/80" label="Deployed" count={deployedCount} total={deployTotal} />
-                <StatusStat dotClass="bg-green-500/80" pctClass="text-green-500/80" label="Done" count={doneCount} total={deployTotal} />
+                <StatusStat dotClass="bg-green-500/80" pctClass="text-green-500/80" label="Faxed" count={doneCount} total={deployTotal} />
                 <StatusStat dotClass="bg-blue-500/80" pctClass="text-blue-500/80" label="Returned" count={returnedCount} total={deployTotal} />
               </div>
             </div>

@@ -8,6 +8,7 @@ import {
   notifyEquipmentEdited,
   notifyEquipmentAssigned,
 } from '@/lib/notifications'
+import { isPlaceholderUser } from '@/lib/placeholders'
 import {
   MULT_HARDWARE_TYPES,
   type MultHardwareType,
@@ -470,8 +471,51 @@ export async function updateEquipment(
     }
   }
 
+  // ─── Placeholder auto-cleanup ───
+  // When a piece of equipment is reassigned AWAY from a member, the
+  // old member might end up equipment-less. If they were a bulk-add
+  // placeholder (auto-generated User with empty PIN + equipment-prefix
+  // name like "WLBP 1"), silently delete the ProjectMember so the Team
+  // tab stops carrying orphaned cruft. Real users (with PIN or any
+  // hand-typed name) are NEVER auto-deleted — they stay as an empty
+  // member, which is harmless and reversible.
+  let removedPlaceholderName: string | null = null
+  if (
+    before &&
+    data.assignedToId !== undefined &&
+    data.assignedToId !== before.assignedToId &&
+    before.assignedToId != null
+  ) {
+    const oldMemberId = before.assignedToId
+    // Pull the old member's identity + remaining equipment count in
+    // one query so we can decide whether to clean up.
+    const oldMember = await prisma.projectMember.findUnique({
+      where: { id: oldMemberId },
+      select: {
+        id: true,
+        user: { select: { firstName: true, lastName: true, pin: true } },
+        equipment: { select: { id: true } },
+      },
+    })
+    if (
+      oldMember &&
+      oldMember.equipment.length === 0 &&
+      isPlaceholderUser(oldMember.user)
+    ) {
+      // Cascade deletes — ProjectMember's FKs don't ON DELETE CASCADE
+      // in the schema, so we sweep them manually inside a transaction
+      // so a partial failure can't leave dangling rows.
+      await prisma.$transaction([
+        prisma.panelKey.deleteMany({ where: { projectMemberId: oldMemberId } }),
+        prisma.changeRequest.deleteMany({ where: { targetMemberId: oldMemberId } }),
+        prisma.projectMember.delete({ where: { id: oldMemberId } }),
+      ])
+      removedPlaceholderName = `${oldMember.user.firstName} ${oldMember.user.lastName}`.trim()
+    }
+  }
+
   revalidatePath(`/projects/${projectId}`)
-  return { success: true }
+  return { success: true, removedPlaceholderName }
 }
 
 export async function deleteEquipment(projectId: number, equipmentId: number) {

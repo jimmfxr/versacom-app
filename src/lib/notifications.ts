@@ -13,8 +13,34 @@
 import { prisma } from '@/lib/db'
 import { sendPushToUsers, type PushPayload } from '@/lib/web-push'
 
-async function safeSend(userIds: number[], payload: PushPayload): Promise<void> {
+async function safeSend(
+  userIds: number[],
+  payload: PushPayload,
+  /** Project the notification is scoped to. Stored on each row so the
+   *  /notifications page can filter by project via the dropdown. Pass
+   *  null for genuinely global notifications (account-level pings). */
+  projectId: number | null = null,
+): Promise<void> {
   if (userIds.length === 0) return
+  // Persist a history row per recipient BEFORE attempting push delivery.
+  // This way the in-app /notifications page reflects every message we
+  // intended to send — even if push fails (expired subscription,
+  // device offline, user blocked). Persistence + delivery are
+  // intentionally decoupled so neither breaks the other.
+  try {
+    await prisma.notification.createMany({
+      data: userIds.map((userId) => ({
+        userId,
+        projectId,
+        title: payload.title,
+        body: payload.body ?? null,
+        url: payload.url ?? null,
+        tag: payload.tag ?? null,
+      })),
+    })
+  } catch (err) {
+    console.warn('[notifications] persist failed', err)
+  }
   try {
     await sendPushToUsers(userIds, payload)
   } catch (err) {
@@ -65,7 +91,7 @@ export async function notifyMemberJoined(args: {
     body: name,
     url: `/projects`,
     tag: `join-${args.projectId}-${Date.now()}`,
-  })
+  }, args.projectId)
 }
 
 // ─── Account locked out ─────────────────────────────────────────────
@@ -142,7 +168,7 @@ export async function notifyDeployStatusChanged(args: {
     body: `${actorName} · ${name}`,
     url: `/projects/${eq.projectId}`,
     tag: `eq-${args.equipmentId}-${args.newStatus}`,
-  })
+  }, eq.projectId)
 }
 
 // ─── Return phase activated ─────────────────────────────────────────
@@ -168,7 +194,7 @@ export async function notifyReturnPhaseActivated(args: {
     body: `${name} — start checking gear back in`,
     url: `/tasks`,
     tag: `return-${args.projectId}`,
-  })
+  }, args.projectId)
 }
 
 // ─── Project archived ───────────────────────────────────────────────
@@ -193,7 +219,7 @@ export async function notifyProjectArchived(args: {
     body: `The show is closed`,
     url: `/projects`,
     tag: `archive-${args.projectId}`,
-  })
+  }, args.projectId)
 }
 
 // ─── CR endorsed by manager ─────────────────────────────────────────
@@ -215,7 +241,7 @@ export async function notifyManagerEndorsed(args: {
     body: name,
     url: `/admin`,
     tag: `endorse-${args.changeRequestId}`,
-  })
+  }, args.projectId)
 }
 
 // ─── Equipment edited (Mockup C — most-impactful headline) ──────────
@@ -345,7 +371,7 @@ export async function notifyEquipmentEdited(args: {
     body: `${actor} · ${project}`,
     url: `/projects/${eq.projectId}`,
     tag: `eq-edit-${args.equipmentId}-${Date.now()}`,
-  })
+  }, eq.projectId)
 }
 
 // ─── Admin opened a change request for review ──────────────────────
@@ -405,7 +431,7 @@ export async function notifyReviewStarted(args: {
     // same submitter's requests still each get their own buzz
     // because the reviewer ID is part of the tag.
     tag: `review-${args.submitterUserId}-${args.reviewerUserId}`,
-  })
+  }, args.projectId)
 }
 
 // ─── Equipment newly assigned (to the assignee) ─────────────────────
@@ -434,5 +460,5 @@ export async function notifyEquipmentAssigned(args: {
     body: `${actor} · ${project}`,
     url: `/projects/${eq.projectId}/panel/${args.equipmentId}`,
     tag: `eq-assign-${args.equipmentId}-${args.newAssigneeUserId}`,
-  })
+  }, eq.projectId)
 }

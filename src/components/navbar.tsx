@@ -35,6 +35,9 @@ export type NavbarProps = {
   readonly logoSrc?: string
   readonly logoAlt?: string
   readonly onSignOut?: () => void
+  /** Count of unread in-app notifications for the current user.
+   *  Drives the small cyan dot on the bell icon. 0 hides it. */
+  readonly notificationUnread?: number
 }
 
 function classNames(...classes: Array<string | false | null | undefined>): string {
@@ -62,6 +65,7 @@ function MobileNavPanel({
   logoSrc,
   logoAlt,
   onSignOut,
+  notificationUnread = 0,
 }: {
   open: boolean
   close: () => void
@@ -70,6 +74,7 @@ function MobileNavPanel({
   logoSrc: string
   logoAlt: string
   onSignOut?: () => void
+  notificationUnread?: number
 }) {
   const [dragY, setDragY] = useState(0)
   const [dragging, setDragging] = useState(false)
@@ -169,14 +174,28 @@ function MobileNavPanel({
         <div className="min-w-0 flex-1">
           <div className="truncate text-base font-medium text-white">{user.name}</div>
         </div>
-        <button
-          type="button"
+        <a
+          href="/notifications"
+          onClick={() => close()}
           className="relative shrink-0 rounded-full p-1 text-gray-400 hover:text-white focus:outline-2 focus:outline-offset-2 focus:outline-[#0178a3]"
         >
           <span className="absolute -inset-1.5" />
-          <span className="sr-only">View notifications</span>
+          <span className="sr-only">
+            View notifications{notificationUnread > 0 ? ` (${notificationUnread} unread)` : ''}
+          </span>
           <BellIcon aria-hidden="true" className="size-6" />
-        </button>
+          {/* Unread badge — small cyan pill on the bell, same chrome
+              as the desktop variant. Mobile panel background is the
+              same #202020 so the ring blends naturally. */}
+          {notificationUnread > 0 && (
+            <span
+              aria-hidden="true"
+              className="absolute -right-0.5 -top-0.5 inline-flex min-h-[1.05rem] min-w-[1.05rem] items-center justify-center rounded-full bg-[#22a7d3] px-1 text-[10px] font-bold leading-none text-white ring-2 ring-[#202020]"
+            >
+              {notificationUnread > 9 ? '9+' : notificationUnread}
+            </span>
+          )}
+        </a>
       </div>
 
       {/* Nav cards */}
@@ -230,6 +249,7 @@ export function Navbar({
   logoSrc = DEFAULT_LOGO_SRC,
   logoAlt = 'Clair',
   onSignOut,
+  notificationUnread = 0,
 }: NavbarProps) {
   return (
     <Disclosure as="nav" className="sticky top-0 z-40 bg-[#202020]">
@@ -271,14 +291,27 @@ export function Navbar({
                 </div>
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:items-center">
-                <button
-                  type="button"
+                <a
+                  href="/notifications"
                   className="relative rounded-full p-1 text-gray-400 hover:text-white focus:outline-2 focus:outline-offset-2 focus:outline-[#0178a3]"
                 >
                   <span className="absolute -inset-1.5" />
-                  <span className="sr-only">View notifications</span>
+                  <span className="sr-only">
+                    View notifications{notificationUnread > 0 ? ` (${notificationUnread} unread)` : ''}
+                  </span>
                   <BellIcon aria-hidden="true" className="size-6" />
-                </button>
+                  {/* Unread badge — small cyan dot in the top-right
+                      corner of the bell. Hidden at 0 so the icon
+                      stays clean when there's nothing new. */}
+                  {notificationUnread > 0 && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute -right-0.5 -top-0.5 inline-flex min-h-[1.05rem] min-w-[1.05rem] items-center justify-center rounded-full bg-[#22a7d3] px-1 text-[10px] font-bold leading-none text-white ring-2 ring-[#202020]"
+                    >
+                      {notificationUnread > 9 ? '9+' : notificationUnread}
+                    </span>
+                  )}
+                </a>
 
                 <Menu as="div" className="relative ml-3">
                   <MenuButton className="relative flex max-w-xs items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0178a3]">
@@ -352,6 +385,7 @@ export function Navbar({
             logoSrc={logoSrc}
             logoAlt={logoAlt}
             onSignOut={onSignOut}
+            notificationUnread={notificationUnread}
           />
         </>
       )}

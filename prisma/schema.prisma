@@ -31,6 +31,34 @@ model User {
   nfgReports        NfgReport[]
   pushSubscriptions PushSubscription[]
   panelPresences    PanelPresence[]
+  notifications     Notification[]
+}
+
+// In-app notification history. One row per recipient per notification
+// — written alongside every push send in safeSend(), so the /notifications
+// page reflects exactly what the user would have received as a push
+// (even if push delivery failed or the device wasn't subscribed yet).
+// Read state is per-row; tapping a row marks it read and follows `url`.
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  // Project the notification is scoped to, if any. Drives the per-
+  // project filter on /notifications. Nullable so future global-scope
+  // notifications (account-level pings, etc.) can stay project-less.
+  projectId Int?
+  title     String
+  body      String?
+  url       String?
+  tag       String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
+  @@index([projectId])
 }
 
 // Web Push subscription registered by the user from one device. Stored
@@ -108,6 +136,7 @@ model Project {
   rackTemplates  RackTemplate[]
   headsetInventory ProjectHeadsetInventory[]
   plots          Plot[]
+  notifications  Notification[]
 }
 
 // Per-project stage plots. Stores a label + external URL (typically a

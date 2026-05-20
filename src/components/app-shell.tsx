@@ -131,6 +131,49 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
     }
   }, [isAdmin, showMyEquipment])
 
+  // ─── Unread notification count for the navbar bell badge ───
+  // Mirrors the task-count pattern above: useState + sessionStorage
+  // hydrate on mount, then poll /api/notifications/count every 5s so
+  // the bell badge stays fresh across pages without a hard reload.
+  const [notificationUnread, setNotificationUnread] = useState(0)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const cached = sessionStorage.getItem('notification-unread-cache')
+      if (cached) {
+        const n = Number(cached)
+        if (!Number.isNaN(n)) setNotificationUnread(n)
+      }
+    } catch {
+      // sessionStorage may be unavailable; ignore.
+    }
+  }, [])
+  useEffect(() => {
+    let cancelled = false
+    async function fetchUnread() {
+      try {
+        const res = await fetch('/api/notifications/count', { cache: 'no-store' })
+        if (!res.ok) return
+        const data = (await res.json()) as { unread: number }
+        if (cancelled) return
+        setNotificationUnread(data.unread)
+        try {
+          sessionStorage.setItem('notification-unread-cache', String(data.unread))
+        } catch {
+          // sessionStorage may be unavailable; ignore.
+        }
+      } catch {
+        // Silent — badge just won't update this cycle.
+      }
+    }
+    fetchUnread()
+    const timer = setInterval(fetchUnread, 5000)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [])
+
   async function handleSignOut() {
     await fetch('/api/auth/logout', { method: 'POST' })
     // Hard navigation rather than router.push — soft routing keeps
@@ -204,6 +247,7 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
           user={navUser}
           userNavigation={userNavigation}
           onSignOut={handleSignOut}
+          notificationUnread={notificationUnread}
         />
       )}
       {/* Children wrapper is just a flex column with horizontal

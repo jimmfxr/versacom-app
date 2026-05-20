@@ -10,7 +10,9 @@
 export const DEPLOY_STATUSES = [
   { value: 'na', label: 'N/A' },
   { value: 'deployed', label: 'Deployed' },
-  { value: 'done', label: 'Done' },
+  // DB value stays 'done' for backwards-compat; we only changed the
+  // user-facing label to "Faxed" to match the team's actual workflow.
+  { value: 'done', label: 'Faxed' },
   { value: 'returned', label: 'Returned' },
   { value: 'not-needed', label: 'Not Needed' },
   { value: 'damaged', label: 'Damaged' },

@@ -1058,6 +1058,14 @@ export function ProjectPage({
           : null,
       })
       if (result.error) { showToast('error', result.error); return }
+      // Auto-cleanup toast — server side detected the previous
+      // assignee was a bulk-add placeholder with no other equipment
+      // left after this reassign, and removed them. Surface the
+      // change so the admin knows the Team tab will be one row
+      // lighter on refresh.
+      if ('removedPlaceholderName' in result && result.removedPlaceholderName) {
+        showToast('success', `Removed placeholder ${result.removedPlaceholderName}`)
+      }
       // Chain to the next visible equipment card before clearing the
       // edit state so focus has somewhere to go.
       const idx = filteredEquipment.findIndex((e) => e.id === item.id)
@@ -2791,7 +2799,43 @@ export function ProjectPage({
                               </div>
                               {m.equipmentNames.length > 0 ? (
                                 <div className="mt-1.5 flex items-center justify-between gap-3 text-xs font-medium">
-                                  <span className="truncate text-[#22a7d3]">{m.equipmentNames.join(', ')}</span>
+                                  {/* Equipment names are clickable when
+                                      the user can edit equipment — tapping
+                                      one jumps to the Equipment tab and
+                                      opens that gear's edit form inline.
+                                      Falls back to plain cyan text when
+                                      the user is read-only. */}
+                                  <span className="flex flex-wrap items-baseline gap-x-1 truncate">
+                                    {m.equipmentNames.map((name, i) => {
+                                      const item = equipment.find((e) => e.name === name)
+                                      return (
+                                        <span key={name}>
+                                          {i > 0 && <span className="text-gray-500">, </span>}
+                                          {item && canEditEquipment ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                // Clear filters so the
+                                                // target row is guaranteed
+                                                // visible after we switch
+                                                // tabs, then open its
+                                                // inline edit form.
+                                                setEqSearch('')
+                                                setEqLocationFilter(null)
+                                                setActiveTab('equipment')
+                                                startEqEdit(item)
+                                              }}
+                                              className="text-[#22a7d3] hover:text-[#019bc7] hover:underline"
+                                            >
+                                              {name}
+                                            </button>
+                                          ) : (
+                                            <span className="text-[#22a7d3]">{name}</span>
+                                          )}
+                                        </span>
+                                      )
+                                    })}
+                                  </span>
                                   {m.expansionCount > 0 && (
                                     <span className="shrink-0">
                                       <span className="text-gray-500">Exp: </span>
