@@ -105,28 +105,24 @@ export function NotificationsList({
       title="Notifications"
       titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
       bottomBorder
+      inlineAction
       action={
-        // Order: switcher (1) → buttons (2) on mobile (top-to-bottom).
-        // On desktop the order is flipped via sm:order-* so the buttons
-        // sit LEFT of the project dropdown, matching the action-row
-        // convention used elsewhere in the app (contextual actions on
-        // the left, navigational dropdown on the right).
-        <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center">
-          <div className="order-1 sm:order-2">
-            {switcher}
-          </div>
+        // Mobile: only the action buttons sit on the title row (far
+        // right). The ProjectSwitcher renders as a full-width chip
+        // below the header (see the mobile-only block at the top of
+        // the content area).
+        //
+        // Desktop: switcher joins the same row as the buttons, sitting
+        // to their right — same arrangement as before.
+        <div className="flex shrink-0 items-center gap-2">
           {notifications.length > 0 && (
-            <div className="order-2 flex items-center gap-2 sm:order-1">
-              {/* Padding + text + border-2 chrome matches the
-                  ProjectSwitcher trigger sitting next to these buttons
-                  on desktop, so the row reads as a uniform action-bar
-                  rather than two visual weights. */}
+            <>
               {unreadCount > 0 && (
                 <button
                   type="button"
                   onClick={handleMarkAllRead}
                   disabled={isPending}
-                  className="rounded-lg border-2 border-white/10 px-3.5 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Mark all read
                 </button>
@@ -135,15 +131,20 @@ export function NotificationsList({
                 type="button"
                 onClick={handleClearAll}
                 disabled={isPending}
-                className="rounded-lg border-2 border-red-500/40 bg-red-500/10 px-3.5 py-2 text-sm font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Clear all
               </button>
-            </div>
+            </>
           )}
+          <div className="hidden sm:block">{switcher}</div>
         </div>
       }
     >
+      {/* Mobile-only project switcher — sits as its own row below the
+          title bar so the buttons up top stay legible. Desktop renders
+          the same switcher inline with the action buttons (above). */}
+      {switcher && <div className="mb-3 sm:hidden">{switcher}</div>}
       <NotificationSettings prefs={prefs} isAdminAnywhere={isAdminAnywhere} />
       {notifications.length === 0 ? (
         <EmptyState
