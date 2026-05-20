@@ -30,7 +30,17 @@ async function safeSend(
   // Honour per-user opt-outs BEFORE we persist or push. A disabled type
   // produces no history row and no buzz for that user; other recipients
   // on the same notification continue to receive theirs.
-  const recipients = await filterRecipientsByPref(userIds, type)
+  //
+  // Resilient: if the prefs table is missing (prod hasn't run the
+  // migration yet) or the lookup errors for any other reason, fall back
+  // to the full recipient list rather than blocking the entire push.
+  // The opt-out feature is non-critical — push delivery is.
+  let recipients = userIds
+  try {
+    recipients = await filterRecipientsByPref(userIds, type)
+  } catch (err) {
+    console.warn('[notifications] prefs lookup failed, sending to everyone', err)
+  }
   if (recipients.length === 0) return
   // Persist a history row per recipient BEFORE attempting push delivery.
   // This way the in-app /notifications page reflects every message we
