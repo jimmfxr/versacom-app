@@ -16,6 +16,23 @@ model User {
   firstName      String
   lastName       String
   pin            String    // bcrypt hashed, never plaintext
+  /** Optional avatar — stored as a data URL (`data:image/webp;base64,...`)
+   *  generated client-side from the chosen file, resized down to 256x256
+   *  + ~85% webp. Inline-storing avoids any external blob/storage
+   *  dependency at the cost of slightly bigger user rows (~30–60 KB). */
+  avatarUrl      String?
+  /** Free-form personal role / position description (e.g. "A1",
+   *  "Comms Tech"). Distinct from ProjectMember.position which scopes
+   *  the position to a single show. This is the user's general
+   *  identity, surfaced on /profile and (later) suggestable when they
+   *  join a new show. */
+  position       String?
+  /** Optional contact email — surfaced on /profile so admins can reach
+   *  out about lockouts / scheduling. Not used for auth (PIN-only). */
+  email          String?
+  /** Optional contact phone — surfaced on /profile for the same reason
+   *  as email. Free-form so international formats Just Work. */
+  phone          String?
   failedAttempts Int       @default(0)
   lockedUntil    DateTime?
   lastFailedAt   DateTime?

@@ -5,14 +5,9 @@ import {
   Disclosure,
   DisclosureButton,
   DisclosurePanel,
-  Menu,
-  MenuButton,
-  MenuItem,
-  MenuItems,
 } from '@headlessui/react'
 import { Bars3Icon, BellIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useDrag } from '@use-gesture/react'
-import { NotificationToggle } from '@/components/notification-toggle'
 
 export type NavItem = {
   readonly name: string
@@ -31,7 +26,6 @@ export type NavUser = {
 export type NavbarProps = {
   readonly navigation: ReadonlyArray<NavItem>
   readonly user: NavUser
-  readonly userNavigation: ReadonlyArray<Pick<NavItem, 'name' | 'href'>>
   readonly logoSrc?: string
   readonly logoAlt?: string
   readonly onSignOut?: () => void
@@ -156,24 +150,32 @@ function MobileNavPanel({
         </DisclosureButton>
       </div>
 
-      {/* User info */}
+      {/* User info — tap the avatar / name to jump to /profile. The
+          mobile panel doesn't have its own dropdown chrome, so this row
+          doubles as the profile entry point. */}
       <div className="flex items-center gap-3 px-5 pt-2 pb-4">
-        <div className="shrink-0">
-          {user.imageUrl ? (
-            <img
-              alt=""
-              src={user.imageUrl}
-              className="size-10 rounded-full outline -outline-offset-1 outline-white/10"
-            />
-          ) : (
-            <span className="flex size-10 items-center justify-center rounded-full bg-[#0178a3] text-sm font-medium text-white outline -outline-offset-1 outline-white/10">
-              {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-            </span>
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-base font-medium text-white">{user.name}</div>
-        </div>
+        <a
+          href="/profile"
+          onClick={() => close()}
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-md transition-colors"
+        >
+          <div className="shrink-0">
+            {user.imageUrl ? (
+              <img
+                alt=""
+                src={user.imageUrl}
+                className="size-10 rounded-full outline -outline-offset-1 outline-white/10"
+              />
+            ) : (
+              <span className="flex size-10 items-center justify-center rounded-full bg-[#0178a3] text-sm font-medium text-white outline -outline-offset-1 outline-white/10">
+                {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+              </span>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-base font-medium text-white">{user.name}</div>
+          </div>
+        </a>
         <a
           href="/notifications"
           onClick={() => close()}
@@ -245,7 +247,6 @@ function MobileNavPanel({
 export function Navbar({
   navigation,
   user,
-  userNavigation,
   logoSrc = DEFAULT_LOGO_SRC,
   logoAlt = 'Clair',
   onSignOut,
@@ -313,58 +314,28 @@ export function Navbar({
                   )}
                 </a>
 
-                <Menu as="div" className="relative ml-3">
-                  <MenuButton className="relative flex max-w-xs items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0178a3]">
-                    <span className="absolute -inset-1.5" />
-                    <span className="sr-only">Open user menu</span>
-                    {user.imageUrl ? (
-                      <img
-                        alt=""
-                        src={user.imageUrl}
-                        className="size-8 rounded-full outline -outline-offset-1 outline-white/10"
-                      />
-                    ) : (
-                      <span className="flex size-8 items-center justify-center rounded-full bg-[#0178a3] text-sm font-medium text-white outline -outline-offset-1 outline-white/10">
-                        {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                      </span>
-                    )}
-                  </MenuButton>
-
-                  <MenuItems
-                    transition
-                    className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-gray-800 py-1 outline -outline-offset-1 outline-white/10 transition data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-200 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
-                  >
-                    {/* Notifications toggle — sits above the static
-                        nav items because it's the most state-aware
-                        action in the menu and naturally drops below
-                        a divider when something account-y comes
-                        next. Renders nothing when the browser
-                        doesn't support push or VAPID isn't
-                        configured. */}
-                    <MenuItem>
-                      {() => <NotificationToggle />}
-                    </MenuItem>
-                    {userNavigation.map((item) => (
-                      <MenuItem key={item.name}>
-                        {item.name === 'Sign out' && onSignOut ? (
-                          <button
-                            onClick={onSignOut}
-                            className="block w-full text-left px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
-                          >
-                            {item.name}
-                          </button>
-                        ) : (
-                          <a
-                            href={item.href}
-                            className="block px-4 py-2 text-sm text-gray-300 data-focus:bg-white/5 data-focus:outline-hidden"
-                          >
-                            {item.name}
-                          </a>
-                        )}
-                      </MenuItem>
-                    ))}
-                  </MenuItems>
-                </Menu>
+                {/* Avatar is a direct link to /profile — the old
+                    dropdown (notifications toggle + sign-out) is gone:
+                    notifications settings live on /notifications, and
+                    sign-out moved into the profile page. */}
+                <a
+                  href="/profile"
+                  className="relative ml-3 flex max-w-xs items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0178a3]"
+                >
+                  <span className="absolute -inset-1.5" />
+                  <span className="sr-only">Open profile</span>
+                  {user.imageUrl ? (
+                    <img
+                      alt=""
+                      src={user.imageUrl}
+                      className="size-8 rounded-full outline -outline-offset-1 outline-white/10"
+                    />
+                  ) : (
+                    <span className="flex size-8 items-center justify-center rounded-full bg-[#0178a3] text-sm font-medium text-white outline -outline-offset-1 outline-white/10">
+                      {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                    </span>
+                  )}
+                </a>
               </div>
               <div className="-mr-2 flex items-center sm:hidden">
                 <DisclosureButton className="group relative inline-flex items-center justify-center rounded-md bg-[#202020] p-2 text-gray-400 hover:bg-white/5 hover:text-white focus:outline-2 focus:outline-offset-2 focus:outline-[#0178a3]">

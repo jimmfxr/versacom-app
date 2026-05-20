@@ -74,36 +74,38 @@ export function NotificationSettings({
       </div>
 
       {!collapsed && (
-        <div className="mt-4 space-y-3">
-          {/* Push subscribe row sits on top — it's the master switch:
-              even if every type below is enabled, no buzz arrives until
-              the browser is subscribed. Hidden on browsers / contexts
-              that can't subscribe at all (Safari without PWA, etc.). */}
+        <div className="mt-4">
+          {/* One continuous list: push subscribe on top (master switch),
+              then the per-type opt-outs. Every row shares the same
+              bottom-border separator so the section reads as a unified
+              settings block, with the last row's border suppressed.
+              Hidden push variants (unsupported / unconfigured browsers)
+              return null so the first type row becomes the visual top. */}
           <PushSubscribeRow />
-
-          <div className="space-y-1">
-            {visibleTypes.map((type) => {
-              const def = NOTIFICATION_TYPES[type]
-              const enabled = isEnabled(type)
-              return (
-                <div
-                  key={type}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-white/[0.06] px-3 py-2.5"
-                >
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium text-white">{def.label}</div>
-                    <div className="mt-0.5 text-xs text-gray-500">{def.description}</div>
-                  </div>
-                  <ToggleSwitch
-                    enabled={enabled}
-                    disabled={isPending}
-                    onChange={() => handleToggle(type)}
-                    label={def.label}
-                  />
+          {visibleTypes.map((type, idx) => {
+            const def = NOTIFICATION_TYPES[type]
+            const enabled = isEnabled(type)
+            const isLast = idx === visibleTypes.length - 1
+            return (
+              <div
+                key={type}
+                className={`flex items-center justify-between gap-3 px-3 py-2.5 ${
+                  isLast ? '' : 'border-b border-white/[0.06]'
+                }`}
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-white">{def.label}</div>
+                  <div className="mt-0.5 text-xs text-gray-500">{def.description}</div>
                 </div>
-              )
-            })}
-          </div>
+                <ToggleSwitch
+                  enabled={enabled}
+                  disabled={isPending}
+                  onChange={() => handleToggle(type)}
+                  label={def.label}
+                />
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
@@ -120,7 +122,7 @@ function PushSubscribeRow() {
 
   if (state.status === 'denied') {
     return (
-      <div className="rounded-lg border border-white/[0.06] px-3 py-2.5">
+      <div className="border-b border-white/[0.06] px-3 py-2.5">
         <div className="text-sm font-medium text-white">Push notifications</div>
         <div className="mt-0.5 text-xs text-gray-500">
           Blocked by your browser. Re-enable from site settings to receive push buzzes.
@@ -133,7 +135,7 @@ function PushSubscribeRow() {
   const loading = state.status === 'loading'
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-white/[0.06] px-3 py-2.5">
+    <div className="flex items-center justify-between gap-3 border-b border-white/[0.06] px-3 py-2.5">
       <div className="min-w-0">
         <div className="text-sm font-medium text-white">Push notifications</div>
         <div className="mt-0.5 text-xs text-gray-500">

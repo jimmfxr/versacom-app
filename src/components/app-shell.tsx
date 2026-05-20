@@ -6,10 +6,6 @@ import { Navbar, type NavItem, type NavUser } from '@/components/navbar'
 import { ToastContainer } from '@/components/toast'
 import { ScrollToTop } from '@/components/scroll-to-top'
 
-const userNavigation: ReadonlyArray<Pick<NavItem, 'name' | 'href'>> = [
-  { name: 'Sign out', href: '#' },
-]
-
 function getNavigation(
   pathname: string,
   isAdmin: boolean,
@@ -267,7 +263,6 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
         <Navbar
           navigation={getNavigation(pathname, isAdmin, isUserOnly, showMyEquipment, lastProjectId, lastProjectName, taskCount, inMyEquipmentBrowse)}
           user={navUser}
-          userNavigation={userNavigation}
           onSignOut={handleSignOut}
           notificationUnread={notificationUnread}
         />
