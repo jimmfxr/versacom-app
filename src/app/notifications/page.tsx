@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { getUserPrefs } from '@/lib/notification-prefs'
 import { NotificationsList } from './notifications-list'
 
 export const dynamic = 'force-dynamic'
@@ -29,11 +30,13 @@ export default async function NotificationsPage({
   if (!session) redirect('/login')
 
   // Pull every active project the user belongs to — feeds the
-  // ProjectSwitcher dropdown.
+  // ProjectSwitcher dropdown. Also collect roles so the settings card
+  // can decide whether to render admin-scoped toggles for this user.
   const memberships = await prisma.projectMember.findMany({
     where: { userId: session.user.id, project: { status: 'active' } },
-    select: { project: { select: { id: true, name: true } } },
+    select: { role: true, project: { select: { id: true, name: true } } },
   })
+  const isAdminAnywhere = memberships.some((m) => m.role === 'admin')
   const userProjectsMap = new Map<number, { id: number; name: string }>()
   for (const m of memberships) {
     if (!userProjectsMap.has(m.project.id)) {
@@ -90,6 +93,8 @@ export default async function NotificationsPage({
     take: 200,
   })
 
+  const prefs = await getUserPrefs(session.user.id)
+
   return (
     <NotificationsList
       notifications={rows.map((n) => ({
@@ -103,6 +108,8 @@ export default async function NotificationsPage({
       }))}
       userProjects={userProjects}
       filteredProjectId={filteredProjectId}
+      prefs={prefs}
+      isAdminAnywhere={isAdminAnywhere}
     />
   )
 }

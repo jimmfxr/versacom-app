@@ -6,6 +6,7 @@ import { PageLayout } from '@/components/page-layout'
 import { EmptyState } from '@/components/empty-state'
 import { RowCard } from '@/components/row-card'
 import { ProjectSwitcher } from '@/app/project-dashboard'
+import { NotificationSettings } from './notification-settings'
 import {
   markNotificationRead,
   markAllNotificationsRead,
@@ -33,11 +34,18 @@ export function NotificationsList({
   notifications,
   userProjects,
   filteredProjectId,
+  prefs,
+  isAdminAnywhere,
 }: {
   notifications: NotificationItem[]
   userProjects: UserProject[]
   /** null = "All shows" filter is active. */
   filteredProjectId: number | null
+  /** Saved per-type opt-outs for the current user. Missing key = enabled. */
+  prefs: Record<string, boolean>
+  /** True if the user holds the `admin` role on at least one active project.
+   *  Drives whether admin-scoped notification types appear in the settings card. */
+  isAdminAnywhere: boolean
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -136,6 +144,7 @@ export function NotificationsList({
         </div>
       }
     >
+      <NotificationSettings prefs={prefs} isAdminAnywhere={isAdminAnywhere} />
       {notifications.length === 0 ? (
         <EmptyState
           icon={

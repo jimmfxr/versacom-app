@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
+import { setUserPref } from '@/lib/notification-prefs'
+import { NOTIFICATION_TYPES, type NotificationType } from '@/lib/notification-types'
 
 /** Flip a single notification's read flag to true. Bell links use this
  *  via the page's row-click handler. The row server-renders with the
@@ -34,6 +36,22 @@ export async function markAllNotificationsRead() {
     data: { read: true },
   })
 
+  revalidatePath('/notifications')
+  return { success: true }
+}
+
+/** Upsert one (user, type) preference row. Drives the per-type toggles
+ *  in the settings card at the top of /notifications. The catalog is
+ *  validated server-side so a client can't write a junk `type`. */
+export async function setNotificationPref(type: string, enabled: boolean) {
+  const session = await getSession()
+  if (!session) return { error: 'Not authenticated' }
+
+  if (!(type in NOTIFICATION_TYPES)) {
+    return { error: 'Unknown notification type' }
+  }
+
+  await setUserPref(session.user.id, type as NotificationType, enabled)
   revalidatePath('/notifications')
   return { success: true }
 }

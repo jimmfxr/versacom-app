@@ -16,6 +16,7 @@ function getNavigation(
   isUserOnly: boolean,
   showMyEquipment: boolean,
   lastProjectId: string | null,
+  lastProjectName: string | null,
   taskCount: number,
   inMyEquipmentBrowse: boolean,
 ): NavItem[] {
@@ -29,7 +30,13 @@ function getNavigation(
   // really inside the My Equipment surface. Use the from=my-equipment search
   // param to flip the active highlight away from Projects and onto My Equipment.
   const onMyEquipment = pathname.startsWith('/my-equipment') || inMyEquipmentBrowse
-  const onProjects = pathname.startsWith('/projects') && !inMyEquipmentBrowse
+  // Single context-aware Projects tab. When the user is INSIDE a specific
+  // /projects/<id> route, the tab labels itself with that show's name so
+  // the nav reflects context. Anywhere else (including the bare /projects
+  // list) it just says "All projects". Tapping it always navigates back
+  // to the list — the project name is informational, not a self-link.
+  const onProjectsRoute = pathname.startsWith('/projects') && !inMyEquipmentBrowse
+  const insideProject = onProjectsRoute && pathname !== '/projects'
 
   const items: NavItem[] = []
   items.push({ name: 'Dashboard', href: '/', current: pathname === '/' })
@@ -38,8 +45,11 @@ function getNavigation(
   } else if (showMyEquipment) {
     items.push({ name: 'Tasks', href: '/tasks', current: pathname.startsWith('/tasks'), badge: taskCount })
   }
-  const projectsHref = lastProjectId ? `/projects/${lastProjectId}` : '/projects'
-  items.push({ name: 'Projects', href: projectsHref, current: onProjects })
+  items.push({
+    name: insideProject ? (lastProjectName || 'All projects') : 'All projects',
+    href: '/projects',
+    current: onProjectsRoute,
+  })
   if (!isUserOnly) {
     items.push({ name: 'My Equipment', href: '/my-equipment', current: onMyEquipment })
   }
@@ -56,20 +66,32 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
   const searchParams = useSearchParams()
   const inMyEquipmentBrowse = searchParams.get('from') === 'my-equipment'
 
-  // The "Projects" nav link should land on whichever show is currently
-  // active across Dashboard / Tasks / My Equipment — that's the shared
-  // `selectedProject` cookie set by ProjectSwitcher. Fall back to
-  // `lastProject` (last project page actually visited) only when the
-  // shared selection isn't set yet.
+  // The current-project nav tab labels itself with the project's name and
+  // links to /projects/<id>. We hydrate both from cookies written by the
+  // ProjectSwitcher (selectedProject*) and the project page itself
+  // (lastProject*). selectedProject* wins when both are set so the nav
+  // matches whatever the user last picked via the dropdown.
   const [lastProjectId, setLastProjectId] = useState<string | null>(null)
+  const [lastProjectName, setLastProjectName] = useState<string | null>(null)
   useEffect(() => {
+    function readName(key: string): string | null {
+      const m = document.cookie.match(new RegExp(`${key}=([^;]+)`))
+      if (!m) return null
+      try {
+        return decodeURIComponent(m[1])
+      } catch {
+        return m[1]
+      }
+    }
     const selected = document.cookie.match(/selectedProject=(\d+)/)
     if (selected) {
       setLastProjectId(selected[1])
+      setLastProjectName(readName('selectedProjectName'))
       return
     }
     const last = document.cookie.match(/lastProject=(\d+)/)
     setLastProjectId(last ? last[1] : null)
+    setLastProjectName(readName('lastProjectName'))
   }, [pathname])
 
   // Poll the admin task count so the Tasks badge stays fresh on every page,
@@ -243,7 +265,7 @@ export function AppShell({ children, userName, isAdmin = false, isUserOnly = fal
           layout's AppShell, but kiosk gets the bare children. */}
       {!pathname.includes('/kiosk') && (
         <Navbar
-          navigation={getNavigation(pathname, isAdmin, isUserOnly, showMyEquipment, lastProjectId, taskCount, inMyEquipmentBrowse)}
+          navigation={getNavigation(pathname, isAdmin, isUserOnly, showMyEquipment, lastProjectId, lastProjectName, taskCount, inMyEquipmentBrowse)}
           user={navUser}
           userNavigation={userNavigation}
           onSignOut={handleSignOut}

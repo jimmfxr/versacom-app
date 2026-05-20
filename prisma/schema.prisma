@@ -32,6 +32,27 @@ model User {
   pushSubscriptions PushSubscription[]
   panelPresences    PanelPresence[]
   notifications     Notification[]
+  notificationPrefs NotificationPreference[]
+}
+
+// Per-user toggle for each notification kind. Drives the settings panel
+// on /notifications. Missing row = enabled (default opt-in) — we only
+// write a row when the user explicitly disables a type, then flip
+// enabled back to true on re-enable. Filter applied in safeSend before
+// persistence and push, so an "off" type doesn't even create a history
+// row for that user. Other recipients on the same notification still
+// receive theirs unaffected.
+model NotificationPreference {
+  id      Int     @id @default(autoincrement())
+  userId  Int
+  /** Stable string identifier — see src/lib/notification-types.ts for the catalog. */
+  type    String
+  enabled Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+  @@index([userId])
 }
 
 // In-app notification history. One row per recipient per notification

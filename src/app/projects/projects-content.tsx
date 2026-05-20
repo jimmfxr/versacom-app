@@ -355,6 +355,7 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                     // Dashboard / Tasks / My Equipment via the shared cookie so
                     // every page reflects the same selection next visit.
                     document.cookie = `selectedProject=${project.id};path=/;max-age=${60 * 60 * 24 * 365}`
+                    document.cookie = `selectedProjectName=${encodeURIComponent(project.name)};path=/;max-age=${60 * 60 * 24 * 365}`
                     router.push(`/projects/${project.id}`)
                   }}
                 >

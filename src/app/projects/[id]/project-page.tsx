@@ -649,7 +649,8 @@ export function ProjectPage({
   // explicit ProjectSwitcher dropdown picks on those pages.
   useEffect(() => {
     document.cookie = `lastProject=${project.id};path=/;max-age=${60 * 60 * 24 * 365}`
-  }, [project.id])
+    document.cookie = `lastProjectName=${encodeURIComponent(project.name)};path=/;max-age=${60 * 60 * 24 * 365}`
+  }, [project.id, project.name])
 
   // Role permissions (based on role within this project)
   const isProjectAdmin = currentUserRole === 'admin'

@@ -703,7 +703,8 @@ export function PanelStudio({
     // Also write the shared `selectedProject` cookie so Dashboard / Tasks /
     // Admin land on the same project the admin was just browsing here.
     document.cookie = `selectedProject=${project.id};path=/;max-age=${60 * 60 * 24 * 365}`
-  }, [isBrowseMode, project.id, member])
+    document.cookie = `selectedProjectName=${encodeURIComponent(project.name)};path=/;max-age=${60 * 60 * 24 * 365}`
+  }, [isBrowseMode, project.id, project.name, member])
 
   const [reviewProcessing, setReviewProcessing] = useState(false)
   const [rejectedKeyIds, setRejectedKeyIds] = useState<Set<string>>(new Set())

@@ -12,16 +12,26 @@
 
 import { prisma } from '@/lib/db'
 import { sendPushToUsers, type PushPayload } from '@/lib/web-push'
+import { filterRecipientsByPref } from '@/lib/notification-prefs'
+import type { NotificationType } from '@/lib/notification-types'
 
 async function safeSend(
   userIds: number[],
   payload: PushPayload,
+  /** Notification kind — drives the per-user opt-out filter (settings on
+   *  /notifications). Every notify* helper passes its own constant. */
+  type: NotificationType,
   /** Project the notification is scoped to. Stored on each row so the
    *  /notifications page can filter by project via the dropdown. Pass
    *  null for genuinely global notifications (account-level pings). */
   projectId: number | null = null,
 ): Promise<void> {
   if (userIds.length === 0) return
+  // Honour per-user opt-outs BEFORE we persist or push. A disabled type
+  // produces no history row and no buzz for that user; other recipients
+  // on the same notification continue to receive theirs.
+  const recipients = await filterRecipientsByPref(userIds, type)
+  if (recipients.length === 0) return
   // Persist a history row per recipient BEFORE attempting push delivery.
   // This way the in-app /notifications page reflects every message we
   // intended to send — even if push fails (expired subscription,
@@ -29,7 +39,7 @@ async function safeSend(
   // intentionally decoupled so neither breaks the other.
   try {
     await prisma.notification.createMany({
-      data: userIds.map((userId) => ({
+      data: recipients.map((userId) => ({
         userId,
         projectId,
         title: payload.title,
@@ -42,7 +52,7 @@ async function safeSend(
     console.warn('[notifications] persist failed', err)
   }
   try {
-    await sendPushToUsers(userIds, payload)
+    await sendPushToUsers(recipients, payload)
   } catch (err) {
     console.warn('[notifications] send failed', err)
   }
@@ -91,7 +101,7 @@ export async function notifyMemberJoined(args: {
     body: name,
     url: `/projects`,
     tag: `join-${args.projectId}-${Date.now()}`,
-  }, args.projectId)
+  }, 'member-joined', args.projectId)
 }
 
 // ─── Account locked out ─────────────────────────────────────────────
@@ -121,7 +131,7 @@ export async function notifyUserLocked(args: {
     body: `Open Tasks to unlock or wait 15 minutes`,
     url: `/admin`,
     tag: `lockout-${args.lockedUserId}`,
-  })
+  }, 'user-locked')
 }
 
 // ─── Equipment deploy status changed ────────────────────────────────
@@ -168,7 +178,7 @@ export async function notifyDeployStatusChanged(args: {
     body: `${actorName} · ${name}`,
     url: `/projects/${eq.projectId}`,
     tag: `eq-${args.equipmentId}-${args.newStatus}`,
-  }, eq.projectId)
+  }, 'deploy-status', eq.projectId)
 }
 
 // ─── Return phase activated ─────────────────────────────────────────
@@ -194,7 +204,7 @@ export async function notifyReturnPhaseActivated(args: {
     body: `${name} — start checking gear back in`,
     url: `/tasks`,
     tag: `return-${args.projectId}`,
-  }, args.projectId)
+  }, 'return-phase', args.projectId)
 }
 
 // ─── Project archived ───────────────────────────────────────────────
@@ -219,7 +229,7 @@ export async function notifyProjectArchived(args: {
     body: `The show is closed`,
     url: `/projects`,
     tag: `archive-${args.projectId}`,
-  }, args.projectId)
+  }, 'project-archived', args.projectId)
 }
 
 // ─── CR endorsed by manager ─────────────────────────────────────────
@@ -241,7 +251,7 @@ export async function notifyManagerEndorsed(args: {
     body: name,
     url: `/admin`,
     tag: `endorse-${args.changeRequestId}`,
-  }, args.projectId)
+  }, 'manager-endorsed', args.projectId)
 }
 
 // ─── Equipment edited (Mockup C — most-impactful headline) ──────────
@@ -371,7 +381,7 @@ export async function notifyEquipmentEdited(args: {
     body: `${actor} · ${project}`,
     url: `/projects/${eq.projectId}`,
     tag: `eq-edit-${args.equipmentId}-${Date.now()}`,
-  }, eq.projectId)
+  }, 'equipment-edited', eq.projectId)
 }
 
 // ─── Admin opened a change request for review ──────────────────────
@@ -431,7 +441,7 @@ export async function notifyReviewStarted(args: {
     // same submitter's requests still each get their own buzz
     // because the reviewer ID is part of the tag.
     tag: `review-${args.submitterUserId}-${args.reviewerUserId}`,
-  }, args.projectId)
+  }, 'review-started', args.projectId)
 }
 
 // ─── Equipment newly assigned (to the assignee) ─────────────────────
@@ -460,5 +470,5 @@ export async function notifyEquipmentAssigned(args: {
     body: `${actor} · ${project}`,
     url: `/projects/${eq.projectId}/panel/${args.equipmentId}`,
     tag: `eq-assign-${args.equipmentId}-${args.newAssigneeUserId}`,
-  }, eq.projectId)
+  }, 'equipment-assigned', eq.projectId)
 }

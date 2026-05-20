@@ -227,6 +227,7 @@ export function ProjectSwitcher({
                   setOpen(false)
                   if (!isActive) {
                     document.cookie = `selectedProject=${p.id};path=/;max-age=${60 * 60 * 24 * 365}`
+                    document.cookie = `selectedProjectName=${encodeURIComponent(p.name)};path=/;max-age=${60 * 60 * 24 * 365}`
                     const sep = basePath.includes('?') ? '&' : '?'
                     router.push(`${basePath}${sep}project=${p.id}`)
                   }
