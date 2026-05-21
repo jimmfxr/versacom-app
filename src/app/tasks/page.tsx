@@ -155,6 +155,10 @@ export default async function TasksPage({
     .filter((e) => {
       if (returnPhaseProjectIds.has(e.projectId)) return false
       if (e.deployStatus !== 'na') return false
+      // Wireless beltpacks are deliberately excluded from deploy
+      // tasks — they aren't deployed through this flow, so showing
+      // them here just clutters the crew list.
+      if (e.category === 'wireless_bp') return false
       if (ASSIGNABLE_CATEGORIES.includes(e.category)) return e.assignedToId != null
       if (INFRA_CATEGORIES.includes(e.category)) return !!(e.location && e.location.trim())
       return false

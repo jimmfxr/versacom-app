@@ -2833,6 +2833,17 @@ export function ProjectPage({
                                           ) : (
                                             <span className="text-[#22a7d3]">{name}</span>
                                           )}
+                                          {/* Hardware type suffix in
+                                              gray so the admin can tell
+                                              at a glance what KIND of
+                                              gear this row points at
+                                              (e.g. "PNL 1 RSP-1232").
+                                              Lives outside the click
+                                              target — informational
+                                              only. */}
+                                          {item?.hardwareType && (
+                                            <span className="text-gray-500"> {item.hardwareType}</span>
+                                          )}
                                         </span>
                                       )
                                     })}
