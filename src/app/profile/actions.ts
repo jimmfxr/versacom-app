@@ -8,6 +8,7 @@ import { getSession } from '@/lib/session'
 
 const MAX_NAME_LEN = 60
 const MAX_POSITION_LEN = 60
+const MAX_DEPARTMENT_LEN = 60
 const MAX_EMAIL_LEN = 120
 const MAX_PHONE_LEN = 40
 // Data URLs come in ~30–60 KB after our client-side resize. Reject
@@ -34,6 +35,7 @@ export async function updateProfile(input: {
   firstName?: string
   lastName?: string
   position?: string | null
+  department?: string | null
   email?: string | null
   phone?: string | null
   avatarUrl?: string | null
@@ -45,6 +47,7 @@ export async function updateProfile(input: {
     firstName?: string
     lastName?: string
     position?: string | null
+    department?: string | null
     email?: string | null
     phone?: string | null
     avatarUrl?: string | null
@@ -69,6 +72,15 @@ export async function updateProfile(input: {
       const v = input.position.trim()
       if (v.length > MAX_POSITION_LEN) return { error: 'Position too long' }
       data.position = v
+    }
+  }
+  if (input.department !== undefined) {
+    if (input.department === null || input.department.trim() === '') {
+      data.department = null
+    } else {
+      const v = input.department.trim()
+      if (v.length > MAX_DEPARTMENT_LEN) return { error: 'Department too long' }
+      data.department = v
     }
   }
   if (input.email !== undefined) {

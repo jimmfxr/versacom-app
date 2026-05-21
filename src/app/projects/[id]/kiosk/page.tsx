@@ -42,6 +42,7 @@ export default async function KioskPage({
     select: {
       id: true,
       position: true,
+      department: true,
       user: { select: { firstName: true, lastName: true } },
       equipment: { select: { name: true } },
     },
@@ -57,6 +58,7 @@ export default async function KioskPage({
       firstName: m.user.firstName,
       lastName: m.user.lastName,
       position: m.position,
+      department: m.department,
       // Sort equipment names naturally so "100A, 100B, 200A" reads in order.
       equipmentNames: m.equipment
         .map((e) => e.name)
@@ -92,12 +94,25 @@ export default async function KioskPage({
     .filter(Boolean)
     .sort((a, b) => collator.compare(a, b))
 
+  // Departments already used on this project — same treatment as
+  // positions above, separate combobox in the Add Crew form.
+  const departmentRows = await prisma.projectMember.findMany({
+    where: { projectId, department: { not: null } },
+    select: { department: true },
+    distinct: ['department'],
+  })
+  const departmentSuggestions = departmentRows
+    .map((r) => r.department?.trim() ?? '')
+    .filter(Boolean)
+    .sort((a, b) => collator.compare(a, b))
+
   return (
     <KioskClient
       projectId={project.id}
       projectName={project.name}
       pending={pending}
       positionSuggestions={positionSuggestions}
+      departmentSuggestions={departmentSuggestions}
     />
   )
 }

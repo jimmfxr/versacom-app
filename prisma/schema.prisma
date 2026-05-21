@@ -27,6 +27,11 @@ model User {
    *  identity, surfaced on /profile and (later) suggestable when they
    *  join a new show. */
   position       String?
+  /** Free-form department label — Audio, Video, RF, Lighting, Comms,
+   *  etc. Same shape as `position` (per-user global default) — kept in
+   *  sync with ProjectMember.department whenever a per-show value is
+   *  written. Surfaced on /profile and pre-fillable on joins. */
+  department     String?
   /** Optional contact email — surfaced on /profile so admins can reach
    *  out about lockouts / scheduling. Not used for auth (PIN-only). */
   email          String?
@@ -211,6 +216,11 @@ model ProjectMember {
   projectId    Int
   role         String  // admin, manager, crew, user
   position     String? // e.g. PLHQ, A1, A2
+  /** Per-show department label — e.g. Audio, Video, RF, Lighting,
+   *  Comms. Free-form so users can put whatever the production crew
+   *  actually calls things. Separate from position because the same
+   *  person might be "A1" (position) in "Audio" (department). */
+  department   String?
   location     String? // e.g. FOH, MON, STAGE
   hardwareType String? // e.g. RSP-1232, Bolero
   ipAddress    String?

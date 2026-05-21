@@ -61,6 +61,7 @@ export async function createKioskMember(
   firstName: string,
   lastName: string,
   position?: string,
+  department?: string,
 ): Promise<KioskResult> {
   const session = await getSession()
   if (!session) return { error: 'Not authenticated' }
@@ -71,9 +72,11 @@ export async function createKioskMember(
   const fn = firstName.trim()
   const ln = lastName.trim()
   const pos = position?.trim() || null
+  const dept = department?.trim() || null
   if (!fn || !ln) return { error: 'First and last name are required' }
   if (fn.length > 50 || ln.length > 50) return { error: 'Name too long' }
   if (pos && pos.length > 50) return { error: 'Position too long' }
+  if (dept && dept.length > 50) return { error: 'Department too long' }
 
   const project = await prisma.project.findUnique({
     where: { id: projectId },
@@ -106,8 +109,16 @@ export async function createKioskMember(
     if (existingMembership) {
       return { error: `${existingRealUser.firstName} ${existingRealUser.lastName} is already on this project — they can sign in with their PIN.` }
     }
+    // Mirror the typed department onto the User row so it follows the
+    // person across shows.
+    if (dept) {
+      await prisma.user.update({
+        where: { id: existingRealUser.id },
+        data: { department: dept },
+      })
+    }
     await prisma.projectMember.create({
-      data: { userId: existingRealUser.id, projectId, role: 'crew', position: pos },
+      data: { userId: existingRealUser.id, projectId, role: 'crew', position: pos, department: dept },
     })
     revalidatePath(`/projects/${projectId}`)
     revalidatePath(`/projects/${projectId}/kiosk`)
@@ -137,11 +148,12 @@ export async function createKioskMember(
   }
 
   // Fresh placeholder: create user (no PIN) + project membership as crew.
+  // Department goes on the User row so it persists across shows.
   const user = await prisma.user.create({
-    data: { firstName: fn, lastName: ln, pin: '' },
+    data: { firstName: fn, lastName: ln, pin: '', department: dept },
   })
   await prisma.projectMember.create({
-    data: { userId: user.id, projectId, role: 'crew', position: pos },
+    data: { userId: user.id, projectId, role: 'crew', position: pos, department: dept },
   })
 
   revalidatePath(`/projects/${projectId}`)
@@ -177,7 +189,7 @@ export async function createKioskMember(
  */
 export async function updatePendingMember(
   memberId: number,
-  data: { firstName: string; lastName: string; position: string | null },
+  data: { firstName: string; lastName: string; position: string | null; department?: string | null },
 ): Promise<KioskResult> {
   const session = await getSession()
   if (!session) return { error: 'Not authenticated' }
@@ -205,6 +217,8 @@ export async function updatePendingMember(
   if (fn.length > 50 || ln.length > 50) return { error: 'Name too long' }
   const position = data.position?.trim() || null
   if (position && position.length > 50) return { error: 'Position too long' }
+  const department = data.department?.trim() || null
+  if (department && department.length > 50) return { error: 'Department too long' }
 
   // Look for an EXISTING user with that name and a real PIN. If duplicates
   // exist (shouldn't, but defensive), pick the most recently created one.
@@ -221,13 +235,18 @@ export async function updatePendingMember(
 
   if (!existingRealUser) {
     // ── Branch 1: fresh placeholder rename ──
+    // Mirror department onto the User row alongside name updates.
     await prisma.user.update({
       where: { id: member.userId },
-      data: { firstName: fn, lastName: ln },
+      data: {
+        firstName: fn,
+        lastName: ln,
+        ...(department !== null ? { department } : {}),
+      },
     })
     await prisma.projectMember.update({
       where: { id: memberId },
-      data: { position },
+      data: { position, department },
     })
 
     revalidatePath(`/projects/${member.projectId}`)
@@ -262,12 +281,20 @@ export async function updatePendingMember(
 
     if (!existingMembership) {
       // Branch 3: create a new membership for the real user.
+      // Mirror department onto their User row.
+      if (department) {
+        await tx.user.update({
+          where: { id: existingRealUser.id },
+          data: { department },
+        })
+      }
       await tx.projectMember.create({
         data: {
           userId: existingRealUser.id,
           projectId: member.projectId,
           role: 'crew',
           position,
+          department,
         },
       })
     }

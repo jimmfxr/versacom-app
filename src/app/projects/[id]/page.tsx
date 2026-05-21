@@ -14,7 +14,7 @@ export default async function ProjectDetailPage({
   const projectId = parseInt(id, 10)
   if (isNaN(projectId)) notFound()
 
-  const [project, equipment, memberRows, pickListItems, panelKeyUsage, expansionRows, allUsers, distinctPositions, headsetInventory, plots] = await Promise.all([
+  const [project, equipment, memberRows, pickListItems, panelKeyUsage, expansionRows, allUsers, distinctPositions, distinctDepartments, headsetInventory, plots] = await Promise.all([
     prisma.project.findUnique({
       where: { id: projectId },
       select: {
@@ -38,6 +38,7 @@ export default async function ProjectDetailPage({
             id: true,
             role: true,
             position: true,
+            department: true,
             location: true,
             // `pin` is selected only to compute `hasPin` below — never shipped
             // to the client. It's null until the user completes their first
@@ -157,6 +158,14 @@ export default async function ProjectDetailPage({
       select: { position: true },
       distinct: ['position'],
     }),
+    // Distinct departments across every project (same rationale as the
+    // positions list above) so "Audio", "RF", "Lighting" etc. autocomplete
+    // when admins type one on a new show.
+    prisma.projectMember.findMany({
+      where: { department: { not: null } },
+      select: { department: true },
+      distinct: ['department'],
+    }),
     // Per-project headset inventory counts — drives the new Inventory tab
     // inside the Add Equipment card.
     prisma.projectHeadsetInventory.findMany({
@@ -187,6 +196,9 @@ export default async function ProjectDetailPage({
   ).sort((a, b) => a.localeCompare(b))
   const positionSuggestions = Array.from(
     new Set(distinctPositions.map((m) => m.position?.trim() || '').filter(Boolean)),
+  ).sort((a, b) => a.localeCompare(b))
+  const departmentSuggestions = Array.from(
+    new Set(distinctDepartments.map((m) => m.department?.trim() || '').filter(Boolean)),
   ).sort((a, b) => a.localeCompare(b))
 
   // Build equipment-per-member map
@@ -247,6 +259,7 @@ export default async function ProjectDetailPage({
       firstNameSuggestions={firstNameSuggestions}
       lastNameSuggestions={lastNameSuggestions}
       positionSuggestions={positionSuggestions}
+      departmentSuggestions={departmentSuggestions}
       project={{
         id: project.id,
         name: project.name,
@@ -259,6 +272,7 @@ export default async function ProjectDetailPage({
           id: m.id,
           role: m.role,
           position: m.position,
+          department: m.department,
           location: m.location,
           userId: m.user.id,
           firstName: m.user.firstName,

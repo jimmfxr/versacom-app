@@ -22,6 +22,7 @@ export function ProfileForm({
     firstName: string
     lastName: string
     position: string | null
+    department: string | null
     email: string | null
     phone: string | null
     avatarUrl: string | null
@@ -32,6 +33,7 @@ export function ProfileForm({
   const [firstName, setFirstName] = useState(initial.firstName)
   const [lastName, setLastName] = useState(initial.lastName)
   const [position, setPosition] = useState(initial.position ?? '')
+  const [department, setDepartment] = useState(initial.department ?? '')
   const [email, setEmail] = useState(initial.email ?? '')
   const [phone, setPhone] = useState(initial.phone ?? '')
   const [error, setError] = useState<string | null>(null)
@@ -61,6 +63,7 @@ export function ProfileForm({
     firstName.trim() !== initial.firstName ||
     lastName.trim() !== initial.lastName ||
     position.trim() !== (initial.position ?? '') ||
+    department.trim() !== (initial.department ?? '') ||
     email.trim() !== (initial.email ?? '') ||
     phone.trim() !== (initial.phone ?? '')
 
@@ -72,6 +75,7 @@ export function ProfileForm({
         firstName,
         lastName,
         position: position.trim() === '' ? null : position,
+        department: department.trim() === '' ? null : department,
         email: email.trim() === '' ? null : email,
         phone: phone.trim() === '' ? null : phone,
       })
@@ -182,11 +186,11 @@ export function ProfileForm({
             </svg>
           </button>
           {!infoCollapsed && (<>
-          {/* Mobile = 2 columns (wraps to 3 rows of 2 + a trailing
-              singleton). Desktop opens up to all 5 fields on a single
-              row. The 2-up mobile layout gives each input enough width
-              for real values without ugly truncation on small screens. */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          {/* Mobile = 2 columns (wraps to 3 rows of 2 — first/last,
+              department/position, email/phone). Desktop opens up to all
+              6 fields on a single row. Department sits LEFT of Position
+              by design — same ordering as the team-card edit form. */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-6">
             <Field
               label="First name"
               value={firstName}
@@ -197,6 +201,13 @@ export function ProfileForm({
               label="Last name"
               value={lastName}
               onChange={setLastName}
+              disabled={isPending}
+            />
+            <Field
+              label="Department"
+              placeholder="Audio, RF"
+              value={department}
+              onChange={setDepartment}
               disabled={isPending}
             />
             <Field

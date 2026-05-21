@@ -29,6 +29,8 @@ function JoinProjectPageInner() {
   // Join form
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
+  const [position, setPosition] = useState('')
+  const [department, setDepartment] = useState('')
   const [projectPinDigits, setProjectPinDigits] = useState(['', '', '', ''])
   const [joinError, setJoinError] = useState('')
 
@@ -98,7 +100,13 @@ function JoinProjectPageInner() {
     }
 
     startTransition(async () => {
-      const result = await joinProject(firstName.trim(), lastName.trim(), projectPin)
+      const result = await joinProject(
+        firstName.trim(),
+        lastName.trim(),
+        projectPin,
+        position.trim() || undefined,
+        department.trim() || undefined,
+      )
       if (result.error) {
         setJoinError(result.error)
         return
@@ -126,7 +134,14 @@ function JoinProjectPageInner() {
     }
 
     startTransition(async () => {
-      const result = await createPersonalPin(firstName.trim(), lastName.trim(), projectId, personalPin)
+      const result = await createPersonalPin(
+        firstName.trim(),
+        lastName.trim(),
+        projectId,
+        personalPin,
+        position.trim() || undefined,
+        department.trim() || undefined,
+      )
       if (result.error) {
         setPinError(result.error)
         return
@@ -180,6 +195,40 @@ function JoinProjectPageInner() {
                     type="text"
                     value={lastName}
                     onChange={(e) => { setLastName(e.target.value); setJoinError('') }}
+                    className="mt-1 w-full rounded-lg border border-white/10 px-3.5 py-2.5 text-base text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                  />
+                </div>
+              </div>
+
+              {/* Department + Position — optional self-identification
+                  the admin sees on the Team tab once you're in. Both
+                  are free-form; common values are Audio/Video/RF/Comms
+                  for department and A1/A2/PLHQ for position. Department
+                  sits LEFT of Position by design. */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="joinDepartment" className="block text-sm font-medium text-gray-300">
+                    Department <span className="text-gray-500">(optional)</span>
+                  </label>
+                  <input
+                    id="joinDepartment"
+                    type="text"
+                    placeholder="e.g. Audio"
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-white/10 px-3.5 py-2.5 text-base text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="joinPosition" className="block text-sm font-medium text-gray-300">
+                    Position <span className="text-gray-500">(optional)</span>
+                  </label>
+                  <input
+                    id="joinPosition"
+                    type="text"
+                    placeholder="e.g. A1"
+                    value={position}
+                    onChange={(e) => setPosition(e.target.value)}
                     className="mt-1 w-full rounded-lg border border-white/10 px-3.5 py-2.5 text-base text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
                   />
                 </div>

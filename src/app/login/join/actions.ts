@@ -5,7 +5,13 @@ import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { notifyMemberJoined } from '@/lib/notifications'
 
-export async function joinProject(firstName: string, lastName: string, projectPin: string) {
+export async function joinProject(
+  firstName: string,
+  lastName: string,
+  projectPin: string,
+  position?: string,
+  department?: string,
+) {
   if (!firstName.trim() || !lastName.trim()) {
     return { error: 'First and last name are required' }
   }
@@ -56,9 +62,24 @@ export async function joinProject(firstName: string, lastName: string, projectPi
       return { error: 'You are already a member of this project. Go to login instead.' }
     }
 
+    const dept = department?.trim() || null
+    // Mirror the typed department onto the User row so it persists for
+    // this person across future joins.
+    if (dept) {
+      await prisma.user.update({
+        where: { id: existingUser.id },
+        data: { department: dept },
+      })
+    }
     // Add existing user to project
     await prisma.projectMember.create({
-      data: { userId: existingUser.id, projectId: project.id, role: 'user' },
+      data: {
+        userId: existingUser.id,
+        projectId: project.id,
+        role: 'user',
+        position: position?.trim() || null,
+        department: dept,
+      },
     })
 
     // Fire-and-forget: tell project admins someone returning joined.
@@ -103,7 +124,9 @@ export async function createPersonalPin(
   firstName: string,
   lastName: string,
   projectId: number,
-  pin: string
+  pin: string,
+  position?: string,
+  department?: string,
 ) {
   if (!pin || !/^\d{4}$/.test(pin)) {
     return { error: 'PIN must be 4 digits' }
@@ -139,10 +162,23 @@ export async function createPersonalPin(
     const membership = await prisma.projectMember.findUnique({
       where: { userId_projectId: { userId: existingUser.id, projectId } },
     })
+    const dept = department?.trim() || null
+    if (dept) {
+      await prisma.user.update({
+        where: { id: existingUser.id },
+        data: { department: dept },
+      })
+    }
     let didCreateMembership = false
     if (!membership) {
       await prisma.projectMember.create({
-        data: { userId: existingUser.id, projectId, role: 'user' },
+        data: {
+          userId: existingUser.id,
+          projectId,
+          role: 'user',
+          position: position?.trim() || null,
+          department: dept,
+        },
       })
       didCreateMembership = true
     }
@@ -158,17 +194,26 @@ export async function createPersonalPin(
     firstNameForSession = existingUser.firstName
     lastNameForSession = existingUser.lastName
   } else {
-    // Brand-new user
+    const dept = department?.trim() || null
+    // Brand-new user — department is set on the User row for persistence
+    // and copied to the membership for this show.
     const user = await prisma.user.create({
       data: {
         firstName,
         lastName,
         pin: hashedPin,
+        department: dept,
       },
     })
 
     await prisma.projectMember.create({
-      data: { userId: user.id, projectId, role: 'user' },
+      data: {
+        userId: user.id,
+        projectId,
+        role: 'user',
+        position: position?.trim() || null,
+        department: dept,
+      },
     })
 
     void notifyMemberJoined({

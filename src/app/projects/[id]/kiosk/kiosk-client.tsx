@@ -13,6 +13,7 @@ type PendingMember = {
   firstName: string
   lastName: string
   position: string | null
+  department: string | null
   equipmentNames: string[]
 }
 
@@ -26,11 +27,13 @@ export function KioskClient({
   projectName,
   pending,
   positionSuggestions,
+  departmentSuggestions,
 }: {
   projectId: number
   projectName: string
   pending: PendingMember[]
   positionSuggestions: string[]
+  departmentSuggestions: string[]
 }) {
   const router = useRouter()
   const [view, setView] = useState<KioskView>({ kind: 'form' })
@@ -112,6 +115,7 @@ export function KioskClient({
             onCreated={(r) => setView({ kind: 'qr', ...r })}
             pending={pending}
             positionSuggestions={positionSuggestions}
+            departmentSuggestions={departmentSuggestions}
             onPickPending={(m) => setView({ kind: 'edit', member: m })}
           />
         )}
@@ -119,6 +123,8 @@ export function KioskClient({
         {view.kind === 'edit' && (
           <EditView
             member={view.member}
+            positionSuggestions={positionSuggestions}
+            departmentSuggestions={departmentSuggestions}
             onSaved={(r) => setView({ kind: 'qr', ...r })}
             onCancel={() => setView({ kind: 'form' })}
           />
@@ -147,6 +153,7 @@ function FormView({
   projectName,
   pending,
   positionSuggestions,
+  departmentSuggestions,
   onCreated,
   onPickPending,
 }: {
@@ -154,12 +161,14 @@ function FormView({
   projectName: string
   pending: PendingMember[]
   positionSuggestions: string[]
+  departmentSuggestions: string[]
   onCreated: (r: { firstName: string; lastName: string; joinUrl: string }) => void
   onPickPending: (m: PendingMember) => void
 }) {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [position, setPosition] = useState('')
+  const [department, setDepartment] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   const [pending2, startTransition] = useTransition()
@@ -178,7 +187,7 @@ function FormView({
     e.preventDefault()
     setError(null)
     startTransition(async () => {
-      const res = await createKioskMember(projectId, firstName, lastName, position)
+      const res = await createKioskMember(projectId, firstName, lastName, position, department)
       if ('error' in res) {
         setError(res.error)
         return
@@ -186,6 +195,7 @@ function FormView({
       setFirstName('')
       setLastName('')
       setPosition('')
+      setDepartment('')
       onCreated(res)
     })
   }
@@ -230,17 +240,25 @@ function FormView({
               />
             </div>
           </div>
-          {/* Position — free-text combobox with suggestions sourced
-              from the existing positions on this project (SM,
-              Audio, Lighting, etc.). The kiosk operator can pick
-              an existing one or type a new one. Optional. */}
-          <ComboboxInput
-            label="Position"
-            value={position}
-            onChange={setPosition}
-            options={positionSuggestions}
-            placeholder="SM, Audio, Lighting…"
-          />
+          {/* Department (left) + Position (right) share a row. Both
+              are free-text comboboxes that autocomplete from existing
+              values on this project. */}
+          <div className="grid grid-cols-2 gap-3">
+            <ComboboxInput
+              label="Department"
+              value={department}
+              onChange={setDepartment}
+              options={departmentSuggestions}
+              placeholder="e.g. Audio, RF"
+            />
+            <ComboboxInput
+              label="Position"
+              value={position}
+              onChange={setPosition}
+              options={positionSuggestions}
+              placeholder="e.g. A1, PLHQ"
+            />
+          </div>
           {error && <p className="text-sm text-rose-400">{error}</p>}
           <button
             type="submit"
@@ -334,16 +352,21 @@ function FormView({
 
 function EditView({
   member,
+  positionSuggestions,
+  departmentSuggestions,
   onSaved,
   onCancel,
 }: {
   member: PendingMember
+  positionSuggestions: string[]
+  departmentSuggestions: string[]
   onSaved: (r: { firstName: string; lastName: string; joinUrl: string }) => void
   onCancel: () => void
 }) {
   const [firstName, setFirstName] = useState(member.firstName)
   const [lastName, setLastName] = useState(member.lastName)
   const [position, setPosition] = useState(member.position ?? '')
+  const [department, setDepartment] = useState(member.department ?? '')
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -355,6 +378,7 @@ function EditView({
         firstName,
         lastName,
         position: position.trim() || null,
+        department: department.trim() || null,
       })
       if ('error' in res) {
         setError(res.error)
@@ -390,15 +414,20 @@ function EditView({
             />
           </div>
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-400">Position</label>
-          <input
-            type="text"
-            placeholder="e.g. A1, FOH, LBOP 1"
+        <div className="grid grid-cols-2 gap-3">
+          <ComboboxInput
+            label="Department"
+            value={department}
+            onChange={setDepartment}
+            options={departmentSuggestions}
+            placeholder="e.g. Audio, RF"
+          />
+          <ComboboxInput
+            label="Position"
             value={position}
-            onChange={(e) => setPosition(e.target.value)}
-            disabled={pending}
-            className="w-full rounded-lg border border-white/10 px-3.5 py-2.5 text-base text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3] disabled:opacity-50"
+            onChange={setPosition}
+            options={positionSuggestions}
+            placeholder="e.g. A1, PLHQ"
           />
         </div>
         {error && <p className="text-sm text-rose-400">{error}</p>}

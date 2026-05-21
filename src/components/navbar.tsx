@@ -192,7 +192,7 @@ function MobileNavPanel({
           {notificationUnread > 0 && (
             <span
               aria-hidden="true"
-              className="absolute -right-0.5 -top-0.5 inline-flex min-h-[1.05rem] min-w-[1.05rem] items-center justify-center rounded-full bg-[#22a7d3] px-1 text-[10px] font-bold leading-none text-white ring-2 ring-[#202020]"
+              className="absolute -right-0.5 -top-0.5 inline-flex min-h-[1.05rem] min-w-[1.05rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-[#202020]"
             >
               {notificationUnread > 9 ? '9+' : notificationUnread}
             </span>
@@ -220,7 +220,7 @@ function MobileNavPanel({
           >
             <span>{item.name}</span>
             {item.badge !== undefined && item.badge > 0 && (
-              <span className="inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-[#0178a3] px-2 py-0.5 text-xs font-semibold text-white">
+              <span className="inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-xs font-semibold text-white">
                 {item.badge > 99 ? '99+' : item.badge}
               </span>
             )}
@@ -283,7 +283,7 @@ export function Navbar({
                     >
                       {item.name}
                       {item.badge !== undefined && item.badge > 0 && (
-                        <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-[#0178a3] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                        <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
                           {item.badge > 99 ? '99+' : item.badge}
                         </span>
                       )}
@@ -307,7 +307,7 @@ export function Navbar({
                   {notificationUnread > 0 && (
                     <span
                       aria-hidden="true"
-                      className="absolute -right-0.5 -top-0.5 inline-flex min-h-[1.05rem] min-w-[1.05rem] items-center justify-center rounded-full bg-[#22a7d3] px-1 text-[10px] font-bold leading-none text-white ring-2 ring-[#202020]"
+                      className="absolute -right-0.5 -top-0.5 inline-flex min-h-[1.05rem] min-w-[1.05rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-[#202020]"
                     >
                       {notificationUnread > 9 ? '9+' : notificationUnread}
                     </span>

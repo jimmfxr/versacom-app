@@ -176,7 +176,7 @@ function ToggleSwitch({
       onClick={onChange}
       disabled={disabled}
       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-        enabled ? 'bg-[#22a7d3]' : 'bg-white/15'
+        enabled ? 'bg-green-500' : 'bg-white/15'
       }`}
     >
       <span

@@ -17,7 +17,7 @@ async function getSession() {
 
 export async function createMember(
   projectId: number,
-  data: { firstName: string; lastName: string; position?: string; role: string }
+  data: { firstName: string; lastName: string; position?: string; department?: string; role: string }
 ) {
   const session = await getSession()
   if (!session) return { error: 'Not authenticated' }
@@ -47,6 +47,16 @@ export async function createMember(
       return { error: `${data.firstName.trim()} ${data.lastName.trim()} is already on this project` }
     }
 
+    const dept = data.department?.trim() || null
+    // Mirror the department onto the User row too so it follows the
+    // person across shows. ProjectMember keeps the per-show value as
+    // the source of truth for THIS project.
+    if (dept) {
+      await prisma.user.update({
+        where: { id: existingUser.id },
+        data: { department: dept },
+      })
+    }
     // Add existing user to project
     await prisma.projectMember.create({
       data: {
@@ -54,15 +64,19 @@ export async function createMember(
         projectId,
         role: data.role,
         position: data.position?.trim() || null,
+        department: dept,
       },
     })
   } else {
-    // Create new user (empty PIN — they set it when they join/login)
+    const dept = data.department?.trim() || null
+    // Create new user (empty PIN — they set it when they join/login).
+    // Department goes on the User row too as their persisting default.
     const user = await prisma.user.create({
       data: {
         firstName: data.firstName.trim(),
         lastName: data.lastName.trim(),
         pin: '',
+        department: dept,
       },
     })
 
@@ -72,6 +86,7 @@ export async function createMember(
         projectId,
         role: data.role,
         position: data.position?.trim() || null,
+        department: dept,
       },
     })
   }
@@ -83,7 +98,7 @@ export async function createMember(
 export async function updateMember(
   projectId: number,
   memberId: number,
-  data: { firstName?: string; lastName?: string; position?: string | null; role?: string }
+  data: { firstName?: string; lastName?: string; position?: string | null; department?: string | null; role?: string }
 ) {
   const session = await getSession()
   if (!session) return { error: 'Not authenticated' }
@@ -94,13 +109,17 @@ export async function updateMember(
   })
   if (!member) return { error: 'Member not found' }
 
-  // Update user name if changed
-  if (data.firstName !== undefined || data.lastName !== undefined) {
+  // Update user name + global department default if changed. The
+  // ProjectMember.department write below still scopes to THIS show, but
+  // the User row carries the latest typed value forward to future
+  // joins.
+  if (data.firstName !== undefined || data.lastName !== undefined || data.department !== undefined) {
     await prisma.user.update({
       where: { id: member.userId },
       data: {
         ...(data.firstName !== undefined ? { firstName: data.firstName.trim() } : {}),
         ...(data.lastName !== undefined ? { lastName: data.lastName.trim() } : {}),
+        ...(data.department !== undefined ? { department: data.department || null } : {}),
       },
     })
   }
@@ -110,6 +129,7 @@ export async function updateMember(
     where: { id: memberId },
     data: {
       ...(data.position !== undefined ? { position: data.position || null } : {}),
+      ...(data.department !== undefined ? { department: data.department || null } : {}),
       ...(data.role !== undefined ? { role: data.role } : {}),
     },
   })
@@ -150,6 +170,7 @@ export async function bulkCreateMembers(
     firstName: string
     lastName: string
     position?: string
+    department?: string
     role: string
     quantity: number
     /** Optional starting equipment ID (e.g. "PNL1", "WLBP3"). When set,
@@ -166,6 +187,7 @@ export async function bulkCreateMembers(
   const fn = data.firstName.trim()
   const ln = data.lastName.trim()
   const position = data.position?.trim() || null
+  const department = data.department?.trim() || null
 
   if (!fn || !ln) return { error: 'First and last name are required' }
   if (!['admin', 'manager', 'crew', 'user'].includes(data.role)) {
@@ -301,12 +323,21 @@ export async function bulkCreateMembers(
       ? existingUser.id
       : (
           await prisma.user.create({
-            data: { firstName: target.firstName, lastName: target.lastName, pin: '' },
+            data: { firstName: target.firstName, lastName: target.lastName, pin: '', department },
           })
         ).id
 
+    // Existing-user path: keep the User's global department in sync with
+    // what the admin just typed for this bulk add so the field persists.
+    if (existingUser && department) {
+      await prisma.user.update({
+        where: { id: existingUser.id },
+        data: { department },
+      })
+    }
+
     const newMember = await prisma.projectMember.create({
-      data: { userId, projectId, role: data.role, position },
+      data: { userId, projectId, role: data.role, position, department },
       select: { id: true },
     })
     created++

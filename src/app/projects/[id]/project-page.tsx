@@ -133,6 +133,7 @@ type Member = {
   id: number
   role: string
   position: string | null
+  department: string | null
   location: string | null
   userId: number
   firstName: string
@@ -603,6 +604,7 @@ export function ProjectPage({
   firstNameSuggestions = [],
   lastNameSuggestions = [],
   positionSuggestions = [],
+  departmentSuggestions = [],
   headsetInventory = [],
   miscInventory = {
     goosenecksBrought: 0,
@@ -626,6 +628,7 @@ export function ProjectPage({
   firstNameSuggestions?: string[]
   lastNameSuggestions?: string[]
   positionSuggestions?: string[]
+  departmentSuggestions?: string[]
   headsetInventory?: Array<{ headsetType: string; brought: number }>
   miscInventory?: {
     goosenecksBrought: number
@@ -762,9 +765,9 @@ export function ProjectPage({
   // Crew users don't get the Add Member form but DO get a standalone QR
   // card they can pull up to show to end users during gear deployment.
   const [showTeamQr, setShowTeamQr] = useState(false)
-  const [addMemberData, setAddMemberData] = useState<{ firstName: string; lastName: string; position: string; quantity: string; role: string; equipmentId: string }>({ firstName: '', lastName: '', position: '', quantity: '1', role: 'user', equipmentId: '' })
+  const [addMemberData, setAddMemberData] = useState<{ firstName: string; lastName: string; position: string; department: string; quantity: string; role: string; equipmentId: string }>({ firstName: '', lastName: '', position: '', department: '', quantity: '1', role: 'user', equipmentId: '' })
   const [editingMemberId, setEditingMemberId] = useState<number | null>(null)
-  const [editMemberData, setEditMemberData] = useState<{ firstName: string; lastName: string; position: string; role: string }>({ firstName: '', lastName: '', position: '', role: 'crew' })
+  const [editMemberData, setEditMemberData] = useState<{ firstName: string; lastName: string; position: string; department: string; role: string }>({ firstName: '', lastName: '', position: '', department: '', role: 'crew' })
 
   // Keyboard-chain state. The actual hooks that read editingPlId etc.
   // live further down (after those state vars are declared) so we don't
@@ -1090,7 +1093,7 @@ export function ProjectPage({
 
   function startMemberEdit(m: Member) {
     setEditingMemberId(m.id)
-    setEditMemberData({ firstName: m.firstName, lastName: m.lastName, position: m.position || '', role: m.role })
+    setEditMemberData({ firstName: m.firstName, lastName: m.lastName, position: m.position || '', department: m.department || '', role: m.role })
   }
 
   function handleSaveMember(m: Member) {
@@ -1157,7 +1160,7 @@ export function ProjectPage({
       }
       // Reset name + position + equipment id fields, keep quantity + role
       // for rapid entry. Card stays open and focus snaps back to First Name.
-      setAddMemberData((d) => ({ ...d, firstName: '', lastName: '', position: '', equipmentId: '' }))
+      setAddMemberData((d) => ({ ...d, firstName: '', lastName: '', position: '', department: '', equipmentId: '' }))
       router.refresh()
       // Refocus First Name. requestAnimationFrame so React has flushed.
       requestAnimationFrame(() => {
@@ -1263,6 +1266,14 @@ export function ProjectPage({
     ),
   ).sort()
 
+  // Category sort order = the order CATEGORIES declares them in. Used
+  // when "All" is selected so the list groups by category (Panels →
+  // WLBP → HWBP → Switches → Antennas → Audio → Mults) instead of
+  // jumbling categories together alphabetically by ID.
+  const categoryOrder = new Map<string, number>(
+    CATEGORIES.map((c, i) => [c.value, i] as const),
+  )
+
   const filteredEquipment = equipment
     .filter((e) => {
       if (eqCategoryFilter && e.category !== eqCategoryFilter) return false
@@ -1281,10 +1292,18 @@ export function ProjectPage({
         e.deployStatus.toLowerCase().includes(q)
       )
     })
-    // Natural sort by ID so deleting / re-numbering / changing an ID
-    // (e.g. ANT 5 → ANT 1) re-orders the cards in real numeric order
-    // (ANT 1, ANT 2 … ANT 10) instead of leaving stale insertion order.
-    .sort((a, b) => naturalCompare(a.name, b.name))
+    // Sort by category first (matching the chip-row order), then
+    // natural-compare by ID inside each category. Deleting /
+    // re-numbering / changing an ID (e.g. ANT 5 → ANT 1) still
+    // re-orders within its group in real numeric order (ANT 1,
+    // ANT 2 … ANT 10). When a specific category chip is active the
+    // category-sort is a no-op, so behavior is unchanged there.
+    .sort((a, b) => {
+      const ca = categoryOrder.get(a.category) ?? Number.MAX_SAFE_INTEGER
+      const cb = categoryOrder.get(b.category) ?? Number.MAX_SAFE_INTEGER
+      if (ca !== cb) return ca - cb
+      return naturalCompare(a.name, b.name)
+    })
 
   // Equipment categories the project actually uses (so chips don't include
   // empty buckets the user has no gear in).
@@ -2590,10 +2609,17 @@ export function ProjectPage({
                         onChange={(v) => setAddMemberData({ ...addMemberData, lastName: v })}
                       />
                       <ComboboxInput
+                        label="Department"
+                        value={addMemberData.department}
+                        options={departmentSuggestions}
+                        placeholder="e.g. Audio, RF"
+                        onChange={(v) => setAddMemberData({ ...addMemberData, department: v })}
+                      />
+                      <ComboboxInput
                         label="Position"
                         value={addMemberData.position}
                         options={positionSuggestions}
-                        placeholder="e.g. Lighting"
+                        placeholder="e.g. A1"
                         onChange={(v) => setAddMemberData({ ...addMemberData, position: v })}
                       />
                       <FormInput
@@ -2767,6 +2793,13 @@ export function ProjectPage({
                               />
                               <ComboboxInput
                                 compact
+                                label="Department"
+                                value={editMemberData.department}
+                                options={departmentSuggestions}
+                                onChange={(v) => setEditMemberData({ ...editMemberData, department: v })}
+                              />
+                              <ComboboxInput
+                                compact
                                 label="Position"
                                 value={editMemberData.position}
                                 options={positionSuggestions}
@@ -2792,6 +2825,7 @@ export function ProjectPage({
                             <div>
                               <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm font-semibold text-white">
                                 <span>{m.firstName} {m.lastName}</span>
+                                {m.department && <span className="text-gray-400">· {m.department}</span>}
                                 {m.position && <span className="text-gray-400">· {m.position}</span>}
                                 <span className="text-gray-400">· {ROLE_LABELS[m.role] || m.role}</span>
                                 <span className={m.hasPin ? 'text-green-400' : 'italic text-gray-500'}>
