@@ -186,11 +186,11 @@ export function ProfileForm({
             </svg>
           </button>
           {!infoCollapsed && (<>
-          {/* Mobile = 2 columns (wraps to 3 rows of 2 — first/last,
-              department/position, email/phone). Desktop opens up to all
-              6 fields on a single row. Department sits LEFT of Position
+          {/* Mobile = 2 columns (wraps to 3 rows of 2). Desktop is 3
+              columns: First / Last / Department on row 1, Position /
+              Email / Phone on row 2. Department sits LEFT of Position
               by design — same ordering as the team-card edit form. */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Field
               label="First name"
               value={firstName}
