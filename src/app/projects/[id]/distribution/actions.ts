@@ -44,25 +44,75 @@ const CATEGORY_PREFIXES: Record<string, string> = {
 }
 
 /**
- * Parse a user-provided starting name like "P001", "PNL 15", "P1" into
- * a prefix, number, pad width, and whether a space separator was used.
- * The returned pieces let us preserve the user's formatting exactly when
- * generating the sequence (so "P001" yields "P002", not "P 002").
+ * Parse a user-provided starting name and return a generator that
+ * produces the i-th name in the sequence (i = 0 is the starting name).
+ *
+ * Three trailing patterns are recognised, in order:
+ *   1. Dotted-integer suffix — "MIC.001", "A 4.01". Increments the
+ *      digits AFTER the last dot, preserving zero-padding. The piece
+ *      before the dot never carries (per Option A) — `A 4.99` → `A
+ *      4.100`, NOT `A 5.00`.
+ *   2. Plain integer suffix — "PNL 1", "P001", "100". Increments the
+ *      trailing digits, preserving zero-padding.
+ *   3. Letter suffix — "A", "FOH A", "Z". Bijective base-26 letter
+ *      increment so A→B→…→Z→AA→AB (matches the mults convention; no
+ *      stray "A0" garbage).
+ *
+ * Returns null when none of the three apply (e.g. an empty or
+ * symbol-only input) so the caller can surface a clean error.
  */
-function parseStartingName(name: string): {
-  prefix: string
-  start: number
-  padWidth: number
-  separator: string
-} | null {
-  const match = name.trim().match(/^([A-Za-z]+)(\s*)(\d+)$/)
-  if (!match) return null
-  return {
-    prefix: match[1],
-    separator: match[2],
-    start: parseInt(match[3], 10),
-    padWidth: match[3].length,
+function parseStartingName(name: string): { at: (i: number) => string } | null {
+  const trimmed = name.trim()
+  if (!trimmed) return null
+
+  // Rule 1: trailing dotted-integer.
+  const dotMatch = trimmed.match(/^(.+)\.(\d+)$/)
+  if (dotMatch) {
+    const prefix = `${dotMatch[1]}.`
+    const start = parseInt(dotMatch[2], 10)
+    const padWidth = dotMatch[2].length
+    return { at: (i) => `${prefix}${String(start + i).padStart(padWidth, '0')}` }
   }
+
+  // Rule 2: trailing plain integer.
+  const intMatch = trimmed.match(/^(.*?)(\d+)$/)
+  if (intMatch) {
+    const prefix = intMatch[1]
+    const start = parseInt(intMatch[2], 10)
+    const padWidth = intMatch[2].length
+    return { at: (i) => `${prefix}${String(start + i).padStart(padWidth, '0')}` }
+  }
+
+  // Rule 3: trailing letters.
+  const letMatch = trimmed.match(/^(.*?)([A-Za-z]+)$/)
+  if (letMatch) {
+    const prefix = letMatch[1]
+    const startLetters = letMatch[2].toUpperCase()
+    return { at: (i) => `${prefix}${incrementLetters(startLetters, i)}` }
+  }
+
+  return null
+}
+
+/**
+ * Bijective base-26 increment. "A" + 1 = "B", "Z" + 1 = "AA",
+ * "AA" + 1 = "AB", "AZ" + 1 = "BA". Same scheme nextMultName() uses
+ * for mults so letter sequences read identically across both flows.
+ */
+function incrementLetters(start: string, offset: number): string {
+  let value = 0
+  for (const ch of start.toUpperCase()) {
+    value = value * 26 + (ch.charCodeAt(0) - 64)
+  }
+  value += offset
+  if (value < 1) return start
+  let result = ''
+  while (value > 0) {
+    const rem = (value - 1) % 26
+    result = String.fromCharCode(65 + rem) + result
+    value = Math.floor((value - 1) / 26)
+  }
+  return result
 }
 
 export async function bulkCreateEquipment(
@@ -154,41 +204,36 @@ export async function bulkCreateEquipment(
 
   const trimmedStartingId = startingId.trim()
 
-  // Decide prefix + starting number + pad width + separator based on whether
-  // the user typed a starting ID. Blank → category default ("PNL 1", etc.);
-  // Filled → literal sequence from the user's value.
-  let prefix: string
-  let startNum: number
-  let padWidth: number
-  let separator: string
+  // Resolve the name generator. Blank starting-ID → category default
+  // ("PNL 1" etc.); typed value → whatever pattern parseStartingName
+  // recognises (letter, integer, or dotted-integer suffix).
+  let nameAt: (i: number) => string
 
   if (trimmedStartingId) {
     const parsed = parseStartingName(trimmedStartingId)
     if (!parsed) {
-      return { error: 'ID must be letters followed by digits (e.g. PNL 1, P001, P1)' }
+      return {
+        error:
+          'Starting ID must end in letters (A, FOH A), digits (PNL 1, P001), or a dotted number (A 4.01).',
+      }
     }
-    prefix = parsed.prefix
-    startNum = parsed.start
-    padWidth = parsed.padWidth
-    separator = parsed.separator
+    nameAt = parsed.at
   } else {
-    prefix = CATEGORY_PREFIXES[category]
-    separator = ' ' // Default format is "PNL 1" with a space.
-    padWidth = 1 // No zero-padding for auto-generated names.
-    // Find the highest existing number for this category prefix in this project.
+    const autoPrefix = CATEGORY_PREFIXES[category]
     const existing = await prisma.equipment.findMany({
       where: { projectId, category },
       select: { name: true },
     })
     let maxNum = 0
     for (const e of existing) {
-      const m = e.name.match(new RegExp(`^${prefix}\\s+(\\d+)$`))
+      const m = e.name.match(new RegExp(`^${autoPrefix}\\s+(\\d+)$`))
       if (m) {
         const num = parseInt(m[1], 10)
         if (num > maxNum) maxNum = num
       }
     }
-    startNum = maxNum + 1
+    const startNum = maxNum + 1
+    nameAt = (i) => `${autoPrefix} ${startNum + i}`
   }
 
   // Pull every existing equipment name across the project so we can skip
@@ -215,11 +260,12 @@ export async function bulkCreateEquipment(
     hardwareType: string | null
     headsetType: string | null
   }[] = []
-  let n = startNum
+  // Walk the sequence, skipping collisions, until we've collected
+  // `quantity` brand-new names or hit the safety cap.
   const maxIterations = quantity * 10 + 10
-  let iterations = 0
-  while (records.length < quantity && iterations < maxIterations) {
-    const name = `${prefix}${separator}${String(n).padStart(padWidth, '0')}`
+  let i = 0
+  while (records.length < quantity && i < maxIterations) {
+    const name = nameAt(i)
     if (!existingNames.has(name)) {
       records.push({
         projectId,
@@ -230,8 +276,7 @@ export async function bulkCreateEquipment(
       })
       existingNames.add(name)
     }
-    n++
-    iterations++
+    i++
   }
 
   if (records.length < quantity) {
