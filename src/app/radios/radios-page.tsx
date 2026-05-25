@@ -774,10 +774,12 @@ function RadioCard({
       // Desktop (sm:): everything flattens back into one wrapping flex
       // row via `sm:contents` on the inner groups, matching the prior
       // inline-everything look.
-      <div className="flex flex-col gap-2 border-b border-white/[0.06] px-2 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-1">
-        {/* Identity strip — ID, first/last, department, position all
-            sit on one mobile row. `sm:contents` lets the inner spans
-            participate in the outer flex on desktop. */}
+      <div className="flex flex-col gap-4 border-b border-white/[0.06] px-2 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-1">
+        {/* Identity strip — ID, first/last, department, position, and
+            the accessory flags as plain dot-separated text all sit on
+            one mobile row. `sm:contents` lets the inner spans
+            participate in the outer flex on desktop so they flow with
+            the rest of the row. */}
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0 sm:contents">
           <span className="text-sm font-semibold text-[#22a7d3]">{radio.name}</span>
           {(radio.firstName || radio.lastName) && (
@@ -791,20 +793,16 @@ function RadioCard({
           {radio.position && (
             <span className="text-xs text-gray-400">· {radio.position}</span>
           )}
+          {radio.fistMic && <span className="text-xs text-gray-400">· Fist mic</span>}
+          {radio.surveillance && <span className="text-xs text-gray-400">· Surveillance</span>}
+          {radio.doubleMuff && <span className="text-xs text-gray-400">· Double muff</span>}
+          {radio.lightweight && <span className="text-xs text-gray-400">· Lightweight</span>}
         </div>
-        {/* Accessory chips + barcode — wrap together on mobile so they
-            populate the remaining card width naturally. */}
-        <div className="flex flex-wrap items-center gap-2 sm:contents">
-          {radio.fistMic && <AccessoryChip label="Fist mic" />}
-          {radio.surveillance && <AccessoryChip label="Surveillance" />}
-          {radio.doubleMuff && <AccessoryChip label="Double muff" />}
-          {radio.lightweight && <AccessoryChip label="Lightweight" />}
-          {radio.barcode && (
-            <span className="rounded-md border border-white/10 px-2 py-0.5 font-mono text-[11px] text-gray-300 sm:ml-auto">
-              {radio.barcode}
-            </span>
-          )}
-        </div>
+        {radio.barcode && (
+          <span className="rounded-md border border-white/10 px-2 py-0.5 font-mono text-[11px] text-gray-300 sm:ml-auto">
+            {radio.barcode}
+          </span>
+        )}
         {/* Edit button — own full-width row on mobile, content-sized
             and right-aligned on desktop. */}
         <button
@@ -1201,7 +1199,7 @@ function ZoneCard({
           Header itself is no longer a button; only the chip toggles
           the expansion so the rest of the row stays inert. Matches
           the Edit-chip pattern used on the radio cards. */}
-      <div className="flex flex-col gap-2 px-2 py-3">
+      <div className="flex flex-col gap-4 px-2 py-3">
         <div className="flex items-baseline gap-2">
           <span className="text-sm font-semibold text-white">{persistedName}</span>
           {dirty && (

@@ -2874,7 +2874,7 @@ export function ProjectPage({
                             </div>
                           </form>
                         ) : (
-                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
                             <div>
                               <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm font-semibold text-white">
                                 <span>{m.firstName} {m.lastName}</span>
@@ -3133,7 +3133,7 @@ export function ProjectPage({
                             </div>
                           </form>
                         ) : (
-                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
                                 {item.code && <span className="text-sm font-semibold text-white">{item.code}</span>}
@@ -3345,7 +3345,7 @@ export function ProjectPage({
                             </div>
                           </>
                         ) : (
-                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                             <span className="text-sm font-semibold text-white">{plot.label}</span>
                             <div className="flex flex-col gap-2 sm:flex-row sm:shrink-0 sm:items-center">
                               <a

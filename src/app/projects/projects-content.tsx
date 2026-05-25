@@ -325,11 +325,12 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
           </Card>
         )}
 
-        {/* Mobile-only sticky search bar. On desktop the search lives
-            inline in the page header (left of the New Project button)
-            so we hide this row at sm+. */}
+        {/* Mobile-only search bar — sits as a flex-shrink-0 sibling
+            above the scroll region so it stays in view alongside the
+            page header and + button while the list scrolls. Hidden on
+            desktop where the search lives inline in the page header. */}
         {projects.length > 0 && (
-          <div className="sticky top-16 z-20 -mx-4 bg-[#202020] px-4 pb-3 sm:hidden">
+          <div className="flex-shrink-0 pb-3 sm:hidden">
             <input
               type="text"
               placeholder="Search projects..."
@@ -354,9 +355,10 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
             message="Try a different search term."
           />
         ) : (
-          // Scrollable region (desktop): card list scrolls inside this
-          // div while the search bar above stays put.
-          <div data-scroll-container className="divide-y divide-white/[0.06] sm:flex-1 sm:overflow-y-auto sm:overscroll-none sm:pt-1 sm:pb-20">
+          // Scrollable region — card list scrolls inside this div on
+          // both mobile and desktop, so the page header, + button,
+          // and (mobile) search bar above all stay pinned in view.
+          <div data-scroll-container className="flex-1 divide-y divide-white/[0.06] overflow-y-auto overscroll-none pt-1 pb-20">
             {filteredProjects.map((project) => {
               const isArchived = project.status === 'archived'
               const isEditing = editingProjectId === project.id
