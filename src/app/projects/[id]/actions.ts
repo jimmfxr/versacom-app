@@ -345,3 +345,70 @@ export async function setReturnPhase(projectId: number, active: boolean) {
   revalidatePath('/tasks')
   return { success: true }
 }
+
+/**
+ * Bulk-rename a location across a project. Updates every Equipment row,
+ * every ProjectMember row, and every Plot label that matches the old
+ * name (case-insensitive). Used by the Pull-list card on the Equipment
+ * tab + /tasks so an admin/manager can fix a typo or reorganise
+ * locations without touching every device individually.
+ *
+ * Admin/manager only — same gate as setReturnPhase.
+ */
+export async function renameLocation(
+  projectId: number,
+  oldName: string,
+  newName: string,
+) {
+  const session = await getSession()
+  if (!session) return { error: 'Not authenticated' }
+
+  const oldTrim = oldName.trim()
+  const newTrim = newName.trim()
+  if (!oldTrim) return { error: 'Original location is required' }
+  if (!newTrim) return { error: 'New location is required' }
+  if (newTrim.length > 100) return { error: 'Location must be 100 characters or less' }
+  if (oldTrim.toLowerCase() === newTrim.toLowerCase()) {
+    // No-op — caller can treat as success and just close the editor.
+    return { success: true, updated: 0 }
+  }
+
+  const membership = await prisma.projectMember.findFirst({
+    where: { projectId, userId: session.user.id },
+    select: { role: true },
+  })
+  const globalAdmin = await prisma.projectMember.findFirst({
+    where: { userId: session.user.id, role: 'admin' },
+    select: { id: true },
+  })
+  const canEdit =
+    !!globalAdmin || membership?.role === 'admin' || membership?.role === 'manager'
+  if (!canEdit) return { error: 'Not authorized to rename locations' }
+
+  // Equipment.location is case-sensitive in storage; match insensitively
+  // and rewrite to the new canonical name. updateMany skips silently
+  // when nothing matches — that's fine (one of the three may legit
+  // have zero matches on a given location).
+  const [eqResult, memberResult, plotResult] = await prisma.$transaction([
+    prisma.equipment.updateMany({
+      where: { projectId, location: { equals: oldTrim, mode: 'insensitive' } },
+      data: { location: newTrim },
+    }),
+    prisma.projectMember.updateMany({
+      where: { projectId, location: { equals: oldTrim, mode: 'insensitive' } },
+      data: { location: newTrim },
+    }),
+    prisma.plot.updateMany({
+      where: { projectId, label: { equals: oldTrim, mode: 'insensitive' } },
+      data: { label: newTrim },
+    }),
+  ])
+
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath('/tasks')
+  revalidatePath('/admin')
+  return {
+    success: true,
+    updated: eqResult.count + memberResult.count + plotResult.count,
+  }
+}

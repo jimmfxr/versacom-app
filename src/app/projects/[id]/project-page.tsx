@@ -33,7 +33,7 @@ import { ChipScroller } from '@/components/chip-scroller'
 import { LocationSummary } from '@/components/location-summary'
 import { HeadsetInventoryEditor } from '@/components/headset-inventory-editor'
 import { usePersistentState } from '@/lib/use-persistent-state'
-import { updateProject, deleteProject, setReturnPhase } from './actions'
+import { updateProject, deleteProject, setReturnPhase, renameLocation } from './actions'
 import { bulkCreateEquipment, updateEquipment, deleteEquipment } from './distribution/actions'
 import { createPlot, updatePlot, deletePlot } from './plot-actions'
 import { createMember, updateMember, deleteMember, bulkCreateMembers } from './team-actions'
@@ -2074,6 +2074,19 @@ export function ProjectPage({
                     deployStatus: e.deployStatus,
                   }))}
                   plots={plots}
+                  onRename={
+                    canEditTeam
+                      ? async (nextName) => {
+                          const res = await renameLocation(project.id, eqLocationFilter, nextName)
+                          if (res.error) { showToast('error', res.error); return { error: res.error } }
+                          // Keep the filter chip pointing at the renamed
+                          // location so the card stays open on the same
+                          // gear after the rename completes.
+                          setEqLocationFilter(nextName.trim())
+                          showToast('success', `Renamed ${eqLocationFilter} → ${nextName.trim()}`)
+                        }
+                      : undefined
+                  }
                 />
               )}
               {filteredEquipment.length === 0 ? (

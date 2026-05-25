@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { STATUS_BADGE_STYLES, getStatusLabel } from '@/lib/deploy-status'
 import { compareMultNames } from '@/lib/mults'
 
@@ -186,6 +187,7 @@ export function LocationSummary({
   allGear,
   label = 'Pull list',
   plots = [],
+  onRename,
 }: {
   location: string
   allGear: LocationSummaryGear[]
@@ -196,9 +198,51 @@ export function LocationSummary({
    *  Match is case-insensitive on label (so "FOH" plot maps to FOH
    *  location). Optional — nothing renders when no match exists. */
   plots?: Array<{ id: number; label: string; url: string }>
+  /** When provided, the location name becomes tappable: tapping it
+   *  opens an inline input directly below the title with Save / Cancel
+   *  chips that call this callback with the new value. The callback
+   *  is responsible for the actual write + page refresh. Pages that
+   *  don't want to expose rename (read-only crew view, etc.) omit
+   *  this prop and the name stays static. */
+  onRename?: (nextName: string) => Promise<{ error?: string } | void>
 }) {
+  const router = useRouter()
   const summary = buildLocationSummary(allGear, location)
   const [collapsed, setCollapsed] = useState(false)
+  const [renaming, setRenaming] = useState(false)
+  const [draftName, setDraftName] = useState(location)
+  const [renameError, setRenameError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+  // Reset the draft whenever the editor is opened or the underlying
+  // location prop changes (e.g. after a successful save the parent
+  // re-renders with the new name).
+  useEffect(() => {
+    if (renaming) {
+      setDraftName(location)
+      setRenameError(null)
+    }
+  }, [renaming, location])
+
+  function saveRename() {
+    if (!onRename) return
+    const next = draftName.trim()
+    if (!next) { setRenameError('Location name is required'); return }
+    if (next.toLowerCase() === location.trim().toLowerCase()) {
+      // No-op rename — just close the editor.
+      setRenaming(false)
+      return
+    }
+    setRenameError(null)
+    startTransition(async () => {
+      const res = await onRename(next)
+      if (res && 'error' in res && res.error) {
+        setRenameError(res.error)
+        return
+      }
+      setRenaming(false)
+      router.refresh()
+    })
+  }
   // Find a plot whose label matches this location (case-insensitive).
   // Used to surface the "Open PDF" chip directly under the card's
   // Pull-list header so it's the first action crew see when opening
@@ -209,19 +253,41 @@ export function LocationSummary({
 
   return (
     <div className="mb-4 border-b border-white/10 py-4 sm:py-5">
-      <button
-        type="button"
-        onClick={() => setCollapsed((v) => !v)}
-        className="flex w-full items-center justify-between gap-2 text-left"
-        aria-expanded={!collapsed}
-      >
-        <div>
+      {/* Header row — title block + (when renaming) inline editor +
+          chevron. Mobile: editor bumps to its own basis-full row below
+          the title. Desktop: editor sits inline between the title and
+          the chevron via sm:order shuffling, taking the leftover width
+          via sm:flex-1 so the input is comfortable to type into. */}
+      <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:gap-3">
+        <div className="min-w-0">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
             {label}
           </div>
-          <div className="text-base font-semibold text-white">{location}</div>
+          {onRename ? (
+            <button
+              type="button"
+              onClick={() => setRenaming(true)}
+              className="text-left text-base font-semibold text-white hover:underline decoration-white/30"
+              aria-label={`Rename location ${location}`}
+            >
+              {location}
+            </button>
+          ) : (
+            <div className="text-base font-semibold text-white">{location}</div>
+          )}
         </div>
-        <div className="flex items-center gap-2">
+        {/* Chevron sits in DOM directly after the title so it stays on
+            the same wrap-row as the title on mobile (the editor below
+            uses basis-full and would otherwise push the chevron onto
+            its own row). On desktop sm:order-3 moves the chevron to
+            the end, after the editor. */}
+        <button
+          type="button"
+          onClick={() => setCollapsed((v) => !v)}
+          className="ml-auto flex items-center gap-2 sm:order-3"
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? 'Expand pull list' : 'Collapse pull list'}
+        >
           {/* Item-count badge — borderless cyan label so it reads as
               a soft accent next to the location name rather than a
               tappable chip. Was a chip, but the cyan-bordered look
@@ -238,8 +304,46 @@ export function LocationSummary({
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
           </svg>
-        </div>
-      </button>
+        </button>
+        {renaming && onRename && (
+          <div className="flex basis-full flex-col gap-2 sm:order-2 sm:basis-auto sm:flex-1 sm:flex-row sm:items-center sm:gap-2">
+            <input
+              type="text"
+              autoFocus
+              value={draftName}
+              disabled={isPending}
+              onChange={(e) => { setDraftName(e.target.value); setRenameError(null) }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); saveRename() }
+                else if (e.key === 'Escape') { setRenaming(false) }
+              }}
+              placeholder="Location name"
+              className="block w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm font-semibold text-white outline-none transition-colors focus:border-[#0178a3] disabled:cursor-not-allowed disabled:opacity-50 sm:flex-1"
+            />
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
+              <button
+                type="button"
+                onClick={() => { setRenaming(false); setRenameError(null) }}
+                disabled={isPending}
+                className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={saveRename}
+                disabled={isPending || !draftName.trim()}
+                className="w-full rounded-lg bg-[#0178a3] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              >
+                {isPending ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+      {renameError && (
+        <p className="mt-2 text-xs text-red-400">{renameError}</p>
+      )}
 
       {/* Plot chip — sits directly under the Pull-list header so it's
           the first thing crew see when the card is open. Links to the
