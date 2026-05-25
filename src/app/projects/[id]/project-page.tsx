@@ -1927,7 +1927,6 @@ export function ProjectPage({
                     )}
                     <div className="order-1 flex items-center justify-end gap-2 sm:order-2">
                       <AddTabSwitcher value={addTab} onChange={setAddTab} />
-                      <IconButton className="shrink-0" onClick={() => { setShowAdd(false); setAddError('') }}><CloseIcon /></IconButton>
                     </div>
                   </div>
 
@@ -1971,8 +1970,9 @@ export function ProjectPage({
                             onChange={(v) => setAddAutoAssign(v === 'yes')}
                           />
                         </div>
-                        <div className="mt-4 flex justify-end">
-                          <Button type="submit" disabled={isPending}>{isPending ? 'Adding...' : 'Add'}</Button>
+                        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+                          <button type="button" onClick={() => { setShowAdd(false); setAddError('') }} disabled={isPending} className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Cancel</button>
+                          <Button type="submit" disabled={isPending} className="w-full sm:w-auto">{isPending ? 'Adding...' : 'Add'}</Button>
                         </div>
                         {addError && <p className="mt-3 text-sm text-red-400">{addError}</p>}
                       </form>
@@ -2042,16 +2042,16 @@ export function ProjectPage({
                           onChange={(e) => setAddMultQuantity(e.target.value)}
                         />
                       </div>
-                      <div className="mt-4 flex items-center justify-end gap-3">
+                      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
                         <button
                           type="button"
                           onClick={() => { setShowAdd(false); setAddError('') }}
                           disabled={isPending}
-                          className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                          className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                         >
                           Cancel
                         </button>
-                        <Button type="submit" size="sm" disabled={isPending}>{isPending ? 'Adding…' : 'Add'}</Button>
+                        <Button type="submit" size="sm" disabled={isPending} className="w-full sm:w-auto">{isPending ? 'Adding…' : 'Add'}</Button>
                       </div>
                       {addError && <p className="mt-3 text-sm text-red-400">{addError}</p>}
                     </form>
@@ -2623,7 +2623,6 @@ export function ProjectPage({
                 <Card>
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-white">Add Member</h3>
-                    <IconButton onClick={() => setShowAddMember(false)}><CloseIcon /></IconButton>
                   </div>
                   <p className="mt-2 text-xs text-gray-500">Members are added automatically when they join with the project PIN. You can also add members manually, or open the Kiosk for self-service crew check-in.</p>
                   <form onSubmit={(e) => { e.preventDefault(); handleAddMember() }}>
@@ -2750,18 +2749,19 @@ export function ProjectPage({
                         </div>
                       )
                     })()}
-                    <div className="mt-4 flex items-center justify-end gap-2">
+                    <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
                       <a
                         href={`/projects/${project.id}/kiosk`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
+                        className="inline-flex w-full items-center justify-center rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white sm:w-auto"
                       >
                         Kiosk
                       </a>
                       <Button
                         type="button"
                         variant="secondary"
+                        className="w-full sm:w-auto"
                         disabled={!addMemberData.firstName.trim() || !addMemberData.lastName.trim()}
                         onClick={() => {
                           const name = `${addMemberData.firstName.trim()} ${addMemberData.lastName.trim()}`
@@ -2775,11 +2775,20 @@ export function ProjectPage({
                       <Button
                         type="button"
                         variant="secondary"
+                        className="w-full sm:w-auto"
                         onClick={() => setShowJoinQr((v) => !v)}
                       >
                         {showJoinQr ? 'Hide QR' : 'QR'}
                       </Button>
-                      <Button type="submit" disabled={isPending || !addMemberData.firstName.trim() || !addMemberData.lastName.trim() || addEquipmentBlocked}>{isPending ? 'Adding...' : 'Add'}</Button>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddMember(false)}
+                        disabled={isPending}
+                        className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                      >
+                        Cancel
+                      </button>
+                      <Button type="submit" className="w-full sm:w-auto" disabled={isPending || !addMemberData.firstName.trim() || !addMemberData.lastName.trim() || addEquipmentBlocked}>{isPending ? 'Adding...' : 'Add'}</Button>
                     </div>
                     {showJoinQr && (() => {
                       const joinUrl = `https://versacom-app.vercel.app/login/join?pin=${project.pin}`
@@ -3042,7 +3051,6 @@ export function ProjectPage({
                 <Card>
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-white">Add Function</h3>
-                    <IconButton onClick={() => setShowAddPl(false)}><CloseIcon /></IconButton>
                   </div>
                   <p className="mt-2 text-xs text-gray-500">Add a function. Leave Name blank to bulk-create placeholders (<span className="font-mono">C1</span>, <span className="font-mono">C2</span>…) you can rename later.</p>
                   <form onSubmit={(e) => { e.preventDefault(); handleAddPl() }}>
@@ -3069,12 +3077,13 @@ export function ProjectPage({
                         }}
                       />
                     </div>
-                    <div className="mt-4 flex justify-end">
+                    <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+                      <button type="button" onClick={() => setShowAddPl(false)} disabled={isPending} className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Cancel</button>
                       {(() => {
                         const hasName = !!addPlData.name.trim()
                         const qty = parseInt(addPlData.quantity, 10)
                         const ok = hasName || (Number.isFinite(qty) && qty > 0)
-                        return <Button type="submit" disabled={isPending || !ok}>{isPending ? 'Adding...' : 'Add'}</Button>
+                        return <Button type="submit" disabled={isPending || !ok} className="w-full sm:w-auto">{isPending ? 'Adding...' : 'Add'}</Button>
                       })()}
                     </div>
                   </form>
@@ -3210,7 +3219,6 @@ export function ProjectPage({
                 <Card>
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-white">Add Stage Plot</h3>
-                    <IconButton onClick={() => { setShowAddPlot(false); setAddPlotLabel(''); setAddPlotUrl('') }}><CloseIcon /></IconButton>
                   </div>
                   <div className="mt-4 flex flex-col gap-3">
                     <ComboboxInput
@@ -3236,10 +3244,12 @@ export function ProjectPage({
                       </p>
                     </div>
                   </div>
-                  <div className="mt-4 flex justify-end">
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+                    <button type="button" onClick={() => { setShowAddPlot(false); setAddPlotLabel(''); setAddPlotUrl('') }} disabled={isPending} className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Cancel</button>
                     <Button
                       type="button"
                       disabled={!addPlotLabel.trim() || !addPlotUrl.trim() || isPending}
+                      className="w-full sm:w-auto"
                       onClick={() => {
                         startTransition(async () => {
                           const result = await createPlot(project.id, {

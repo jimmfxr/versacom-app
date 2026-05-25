@@ -579,45 +579,46 @@ function BulkAddCard({
 
   return (
     <div className="mb-3 border-b border-white/[0.06] px-2 py-4">
-      <div className="mb-3 flex items-center justify-between gap-2">
+      <div className="mb-3">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
           Add radios
         </span>
-        <IconButton
-          aria-label="Close add radios"
-          disabled={isPending}
-          onClick={onCancel}
-          className="shrink-0"
-        >
-          <CloseIcon />
-        </IconButton>
       </div>
       <form
         onSubmit={(e) => {
           e.preventDefault()
           submit()
         }}
-        className="grid grid-cols-2 gap-3 sm:grid-cols-4"
       >
-        <Field
-          label="Quantity"
-          inputMode="numeric"
-          value={quantity}
-          onChange={(v) => setQuantity(v.replace(/\D/g, ''))}
-          disabled={isPending}
-        />
-        <Field
-          label="Starting ID"
-          placeholder="RAD 1 (auto)"
-          value={startingId}
-          onChange={setStartingId}
-          disabled={isPending}
-        />
-        <div className="col-span-2 flex items-end justify-end sm:col-span-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Field
+            label="Quantity"
+            inputMode="numeric"
+            value={quantity}
+            onChange={(v) => setQuantity(v.replace(/\D/g, ''))}
+            disabled={isPending}
+          />
+          <Field
+            label="Starting ID"
+            placeholder="RAD 1 (auto)"
+            value={startingId}
+            onChange={setStartingId}
+            disabled={isPending}
+          />
+        </div>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isPending}
+            className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          >
+            Cancel
+          </button>
           <button
             type="submit"
             disabled={isPending || !quantity}
-            className="rounded-lg bg-[#0178a3] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-lg bg-[#0178a3] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {isPending ? 'Creating…' : 'Create'}
           </button>
@@ -1048,18 +1049,10 @@ function ZonesEditor({
           own X (far right of the "Add zone" header) closes it. */}
       {showAdd && (
         <div className="border-b border-white/[0.06] px-2 py-4">
-          <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="mb-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
               Add zone
             </span>
-            <IconButton
-              aria-label="Close add zone"
-              disabled={isPending}
-              onClick={onCloseAdd}
-              className="shrink-0"
-            >
-              <CloseIcon />
-            </IconButton>
           </div>
           <form
             onSubmit={(e) => {
@@ -1068,24 +1061,31 @@ function ZonesEditor({
               onCreate(newName.trim())
               setNewName('')
             }}
-            className="flex flex-col gap-2 sm:flex-row sm:items-end"
           >
-            <div className="flex-1">
-              <Field
-                label="Zone name"
-                placeholder="Stage, FOH…"
-                value={newName}
-                onChange={setNewName}
+            <Field
+              label="Name"
+              placeholder="Stage, FOH…"
+              value={newName}
+              onChange={setNewName}
+              disabled={isPending}
+            />
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+              <button
+                type="button"
+                onClick={onCloseAdd}
                 disabled={isPending}
-              />
+                className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isPending || !newName.trim()}
+                className="w-full rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              >
+                {isPending ? 'Adding…' : 'Add zone'}
+              </button>
             </div>
-            <button
-              type="submit"
-              disabled={isPending || !newName.trim()}
-              className="rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isPending ? 'Adding…' : 'Add zone'}
-            </button>
           </form>
         </div>
       )}
@@ -1197,12 +1197,11 @@ function ZoneCard({
 
   return (
     <div className="border-b border-white/[0.06]">
-      <button
-        type="button"
-        onClick={() => setCollapsed((v) => !v)}
-        aria-expanded={!collapsed}
-        className="flex w-full items-center justify-between gap-3 px-2 py-3 text-left transition-colors hover:bg-white/[0.04]"
-      >
+      {/* Header row — zone name on the left, Edit/X chip on the right.
+          Header itself is no longer a button; only the chip toggles
+          the expansion so the rest of the row stays inert. Matches
+          the Edit-chip pattern used on the radio cards. */}
+      <div className="flex flex-col gap-2 px-2 py-3">
         <div className="flex items-baseline gap-2">
           <span className="text-sm font-semibold text-white">{persistedName}</span>
           {dirty && (
@@ -1211,37 +1210,33 @@ function ZoneCard({
             </span>
           )}
         </div>
-        {/* Chevron down when collapsed → indicates "tap to expand".
-            X when expanded → indicates "tap to close" (matches the
-            close-X pattern used elsewhere in the app). */}
-        <svg
-          className="size-4 shrink-0 text-gray-400"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={2}
-          stroke="currentColor"
-        >
-          {collapsed ? (
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-          ) : (
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M6 18L18 6" />
-          )}
-        </svg>
-      </button>
+        {/* Edit chip — only visible while collapsed. Once expanded the
+            Cancel button in the action row at the bottom handles close. */}
+        {collapsed && (
+          <button
+            type="button"
+            onClick={() => setCollapsed(false)}
+            aria-label="Edit zone"
+            className="flex w-full items-center justify-center rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+          >
+            Edit
+          </button>
+        )}
+      </div>
 
       {!collapsed && (
         <div className="px-2 pb-4">
           <div className="mb-3">
             <label className="block">
               <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-                Zone name
+                Name
               </span>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 disabled={isPending}
-                className="block w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm font-semibold text-white outline-none transition-colors focus:border-[#0178a3] disabled:cursor-not-allowed disabled:opacity-50"
+                className="block w-full border-0 border-b border-white/10 bg-transparent px-3 py-2 text-sm font-semibold text-white outline-none transition-colors focus:border-[#0178a3] disabled:cursor-not-allowed disabled:opacity-50"
               />
             </label>
           </div>
@@ -1264,6 +1259,14 @@ function ZoneCard({
               className="w-full rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               Delete
+            </button>
+            <button
+              type="button"
+              onClick={() => setCollapsed(true)}
+              disabled={isPending}
+              className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            >
+              Cancel
             </button>
             <button
               type="button"
@@ -1316,7 +1319,7 @@ function ChannelRow({
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
         placeholder="Channel name"
-        className="block w-full rounded-md border border-white/10 bg-[#202020] px-2.5 py-1.5 text-sm text-white outline-none transition-colors focus:border-[#0178a3] disabled:cursor-not-allowed disabled:opacity-50"
+        className="block w-full border-0 border-b border-white/10 bg-transparent px-2.5 py-1.5 text-sm text-white outline-none transition-colors focus:border-[#0178a3] disabled:cursor-not-allowed disabled:opacity-50"
       />
     </label>
   )
