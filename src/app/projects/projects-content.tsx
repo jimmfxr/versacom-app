@@ -231,11 +231,6 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
               <h3 className="text-sm font-semibold text-white">
                 {cloneOpen ? 'Clone Project' : 'New Project'}
               </h3>
-              <IconButton onClick={closeForm}>
-                <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                </svg>
-              </IconButton>
             </div>
             <form action={cloneOpen ? handleCloneSubmit : handleSubmit}>
               {cloneOpen && (
@@ -298,17 +293,17 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                 />
               </div>
               {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
-              {/* Action row — all three buttons right-aligned. Clone
-                  and Cancel share the chip-inactive style (transparent
+              {/* Action row — Clone/Cancel/Save full-width stacked on
+                  mobile, right-clustered inline on desktop. Clone and
+                  Cancel share the chip-inactive style (transparent
                   fill + thin border) used elsewhere for Edit / Back
-                  buttons; Save is the cyan primary. Clone sits to the
-                  left of Cancel. */}
-              <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+                  buttons; Save is the cyan primary. */}
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
                 <button
                   type="button"
                   onClick={() => { setCloneOpen((v) => !v); setError('') }}
                   disabled={isPending}
-                  className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:opacity-50"
+                  className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:opacity-50 sm:w-auto"
                 >
                   {cloneOpen ? 'New project' : 'Clone'}
                 </button>
@@ -316,11 +311,11 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                   type="button"
                   onClick={closeForm}
                   disabled={isPending}
-                  className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:opacity-50"
+                  className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:opacity-50 sm:w-auto"
                 >
                   Cancel
                 </button>
-                <Button type="submit" size="sm" disabled={isPending}>
+                <Button type="submit" size="sm" disabled={isPending} className="w-full sm:w-auto">
                   {isPending
                     ? (cloneOpen ? 'Cloning…' : 'Saving…')
                     : (cloneOpen ? 'Clone Project' : 'Save')}
@@ -371,13 +366,8 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
               return (
                 <div key={project.id}>
                   <RowCard
-                    className={isArchived ? 'opacity-60' : ''}
+                    className={`flex-wrap ${isArchived ? 'opacity-60' : ''}`}
                   >
-                    <div className={`flex size-10 shrink-0 items-center justify-center rounded-full ${isArchived ? 'bg-gray-500/15' : 'bg-[#0178a3]/15'}`}>
-                      <svg className={`size-5 ${isArchived ? 'text-gray-500' : 'text-[#0178a3]'}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
-                      </svg>
-                    </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className={`text-sm font-semibold ${isArchived ? 'text-gray-400' : 'text-white'}`}>{project.name}</span>
@@ -399,6 +389,7 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                       <Button
                         size="sm"
                         variant="secondary"
+                        className="w-full basis-full sm:w-auto sm:basis-auto"
                         disabled={isPending}
                         onClick={(e) => {
                           e.stopPropagation()
@@ -412,7 +403,10 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                         inline settings card below the row. Stop
                         propagation so the click doesn't also fire
                         the row's navigate-to-Comms handler. Only
-                        admin/manager-on-this-project can edit. */}
+                        admin/manager-on-this-project can edit.
+                        basis-full bumps the button onto its own
+                        full-width row on mobile; desktop keeps it
+                        inline at the right. */}
                     {canEdit && !isEditing && (
                       <button
                         type="button"
@@ -420,7 +414,7 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                           e.stopPropagation()
                           setEditingProjectId(project.id)
                         }}
-                        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+                        className="w-full basis-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white sm:w-auto sm:basis-auto"
                       >
                         Edit
                       </button>
