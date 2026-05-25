@@ -228,8 +228,17 @@ export function ProjectSwitcher({
                   if (!isActive) {
                     document.cookie = `selectedProject=${p.id};path=/;max-age=${60 * 60 * 24 * 365}`
                     document.cookie = `selectedProjectName=${encodeURIComponent(p.name)};path=/;max-age=${60 * 60 * 24 * 365}`
-                    const sep = basePath.includes('?') ? '&' : '?'
-                    router.push(`${basePath}${sep}project=${p.id}`)
+                    // basePath supports a `:id` placeholder for routes
+                    // where the project lives in the path segment (e.g.
+                    // Comms at /projects/<id>). Falls back to the `?project=`
+                    // query-param pattern used by Tasks / Notifications /
+                    // Dashboard / Radios / etc.
+                    if (basePath.includes(':id')) {
+                      router.push(basePath.replace(':id', String(p.id)))
+                    } else {
+                      const sep = basePath.includes('?') ? '&' : '?'
+                      router.push(`${basePath}${sep}project=${p.id}`)
+                    }
                   }
                 }}
                 className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2.5 text-left transition-colors ${

@@ -1498,7 +1498,7 @@ export function ProjectPage({
                   projectId={project.id}
                   projectName={project.name}
                   userProjects={userProjects}
-                  basePath="/projects"
+                  basePath="/projects/:id"
                 />
               </div>
             )}
@@ -1516,7 +1516,7 @@ export function ProjectPage({
                 projectId={project.id}
                 projectName={project.name}
                 userProjects={userProjects}
-                basePath="/projects"
+                basePath="/projects/:id"
               />
             </div>
           )}
