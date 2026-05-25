@@ -11,6 +11,7 @@ function getNavigation(
   isAdmin: boolean,
   isUserOnly: boolean,
   showMyEquipment: boolean,
+  canManageRadios: boolean,
   lastProjectId: string | null,
   lastProjectName: string | null,
   taskCount: number,
@@ -24,19 +25,18 @@ function getNavigation(
   // /my-equipment for admin/manager redirects to /projects/X/panel/Y?from=my-equipment.
   // From the URL alone the route looks like a project page, but the user is
   // really inside the My Equipment surface. Use the from=my-equipment search
-  // param to flip the active highlight away from Projects and onto My Equipment.
+  // param to flip the active highlight away from Comms and onto My Equipment.
   const onMyEquipment = pathname.startsWith('/my-equipment') || inMyEquipmentBrowse
-  // Single context-aware Projects tab. The label tracks the user's
-  // currently-selected show (via the selectedProject / lastProject
-  // cookies) across EVERY page — Dashboard, Tasks, My Equipment, the
-  // project pages themselves — so the nav constantly reflects which
-  // show they're operating on. Only the /projects list page (the user
-  // explicitly visiting "All projects") and the no-selection state
-  // collapse the label back to "All projects". Tapping always
-  // navigates to the list — the project name is informational.
-  const onProjectsRoute = pathname.startsWith('/projects') && !inMyEquipmentBrowse
-  const onAllProjectsList = pathname === '/projects'
-  const showProjectName = !onAllProjectsList && !!lastProjectName
+  // The previous single "<project name> / All projects" tab split into
+  // two separate nav items:
+  //   - Projects → always /projects (the list)
+  //   - Comms → /projects/<currentProjectId> (the project details
+  //     page) for whichever show the user last selected. Hidden when
+  //     no show is selected yet.
+  // Both highlight independently based on the active URL.
+  const onProjectsList = pathname === '/projects'
+  const onProjectDetails =
+    pathname.startsWith('/projects/') && pathname !== '/projects' && !inMyEquipmentBrowse
 
   const items: NavItem[] = []
   items.push({ name: 'Dashboard', href: '/', current: pathname === '/' })
@@ -45,18 +45,27 @@ function getNavigation(
   } else if (showMyEquipment) {
     items.push({ name: 'Tasks', href: '/tasks', current: pathname.startsWith('/tasks'), badge: taskCount })
   }
-  items.push({
-    name: showProjectName ? lastProjectName : 'All projects',
-    // When the tab is labelled with a project name, tapping it jumps
-    // straight to that project's details page. When the label is
-    // "All projects" (on the list itself, or with no project picked
-    // yet), the tap goes to the list as before.
-    href: showProjectName && lastProjectId ? `/projects/${lastProjectId}` : '/projects',
-    current: onProjectsRoute,
-  })
+  items.push({ name: 'Projects', href: '/projects', current: onProjectsList })
+  if (lastProjectId) {
+    items.push({
+      name: 'Comms',
+      href: `/projects/${lastProjectId}`,
+      current: onProjectDetails,
+    })
+  }
+  // Radios is admin/manager only — user/crew see zone cards on
+  // /my-equipment (phase 4) instead. Hidden for user-only sessions
+  // too (already returned above).
+  if (canManageRadios) {
+    items.push({ name: 'Radios', href: '/radios', current: pathname.startsWith('/radios') })
+  }
   if (!isUserOnly) {
     items.push({ name: 'My Equipment', href: '/my-equipment', current: onMyEquipment })
   }
+  // lastProjectName intentionally unused now that the label is the
+  // static "Comms" — the lookup still hydrates lastProjectId for the
+  // href, just not the visible name.
+  void lastProjectName
   return items
 }
 
@@ -66,6 +75,7 @@ export function AppShell({
   isAdmin = false,
   isUserOnly = false,
   showMyEquipment = false,
+  canManageRadios = false,
   initialProjectId = null,
   initialProjectName = null,
 }: {
@@ -74,6 +84,9 @@ export function AppShell({
   isAdmin?: boolean
   isUserOnly?: boolean
   showMyEquipment?: boolean
+  /** True when the viewer is admin OR manager on at least one project —
+   *  gates the Radios nav item (phase-1 admin/manager-only surface). */
+  canManageRadios?: boolean
   /** Server-read cookie values so the very first SSR + hydration render
    *  shows the correct project name on the navbar tab. Without these,
    *  the navbar briefly says "All projects" until the client useEffect
@@ -289,7 +302,7 @@ export function AppShell({
           layout's AppShell, but kiosk gets the bare children. */}
       {!pathname.includes('/kiosk') && (
         <Navbar
-          navigation={getNavigation(pathname, isAdmin, isUserOnly, showMyEquipment, lastProjectId, lastProjectName, taskCount, inMyEquipmentBrowse)}
+          navigation={getNavigation(pathname, isAdmin, isUserOnly, showMyEquipment, canManageRadios, lastProjectId, lastProjectName, taskCount, inMyEquipmentBrowse)}
           user={navUser}
           onSignOut={handleSignOut}
           notificationUnread={notificationUnread}

@@ -133,7 +133,7 @@ export function ProfileForm({
           column gets a fixed width on desktop so the form column flexes
           to fill the rest. */}
       <div className="flex flex-col gap-6 sm:flex-row sm:gap-10">
-        <div className="flex flex-col items-center gap-3 sm:w-48 sm:shrink-0 sm:items-start">
+        <div className="flex flex-col items-center gap-3 sm:w-48 sm:shrink-0">
           {initial.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -146,7 +146,7 @@ export function ProfileForm({
               {initials || '·'}
             </span>
           )}
-          <div className="text-center text-xs text-gray-500 sm:text-left">
+          <div className="text-center text-xs text-gray-500">
             Photo upload coming soon.
           </div>
           {/* Sign out lives with the avatar — it's an account action,

@@ -12,15 +12,29 @@ import { IconButton } from '@/components/icon-button'
 import { FormInput } from '@/components/form-field'
 import { createProject, cloneProject } from './actions'
 import { setProjectStatus } from './[id]/actions'
+import { ProjectSettingsCard } from './project-settings-card'
 
 type Project = {
   id: number
   name: string
+  pin: string
   status: string
+  returnPhaseActive: boolean
   createdAt: string
   createdBy: { firstName: string; lastName: string }
   memberCount: number
   equipmentCount: number
+  /** True when the viewer is admin on THIS project (or a global admin
+   *  on any project). Gates the Archive / Delete affordances on the
+   *  expanded settings card. */
+  isProjectAdmin: boolean
+  members: Array<{
+    id: number
+    userId: number
+    firstName: string
+    lastName: string
+    role: string
+  }>
 }
 
 function formatDate(dateStr: string) {
@@ -88,6 +102,10 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
+  // Which project row is currently expanded into its settings card.
+  // Only one at a time — clicking Edit on a different row collapses
+  // the previous one.
+  const [editingProjectId, setEditingProjectId] = useState<number | null>(null)
   const router = useRouter()
 
   const filteredProjects = projects
@@ -346,73 +364,91 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
           <div data-scroll-container className="divide-y divide-white/[0.06] sm:flex-1 sm:overflow-y-auto sm:overscroll-none sm:pt-1 sm:pb-20">
             {filteredProjects.map((project) => {
               const isArchived = project.status === 'archived'
+              const isEditing = editingProjectId === project.id
+              const canEdit = isAdmin || project.members.some(
+                (m) => (m.role === 'admin' || m.role === 'manager'),
+              )
               return (
-                <RowCard
-                  key={project.id}
-                  className={isArchived ? 'opacity-60' : ''}
-                  onClick={() => {
-                    // Tapping a show here is an explicit pick — propagate it to
-                    // Dashboard / Tasks / My Equipment via the shared cookie so
-                    // every page reflects the same selection next visit.
-                    document.cookie = `selectedProject=${project.id};path=/;max-age=${60 * 60 * 24 * 365}`
-                    document.cookie = `selectedProjectName=${encodeURIComponent(project.name)};path=/;max-age=${60 * 60 * 24 * 365}`
-                    router.push(`/projects/${project.id}`)
-                  }}
-                >
-                  <div className={`flex size-10 shrink-0 items-center justify-center rounded-full ${isArchived ? 'bg-gray-500/15' : 'bg-[#0178a3]/15'}`}>
-                    <svg className={`size-5 ${isArchived ? 'text-gray-500' : 'text-[#0178a3]'}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
-                    </svg>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm font-semibold ${isArchived ? 'text-gray-400' : 'text-white'}`}>{project.name}</span>
-                      {/* Status chip — matches the deploy-status chip
-                          chrome on Project Details: rounded-lg, thin
-                          tinted border (green = active, neutral
-                          white/10 = archived), gray-200 label. Replaces
-                          the older soft-tint pill so all status
-                          indicators across the app share one look. */}
-                      <span className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-xs font-medium text-gray-200 ${isArchived ? 'border-white/10' : 'border-green-400/60'}`}>
-                        {project.status}
-                      </span>
+                <div key={project.id}>
+                  <RowCard
+                    className={isArchived ? 'opacity-60' : ''}
+                  >
+                    <div className={`flex size-10 shrink-0 items-center justify-center rounded-full ${isArchived ? 'bg-gray-500/15' : 'bg-[#0178a3]/15'}`}>
+                      <svg className={`size-5 ${isArchived ? 'text-gray-500' : 'text-[#0178a3]'}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
+                      </svg>
                     </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-gray-500">
-                      <span>{project.memberCount} members</span>
-                      <span>·</span>
-                      <span>{project.equipmentCount} equipment</span>
-                      <span>·</span>
-                      {/* suppressHydrationWarning — the server formats
-                          createdAt in UTC, the browser in the user's
-                          local timezone, so dates created near midnight
-                          render one day off across the boundary. The
-                          client value is the correct one to show; this
-                          flag tells React to keep it without flagging
-                          a hydration mismatch. */}
-                      <span suppressHydrationWarning>{formatDate(project.createdAt)}</span>
-                      <span>·</span>
-                      {/* Creator admin's name in cyan — same accent
-                          color the app uses elsewhere for assignee
-                          labels and trunk references. "by" stays dim
-                          gray so the name reads as the highlighted
-                          piece. */}
-                      <span>by <span className="text-[#22a7d3]">{project.createdBy.firstName} {project.createdBy.lastName}</span></span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-semibold ${isArchived ? 'text-gray-400' : 'text-white'}`}>{project.name}</span>
+                        <span className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-xs font-medium text-gray-200 ${isArchived ? 'border-white/10' : 'border-green-400/60'}`}>
+                          {project.status}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-gray-500">
+                        <span>{project.memberCount} members</span>
+                        <span>·</span>
+                        <span>{project.equipmentCount} equipment</span>
+                        <span>·</span>
+                        <span suppressHydrationWarning>{formatDate(project.createdAt)}</span>
+                        <span>·</span>
+                        <span>by <span className="text-[#22a7d3]">{project.createdBy.firstName} {project.createdBy.lastName}</span></span>
+                      </div>
                     </div>
-                  </div>
-                  {isArchived && isAdmin && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={isPending}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleRestore(project.id)
-                      }}
-                    >
-                      Restore
-                    </Button>
+                    {isArchived && isAdmin && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={isPending}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleRestore(project.id)
+                        }}
+                      >
+                        Restore
+                      </Button>
+                    )}
+                    {/* Edit button on the far right — opens the
+                        inline settings card below the row. Stop
+                        propagation so the click doesn't also fire
+                        the row's navigate-to-Comms handler. Only
+                        admin/manager-on-this-project can edit. */}
+                    {canEdit && !isEditing && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setEditingProjectId(project.id)
+                        }}
+                        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+                      >
+                        Edit
+                      </button>
+                    )}
+                  </RowCard>
+
+                  {/* Inline settings card — expanded when the row's
+                      Edit button is active. Replaces the standalone
+                      settings panel that used to live on the Comms
+                      page. */}
+                  {isEditing && (
+                    <div className="px-4 pb-4">
+                      <ProjectSettingsCard
+                        project={{
+                          id: project.id,
+                          name: project.name,
+                          pin: project.pin,
+                          status: project.status,
+                          returnPhaseActive: project.returnPhaseActive,
+                        }}
+                        members={project.members}
+                        isProjectAdmin={project.isProjectAdmin}
+                        onClose={() => setEditingProjectId(null)}
+                        onDeleted={() => setEditingProjectId(null)}
+                      />
+                    </div>
                   )}
-                </RowCard>
+                </div>
               )
             })}
           </div>

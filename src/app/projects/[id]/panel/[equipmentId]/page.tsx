@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
 import { notifyReviewStarted } from '@/lib/notifications'
 import { PanelStudio } from './panel-studio'
+import { RadioStudio } from './radio-studio'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,10 +14,10 @@ export default async function PanelStudioPage({
   searchParams,
 }: {
   params: Promise<{ id: string; equipmentId: string }>
-  searchParams: Promise<{ review?: string; from?: string }>
+  searchParams: Promise<{ review?: string; from?: string; radio?: string }>
 }) {
   const { id, equipmentId } = await params
-  const { review: reviewMemberId, from } = await searchParams
+  const { review: reviewMemberId, from, radio: radioParam } = await searchParams
   const projectId = parseInt(id, 10)
   const eqId = parseInt(equipmentId, 10)
   if (isNaN(projectId) || isNaN(eqId)) notFound()
@@ -565,7 +566,42 @@ export default async function PanelStudioPage({
   const isManagerOrAdminGlobal = session.memberships.some(
     (m) => m.role === 'admin' || m.role === 'manager',
   )
-  if (isBrowseEntry && isManagerOrAdminGlobal) {
+  // Crew / user accounts also land here via /my-equipment now (they no
+  // longer see the cards list). They get a project dropdown but no
+  // member switcher — scoped to their own active projects with their
+  // own first panel preloaded as `firstEquipmentId`.
+  if (isBrowseEntry && !isManagerOrAdminGlobal) {
+    const myMemberships = await prisma.projectMember.findMany({
+      where: { userId: session.user.id, project: { status: 'active' } },
+      select: { id: true, project: { select: { id: true, name: true } } },
+    })
+    const browseProjectsMap = new Map<number, { id: number; name: string }>()
+    for (const m of myMemberships) {
+      if (!browseProjectsMap.has(m.project.id)) {
+        browseProjectsMap.set(m.project.id, { id: m.project.id, name: m.project.name })
+      }
+    }
+    const memberIds = myMemberships.map((m) => m.id)
+    // First panel-category equipment ASSIGNED TO THIS USER per project.
+    const myEquipmentRows = memberIds.length === 0
+      ? []
+      : await prisma.equipment.findMany({
+          where: {
+            assignedToId: { in: memberIds },
+            category: { in: PANEL_CATEGORIES },
+          },
+          select: { id: true, projectId: true, name: true },
+          orderBy: [{ projectId: 'asc' }, { name: 'asc' }],
+        })
+    const firstPanelByProject = new Map<number, number>()
+    for (const r of myEquipmentRows) {
+      if (!firstPanelByProject.has(r.projectId)) firstPanelByProject.set(r.projectId, r.id)
+    }
+    browseProjects = Array.from(browseProjectsMap.values())
+      .map((p) => ({ ...p, firstEquipmentId: firstPanelByProject.get(p.id) ?? null }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+    // No browseMembers — crew/user don't switch between people.
+  } else if (isBrowseEntry && isManagerOrAdminGlobal) {
     // Projects this user can browse — admin or manager on at least one.
     const myMemberships = await prisma.projectMember.findMany({
       where: { userId: session.user.id, project: { status: 'active' } },
@@ -642,14 +678,101 @@ export default async function PanelStudioPage({
       )
       .sort((a, b) => collator.compare(a.equipmentName ?? '', b.equipmentName ?? ''))
 
-    // Sibling gear — every equipment item assigned to the panel's
-    // current member, scoped to THIS project. Drives the cards row.
-    if (member) {
-      siblingGear = await prisma.equipment.findMany({
+  }
+
+  // Sibling gear — every equipment item AND every radio assigned to
+  // the panel's current member, scoped to THIS project. Built outside
+  // the browse-mode gate so the row also lights up on the user's own
+  // panel studio when they have, e.g., a radio assigned next to their
+  // panel. Radios surface as chips with category='radio'.
+  if (member) {
+    const [eqRows, radioRows] = await Promise.all([
+      prisma.equipment.findMany({
         where: { projectId, assignedToId: member.id },
         select: { id: true, name: true, category: true, hardwareType: true },
         orderBy: [{ category: 'asc' }, { name: 'asc' }],
-      })
+      }),
+      prisma.radio.findMany({
+        where: { projectId, assignedToProjectMemberId: member.id },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      }),
+    ])
+    siblingGear = [
+      ...eqRows,
+      // Radios slot in at the end of the row, keyed by a synthetic
+      // negative id so they can't collide with real equipment ids the
+      // click handler uses to navigate. `category: 'radio'` triggers
+      // the non-tappable variant in SiblingGearRow.
+      ...radioRows.map((r) => ({
+        id: -r.id,
+        name: r.name,
+        category: 'radio' as const,
+        hardwareType: null as string | null,
+      })),
+    ]
+  }
+
+  // Radio-swap branch — when the sibling-gear chip click pushed
+  // `?radio=<id>`, swap the chassis body for a zone list. We still
+  // render the full panel-studio shell (project + member dropdowns,
+  // prev/next, sibling-gear row) by delegating to RadioStudio, which
+  // reuses the exported BrowseProjectDropdown / BrowseMemberSwitcher /
+  // SiblingGearRow components.
+  const activeRadioId = radioParam ? parseInt(radioParam, 10) : NaN
+  if (Number.isFinite(activeRadioId)) {
+    const [activeRadio, projectZones] = await Promise.all([
+      prisma.radio.findUnique({
+        where: { id: activeRadioId },
+        select: {
+          id: true,
+          projectId: true,
+          name: true,
+          firstName: true,
+          lastName: true,
+          department: true,
+          position: true,
+        },
+      }),
+      prisma.zone.findMany({
+        where: { projectId },
+        orderBy: [{ order: 'asc' }, { id: 'asc' }],
+        select: {
+          id: true,
+          name: true,
+          channels: {
+            orderBy: { channelIndex: 'asc' },
+            select: { channelIndex: true, name: true },
+          },
+        },
+      }),
+    ])
+    if (activeRadio && activeRadio.projectId === projectId) {
+      return (
+        <RadioStudio
+          project={{ id: project.id, name: project.name }}
+          equipment={{ id: equipment.id, name: equipment.name }}
+          radio={{
+            id: activeRadio.id,
+            name: activeRadio.name,
+            firstName: activeRadio.firstName,
+            lastName: activeRadio.lastName,
+            department: activeRadio.department,
+            position: activeRadio.position,
+          }}
+          zones={projectZones.map((z) => ({
+            id: z.id,
+            name: z.name,
+            channels: z.channels.map((c) => ({
+              channelIndex: c.channelIndex,
+              name: c.name,
+            })),
+          }))}
+          browseProjects={browseProjects}
+          browseMembers={browseMembers}
+          siblingGear={siblingGear}
+        />
+      )
     }
   }
 

@@ -690,21 +690,26 @@ export function PanelStudio({
   // Browse mode flag — true when we received the browse data props from the
   // server (admin/manager arriving via /my-equipment).
   const isBrowseMode = !!browseProjects && !!browseMembers
+  // Crew / user mode: arrived via /my-equipment, gets a project dropdown
+  // in the header (in place of the Back button) but no member switcher.
+  const hasProjectOnlySwitcher = !!browseProjects && !browseMembers
 
   // Remember the last project + member the admin browsed to so the nav
   // "My Equipment" link returns them right where they left off. Cookies are
   // server-readable, so /my-equipment can read them on next entry without a
   // round-trip through the URL.
   useEffect(() => {
-    if (!isBrowseMode || !member) return
+    if (!isBrowseMode && !hasProjectOnlySwitcher) return
     const maxAge = 60 * 60 * 24 * 30 // 30 days
     document.cookie = `lastBrowseProject=${project.id};path=/;max-age=${maxAge}`
-    document.cookie = `lastBrowseMember=${member.id};path=/;max-age=${maxAge}`
+    if (isBrowseMode && member) {
+      document.cookie = `lastBrowseMember=${member.id};path=/;max-age=${maxAge}`
+    }
     // Also write the shared `selectedProject` cookie so Dashboard / Tasks /
-    // Admin land on the same project the admin was just browsing here.
+    // Admin land on the same project the user was just browsing here.
     document.cookie = `selectedProject=${project.id};path=/;max-age=${60 * 60 * 24 * 365}`
     document.cookie = `selectedProjectName=${encodeURIComponent(project.name)};path=/;max-age=${60 * 60 * 24 * 365}`
-  }, [isBrowseMode, project.id, project.name, member])
+  }, [isBrowseMode, hasProjectOnlySwitcher, project.id, project.name, member])
 
   const [reviewProcessing, setReviewProcessing] = useState(false)
   const [rejectedKeyIds, setRejectedKeyIds] = useState<Set<string>>(new Set())
@@ -2070,8 +2075,10 @@ export function PanelStudio({
           <div className={`flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden relative ${inspectorOpen ? 'lg:pr-0' : ''}`}>
             {/* Back link — pinned to the very top of the workspace.
                 User-only accounts can't access the project page (proxy
-                blocks it), so route them back to My Equipment instead. */}
-            {!isBrowseMode && (
+                blocks it), so route them back to My Equipment instead.
+                Hidden in browse mode AND in project-only switcher mode
+                (crew/user) — both modes render their own header below. */}
+            {!isBrowseMode && !hasProjectOnlySwitcher && (
               // Match My Equipment list page header exactly: pt-5 +
               // PageHeader (non-inline, bottomBorder) gives the same
               // title row height + gap + divider. The Back button is
@@ -2107,6 +2114,29 @@ export function PanelStudio({
                       Back
                     </button>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Crew / user header bar — title left, project dropdown
+                right (no member switcher). Replaces the Back button when
+                arriving via /my-equipment. */}
+            {hasProjectOnlySwitcher && browseProjects && (
+              <div className="flex-shrink-0 mx-auto w-full max-w-7xl px-4 pt-5 sm:px-6 lg:px-8">
+                {/* Mobile: title, divider, then project dropdown. */}
+                <div className="flex flex-col gap-2 sm:hidden">
+                  <h1 className="text-2xl font-bold tracking-tight text-white">
+                    My Equipment
+                  </h1>
+                  <div className="w-full border-b border-white/20" />
+                  <BrowseProjectDropdown project={project} browseProjects={browseProjects} />
+                </div>
+                {/* Desktop: title left, project dropdown far right. */}
+                <div className="hidden items-center justify-between gap-3 sm:flex">
+                  <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                    My Equipment
+                  </h1>
+                  <BrowseProjectDropdown project={project} browseProjects={browseProjects} />
                 </div>
               </div>
             )}
@@ -2156,16 +2186,19 @@ export function PanelStudio({
                 Hidden when the picker card is open — the picker's
                 own controls border-b serves as the page divider in
                 that mode, so we don't end up with two stacked lines.*/}
-            {!(pickerMode && canEditKeys) && isBrowseMode && (
+            {!(pickerMode && canEditKeys) && (isBrowseMode || hasProjectOnlySwitcher) && (
               <div className="flex-shrink-0 mx-auto hidden w-full max-w-7xl px-4 pt-4 sm:block sm:px-6 lg:px-8">
                 <div className="border-b border-white/20" />
               </div>
             )}
 
-            {/* Sibling-gear card row — every piece of equipment for the
-                current member on this project. Click to switch panels
-                without leaving browse mode. */}
-            {isBrowseMode && siblingGear && siblingGear.length > 1 && (
+            {/* Sibling-gear card row — every piece of equipment AND
+                every radio assigned to the current member on this
+                project. Browse mode lets admins switch panels without
+                leaving; non-browse mode shows the row when at least
+                one OTHER item exists alongside the current panel
+                (e.g. a radio chip on the user's own panel studio). */}
+            {siblingGear && siblingGear.length > 1 && (
               <SiblingGearRow
                 gear={siblingGear}
                 currentEquipmentId={equipment.id}
@@ -3672,6 +3705,9 @@ const CAT_SHORT: Record<string, string> = {
   switches: 'Switch',
   antennas: 'Antenna',
   audio: 'Audio',
+  // Radios live in their own table but surface here as sibling chips
+  // (non-tappable for now — phase 4 will add the zone-channel view).
+  radio: 'Radio',
 }
 
 /**
@@ -3682,7 +3718,7 @@ const CAT_SHORT: Record<string, string> = {
  * Project picker for browse mode. Standalone so the parent layout can place
  * it independently of the user switcher (e.g. far right on desktop).
  */
-function BrowseProjectDropdown({
+export function BrowseProjectDropdown({
   project,
   browseProjects,
   className = '',
@@ -3797,7 +3833,7 @@ function BrowseProjectDropdown({
  * filterable dropdown. Standalone so the parent layout can place it (e.g.
  * centered between the title and the project picker on desktop).
  */
-function BrowseMemberSwitcher({
+export function BrowseMemberSwitcher({
   project,
   currentEquipmentId,
   browseMembers,
@@ -3968,7 +4004,7 @@ function BrowseMemberSwitcher({
  * a card to navigate to that equipment's page (panel studio for panels,
  * which currently is the only category that renders meaningful keys).
  */
-function SiblingGearRow({
+export function SiblingGearRow({
   gear,
   currentEquipmentId,
   projectId,
@@ -3984,6 +4020,12 @@ function SiblingGearRow({
         {gear.map((g) => {
           const isActive = g.id === currentEquipmentId
           const isPanel = PANEL_CATS.includes(g.category)
+          // Radios surface with a negative synthetic id (see
+          // page.tsx siblingGear builder) so we never collide with
+          // equipment ids. Convert back when routing.
+          const isRadio = g.category === 'radio'
+          const radioId = isRadio ? Math.abs(g.id) : null
+          const clickable = (!isActive && isPanel) || isRadio
           const catLabel = CAT_SHORT[g.category] ?? g.category
           return (
             <button
@@ -3992,9 +4034,17 @@ function SiblingGearRow({
               onClick={() => {
                 if (!isActive && isPanel) {
                   router.push(`/projects/${projectId}/panel/${g.id}?from=my-equipment`)
+                } else if (isRadio && radioId != null) {
+                  // Stay on the panel-studio surface — the route reads
+                  // ?radio=<id> from search params and swaps the chassis
+                  // body for the zone list. Same shell (project + member
+                  // dropdowns, prev/next, sibling-gear row) carries over.
+                  router.push(
+                    `${window.location.pathname}?from=my-equipment&radio=${radioId}`,
+                  )
                 }
               }}
-              disabled={!isPanel}
+              disabled={!clickable}
               className={`rounded-lg border px-3 py-1.5 text-left text-[11px] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                 isActive
                   ? 'border-[#22a7d3] bg-[#22a7d3]/10 text-white'

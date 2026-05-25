@@ -20,6 +20,7 @@ import { useBackgroundRefresh } from '@/hooks/use-background-refresh'
 import { Button } from '@/components/button'
 import { showToast } from '@/components/toast'
 import { PageLayout } from '@/components/page-layout'
+import { ProjectSwitcher } from '@/app/project-dashboard'
 import { Card } from '@/components/card'
 import { EmptyState } from '@/components/empty-state'
 import { IconButton } from '@/components/icon-button'
@@ -184,6 +185,7 @@ type EquipmentItem = {
   assignedToId: number | null
   assignedToName: string | null
   assignedToPosition: string | null
+  assignedToDepartment: string | null
   assignedMemberId: number | null
   gooseneck: boolean
   footswitches: number
@@ -605,6 +607,7 @@ export function ProjectPage({
   lastNameSuggestions = [],
   positionSuggestions = [],
   departmentSuggestions = [],
+  userProjects = [],
   headsetInventory = [],
   miscInventory = {
     goosenecksBrought: 0,
@@ -629,6 +632,7 @@ export function ProjectPage({
   lastNameSuggestions?: string[]
   positionSuggestions?: string[]
   departmentSuggestions?: string[]
+  userProjects?: Array<{ id: number; name: string }>
   headsetInventory?: Array<{ headsetType: string; brought: number }>
   miscInventory?: {
     goosenecksBrought: number
@@ -726,7 +730,7 @@ export function ProjectPage({
   // Mobile-only: when true the per-tab search input slides in below
   // the tab dropdown row. Toggled by the search-icon button next to
   // the tab dropdown on mobile.
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
   // Which tab inside the open Add Equipment card is active. Default = the
   // gear-add form; flip to 'inventory' to manage headset / misc counts that
   // used to live under the Edit button on the Dashboard headsets card.
@@ -1440,70 +1444,82 @@ export function ProjectPage({
     !showAddPl && <Button onClick={() => setShowAddPl(true)}><span className="sm:hidden">+</span><span className="hidden sm:inline">Add Function</span></Button>
   )
 
+  // Tab list shared by the mobile dropdown (above each tab's content)
+  // and the desktop tab dropdown (now sitting to the LEFT of each
+  // tab's search input). Computed once here so the same set + counts
+  // drive every dropdown instance on the page.
+  const myEqCount = equipment.filter((e) => e.assignedMemberId === currentMemberId).length
+  const navTabs: { key: Tab; label: string; count: number }[] = isUser
+    ? [{ key: 'my-equipment' as Tab, label: 'My Equipment', count: myEqCount }]
+    : (() => {
+        const list: { key: Tab; label: string; count: number }[] = [
+          { key: 'equipment', label: 'Equipment', count: equipment.length },
+        ]
+        if (isCrew && myEqCount > 0) {
+          list.push({ key: 'my-equipment', label: 'My Equipment', count: myEqCount })
+        }
+        if (!isCrew) {
+          list.push({ key: 'team', label: 'Team', count: project.members.length })
+          list.push({ key: 'picklist', label: 'Pick List', count: pickListItems.filter((p) => p.type !== 'PTP').length })
+        }
+        list.push({ key: 'stage-plots', label: 'Plots', count: plots.length })
+        return list
+      })()
+  // Desktop tab dropdown JSX — fixed 280px wide to match the
+  // ProjectSwitcher trigger sitting next to it in the page header.
+  const desktopTabDropdown = (
+    <div className="hidden w-[280px] sm:block">
+      <TabsMobileDropdown tabs={navTabs} activeTab={activeTab} onSelect={setActiveTab} compact />
+    </div>
+  )
+
   return (
     <>
       <PageLayout
-        title={project.name}
+        title="Comms"
         titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
         inlineAction
         stickyHeader
         bottomBorder
-        // Back button used to live above the title on mobile via the
-        // `before` slot. Now mobile and desktop both render the same
-        // gray "Back" pill in the action row to the right of Edit, so
-        // the slot is no longer used.
+        // Action row: Edit on the left, ProjectSwitcher on the right.
+        // The "Projects" back button is gone (the navbar already has a
+        // dedicated Projects tab) and the per-tab dropdown moved down
+        // next to each tab's search row.
         action={
           <div className="flex items-center gap-3">
-            {/* Layout: Projects + Edit on the left, then the tab
-                dropdown on the right. Projects sits before Edit so
-                the back-to-list affordance is the leftmost item. */}
-            <button
-              type="button"
-              onClick={() => router.push('/projects')}
-              className="inline-flex rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
-            >
-              Projects
-            </button>
-            {canSeeSettings && !showSettings && (
-              <button
-                type="button"
-                onClick={() => setShowSettings(true)}
-                aria-label="Edit project"
-                className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
-              >
-                Edit
-              </button>
+            {/* Project edit button moved to the Projects-list row —
+                each row's Edit there expands the same settings card
+                inline. Comms-page action now carries only the
+                project dropdown so the surface stays focused on the
+                tab content below. */}
+            {userProjects.length > 0 && (
+              <div className="hidden sm:block">
+                <ProjectSwitcher
+                  projectId={project.id}
+                  projectName={project.name}
+                  userProjects={userProjects}
+                  basePath="/projects"
+                />
+              </div>
             )}
-            {/* Desktop tab dropdown — fixed 280px wide on sm+ so
-                the trigger lines up with Dashboard / Tasks / My
-                Equipment widths and doesn't jump as the active
-                tab label changes. */}
-            <div className="hidden w-[280px] sm:block">
-              {(() => {
-                const myEqCount = equipment.filter((e) => e.assignedMemberId === currentMemberId).length
-                const tabs: { key: Tab; label: string; count: number }[] = isUser
-                  ? [{ key: 'my-equipment' as Tab, label: 'My Equipment', count: myEqCount }]
-                  : (() => {
-                      const list: { key: Tab; label: string; count: number }[] = [
-                        { key: 'equipment', label: 'Equipment', count: equipment.length },
-                      ]
-                      if (isCrew && myEqCount > 0) list.push({ key: 'my-equipment', label: 'My Equipment', count: myEqCount })
-                      if (!isCrew) {
-                        list.push({ key: 'team', label: 'Team', count: project.members.length })
-                        list.push({ key: 'picklist', label: 'Pick List', count: pickListItems.filter((p) => p.type !== 'PTP').length })
-                      }
-                      list.push({ key: 'stage-plots', label: 'Plots', count: plots.length })
-                      return list
-                    })()
-                return (
-                  <TabsMobileDropdown tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} compact />
-                )
-              })()}
-            </div>
           </div>
         }
       >
         <div className="flex min-h-0 flex-1 flex-col">
+          {/* Mobile-only ProjectSwitcher — desktop renders it in the
+              page-header action area. On mobile it sits as its own
+              row directly below the title, matching the Notifications
+              / Radios pages. */}
+          {userProjects.length > 0 && (
+            <div className="mb-3 flex-shrink-0 sm:hidden">
+              <ProjectSwitcher
+                projectId={project.id}
+                projectName={project.name}
+                userProjects={userProjects}
+                basePath="/projects"
+              />
+            </div>
+          )}
           {/* ─── Archived banner ─── */}
           {isArchived && (
             <div className="rounded-xl border border-gray-500/30 bg-gray-500/10 px-4 py-3 text-sm text-gray-300">
@@ -1516,8 +1532,11 @@ export function ProjectPage({
             </div>
           )}
 
-          {/* ─── Settings Panel ─── */}
-          {showSettings && (
+          {/* Settings Panel lifted to the Projects-list row's
+              inline editor — see /projects/project-settings-card.tsx.
+              The Comms page no longer renders it; the old block
+              below is dead-stripped at compile time via `false`. */}
+          {showSettings && false && (
             // mb-4 so the bottom border of the Edit card has the
             // same 16px breathing room below it as the Add cards
             // sitting inside their space-y-3/4 scroll containers.
@@ -1630,46 +1649,71 @@ export function ProjectPage({
             </div>
           )}
 
-          {/* ─── Tab Switcher + per-tab toolbar (desktop) ─── */}
-          {/* On desktop the tab chips and the active tab's search+add
-              button sit on the same row (tabs left, toolbar right).
-              Mobile keeps the existing per-tab sticky search bar below. */}
-          <div className="flex-shrink-0 sm:flex sm:items-center sm:gap-3">
-          <div className="sm:min-w-0 sm:flex-1">
-          {(() => {
-            const myEqCount = equipment.filter((e) => e.assignedMemberId === currentMemberId).length
-            const tabs: { key: Tab; label: string; count: number }[] = isUser
-              ? [{ key: 'my-equipment' as Tab, label: 'My Equipment', count: myEqCount }]
-              : (() => {
-                  const list: { key: Tab; label: string; count: number }[] = [
-                    { key: 'equipment', label: 'Equipment', count: equipment.length },
-                  ]
-                  if (isCrew && myEqCount > 0) {
-                    list.push({ key: 'my-equipment', label: 'My Equipment', count: myEqCount })
-                  }
-                  // Crew only see Equipment + My Equipment + Plots.
-                  if (!isCrew) {
-                    list.push({ key: 'team', label: 'Team', count: project.members.length })
-                    list.push({ key: 'picklist', label: 'Pick List', count: pickListItems.filter((p) => p.type !== 'PTP').length })
-                  }
-                  list.push({ key: 'stage-plots', label: 'Plots', count: plots.length })
-                  return list
-                })()
-            return (
+          {/* ─── Tab Switcher + per-tab toolbar (mobile only) ─── */}
+          {/* Desktop tab dropdown moved into each tab's search row
+              (below). Mobile keeps the toolbar here with the dropdown
+              on the left + search toggle + per-tab Add on the right. */}
+          <div className="flex-shrink-0">
+          <div>
               <>
-                {/* Mobile: tab dropdown on the left, search-toggle
-                    icon and per-tab Add button on the right. Tapping
-                    search reveals an input row below; tapping the X
-                    on that row hides the input again and brings the
-                    search icon back. */}
+                {/* Mobile toolbar: tab dropdown + search icon + per-tab
+                    Add button. Opening search hides the tab dropdown
+                    and the input expands into that space (matches the
+                    Radios mobile pattern). Close X collapses back. */}
                 <div className="flex items-center gap-2 sm:hidden">
-                  <div className="min-w-0 flex-1">
-                    <TabsMobileDropdown tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} />
-                  </div>
-                  {!mobileSearchOpen && (
+                  {!searchOpen && (
+                    <div className="min-w-0 flex-1">
+                      <TabsMobileDropdown tabs={navTabs} activeTab={activeTab} onSelect={setActiveTab} />
+                    </div>
+                  )}
+                  {searchOpen ? (
+                    <>
+                      <input
+                        type="text"
+                        autoFocus
+                        placeholder={
+                          activeTab === 'equipment' ? 'Search equipment...' :
+                          activeTab === 'team' ? 'Search team...' :
+                          activeTab === 'picklist' ? 'Search functions...' :
+                          activeTab === 'stage-plots' ? 'Search plots...' :
+                          'Search...'
+                        }
+                        value={
+                          activeTab === 'equipment' ? eqSearch :
+                          activeTab === 'team' ? teamSearch :
+                          activeTab === 'picklist' ? plSearch :
+                          activeTab === 'stage-plots' ? plotSearch : ''
+                        }
+                        onChange={(e) => {
+                          const v = e.target.value
+                          if (activeTab === 'equipment') setEqSearch(v)
+                          else if (activeTab === 'team') setTeamSearch(v)
+                          else if (activeTab === 'picklist') setPlSearch(v)
+                          else if (activeTab === 'stage-plots') setPlotSearch(v)
+                        }}
+                        className="flex-1 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearchOpen(false)
+                          if (activeTab === 'equipment') setEqSearch('')
+                          else if (activeTab === 'team') setTeamSearch('')
+                          else if (activeTab === 'picklist') setPlSearch('')
+                          else if (activeTab === 'stage-plots') setPlotSearch('')
+                        }}
+                        aria-label="Close search"
+                        className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                      >
+                        <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </>
+                  ) : (
                     <button
                       type="button"
-                      onClick={() => setMobileSearchOpen(true)}
+                      onClick={() => setSearchOpen(true)}
                       aria-label="Search"
                       className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
                     >
@@ -1679,8 +1723,7 @@ export function ProjectPage({
                     </button>
                   )}
                   {/* Per-tab + (Add) button. Sits to the right of the
-                      search icon. Each branch matches the per-tab
-                      Add behavior the desktop header has. */}
+                      search affordance. */}
                   {activeTab === 'equipment' && canAddEquipment && !showAdd && (
                     <button type="button" onClick={() => setShowAdd(true)} aria-label="Add Equipment" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
                   )}
@@ -1700,62 +1743,11 @@ export function ProjectPage({
                     <button type="button" onClick={() => setShowAddPlot(true)} aria-label="Add Plot" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
                   )}
                 </div>
-
-                {/* Collapsible mobile search input — shown only when
-                    the search icon was tapped. Each tab's local
-                    search state is wired to its own input here so
-                    typing filters the right list. The X on the right
-                    closes the row and brings the search icon back. */}
-                {mobileSearchOpen && (
-                  <div className="mt-2 flex items-center gap-2 sm:hidden">
-                    <input
-                      type="text"
-                      autoFocus
-                      placeholder={
-                        activeTab === 'equipment' ? 'Search equipment...' :
-                        activeTab === 'team' ? 'Search team...' :
-                        activeTab === 'picklist' ? 'Search functions...' :
-                        activeTab === 'stage-plots' ? 'Search plots...' :
-                        'Search...'
-                      }
-                      value={
-                        activeTab === 'equipment' ? eqSearch :
-                        activeTab === 'team' ? teamSearch :
-                        activeTab === 'picklist' ? plSearch :
-                        activeTab === 'stage-plots' ? plotSearch : ''
-                      }
-                      onChange={(e) => {
-                        const v = e.target.value
-                        if (activeTab === 'equipment') setEqSearch(v)
-                        else if (activeTab === 'team') setTeamSearch(v)
-                        else if (activeTab === 'picklist') setPlSearch(v)
-                        else if (activeTab === 'stage-plots') setPlotSearch(v)
-                      }}
-                      className="w-full flex-1 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white focus:border-[#0178a3]"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setMobileSearchOpen(false)}
-                      aria-label="Close search"
-                      className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
-                    >
-                      <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                )}
                 {/* Desktop tab strip removed — desktop now uses
                     the same dropdown component as mobile, rendered
-                    in the page header's action slot. */}
+                    next to each tab's search input below. */}
               </>
-            )
-          })()}
           </div>{/* /tab strip wrapper */}
-
-          {/* Per-tab toolbar moved into the page header's action slot
-              on desktop (left of the Edit / Projects buttons), so this
-              row no longer renders a separate toolbar block. */}
           </div>{/* /tab + toolbar row */}
 
           {/* Removed: desktop divider that used to sit below the
@@ -1821,16 +1813,46 @@ export function ProjectPage({
                 ) : (
                   <div className="sm:flex-1" />
                 )}
-                {/* Desktop-only: per-tab search input + Add button on
-                    the right side of the filter row. */}
+                {/* Desktop-only: tab dropdown + collapsible search +
+                    Add button. Search starts as a magnifier icon (like
+                    mobile); tapping it expands the input inline and
+                    swaps the icon to an X that closes it. Input
+                    autoFocuses when opened. */}
                 <div className="hidden items-center gap-2 sm:flex">
-                  <input
-                    type="text"
-                    placeholder="Search equipment..."
-                    value={eqSearch}
-                    onChange={(e) => setEqSearch(e.target.value)}
-                    className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
-                  />
+                  {desktopTabDropdown}
+                  {searchOpen ? (
+                    <>
+                      <input
+                        type="text"
+                        autoFocus
+                        placeholder="Search equipment..."
+                        value={eqSearch}
+                        onChange={(e) => setEqSearch(e.target.value)}
+                        className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => { setSearchOpen(false); setEqSearch('') }}
+                        aria-label="Close search"
+                        className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                      >
+                        <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setSearchOpen(true)}
+                      aria-label="Search"
+                      className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                    >
+                      <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.343-4.343m0 0A8 8 0 1 0 5.343 5.343a8 8 0 0 0 11.314 11.314Z" />
+                      </svg>
+                    </button>
+                  )}
                   {canAddEquipment && !showAdd && (
                     <button type="button" onClick={() => setShowAdd(true)} aria-label="Add Equipment" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
                   )}
@@ -2089,7 +2111,7 @@ export function ProjectPage({
                     }
 
                     return (
-                      <div key={item.id} className={`flex items-start gap-4 py-3 transition-colors ${isEditing ? '' : 'hover:bg-white/[0.04]'}`}>
+                      <div key={item.id} className={`flex flex-col items-stretch gap-4 py-3 transition-colors sm:flex-row sm:items-start sm:gap-4 ${isEditing ? '' : 'hover:bg-white/[0.04]'}`}>
                         {/* Content */}
                         <div className="min-w-0 flex-1">
                           {isEditing ? (
@@ -2248,10 +2270,10 @@ export function ProjectPage({
                                   </>
                                 )}
                               </div>
-                              <div className="mt-3 flex items-center justify-end gap-3">
-                                <button type="button" onClick={() => handleDeleteEquipment(item)} disabled={isPending} className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50">Delete</button>
-                                <button type="button" onClick={() => setEditingEqId(null)} disabled={isPending} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
-                                <Button type="submit" size="sm" disabled={isPending}>Save</Button>
+                              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+                                <button type="button" onClick={() => handleDeleteEquipment(item)} disabled={isPending} className="w-full rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Delete</button>
+                                <button type="button" onClick={() => setEditingEqId(null)} disabled={isPending} className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Cancel</button>
+                                <Button type="submit" size="sm" disabled={isPending} className="w-full sm:w-auto">Save</Button>
                               </div>
                               {/* Mult-only: strand / pair list appears
                                   inline under the edit form action row,
@@ -2338,55 +2360,47 @@ export function ProjectPage({
                                     )}
                                   </>
                                 )}
-                                {/* Assignee: inline on desktop, own row on mobile */}
+                                {/* Assignee — always inline with the ID
+                                    so the identity strip (ID · Name ·
+                                    Department · Position) sits on a
+                                    single row at the top of the card on
+                                    both mobile and desktop. Wraps as
+                                    needed if the name is long. */}
                                 {item.assignedToName ? (
                                   <>
-                                    <span className="hidden sm:inline text-gray-500"> · </span>
-                                    <span className="hidden sm:inline text-[#22a7d3]">
+                                    <span className="text-gray-500"> · </span>
+                                    <span className="text-[#22a7d3]">
                                       {item.assignedToName}
+                                      {item.assignedToDepartment && <span className="text-[#22a7d3]/70"> · {item.assignedToDepartment}</span>}
                                       {item.assignedToPosition && <span className="text-[#22a7d3]/70"> · {item.assignedToPosition}</span>}
                                     </span>
-                                    <div className="sm:hidden mt-0.5 text-[#22a7d3] font-normal">
-                                      {item.assignedToName}
-                                      {item.assignedToPosition && <span className="text-[#22a7d3]/70"> · {item.assignedToPosition}</span>}
-                                    </div>
                                   </>
                                 ) : isAssignable(item.category) ? (
                                   <>
-                                    <span className="hidden sm:inline text-gray-500"> · </span>
-                                    <span className="hidden sm:inline italic text-gray-400">Unassigned</span>
-                                    <div className="sm:hidden mt-0.5 italic text-gray-400 font-normal">Unassigned</div>
+                                    <span className="text-gray-500"> · </span>
+                                    <span className="italic text-gray-400">Unassigned</span>
                                   </>
                                 ) : null}
                               </div>
 
-                              {/* Row 2: details — stacked with labels on mobile, inline on desktop */}
+                              {/* Row 2: details — wrapping inline chips
+                                  on both mobile and desktop. Each chip
+                                  bundles its label + value in a single
+                                  whitespace-nowrap span so the pair
+                                  never gets split across wrap rows
+                                  (e.g. "IP: 192.168.1.5" stays glued).
+                                  Switches still hide their location
+                                  here (shown next to the ID above). */}
                               <div className="mt-1 text-sm text-gray-300">
-                                {/* Mobile: each field on its own row */}
-                                <div className="flex flex-col gap-0.5 sm:hidden">
-                                  {/* Switches surface their location
-                                      next to the ID up top, so we hide
-                                      the duplicate "Location: …" row
-                                      here for that category. */}
-                                  {item.location && item.category !== 'switches' && <span><span className="text-xs text-gray-500">Location: </span>{item.location}</span>}
-                                  {item.hardwareType && <span><span className="text-xs text-gray-500">Hardware: </span>{item.hardwareType}</span>}
-                                  {item.headsetType && <span><span className="text-xs text-gray-500">Headset: </span>{item.headsetType}</span>}
-                                  {item.ipAddress && <span><span className="text-xs text-gray-500">IP: </span><a href={`http://${item.ipAddress}${item.category === 'panels' ? '/remote-control/' : ''}`} target="_blank" rel="noopener noreferrer" className="text-[#22a7d3] hover:text-[#019bc7]">{item.ipAddress}</a></span>}
-                                  {item.patch && item.category !== 'switches' && <span><span className="text-xs text-gray-500">Patch: </span><span className="font-mono">{item.patch}</span></span>}
-                                  {item.gooseneck && <span><span className="text-xs text-gray-500">Misc: </span>Gooseneck</span>}
-                                  {item.footswitches > 0 && <span><span className="text-xs text-gray-500">FS: </span>{item.footswitches}</span>}
-                                  {item.speakers > 0 && <span><span className="text-xs text-gray-500">SPK: </span>{item.speakers}</span>}
-                                </div>
-                                {/* Desktop: inline with dots (original layout) */}
-                                <div className="hidden sm:flex flex-wrap items-center gap-x-1.5">
-                                  {item.location && item.category !== 'switches' && <><span className="text-xs text-gray-500">Location: </span><span>{item.location}</span><span className="text-gray-500">·</span></>}
-                                  {item.hardwareType && <><span className="text-xs text-gray-500">Hardware: </span><span>{item.hardwareType}</span></>}
-                                  {item.headsetType && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">Headset: </span><span>{item.headsetType}</span></>}
-                                  {item.ipAddress && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">IP: </span><a href={`http://${item.ipAddress}${item.category === 'panels' ? '/remote-control/' : ''}`} target="_blank" rel="noopener noreferrer" className="text-[#22a7d3] hover:text-[#019bc7]">{item.ipAddress}</a></>}
-                                  {item.patch && item.category !== 'switches' && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">Patch: </span><span className="font-mono">{item.patch}</span></>}
-                                  {item.gooseneck && <><span className="text-gray-500">·</span><span>Gooseneck</span></>}
-                                  {item.footswitches > 0 && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">FS: </span><span>{item.footswitches}</span></>}
-                                  {item.speakers > 0 && <><span className="text-gray-500">·</span><span className="text-xs text-gray-500">SPK: </span><span>{item.speakers}</span></>}
+                                <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                                  {item.location && item.category !== 'switches' && <span className="whitespace-nowrap"><span className="text-xs text-gray-500">Location: </span>{item.location}<span className="ml-1.5 text-gray-500">·</span></span>}
+                                  {item.hardwareType && <span className="whitespace-nowrap"><span className="text-xs text-gray-500">Hardware: </span>{item.hardwareType}</span>}
+                                  {item.headsetType && <span className="whitespace-nowrap"><span className="text-gray-500">· </span><span className="text-xs text-gray-500">Headset: </span>{item.headsetType}</span>}
+                                  {item.ipAddress && <span className="whitespace-nowrap"><span className="text-gray-500">· </span><span className="text-xs text-gray-500">IP: </span><a href={`http://${item.ipAddress}${item.category === 'panels' ? '/remote-control/' : ''}`} target="_blank" rel="noopener noreferrer" className="text-[#22a7d3] hover:text-[#019bc7]">{item.ipAddress}</a></span>}
+                                  {item.patch && item.category !== 'switches' && <span className="whitespace-nowrap"><span className="text-gray-500">· </span><span className="text-xs text-gray-500">Patch: </span><span className="font-mono">{item.patch}</span></span>}
+                                  {item.gooseneck && <span className="whitespace-nowrap"><span className="text-gray-500">· </span>Gooseneck</span>}
+                                  {item.footswitches > 0 && <span className="whitespace-nowrap"><span className="text-gray-500">· </span><span className="text-xs text-gray-500">FS: </span>{item.footswitches}</span>}
+                                  {item.speakers > 0 && <span className="whitespace-nowrap"><span className="text-gray-500">· </span><span className="text-xs text-gray-500">SPK: </span>{item.speakers}</span>}
                                 </div>
                               </div>
                               {/* Mult patches — every mult strand that
@@ -2434,7 +2448,7 @@ export function ProjectPage({
                             canChangeStatus
                           if (inReturnFlow) {
                             return (
-                              <div className="flex shrink-0 items-center gap-2">
+                              <div className="flex flex-col gap-2 sm:flex-row sm:shrink-0 sm:items-center">
                                 <button
                                   type="button"
                                   disabled={isPending}
@@ -2445,7 +2459,7 @@ export function ProjectPage({
                                       router.refresh()
                                     })
                                   }}
-                                  className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:opacity-50"
+                                  className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:opacity-50 sm:w-auto"
                                 >
                                   Returned
                                 </button>
@@ -2453,12 +2467,13 @@ export function ProjectPage({
                             )
                           }
                           return (
-                            <div className="flex shrink-0 items-center gap-2">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:shrink-0 sm:items-center">
                               {canChangeStatus ? (
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-[10px] font-medium text-gray-400">Status</span>
+                                <div className="flex w-full items-center gap-1.5 sm:w-auto">
+                                  <span className="hidden text-[10px] font-medium text-gray-400 sm:inline">Status</span>
                                   <DeployStatusSelect
                                     value={item.deployStatus}
+                                    className="w-full sm:w-auto"
                                     onChange={(newStatus) => {
                                       startTransition(async () => {
                                         const result = await updateEquipment(project.id, item.id, { deployStatus: newStatus })
@@ -2469,11 +2484,11 @@ export function ProjectPage({
                                   />
                                 </div>
                               ) : (
-                                <span className={`inline-flex items-center gap-2 rounded-lg border ${STATUS_BORDER_STYLES[item.deployStatus] || STATUS_BORDER_STYLES.na} px-3 py-1.5 text-xs font-medium text-gray-200`}>
+                                <span className={`inline-flex w-full items-center gap-2 rounded-lg border ${STATUS_BORDER_STYLES[item.deployStatus] || STATUS_BORDER_STYLES.na} px-3 py-1.5 text-xs font-medium text-gray-200 sm:w-auto`}>
                                   <span className="min-w-[4.5rem]">{getStatusLabel(item.deployStatus)}</span>
                                 </span>
                               )}
-                              {canEditEquipment && <button type="button" data-edit-button={`equipment-${item.id}`} onClick={() => startEqEdit(item)} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white">Edit</button>}
+                              {canEditEquipment && <button type="button" data-edit-button={`equipment-${item.id}`} onClick={() => startEqEdit(item)} className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white sm:w-auto">Edit</button>}
                             </div>
                           )
                         })()}
@@ -2524,15 +2539,44 @@ export function ProjectPage({
                       </div>
                     )
                   })()}
-                  {/* Desktop search + Add member */}
+                  {/* Desktop tab dropdown + collapsible search + Add
+                      member. Search icon ↔ input toggle same as the
+                      Equipment tab pattern above. */}
                   <div className="hidden items-center gap-2 sm:flex">
-                    <input
-                      type="text"
-                      placeholder="Search team..."
-                      value={teamSearch}
-                      onChange={(e) => setTeamSearch(e.target.value)}
-                      className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
-                    />
+                    {desktopTabDropdown}
+                    {searchOpen ? (
+                      <>
+                        <input
+                          type="text"
+                          autoFocus
+                          placeholder="Search team..."
+                          value={teamSearch}
+                          onChange={(e) => setTeamSearch(e.target.value)}
+                          className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => { setSearchOpen(false); setTeamSearch('') }}
+                          aria-label="Close search"
+                          className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                        >
+                          <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setSearchOpen(true)}
+                        aria-label="Search"
+                        className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                      >
+                        <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.343-4.343m0 0A8 8 0 1 0 5.343 5.343a8 8 0 0 0 11.314 11.314Z" />
+                        </svg>
+                      </button>
+                    )}
                     {canEditTeam && !showAddMember && (
                       <button type="button" onClick={() => setShowAddMember(true)} aria-label="Add Member" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
                     )}
@@ -2814,14 +2858,14 @@ export function ProjectPage({
                                 onChange={(v) => setEditMemberData({ ...editMemberData, role: v })}
                               />
                             </div>
-                            <div className="mt-3 flex items-center justify-end gap-3">
-                              <button type="button" onClick={() => handleDeleteMember(m)} disabled={isPending} className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50">Delete</button>
-                              <button type="button" onClick={() => setEditingMemberId(null)} disabled={isPending} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
-                              <Button type="submit" size="sm" disabled={isPending}>Save</Button>
+                            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+                              <button type="button" onClick={() => handleDeleteMember(m)} disabled={isPending} className="w-full rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Delete</button>
+                              <button type="button" onClick={() => setEditingMemberId(null)} disabled={isPending} className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Cancel</button>
+                              <Button type="submit" size="sm" disabled={isPending} className="w-full sm:w-auto">Save</Button>
                             </div>
                           </form>
                         ) : (
-                          <div className="flex items-start justify-between">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div>
                               <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm font-semibold text-white">
                                 <span>{m.firstName} {m.lastName}</span>
@@ -2893,7 +2937,7 @@ export function ProjectPage({
                                 <div className="mt-1.5 text-xs italic text-gray-500">No equipment assigned</div>
                               )}
                             </div>
-                            {canEditTeam && <button type="button" data-edit-button={`team-${m.id}`} onClick={() => startMemberEdit(m)} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white">Edit</button>}
+                            {canEditTeam && <button type="button" data-edit-button={`team-${m.id}`} onClick={() => startMemberEdit(m)} className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white sm:w-auto">Edit</button>}
                           </div>
                         )}
                       </div>
@@ -2941,15 +2985,43 @@ export function ProjectPage({
                       </Chip>
                     </ChipScroller>
                   </div>
-                  {/* Desktop search + Add function */}
+                  {/* Desktop tab dropdown + collapsible search + Add
+                      function. Search icon ↔ input toggle same pattern. */}
                   <div className="hidden items-center gap-2 sm:flex">
-                    <input
-                      type="text"
-                      placeholder="Search functions..."
-                      value={plSearch}
-                      onChange={(e) => setPlSearch(e.target.value)}
-                      className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
-                    />
+                    {desktopTabDropdown}
+                    {searchOpen ? (
+                      <>
+                        <input
+                          type="text"
+                          autoFocus
+                          placeholder="Search functions..."
+                          value={plSearch}
+                          onChange={(e) => setPlSearch(e.target.value)}
+                          className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => { setSearchOpen(false); setPlSearch('') }}
+                          aria-label="Close search"
+                          className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                        >
+                          <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setSearchOpen(true)}
+                        aria-label="Search"
+                        className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                      >
+                        <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.343-4.343m0 0A8 8 0 1 0 5.343 5.343a8 8 0 0 0 11.314 11.314Z" />
+                        </svg>
+                      </button>
+                    )}
                     {canEditPickList && !showAddPl && (
                       <button type="button" onClick={() => setShowAddPl(true)} aria-label="Add Function" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
                     )}
@@ -3045,14 +3117,14 @@ export function ProjectPage({
                                 onChange={(v) => setEditPlData({ ...editPlData, type: v })}
                               />
                             </div>
-                            <div className="mt-3 flex items-center justify-end gap-3">
-                              <button type="button" onClick={() => handleDeletePl(item)} disabled={isPending} className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50">Delete</button>
-                              <button type="button" onClick={() => setEditingPlId(null)} disabled={isPending} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
-                              <Button type="submit" size="sm" disabled={isPending}>Save</Button>
+                            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+                              <button type="button" onClick={() => handleDeletePl(item)} disabled={isPending} className="w-full rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Delete</button>
+                              <button type="button" onClick={() => setEditingPlId(null)} disabled={isPending} className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Cancel</button>
+                              <Button type="submit" size="sm" disabled={isPending} className="w-full sm:w-auto">Save</Button>
                             </div>
                           </form>
                         ) : (
-                          <div className="flex items-start justify-between gap-3">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
                                 {item.code && <span className="text-sm font-semibold text-white">{item.code}</span>}
@@ -3065,7 +3137,7 @@ export function ProjectPage({
                                 <div className="mt-1.5 text-xs italic text-gray-500">Unused</div>
                               )}
                             </div>
-                            {canEditPickList && <button type="button" data-edit-button={`picklist-${item.id}`} onClick={() => startPlEdit(item)} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white">Edit</button>}
+                            {canEditPickList && <button type="button" data-edit-button={`picklist-${item.id}`} onClick={() => startPlEdit(item)} className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white sm:w-auto">Edit</button>}
                           </div>
                         )}
                       </div>
@@ -3081,16 +3153,44 @@ export function ProjectPage({
           {activeTab === 'stage-plots' && (
             <div className="flex min-h-0 flex-1 flex-col">
               {/* Plots tab has no filter chips — desktop still gets
-                  a search + Add row aligned to the right so the
-                  toolbar pattern is consistent across tabs. */}
+                  a tab dropdown + collapsible search + Add row
+                  aligned to the right so the toolbar pattern is
+                  consistent across tabs. */}
               <div className="hidden items-center justify-end gap-2 pb-3 sm:flex">
-                <input
-                  type="text"
-                  placeholder="Search plots..."
-                  value={plotSearch}
-                  onChange={(e) => setPlotSearch(e.target.value)}
-                  className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
-                />
+                {desktopTabDropdown}
+                {searchOpen ? (
+                  <>
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="Search plots..."
+                      value={plotSearch}
+                      onChange={(e) => setPlotSearch(e.target.value)}
+                      className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { setSearchOpen(false); setPlotSearch('') }}
+                      aria-label="Close search"
+                      className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                    >
+                      <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setSearchOpen(true)}
+                    aria-label="Search"
+                    className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                  >
+                    <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.343-4.343m0 0A8 8 0 1 0 5.343 5.343a8 8 0 0 0 11.314 11.314Z" />
+                    </svg>
+                  </button>
+                )}
                 {isAdmin && !showAddPlot && (
                   <button type="button" onClick={() => setShowAddPlot(true)} aria-label="Add Plot" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
                 )}
@@ -3197,7 +3297,7 @@ export function ProjectPage({
                                 </p>
                               </div>
                             </div>
-                            <div className="mt-3 flex items-center justify-end gap-3">
+                            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
                               <button
                                 type="button"
                                 disabled={isPending}
@@ -3209,14 +3309,15 @@ export function ProjectPage({
                                     router.refresh()
                                   })
                                 }}
-                                className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                className="w-full rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                               >
                                 Delete
                               </button>
-                              <button type="button" onClick={() => setEditingPlotId(null)} disabled={isPending} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
+                              <button type="button" onClick={() => setEditingPlotId(null)} disabled={isPending} className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Cancel</button>
                               <Button
                                 size="sm"
                                 disabled={!editPlotData.label.trim() || !editPlotData.url.trim() || isPending}
+                                className="w-full sm:w-auto"
                                 onClick={() => {
                                   startTransition(async () => {
                                     const result = await updatePlot(project.id, plot.id, {
@@ -3234,14 +3335,14 @@ export function ProjectPage({
                             </div>
                           </>
                         ) : (
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <span className="text-sm font-semibold text-white">{plot.label}</span>
-                            <div className="flex shrink-0 items-center gap-2">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:shrink-0 sm:items-center">
                               <a
                                 href={plot.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+                                className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-center text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white sm:w-auto sm:text-left"
                               >
                                 Open
                               </a>
@@ -3249,7 +3350,7 @@ export function ProjectPage({
                                 <button
                                   type="button"
                                   onClick={() => { setEditingPlotId(plot.id); setEditPlotData({ label: plot.label, url: plot.url }) }}
-                                  className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+                                  className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white sm:w-auto"
                                 >
                                   Edit
                                 </button>

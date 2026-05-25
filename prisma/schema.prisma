@@ -180,6 +180,118 @@ model Project {
   headsetInventory ProjectHeadsetInventory[]
   plots          Plot[]
   notifications  Notification[]
+  radios         Radio[]
+  zones          Zone[]
+}
+
+/// Two-way radios tracked per project. Independent table from
+/// Equipment because the operational shape is different — radios are
+/// checked in/out, scanned via QR/barcode, and tied to a single human
+/// at a time. Assignee fields live as snapshots on the row so a
+/// radio assigned to someone NOT on the team table still works.
+/// `assignedToProjectMemberId` is an optional FK set when the
+/// operator picked the name from team-autosuggest; the user-facing
+/// "my radio" view prefers the FK over name-matching.
+model Radio {
+  id           Int       @id @default(autoincrement())
+  projectId    Int
+  /// Display ID — auto-generated as "RAD 1", "RAD 2"... by bulk add.
+  /// Re-uses the new starting-ID generator (letter/dotted/integer
+  /// suffix support) shared with the Equipment bulk-create flow.
+  name         String
+  firstName    String?
+  lastName     String?
+  department   String?
+  position     String?
+  /// Free-form barcode/QR scanned off the physical radio
+  /// (e.g. `C8098764`). Nullable because admin can pre-create blank
+  /// radios via bulk-add and fill the barcode later.
+  barcode      String?
+  /// True when the radio is currently checked OUT to a person. The
+  /// kiosk flow flips this on scan + assignment. checkedOutAt
+  /// records when the most recent check-out happened so we can show
+  /// "out for 3h" etc. in the kiosk UI later.
+  checkedOut   Boolean   @default(false)
+  checkedOutAt DateTime?
+  /// Accessory flags — yes/no toggles surfaced in the radio edit
+  /// card. When true the collapsed row renders a chip for each.
+  /// Default false so legacy radios stay accessory-free until an
+  /// operator opts in.
+  fistMic      Boolean   @default(false)
+  surveillance Boolean   @default(false)
+  doubleMuff   Boolean   @default(false)
+  lightweight  Boolean   @default(false)
+  /// Optional link to a ProjectMember. Set when the operator picks
+  /// an existing team member from autosuggest; falls back to null
+  /// when the radio is assigned to someone not on the team. The
+  /// per-radio firstName/lastName fields stay populated either way
+  /// so the row reads correctly even after the team membership is
+  /// edited or removed.
+  assignedToProjectMemberId Int?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  project    Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignedTo ProjectMember? @relation(fields: [assignedToProjectMemberId], references: [id], onDelete: SetNull)
+  zones      RadioZone[]
+
+  @@index([projectId])
+  @@index([assignedToProjectMemberId])
+  @@index([projectId, name])
+}
+
+/// A zone is a per-project grouping of 16 radio channels. Each zone is
+/// rendered as a card (looks like a mult row, no colors) on the Radio
+/// Channels tab of /radios. Radios are linked to zones via the
+/// RadioZone join table — a radio can belong to multiple zones, and on
+/// /my-equipment the assigned holder sees every zone their radio is
+/// in with its channel names.
+model Zone {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  name      String
+  /// Display order on the Radio Channels tab. Lower = top.
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project  Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  channels ZoneChannel[]
+  radios   RadioZone[]
+
+  @@index([projectId])
+}
+
+/// One slot in a zone's 16-channel grid. `channelIndex` is 1..16,
+/// unique within a zone so we always render in numeric order. `name`
+/// stays nullable for slots the admin hasn't filled in yet — the
+/// createZone action seeds all 16 rows empty so the UI has stable IDs
+/// for in-place editing without dancing around missing rows.
+model ZoneChannel {
+  id           Int     @id @default(autoincrement())
+  zoneId       Int
+  channelIndex Int
+  name         String?
+
+  zone Zone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  @@unique([zoneId, channelIndex])
+  @@index([zoneId])
+}
+
+/// Many-to-many between Radio and Zone. A single radio can ride
+/// multiple zones (`if their 2 zones display the name there as well`)
+/// so each row is a single radio↔zone link. Composite PK keeps the
+/// link unique without a useless surrogate id.
+model RadioZone {
+  radioId Int
+  zoneId  Int
+
+  radio Radio @relation(fields: [radioId], references: [id], onDelete: Cascade)
+  zone  Zone  @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  @@id([radioId, zoneId])
+  @@index([zoneId])
 }
 
 // Per-project stage plots. Stores a label + external URL (typically a
@@ -234,6 +346,7 @@ model ProjectMember {
   panelKeys       PanelKey[]
   equipment       Equipment[]
   changeRequests  ChangeRequest[]   @relation("ChangeRequestTarget")
+  radios          Radio[]
 
   @@unique([userId, projectId])
 }

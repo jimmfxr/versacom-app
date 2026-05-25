@@ -44,8 +44,11 @@ export function proxy(request: NextRequest) {
     // User role can access /my-equipment AND their own panel(s) via the
     // /projects/{id}/panel/{equipmentId} route. The Panel Studio page does
     // its own ownership check, so this just unlocks the URL.
+    // /profile is also allowed so the navbar avatar / mobile user row
+    // can reach the profile page (account info + sign-out).
     const isPanelStudio = /^\/projects\/\d+\/panel\/\d+\/?$/.test(pathname)
-    if (!pathname.startsWith('/my-equipment') && !isPanelStudio) {
+    const isProfile = pathname === '/profile' || pathname.startsWith('/profile/')
+    if (!pathname.startsWith('/my-equipment') && !isPanelStudio && !isProfile) {
       return NextResponse.redirect(new URL('/my-equipment', request.url))
     }
   }

@@ -26,10 +26,19 @@ export default async function ProjectsPage() {
     select: {
       id: true,
       name: true,
+      pin: true,
       status: true,
+      returnPhaseActive: true,
       createdAt: true,
       createdBy: {
         select: { firstName: true, lastName: true },
+      },
+      members: {
+        select: {
+          id: true,
+          role: true,
+          user: { select: { id: true, firstName: true, lastName: true } },
+        },
       },
       _count: {
         select: { members: true, equipment: true },
@@ -38,21 +47,42 @@ export default async function ProjectsPage() {
     orderBy: { createdAt: 'desc' },
   })
 
+  const currentUserId = session?.user.id ?? null
+
   return (
     <ProjectsContent
       userName={userName}
       isAdmin={isAdmin}
       isUserOnly={isUserOnly}
       showMyEquipment={showMyEquipment}
-      projects={projects.map((p) => ({
-        id: p.id,
-        name: p.name,
-        status: p.status,
-        createdAt: p.createdAt.toISOString(),
-        createdBy: { firstName: p.createdBy.firstName, lastName: p.createdBy.lastName },
-        memberCount: p._count.members,
-        equipmentCount: p._count.equipment,
-      }))}
+      projects={projects.map((p) => {
+        const myMembership = currentUserId
+          ? p.members.find((m) => m.user.id === currentUserId)
+          : null
+        // Admin on any project (global) → admin on every one of those
+        // projects in the UI sense (can archive/delete). Otherwise the
+        // per-project role decides.
+        const isProjectAdmin = isAdmin || myMembership?.role === 'admin'
+        return {
+          id: p.id,
+          name: p.name,
+          pin: p.pin ?? '',
+          status: p.status,
+          returnPhaseActive: p.returnPhaseActive,
+          createdAt: p.createdAt.toISOString(),
+          createdBy: { firstName: p.createdBy.firstName, lastName: p.createdBy.lastName },
+          memberCount: p._count.members,
+          equipmentCount: p._count.equipment,
+          isProjectAdmin,
+          members: p.members.map((m) => ({
+            id: m.id,
+            userId: m.user.id,
+            firstName: m.user.firstName,
+            lastName: m.user.lastName,
+            role: m.role,
+          })),
+        }
+      })}
     />
   )
 }

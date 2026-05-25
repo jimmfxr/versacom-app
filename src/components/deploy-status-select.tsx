@@ -18,6 +18,9 @@ type DeployStatusSelectProps = {
   value: string
   onChange: (next: string) => void
   disabled?: boolean
+  /** Extra classes appended to the trigger button — e.g. "w-full" so
+   *  the chip stretches to fill its container on mobile layouts. */
+  className?: string
 }
 
 /**
@@ -30,12 +33,22 @@ type DeployStatusSelectProps = {
  * than tinting the whole pill, so the chip stays visually consistent
  * with its neighbors.
  */
-export function DeployStatusSelect({ value, onChange, disabled }: DeployStatusSelectProps) {
+export function DeployStatusSelect({ value, onChange, disabled, className = '' }: DeployStatusSelectProps) {
   // Status is conveyed by tinting the chip's border in the matching
   // status color (yellow=deployed, green=done, etc.). N/A falls back
   // to the neutral white/10 chip border so unstatused rows blend in.
   const borderClass = STATUS_BORDER_STYLES[value] || STATUS_BORDER_STYLES.na
-  const buttonClass = `inline-flex items-center gap-2 rounded-lg border ${borderClass} px-3 py-1.5 text-xs font-medium text-gray-200 outline-none transition-colors data-open:border-[#0178a3] ${
+  // Button is always w-full + justify-between so it fills whatever
+  // width the wrapper gives it. The wrapper defaults to inline-block
+  // (content-sized) — pass className="w-full" etc. on the caller to
+  // stretch the chip across its container (e.g. mobile rows).
+  // Button: flex w-full so it fills its wrapper. Label centers, chevron
+  // is anchored absolutely on the right edge so it doesn't push the label
+  // off-center when the chip is stretched (mobile full-width case). On
+  // desktop the wrapper is content-sized, the label centers in a small
+  // box, and the chevron sits just inside the right border — same look
+  // as before.
+  const buttonClass = `relative flex w-full items-center justify-center rounded-lg border ${borderClass} px-3 py-1.5 text-xs font-medium text-gray-200 outline-none transition-colors data-open:border-[#0178a3] ${
     disabled
       ? 'cursor-default opacity-60'
       : 'cursor-pointer hover:bg-white/[0.04]'
@@ -43,13 +56,13 @@ export function DeployStatusSelect({ value, onChange, disabled }: DeployStatusSe
 
   return (
     <Listbox value={value} onChange={onChange} disabled={disabled}>
-      <div className="relative">
+      <div className={`relative inline-block ${className}`}>
         <ListboxButton className={buttonClass}>
           {/* Fixed-width label so every status chip ("N/A", "Done",
               "Not Needed", "Damaged"…) renders at the same overall
               width — keeps the row tidy when statuses change. */}
-          <span className="min-w-[4.5rem]">{getStatusLabel(value)}</span>
-          <ChevronDownIcon className="size-3" />
+          <span className="min-w-[4.5rem] text-center">{getStatusLabel(value)}</span>
+          <ChevronDownIcon className="absolute right-3 size-3" />
         </ListboxButton>
         <ListboxOptions
           transition

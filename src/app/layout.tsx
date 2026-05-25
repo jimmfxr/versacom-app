@@ -72,6 +72,11 @@ export default async function RootLayout({
   const isAdmin = session?.memberships.some((m) => m.role === "admin") ?? false;
   const isUserOnly = session ? session.memberships.every((m) => m.role === "user") : false;
   const showMyEquipment = session?.memberships.some((m) => m.role === "crew") ?? false;
+  // Admin OR manager anywhere = can see the Radios nav (the radio
+  // inventory editor). User/crew get zone channel cards on
+  // /my-equipment instead once phase 4 ships.
+  const canManageRadios =
+    session?.memberships.some((m) => m.role === "admin" || m.role === "manager") ?? false;
 
   // Read the same cookies AppShell hydrates from on the client, but
   // server-side, so the very first SSR render already renders the
@@ -112,6 +117,7 @@ export default async function RootLayout({
             isAdmin={isAdmin}
             isUserOnly={isUserOnly}
             showMyEquipment={showMyEquipment}
+            canManageRadios={canManageRadios}
             initialProjectId={initialProjectId}
             initialProjectName={initialProjectName}
           >

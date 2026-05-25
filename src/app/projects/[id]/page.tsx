@@ -14,7 +14,10 @@ export default async function ProjectDetailPage({
   const projectId = parseInt(id, 10)
   if (isNaN(projectId)) notFound()
 
-  const [project, equipment, memberRows, pickListItems, panelKeyUsage, expansionRows, allUsers, distinctPositions, distinctDepartments, headsetInventory, plots] = await Promise.all([
+  const session = await getSession()
+  const userId = session?.user.id ?? null
+
+  const [project, equipment, memberRows, pickListItems, panelKeyUsage, expansionRows, allUsers, distinctPositions, distinctDepartments, headsetInventory, plots, userProjectMemberships] = await Promise.all([
     prisma.project.findUnique({
       where: { id: projectId },
       select: {
@@ -74,6 +77,7 @@ export default async function ProjectDetailPage({
           select: {
             id: true,
             position: true,
+            department: true,
             user: { select: { firstName: true, lastName: true } },
           },
         },
@@ -179,6 +183,16 @@ export default async function ProjectDetailPage({
       select: { id: true, label: true, url: true },
       orderBy: { createdAt: 'asc' },
     }),
+    // Every active project the current user belongs to — feeds the
+    // ProjectSwitcher that now sits in the Comms-page header action
+    // area so the user can flip between shows without leaving
+    // /projects/<id>.
+    userId == null
+      ? Promise.resolve([])
+      : prisma.projectMember.findMany({
+          where: { userId, project: { status: 'active' } },
+          select: { project: { select: { id: true, name: true } } },
+        }),
   ])
 
   // Project deleted (or stale lastProject cookie pointing nowhere). Bounce
@@ -186,6 +200,19 @@ export default async function ProjectDetailPage({
   // project will overwrite the cookie and the Projects nav button stops
   // 404-ing.
   if (!project) redirect('/projects')
+
+  // Active-project list for the Comms-page ProjectSwitcher. De-duped
+  // (a user can have multiple memberships on the same project) and
+  // sorted alphabetically so the dropdown reads cleanly.
+  const userProjectsMap = new Map<number, { id: number; name: string }>()
+  for (const m of userProjectMemberships) {
+    if (!userProjectsMap.has(m.project.id)) {
+      userProjectsMap.set(m.project.id, { id: m.project.id, name: m.project.name })
+    }
+  }
+  const userProjects = Array.from(userProjectsMap.values()).sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+  )
 
   // Distinct lists for the Add Member autocomplete dropdowns.
   const firstNameSuggestions = Array.from(
@@ -225,7 +252,6 @@ export default async function ProjectDetailPage({
     expansionCountMap.set(e.projectMemberId, (expansionCountMap.get(e.projectMemberId) ?? 0) + 1)
   }
 
-  const session = await getSession()
   const userName = session ? `${session.user.firstName} ${session.user.lastName}` : undefined
 
   // Find the current user's role and member ID for this project
@@ -260,6 +286,7 @@ export default async function ProjectDetailPage({
       lastNameSuggestions={lastNameSuggestions}
       positionSuggestions={positionSuggestions}
       departmentSuggestions={departmentSuggestions}
+      userProjects={userProjects}
       project={{
         id: project.id,
         name: project.name,
@@ -298,6 +325,7 @@ export default async function ProjectDetailPage({
           ? `${e.assignedTo.user.firstName} ${e.assignedTo.user.lastName}`
           : null,
         assignedToPosition: e.assignedTo?.position ?? null,
+        assignedToDepartment: e.assignedTo?.department ?? null,
         assignedMemberId: e.assignedTo?.id ?? null,
         gooseneck: e.gooseneck,
         footswitches: e.footswitches,

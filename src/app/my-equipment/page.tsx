@@ -157,7 +157,14 @@ export default async function MyEquipmentPage({
   }
 
   // ──────────────────── SELF MODE (crew/user) ────────────────────
+  // Crew / user accounts skip the cards-list view too: we resolve their
+  // first panel-category equipment on their preferred project and redirect
+  // straight into panel-studio. The header there renders a project
+  // dropdown (in place of the back button) when more than one project has
+  // their gear, mirroring the admin/manager browse flow but without the
+  // member switcher (since they only see their own).
   const memberIds = myMemberships.map((m) => m.id)
+  const PANEL_CATEGORIES_SELF = ['panels', 'hardwire_bp', 'wireless_bp']
 
   const equipment = await prisma.equipment.findMany({
     where: { assignedToId: { in: memberIds } },
@@ -174,6 +181,30 @@ export default async function MyEquipmentPage({
     },
     orderBy: [{ projectId: 'asc' }, { name: 'asc' }],
   })
+
+  // Panel-category items only — radios / mults / etc. don't have a studio
+  // page, so we route off the first panel/HWBP/WLBP.
+  const panelEquipment = equipment.filter((e) =>
+    PANEL_CATEGORIES_SELF.includes(e.category),
+  )
+  if (panelEquipment.length > 0) {
+    const myProjectIds = new Set(myMemberships.map((m) => m.project.id))
+    // Pick the project: URL ?project= wins, then selectedProject /
+    // lastBrowseProject cookie, then the first project that actually has
+    // some of their gear on it.
+    const preferredProjectId =
+      requestedProjectId != null && myProjectIds.has(requestedProjectId)
+        ? requestedProjectId
+        : null
+    const targetEquipment =
+      (preferredProjectId != null
+        ? panelEquipment.find((e) => e.projectId === preferredProjectId)
+        : null) ?? panelEquipment[0]
+
+    redirect(
+      `/projects/${targetEquipment.projectId}/panel/${targetEquipment.id}?from=my-equipment`,
+    )
+  }
 
   const projectMap: Record<number, string> = {}
   const roleMap: Record<number, string> = {}
