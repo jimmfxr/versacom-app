@@ -221,10 +221,13 @@ export function RadiosPage({
       inlineAction
       stickyHeader
       action={
-        <div className="flex shrink-0 items-center gap-2">
-          {/* Scanner — always visible (mobile-first; desktop laptops
-              with cams still benefit). Routes to /radios/scan with the
-              current project so the scanner page knows which show. */}
+        // Mobile: scanner (size-9) sits to the LEFT of the project
+        // switcher; the switcher itself is exactly half the viewport
+        // content area (50vw - 1rem accounts for the px-4 page padding).
+        // Desktop: switcher's min-w-[280px] kicks in so its width
+        // doesn't depend on viewport math.
+        <div className="flex items-center justify-end gap-2">
+          {/* Scanner — sits to the LEFT of the project switcher. */}
           {selectedProject && (
             <a
               href={`/radios/scan?project=${selectedProject.id}`}
@@ -236,43 +239,24 @@ export function RadiosPage({
               </svg>
             </a>
           )}
-          {/* Desktop page-header keeps the project switcher far right.
-              The Add + tab dropdown move down to the toolbar row above
-              the cards. */}
-          <div className="hidden sm:block">
-            {userProjects.length > 0 && (
+          {userProjects.length > 0 && (
+            <div className="w-[calc(50vw-1rem)] sm:w-auto">
               <ProjectSwitcher
                 projectId={selectedProject?.id ?? null}
                 projectName={selectedProject?.name ?? '—'}
                 userProjects={userProjects}
                 basePath="/radios"
               />
-            )}
-          </div>
+            </div>
+          )}
         </div>
       }
     >
       {/* Toolbar — pins above the scrolling list.
-          Mobile order: project switcher → tab dropdown + Add → stats.
-          Desktop order: project switcher (in PageLayout action),
-          then a single row with stats on the left and tab dropdown +
-          Add on the right. The right group has a fixed min-width so
-          the dropdown grows to fill the gap when Add hides, keeping
-          the combined width stable. */}
+          Project switcher + scanner moved into the PageLayout header
+          (top right) on every viewport. This toolbar carries the tab
+          dropdown + search + Add only. */}
       <div className="flex-shrink-0 space-y-3 pb-3">
-        {/* Mobile-only project switcher row (desktop renders it in
-            the page-header action area, top right). */}
-        <div className="sm:hidden">
-          {userProjects.length > 0 && (
-            <ProjectSwitcher
-              projectId={selectedProject?.id ?? null}
-              projectName={selectedProject?.name ?? '—'}
-              userProjects={userProjects}
-              basePath="/radios"
-            />
-          )}
-        </div>
-
         {/* Mobile-only: tab dropdown + search + Add directly under
             project. When search is open the dropdown shrinks and the
             input takes the space between it and the X close button. */}

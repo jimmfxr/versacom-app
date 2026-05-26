@@ -98,16 +98,22 @@ export function MyEquipmentContent({
         title="My Equipment"
         titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
         bottomBorder
+        inlineAction
         action={
+          // Mobile: switcher fills the right half of the header row
+          // next to the title. Desktop: content-sized so the
+          // switcher's min-w-[280px] kicks in.
           browseMode && browseProjects && selectedProjectId != null ? (
-            <ProjectSwitcher
-              projectId={selectedProjectId}
-              projectName={
-                browseProjects.find((p) => p.id === selectedProjectId)?.name ?? '—'
-              }
-              userProjects={browseProjects}
-              basePath="/my-equipment"
-            />
+            <div className="flex w-1/2 justify-end sm:w-auto">
+              <ProjectSwitcher
+                projectId={selectedProjectId}
+                projectName={
+                  browseProjects.find((p) => p.id === selectedProjectId)?.name ?? '—'
+                }
+                userProjects={browseProjects}
+                basePath="/my-equipment"
+              />
+            </div>
           ) : null
         }
       >

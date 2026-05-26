@@ -375,14 +375,22 @@ export default async function HomePage({
       titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
       stickyHeader
       bottomBorder
+      inlineAction
       action={
-        <DashboardHeaderAction
-          projectId={project.id}
-          projectName={project.name}
-          memberCount={memberCount}
-          equipmentCount={equipment.length}
-          userProjects={userProjects}
-        />
+        // Mobile: switcher fills the right half of the header row
+        // next to the title; flex-1 + min-w-0 lets the dropdown
+        // expand to whatever space the title leaves. Desktop:
+        // content-sized (DashboardHeaderAction itself flips to
+        // sm:w-auto via its own wrapper classes).
+        <div className="flex w-1/2 justify-end sm:w-auto">
+          <DashboardHeaderAction
+            projectId={project.id}
+            projectName={project.name}
+            memberCount={memberCount}
+            equipmentCount={equipment.length}
+            userProjects={userProjects}
+          />
+        </div>
       }
     >
       {/* Stats line ("X members · Y equipment items") moved into the

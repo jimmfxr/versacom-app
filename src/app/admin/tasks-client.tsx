@@ -110,7 +110,6 @@ export function TasksClient({
   const [isPending, startTransition] = useTransition()
   const [unlockingId, setUnlockingId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
 
   // Auto-refresh to pick up new requests
   useEffect(() => {
@@ -153,6 +152,9 @@ export function TasksClient({
   const totalTasks = filteredLockoutTasks.length + filteredChangeRequestTasks.length
   const hasAnyTasks = lockoutTasks.length + changeRequestTasks.length > 0
 
+  // Desktop search input — sits inline in the header action area.
+  // Mobile search input lives on its own row above the list (matching
+  // the Projects page pattern); the search-icon toggle is gone.
   const desktopSearchInput = (
     <div className="hidden sm:block">
       <input
@@ -163,19 +165,6 @@ export function TasksClient({
         className="w-64 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white focus:border-[#0178a3]"
       />
     </div>
-  )
-
-  const mobileSearchToggle = !mobileSearchOpen && (
-    <button
-      type="button"
-      onClick={() => setMobileSearchOpen(true)}
-      aria-label="Search"
-      className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white sm:hidden"
-    >
-      <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.343-4.343m0 0A8 8 0 1 0 5.343 5.343a8 8 0 0 0 11.314 11.314Z" />
-      </svg>
-    </button>
   )
 
   const projectSwitcher = userProjects.length > 1 ? (
@@ -209,45 +198,30 @@ export function TasksClient({
         titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
         stickyHeader
         bottomBorder
+        inlineAction
         action={
-          <div className="flex w-full items-center gap-2 sm:w-auto">
-            {/* Desktop: search input left of project switcher. */}
+          // Mobile: project switcher fills the right half of the
+          // header row next to the title. Desktop: search input
+          // inline + content-sized switcher.
+          <div className="flex w-1/2 items-center justify-end gap-2 sm:w-auto">
             {desktopSearchInput}
-            {/* Mobile: project dropdown grows to fill, search icon
-                + (optional) project switcher sit to its right. The
-                project switcher itself is always visible if shown. */}
             <div className="min-w-0 flex-1 sm:flex-initial">
               {projectSwitcher}
             </div>
-            {mobileSearchToggle}
           </div>
         }
       >
-        {/* Mobile-only collapsible search row — opens when the
-            search icon to the right of the project dropdown is
-            tapped. The X on the right closes it again. */}
-        {mobileSearchOpen && (
-          <div className="mb-3 flex items-center gap-2 sm:hidden">
-            <input
-              type="text"
-              autoFocus
-              placeholder="Search tasks..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full flex-1 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white focus:border-[#0178a3]"
-            />
-            <button
-              type="button"
-              onClick={() => { setMobileSearchOpen(false); setSearch('') }}
-              aria-label="Close search"
-              className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
-            >
-              <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        )}
+        {/* Mobile-only inline search row — sits above the task list
+            like the Projects page does. No icon toggle. */}
+        <div className="mb-3 sm:hidden">
+          <input
+            type="text"
+            placeholder="Search tasks..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white focus:border-[#0178a3]"
+          />
+        </div>
         {!hasAnyTasks ? (
           <EmptyState icon={<CheckIcon />} title="Inbox zero" message="No pending tasks. All users are active and operational." />
         ) : totalTasks === 0 ? (

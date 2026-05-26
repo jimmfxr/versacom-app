@@ -1497,32 +1497,15 @@ export function ProjectPage({
         // dedicated Projects tab) and the per-tab dropdown moved down
         // next to each tab's search row.
         action={
-          <div className="flex items-center gap-3">
-            {/* Project edit button moved to the Projects-list row —
-                each row's Edit there expands the same settings card
-                inline. Comms-page action now carries only the
-                project dropdown so the surface stays focused on the
-                tab content below. */}
-            {userProjects.length > 0 && (
-              <div className="hidden sm:block">
-                <ProjectSwitcher
-                  projectId={project.id}
-                  projectName={project.name}
-                  userProjects={userProjects}
-                  basePath="/projects/:id"
-                />
-              </div>
-            )}
-          </div>
-        }
-      >
-        <div className="flex min-h-0 flex-1 flex-col">
-          {/* Mobile-only ProjectSwitcher — desktop renders it in the
-              page-header action area. On mobile it sits as its own
-              row directly below the title, matching the Notifications
-              / Radios pages. */}
-          {userProjects.length > 0 && (
-            <div className="mb-3 flex-shrink-0 sm:hidden">
+          // Mobile: project switcher fills the right half of the
+          // header row next to the title (min-w-0 + flex-1 lets it
+          // expand to whatever space the title leaves). Desktop:
+          // content-sized so the switcher's min-w-[280px] kicks in.
+          // The separate mobile ProjectSwitcher row below the title
+          // is gone — the dropdown rides in the header on every
+          // viewport now.
+          userProjects.length > 0 ? (
+            <div className="flex w-1/2 items-center justify-end gap-3 sm:w-auto">
               <ProjectSwitcher
                 projectId={project.id}
                 projectName={project.name}
@@ -1530,7 +1513,10 @@ export function ProjectPage({
                 basePath="/projects/:id"
               />
             </div>
-          )}
+          ) : null
+        }
+      >
+        <div className="flex min-h-0 flex-1 flex-col">
           {/* ─── Archived banner ─── */}
           {isArchived && (
             <div className="rounded-xl border border-gray-500/30 bg-gray-500/10 px-4 py-3 text-sm text-gray-300">

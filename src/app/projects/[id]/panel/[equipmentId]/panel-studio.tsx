@@ -2123,21 +2123,18 @@ export function PanelStudio({
                 arriving via /my-equipment. */}
             {hasProjectOnlySwitcher && browseProjects && (
               <div className="flex-shrink-0 mx-auto w-full max-w-7xl px-4 pt-5 sm:px-6 lg:px-8">
-                {/* Mobile: title, divider, then project dropdown. */}
-                <div className="flex flex-col gap-2 sm:hidden">
-                  <h1 className="text-2xl font-bold tracking-tight text-white">
-                    My Equipment
-                  </h1>
-                  <div className="w-full border-b border-white/20" />
-                  <BrowseProjectDropdown project={project} browseProjects={browseProjects} />
-                </div>
-                {/* Desktop: title left, project dropdown far right. */}
-                <div className="hidden items-center justify-between gap-3 sm:flex">
+                {/* Mobile: title left, project dropdown right (half row),
+                    then the under-title divider. Desktop: same row, but
+                    project dropdown content-sized via sm:min-w. */}
+                <div className="flex items-center justify-between gap-3">
                   <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
                     My Equipment
                   </h1>
-                  <BrowseProjectDropdown project={project} browseProjects={browseProjects} />
+                  <div className="flex w-1/2 justify-end sm:w-auto">
+                    <BrowseProjectDropdown project={project} browseProjects={browseProjects} />
+                  </div>
                 </div>
+                <div className="mt-2 w-full border-b border-white/20 sm:hidden" />
               </div>
             )}
 
@@ -2148,19 +2145,21 @@ export function PanelStudio({
                 project dropdown far right. */}
             {isBrowseMode && browseProjects && browseMembers && (
               <div className="flex-shrink-0 mx-auto w-full max-w-7xl px-4 pt-5 sm:px-6 lg:px-8">
-                {/* Mobile layout — divider sits directly under the
-                    title (matches PageHeader's showMobileDivider
-                    pattern) so the line reads as "under the page
-                    name" rather than below the whole stack. */}
+                {/* Mobile — title + project dropdown share row 1
+                    (dropdown half-row), divider under the title,
+                    member switcher gets its own row 2 below.
+                    Desktop — 3-column grid: title · member · project. */}
                 <div className="flex flex-col gap-2 sm:hidden">
-                  <h1 className="text-2xl font-bold tracking-tight text-white">
-                    My Equipment
-                  </h1>
-                  <div className="w-full border-b border-white/20" />
-                  <BrowseProjectDropdown project={project} browseProjects={browseProjects} />
-                  <div className="pt-2">
-                    <BrowseMemberSwitcher project={project} currentEquipmentId={equipment.id} browseMembers={browseMembers} />
+                  <div className="flex items-center justify-between gap-3">
+                    <h1 className="text-2xl font-bold tracking-tight text-white">
+                      My Equipment
+                    </h1>
+                    <div className="flex w-1/2 justify-end">
+                      <BrowseProjectDropdown project={project} browseProjects={browseProjects} />
+                    </div>
                   </div>
+                  <div className="w-full border-b border-white/20" />
+                  <BrowseMemberSwitcher project={project} currentEquipmentId={equipment.id} browseMembers={browseMembers} />
                 </div>
                 {/* Desktop layout */}
                 <div className="hidden grid-cols-3 items-center gap-3 sm:grid">
