@@ -78,6 +78,56 @@ export function ScanContent({
     setTimeout(() => setToast(null), 2800)
   }, [])
 
+  // ─── Scanner beep ─────────────────────────────────────────────────
+  // Real barcode scanners chirp once when they read a code. We mimic
+  // that here with a short Web Audio square-wave so the operator gets
+  // ear-confirmation each scan even when they can't watch the screen.
+  //   • 1 beep  → scan acknowledged (about to go out — unknown radio
+  //               or prompt branch). The assignment modal opens.
+  //   • 2 beeps → auto-return completed (radio flipped to 'returned'
+  //               without needing the operator to touch the modal).
+  const audioCtxRef = useRef<AudioContext | null>(null)
+  const beep = useCallback((count: 1 | 2) => {
+    if (typeof window === 'undefined') return
+    if (!audioCtxRef.current) {
+      try {
+        const Ctor =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext?: typeof AudioContext })
+            .webkitAudioContext
+        if (!Ctor) return
+        audioCtxRef.current = new Ctor()
+      } catch {
+        return
+      }
+    }
+    const ctx = audioCtxRef.current
+    if (!ctx) return
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {})
+    }
+    const beepMs = 0.09
+    const gapMs = 0.07
+    for (let i = 0; i < count; i++) {
+      const start = ctx.currentTime + i * (beepMs + gapMs)
+      try {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = 'square'
+        osc.frequency.value = 2200
+        gain.gain.setValueAtTime(0.0001, start)
+        gain.gain.exponentialRampToValueAtTime(0.18, start + 0.004)
+        gain.gain.setValueAtTime(0.18, start + beepMs - 0.012)
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + beepMs)
+        osc.connect(gain).connect(ctx.destination)
+        osc.start(start)
+        osc.stop(start + beepMs + 0.01)
+      } catch {
+        // ignore; some browsers gate audio
+      }
+    }
+  }, [])
+
   // Branching: lookup the barcode → either pop a modal (unknown or
   // returned → out) or auto-mark as returned (out → returned).
   const handleScan = useCallback(
@@ -97,6 +147,9 @@ export function ScanContent({
           showToast('error', res.error)
           return
         }
+        // Double-beep = "radio returned to the pool" — distinct from
+        // the single chirp used for outbound scans below.
+        beep(2)
         showToast('success', `${res.name ?? barcode} returned`)
         // Server action revalidates /radios; the scanner itself doesn't
         // display the radio list so no router.refresh needed here.
@@ -112,12 +165,15 @@ export function ScanContent({
           modeRef.current = 'idle'
           return
         }
+        // Single-beep = scan acknowledged, modal opening for checkout.
+        beep(1)
         setModal({
           barcode,
           targetRadio: result.targetRadio,
           initial: null,
         })
       } else {
+        beep(1)
         setModal({
           barcode,
           targetRadio: { id: result.radio.id, name: result.radio.name },
@@ -126,7 +182,7 @@ export function ScanContent({
       }
       modeRef.current = 'modal'
     },
-    [project.id, showToast],
+    [project.id, showToast, beep],
   )
 
   // ─── Camera lifecycle ─────────────────────────────────────────────
