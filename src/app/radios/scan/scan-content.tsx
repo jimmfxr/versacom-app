@@ -767,7 +767,7 @@ function AssignmentModal({
               onClick={() => onAccessoryToggle('surveillance', surveillance)}
             />
             <AccessoryChip
-              label="Double muff"
+              label="Double"
               on={doubleMuff}
               barcode={doubleMuffBarcode}
               disabled={isPending}
@@ -854,7 +854,7 @@ const ACCESSORY_LABELS: Record<
 > = {
   fistMic: 'Fist mic',
   surveillance: 'Surveillance',
-  doubleMuff: 'Double muff',
+  doubleMuff: 'Double',
   lightweight: 'LWHS',
 }
 
