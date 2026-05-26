@@ -1,6 +1,6 @@
 # Nodal Control — Entity Relationship Diagram
 
-**Updated:** 2026-05-08
+**Updated:** 2026-05-26
 **Source of truth:** `prisma/schema.prisma`. Regenerate this diagram when the schema changes.
 
 ---
@@ -23,6 +23,19 @@ erDiagram
     Project ||--o{ Equipment : "owns"
     Project ||--o{ RackTemplate : "scoped to"
     Project ||--o{ ProjectHeadsetInventory : "headset totals"
+    Project ||--o{ Radio : "owns"
+    Project ||--o{ Zone : "owns"
+    Project ||--o{ Plot : "owns"
+
+    ProjectMember ||--o{ Radio : "assigned to"
+    Zone ||--o{ ZoneChannel : "has channels"
+    Zone ||--o{ RadioZone : "tunes radios"
+    Radio ||--o{ RadioZone : "tuned to zones"
+
+    User ||--o{ Notification : "receives"
+    User ||--o{ NotificationPreference : "configures"
+    User ||--o{ PushSubscription : "registers"
+    ProjectMember ||--o{ PanelPresence : "presence"
 
     ProjectMember ||--o{ PanelKey : "has keys"
     ProjectMember ||--o{ Equipment : "assigned to"
@@ -215,6 +228,80 @@ erDiagram
         datetime createdAt
         datetime resolvedAt
     }
+
+    Radio {
+        int id PK
+        int projectId FK
+        int assignedToId FK "nullable ProjectMember"
+        string radioId "user-facing ID e.g. R1"
+        string barcode UK "scanned barcode"
+        string model
+        string status "na out returned damaged lost"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    Zone {
+        int id PK
+        int projectId FK
+        string name
+        int sortOrder
+    }
+
+    ZoneChannel {
+        int id PK
+        int zoneId FK
+        int channelIndex
+        string label
+        string color
+    }
+
+    RadioZone {
+        int id PK
+        int radioId FK
+        int zoneId FK
+    }
+
+    Plot {
+        int id PK
+        int projectId FK
+        string name
+        string svgUrl
+    }
+
+    Notification {
+        int id PK
+        int userId FK
+        string kind "task tag deploy etc"
+        string title
+        string body
+        boolean read
+        datetime createdAt
+    }
+
+    NotificationPreference {
+        int id PK
+        int userId FK
+        string channel "push email"
+        string kind
+        boolean enabled
+    }
+
+    PushSubscription {
+        int id PK
+        int userId FK
+        string endpoint UK
+        string p256dh
+        string auth
+        datetime createdAt
+    }
+
+    PanelPresence {
+        int id PK
+        int projectMemberId FK
+        int equipmentId FK
+        datetime seenAt
+    }
 ```
 
 ---
@@ -252,6 +339,10 @@ erDiagram
 | `PanelKey` | `(equipmentId, keyIndex, page, expansion)` | One physical key position per device — multi-device members get one row per device per slot (changed 2026-05-08; was scoped by `projectMemberId`) |
 | `Asset` | `qrCode` | Every physical asset has a unique QR |
 | `ProjectHeadsetInventory` | `(projectId, headsetType)` | One brought-total row per headset type per project |
+| `Radio` | `(projectId, radioId)`, `barcode` | No duplicate user-facing IDs per project; barcodes are globally unique |
+| `RadioZone` | `(radioId, zoneId)` | A radio is tuned to a given zone at most once |
+| `Zone` | `(projectId, name)` | Zone names are unique within a project |
+| `PushSubscription` | `endpoint` | One subscription record per browser endpoint |
 
 ---
 

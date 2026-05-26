@@ -1,6 +1,6 @@
 # Nodal Control — User Flow
 
-**Updated:** 2026-05-03
+**Updated:** 2026-05-26
 
 End-user navigation and action flows for the current app. Each role starts at a different landing and unlocks different paths.
 
@@ -24,7 +24,10 @@ flowchart TD
     LOCKED --> LOGIN
 
     LANDING -->|admin or manager or crew| DASH[/ Dashboard]
-    LANDING -->|user-only memberships| MYEQ[/my-equipment/]
+    LANDING -->|user-only memberships| MYEQ[/my-equipment/ → Panel Studio]
+
+    DASH -.->|profile icon in header| PROFILE[/profile/]
+    MYEQ -.->|profile icon in header| PROFILE
 
     JOIN_PAGE -->|scans QR or enters PIN + name| JOIN_FLOW
     JOIN_FLOW -->|new user| SET_PIN[Create personal PIN]
@@ -45,10 +48,15 @@ flowchart LR
 
     NAV --> TASKS[/admin or /tasks<br/>with polled badge]
     NAV --> PROJECTS[/projects/]
+    NAV --> RADIOS[/radios/]
     NAV --> MYEQ_OPT[/my-equipment/]
 
     PROJECTS --> PLIST[Projects list<br/>admin: all · others: own]
-    PLIST -->|click card| PDETAIL[/projects/ID/]
+    PLIST -->|click card| PDETAIL[/projects/ID/ "Comms"]
+
+    PDETAIL --> HDR1{Header icons}
+    HDR1 --> QR_BTN[QR icon → join QR modal]
+    HDR1 --> KIOSK_BTN[Kiosk icon → /projects/ID/kiosk/]
 
     PDETAIL --> TABS{Tabs}
     TABS --> EQ_TAB[Equipment]
@@ -58,13 +66,17 @@ flowchart LR
     TABS --> MYEQ_TAB[My Equipment<br/>crew only]
 
     EQ_TAB -->|click panel card| PS[/projects/ID/panel/EQID/]
-    TEAM_TAB -->|click Show QR| QRCARD[QR card inline]
-    PDETAIL -->|kiosk button| KIOSK[/projects/ID/kiosk/]
+    PL_TAB -->|tap location chip| LOC_RENAME[Rename location modal<br/>updates all rows in that loc]
 
-    MYEQ_OPT -->|admin/manager| BROWSE_REDIRECT[redirect to<br/>/projects/X/panel/Y?from=my-equipment]
-    MYEQ_OPT -->|crew| MYEQ_CARDS[Equipment cards]
-    MYEQ_CARDS -->|tap card| PS
+    RADIOS --> RADHDR{Header icons}
+    RADHDR --> RQR[QR icon → join QR modal]
+    RADHDR --> RSCAN[Scanner icon → /radios/scan/]
+    RADIOS --> RTABS{Tabs}
+    RTABS --> R_EQ[Radio Equipment]
+    RTABS --> R_CH[Radio Channels / Zones]
+    R_EQ -->|status dropdown per radio| RSTATUS[na · out · returned<br/>damaged · lost]
 
+    MYEQ_OPT --> BROWSE_REDIRECT[redirect to<br/>/projects/X/panel/Y?from=my-equipment]
     BROWSE_REDIRECT --> PS_BROWSE[Panel Studio<br/>browse mode]
 
     TASKS --> TASKS_LIST{Task cards}
@@ -76,18 +88,31 @@ flowchart LR
     LOCK_CARD -->|click Unlock| UNLOCK[Unlock user action]
 ```
 
+The Comms (`/projects/[id]`) and Radios (`/radios`) pages both expose two
+small icon buttons in the page header, to the left of the project
+dropdown. The dropdown itself always claims half the viewport on mobile
+(`w-[calc(50vw-1rem)]`), so the icon buttons sit outside that half-row.
+
+| Page | Header icons (left → right) |
+|---|---|
+| Comms | QR (join QR modal) · Kiosk (open kiosk view) |
+| Radios | QR (join QR modal) · Scanner (open `/radios/scan`) |
+
 ---
 
 ## 3. User-only flow
 
-User-only accounts (`isUserOnly` — every membership is role='user') bypass the proxy to only access two routes.
+User-only accounts (`isUserOnly` — every membership is role='user') are
+proxied straight from `/my-equipment` into Panel Studio. They cannot
+reach `/`, `/projects`, `/radios`, or the admin/tasks queue, but they
+*can* open `/profile` via the header avatar to manage their personal
+PIN, name, and notification preferences.
 
 ```mermaid
 flowchart TD
     LOGIN[/login/] -->|signs in| MYEQ[/my-equipment/]
-    MYEQ --> CARDS[Equipment cards]
-    CARDS -->|tap a panel card| PS[/projects/ID/panel/EQID/]
-    PS -->|back arrow| MYEQ
+    MYEQ --> REDIR[server redirect to<br/>/projects/X/panel/Y?from=my-equipment]
+    REDIR --> PS[Panel Studio in browse mode]
 
     PS --> EDIT{Edit keys?}
     EDIT -->|yes - request mode| SUBMIT[Submit changes]
@@ -96,7 +121,10 @@ flowchart TD
     RESULT -->|approved| TOAST_OK[Toast: Your panel changes are live]
     RESULT -->|denied| TOAST_DENY[Toast: Keys X, Y denied<br/>keys revert to previous]
 
-    NAV_BLOCKED[User tries /projects or /] -->|proxy redirects| MYEQ
+    MYEQ -.->|profile icon in header| PROFILE[/profile/]
+    PS -.->|profile icon in header| PROFILE
+
+    NAV_BLOCKED[User tries /projects or / or /radios] -->|proxy redirects| MYEQ
 
     classDef blocked fill:#ef4444,stroke:#ef4444,color:#fff
     class NAV_BLOCKED blocked
@@ -104,9 +132,14 @@ flowchart TD
 
 ---
 
-## 4. Admin / Manager browse loop (My Equipment → Panel Studio)
+## 4. Browse loop (My Equipment → Panel Studio)
 
-The unified My Equipment surface for anyone with `admin` or `manager` on any project. The cards-list page is skipped entirely — `/my-equipment` redirects directly into Panel Studio with `?from=my-equipment`.
+The unified My Equipment surface for *every* role — admin, manager,
+crew, and user-only. The cards-list page is skipped entirely:
+`/my-equipment` always redirects directly into Panel Studio with
+`?from=my-equipment`. Cookies `lastBrowseProject` and `lastBrowseMember`
+remember the last viewed combination so the next visit picks up where
+the user left off.
 
 ```mermaid
 flowchart TD
@@ -306,4 +339,61 @@ flowchart TD
     REPEAT --> PROBE
 
     BC[Other tab broadcasts results] -.->|skip own probe| SAVE
+```
+
+---
+
+## 10. Radio barcode scan (admin / manager)
+
+The Radios page header includes a scanner icon that opens
+`/radios/scan`. The page asks for camera permission, runs a continuous
+`@zxing/browser` decode loop, and branches based on whether the
+scanned barcode matches a radio in the active project.
+
+```mermaid
+flowchart TD
+    OPEN[Open /radios/scan] --> CAM{Camera permission?}
+    CAM -->|denied| ERR[Show 'Camera blocked' message]
+    CAM -->|granted| LOOP[ZXing continuous decode loop]
+
+    LOOP --> SCAN[Barcode captured]
+    SCAN --> LOOKUP{Match radio in project?}
+
+    LOOKUP -->|no match| UNKNOWN[Open assignment modal<br/>pre-filled blank<br/>user enters ID, name, model]
+    LOOKUP -->|status = out| AUTO[Silently call<br/>returnRadioByBarcode<br/>toast: 'Returned {id} from {member}']
+    LOOKUP -->|status = na/returned<br/>damaged/lost| PROMPT[Open assignment modal<br/>pre-filled with radio fields<br/>assign to member + status]
+
+    UNKNOWN --> SAVE_NEW[Create + assign Radio]
+    PROMPT --> SAVE_EX[Update Radio assignment + status]
+    AUTO --> COOLDOWN
+    SAVE_NEW --> COOLDOWN[2s cooldown<br/>then resume LOOP]
+    SAVE_EX --> COOLDOWN
+    COOLDOWN --> LOOP
+```
+
+The cooldown prevents the same barcode from re-triggering immediately
+while the modal closes. The modal itself uses the shared `Modal`
+component with the optional `onClose` (top-right X) and the standard
+Cancel · Save action row.
+
+---
+
+## 11. Pick List location rename
+
+Each Pick-list row carries a free-form `location` string. Tapping the
+location chip on the row opens a small rename modal; the new value is
+applied to **every row in the project that shares the old location**,
+not just the one tapped. This keeps zones / cases / road boxes
+consistent without per-row edits.
+
+```mermaid
+flowchart LR
+    ROW[Pick list row] -->|tap location chip| MODAL[Rename Location modal]
+    MODAL --> INPUT[Text input pre-filled<br/>with current location]
+    INPUT --> ACTION{Action}
+    ACTION -->|Cancel| ROW
+    ACTION -->|Save| CALL[renameLocation server action]
+    CALL --> UPDATE[UPDATE PickListItem<br/>SET location = newLoc<br/>WHERE projectId = X<br/>AND location = oldLoc]
+    UPDATE --> REFRESH[router.refresh]
+    REFRESH --> ROW
 ```

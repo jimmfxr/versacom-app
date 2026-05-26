@@ -1,7 +1,7 @@
 # Nodal Control — Product Requirements Document
 
-**Version:** 2.2 (equipment-scoping + UX flatten pass)
-**Updated:** 2026-05-08
+**Version:** 2.3 (radios + scanner + Comms/Radios header chrome + mobile UI sweep)
+**Updated:** 2026-05-26
 **Author:** Jimmy Xiloj / Versacom (ATK / Clair Global)
 **Status:** Living document — describes what is actually built and shipping, not future phases.
 
@@ -16,7 +16,7 @@ Nodal Control is a web-based intercom management platform for live production sh
 **What's built today (v2):**
 
 - PIN-based auth with project PIN + personal PIN flow + auto-login after first-time PIN setup
-- Operational pages: **Projects list**, **Project detail** (Equipment/Team/Pick List/Plots/My Equipment tabs), **Panel Studio** (per-equipment key editor)
+- Operational pages: **Projects list**, **Comms** (the project detail page — Equipment/Team/Pick List/Plots/My Equipment tabs), **Radios** (Radio Equipment + Channels/Zones tabs), **Panel Studio** (per-equipment key editor), **Profile** (PIN + notification prefs, accessible to every role including user-only)
 - **Dashboard** with project switcher, kiosk-style header pin, swipe-carousel distribution cards on mobile
 - **My Equipment** unified across roles (admin/manager browse mode redirects directly into Panel Studio)
 - **Tasks** page — `/admin` for admins (CR review + lockouts), `/tasks` for crew (deploy + return tasks). Both surface a polled badge in the navbar.
@@ -31,6 +31,11 @@ Nodal Control is a web-based intercom management platform for live production sh
 - Device reachability probing with caching + cross-tab sync
 - Admin-toggled **Return phase** — when active, crew see "done" gear as Return tasks alongside Deploy tasks
 - **Flat-card visual language** across list surfaces (Projects, Tasks, My Equipment, Project Details tabs, Kiosk pending list, Admin tasks). See PD-014.
+- **Radios feature** — `/radios` Equipment tab with the 5-state status enum (`na` / `out` / `returned` / `damaged` / `lost`), per-radio status dropdown, and a Channels/Zones tab for tuning groups
+- **Barcode scanner** at `/radios/scan` — continuous `@zxing/browser` decode with three branches (unknown / silent auto-return / assignment-prompt). See PD-018.
+- **Comms + Radios header chrome** — QR + Kiosk on Comms, QR + Scanner on Radios, all to the left of the project dropdown (PD-019)
+- **Location rename** on the Pick List — tapping a location chip renames every row in that location at once
+- **Mobile UI sweep** — bigger buttons, full-width stacks on small screens, project row chip on the left, half-row project dropdowns. See PD-022 + PD-023.
 
 **What's not built:**
 
@@ -173,10 +178,13 @@ Every authenticated page is wrapped by `AppShell` (navbar + toast container). No
 | `/login/forgot-pin` | Recovery flow (limited — contact admin) | Everyone |
 | `/` (Dashboard) | Summary of a selected project; project switcher in the header | admin / manager / crew (not user-only) |
 | `/projects` | List of projects accessible to the viewer | admin (global, sees all) / manager / crew (own only) |
-| `/projects/[id]` | Project detail with tabs (Equipment / Team / Pick List / Plots / My Equipment) | Any member of the project; global admins also allowed |
+| `/projects/[id]` | **Comms** — project detail with tabs (Equipment / Team / Pick List / Plots / My Equipment). Header exposes QR + Kiosk icon buttons to the left of the project dropdown. | Any member of the project; global admins also allowed |
 | `/projects/[id]/panel/[equipmentId]` | Panel Studio — key editor for a specific panel; `?from=my-equipment` puts it in browse mode | Members per role rules |
 | `/projects/[id]/kiosk` | Self-serve "join the show" page for a roving tablet (admins/managers print the QR) | Open per project PIN |
-| `/my-equipment` | Crew/user-only: equipment cards. Admin/manager: redirects straight to Panel Studio with `?from=my-equipment`. | Everyone |
+| `/radios` | Radio fleet for the active project — two tabs: **Radio Equipment** (per-radio rows with status dropdown) and **Radio Channels** (zones + tunings). Header exposes QR + Scanner icon buttons. | admin / manager / crew |
+| `/radios/scan` | Continuous barcode-scan loop powered by `@zxing/browser`; branches on radio status (unknown / auto-return / prompt). See §5.7. | admin / manager |
+| `/my-equipment` | Server redirects every role straight into Panel Studio (`/projects/X/panel/Y?from=my-equipment`). Cookies remember the last project + member. | Everyone (including user-only) |
+| `/profile` | Personal PIN reset, display name, and notification preferences. Header avatar opens this. | Everyone (including user-only) |
 | `/admin` | Tasks inbox (lockouts + change requests) | admin only — non-admins redirected to `/tasks` or `/` |
 | `/admin/lockouts` | Drill-down view of all locked users | admin |
 | `/tasks` | Crew task list (deploy + optional return queue) | crew |
@@ -367,11 +375,36 @@ Panel Studio picker's PTP section lists members as callable targets. Members who
 const onlyHwbp = m.equipment.every((e) => e.category === 'hardwire_bp')
 ```
 
+### 5.7 Radio barcode scan (admin / manager)
+
+The scanner page (`/radios/scan`) lets ops check radios in/out with the
+device camera. `@zxing/browser` runs a continuous decode loop; the
+server action `scanRadioBarcode({ projectId, barcode })` returns a
+branch tag that drives the UI:
+
+| Branch | Trigger | Scanner UI |
+|---|---|---|
+| `unknown` | No radio in the project has that barcode | Opens the assignment modal pre-filled blank — admin enters `radioId`, model, target member, and final status. Creates a new Radio row at submission. |
+| `auto-return` | Barcode matches a radio currently `out` | Silently calls `returnRadioByBarcode`. Toast: `Returned {radioId} from {member}`. No modal. |
+| `prompt` | Barcode matches a radio with status `na` / `returned` / `damaged` / `lost` | Opens the assignment modal pre-filled with the radio's current fields. Admin picks the new target member + status. |
+
+A 2-second cooldown prevents the same barcode from re-firing while the
+modal animates closed. The modal uses the shared `Modal` component with
+the optional `onClose` (X) + `actions` (Cancel · Save) props.
+
+### 5.8 Location rename from the Pick List
+
+Pick-list rows carry a free-form `location` string. Tapping the
+location chip on a row opens a small rename modal; the `renameLocation`
+server action updates **every row in the project that shares the old
+location**, not just the one tapped. This keeps zones / cases / road
+boxes consistent without per-row edits.
+
 ---
 
 ## 6. Data Model Summary
 
-14 models total. See `uml-erd.md` for the diagram.
+18 models total. See `uml-erd.md` for the diagram.
 
 ### Phase 1 models (built + in use)
 
@@ -393,11 +426,29 @@ const onlyHwbp = m.equipment.every((e) => e.category === 'hardwire_bp')
 | Model | Future purpose |
 |---|---|
 | `Equipment` | The actual piece of gear — **used heavily now** (v2 promoted this out of future-only) |
+| `Radio` | Radio in the project's fleet — **used heavily now** (v2.3 first-class radios) |
+| `Zone` / `ZoneChannel` / `RadioZone` | Radio zones + tunings — **used now** on the Radio Channels tab |
+| `Plot` | Stage-plot PDF associations (Plots tab in Comms) — schema present |
+| `Notification` / `NotificationPreference` / `PushSubscription` | Backing tables for the planned web-push system (PRD §11.2) |
+| `PanelPresence` | Tracks who is actively viewing a panel for soft-locking — schema present, no UI yet |
 | `Asset` | Warehouse asset with QR code, serial number, owner |
 | `RackTemplate` / `RackSlot` | Rack designer (Phase 2) |
 | `NfgReport` | "Not Functioning" reports for damaged gear |
+| `MultStrand` | Wiring-strand tracking (Phase 4) |
 
-`Equipment` was originally slated for Phase 2 but ended up being central to v2 — the Equipment tab, auto-generated names, deploy status tracking all live on this model. Schema is identical to the Phase-2 plan; UI matured faster than expected.
+`Equipment` was originally slated for Phase 2 but ended up being central to v2 — the Equipment tab, auto-generated names, deploy status tracking all live on this model. `Radio` followed the same path in v2.3.
+
+### Radio status enum
+
+| Value | Meaning | Color |
+|---|---|---|
+| `na` | New radio, never issued (default) | Gray |
+| `out` | Currently assigned to a `ProjectMember` | Yellow |
+| `returned` | Back in the pool, not yet redeployed | Blue |
+| `damaged` | Needs service | Purple |
+| `lost` | Not accounted for | Red |
+
+Canonical source: `src/lib/radio-status.ts`. Migration `20260526025524_radio_status_enum` drops the legacy `Radio.checkedOut` boolean and adds `status TEXT NOT NULL DEFAULT 'na'`.
 
 ---
 

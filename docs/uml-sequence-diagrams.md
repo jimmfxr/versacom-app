@@ -1,6 +1,6 @@
 # Nodal Control — Sequence Diagrams
 
-**Updated:** 2026-05-03
+**Updated:** 2026-05-26
 
 ## Change Request Flow (current implementation)
 
@@ -185,5 +185,57 @@ sequenceDiagram
         SA->>DB: UPDATE User.pin = bcrypt(pin)
         SA-->>Login: { ok: true }
         Login->>NewUser: Redirect to /login → signed in
+    end
+```
+
+---
+
+## Radio Barcode Scan
+
+Admins and managers use `/radios/scan` to triage radios with the device
+camera. The scanner runs a continuous `@zxing/browser` decode loop and
+branches on the current `Radio.status` for the scanned barcode within
+the active project.
+
+```mermaid
+sequenceDiagram
+    actor Admin
+    participant UI as /radios/scan
+    participant ZX as @zxing/browser
+    participant SA as Server actions
+    participant DB as Database
+
+    Admin->>UI: Open /radios/scan
+    UI->>UI: Request camera permission
+    UI->>ZX: Start continuous decode
+
+    loop scanning
+        ZX-->>UI: Decoded barcode
+        UI->>SA: scanRadioBarcode({ projectId, barcode })
+        SA->>DB: SELECT Radio WHERE projectId AND barcode
+
+        alt No match
+            SA-->>UI: { branch: "unknown" }
+            UI->>Admin: Open assignment modal (blank, pre-filled barcode)
+            Admin->>UI: Enter radioId, model, target member, status
+            UI->>SA: createRadio({...})
+            SA->>DB: INSERT Radio
+            SA-->>UI: { ok: true }
+        else Radio currently out
+            SA-->>UI: { branch: "auto-return", radio }
+            UI->>SA: returnRadioByBarcode(barcode)
+            SA->>DB: UPDATE Radio SET status='returned', assignedToId=null
+            SA-->>UI: { ok: true, previousMember }
+            UI->>Admin: Toast "Returned {radioId} from {member}"
+        else Radio in na/returned/damaged/lost
+            SA-->>UI: { branch: "prompt", radio }
+            UI->>Admin: Open assignment modal pre-filled
+            Admin->>UI: Pick target member + new status
+            UI->>SA: assignRadio({ radioId, memberId, status })
+            SA->>DB: UPDATE Radio
+            SA-->>UI: { ok: true }
+        end
+
+        UI->>UI: 2s cooldown (suppress same-barcode re-trigger)
     end
 ```

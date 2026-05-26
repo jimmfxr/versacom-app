@@ -148,3 +148,95 @@ A living record of key product decisions and the reasoning behind them.
 **Why:** A horizontal/diagonal gesture starting on the deployment-status card or its section header used to leak through to the SwipeCarousel below — iOS Safari interprets the touch as belonging to the closest horizontal scroller. Locking the surrounding tree to vertical-only pans constrains the leak. The carousel keeps swipe behavior because its own `touch-action: pan-x` overrides for that subtree.
 
 **Side benefit:** Pre-empts the same class of bug on any future card on the dashboard — the parent rule wins by default.
+
+---
+
+## PD-017: Radios are first-class — 5-state status enum, `na` default
+
+**Decision:** Radios live on their own top-level page (`/radios`) with two tabs (Equipment, Channels/Zones). Status is a 5-value enum: `na`, `out`, `returned`, `damaged`, `lost`. Every new radio is created with `status='na'`, including the data backfill from the legacy `Radio.checkedOut` boolean.
+
+**Why:** Radios behave operationally like Equipment but have their own out/return/repair lifecycle separate from the deploy phase of comms panels. Treating them as Equipment with deploy statuses was awkward — a radio is rarely "deployed" in the way a panel is, and "out / returned" is the actual unit of work. The five-state enum mirrors how ops actually talks about radios on-site.
+
+**`na` as default everywhere:** The migration (`20260526025524_radio_status_enum`) drops `checkedOut` and adds `status TEXT NOT NULL DEFAULT 'na'`. New radios — whether created by hand on the Radio Equipment tab or by the scanner's `unknown` branch — start at `na`. They move to `out` the first time they're assigned.
+
+**Color encoding** (from `src/lib/radio-status.ts`): gray (na) → yellow (out) → blue (returned) → purple (damaged) → red (lost). Same hue family as the deploy-status enum so the two read consistently next to each other.
+
+---
+
+## PD-018: Barcode scanner with auto-return + assignment-modal branches
+
+**Decision:** `/radios/scan` runs a continuous `@zxing/browser` decode loop and dispatches on `Radio.status` for the scanned barcode within the active project:
+
+- **`unknown`** (no match in project) → assignment modal opens pre-filled blank; admin enters radio ID, model, member, and confirms status.
+- **`out`** (currently issued) → silent `returnRadioByBarcode` call; toast confirms `"Returned {radioId} from {member}"`. No modal.
+- **everything else** (`na` / `returned` / `damaged` / `lost`) → assignment modal opens pre-filled with the radio's current fields so the admin can re-issue or change status.
+
+A 2-second cooldown after each handled scan prevents the same barcode from re-triggering while the modal animates out.
+
+**Why:** The most common scanner action by far is returning a radio that someone forgot to log out — the auto-return path means a single scan with no taps closes the loop. Everything else needs a human decision (who's getting it next? was it damaged?) so the modal opens with whatever context we already have. New radios still get assigned with one barcode scan (`unknown` branch), not a separate "register" workflow.
+
+---
+
+## PD-019: Comms + Radios header chrome — QR + Kiosk + Scanner icons
+
+**Decision:** The Comms page (`/projects/[id]`) and the Radios page (`/radios`) both expose icon buttons in the page header to the left of the project dropdown.
+
+- Comms: **QR** (opens join-QR modal) · **Kiosk** (opens `/projects/[id]/kiosk/`).
+- Radios: **QR** (same join-QR modal) · **Scanner** (opens `/radios/scan`).
+
+The matching QR and Kiosk buttons that used to sit inside the Team-tab add card have been removed.
+
+**Why:** The QR and Kiosk launchers were buried inside the Team tab; admins on-site needed them visible immediately on every project page, not three taps deep. Putting them on the page header makes "show the QR for someone to join" and "open the kiosk view for check-in" one-tap actions. The Radios page borrows the same pattern — QR for joining the radio fleet (same join code), Scanner for the most common in/out action.
+
+**Layout rule:** The project dropdown always claims `w-[calc(50vw-1rem)]` on mobile (exactly half the viewport minus the page gutter). The icon buttons sit outside that half-row so the dropdown size is never sacrificed for chrome.
+
+---
+
+## PD-020: Modal X-close pattern + optional bottom actions
+
+**Decision:** The shared `Modal` component takes two optional props: `onClose` (renders an X in the top-right and wires the backdrop click) and `actions` (renders a bottom action row). Both are optional — a read-only modal like the join QR uses `onClose` only (no action row); an edit modal uses both.
+
+**Why:** Action-row close buttons ("Close" / "Done") double the chrome on read-only modals where the user just needs to dismiss. The X is recognized everywhere and pairs naturally with backdrop tap-to-close. Keeping `actions` separate means modals that *do* need a destructive button (Delete) plus a confirmer (Save) still have a dedicated row instead of being squeezed into the title bar.
+
+**Convention:** Edit/delete modals across the app drop the X in favor of an explicit `Cancel` chip in the action row, sitting between `Delete` and `Save`. This keeps three-action modals predictable and prevents accidental backdrop-tap dismissal mid-edit.
+
+---
+
+## PD-021: Cascade ProjectMember deletion through PanelKey / ChangeRequest
+
+**Decision:** `deleteMember` runs a single Prisma transaction that scrubs dependent rows before deleting the `ProjectMember`:
+
+1. Delete `KeyDraft` rows for any `PanelKey` owned by this member.
+2. Delete `ChangeRequestItem` rows where the panel key is owned by this member **or** the change request targets this member.
+3. Delete `ChangeRequest` rows targeting this member.
+4. Delete `PanelKey` rows owned by this member.
+5. Null out `Equipment.assignedToId` where it points at this member (do **not** delete the equipment).
+6. Delete the `ProjectMember`.
+
+**Why:** Prisma does not cascade by default across these relations, so deleting an admin/manager/crew member that owned panel keys or had change requests against them used to throw `Foreign key constraint violated on PanelKey_projectMemberId_fkey` and leave the member stuck. The transaction makes the operation atomic — either every dependent is cleaned up and the member is gone, or none of it happens.
+
+**Equipment stays.** A PNL or HWBP outlives its operator; we null the assignment so the next admin can reassign without re-creating the device.
+
+---
+
+## PD-022: Global UI sweep — bigger buttons, full-width on mobile, flat dividers
+
+**Decision:** A multi-pass polish across Comms / Radios / Projects:
+
+- All in-card action buttons (Cancel · Save · Delete · Edit · `+ Add X`) bumped to `px-4 py-2 text-sm` so they're touch-friendly with one hand.
+- Action rows on edit cards collapse to `flex-col gap-2 sm:flex-row` — every button takes the full row on mobile, returns to inline on `sm:` and up.
+- Project list rows render the `Active` / `Archived` chip to the **left** of the project name (matches reading order).
+- PIN chips and Edit buttons on the project row both span both rows of the row's grid for a single tall tap target.
+- Search input borders bumped to `border-2 bg-[#202020]` so the search bars match the surrounding card borders rather than disappearing into them.
+
+**Why:** Iterative on-site feedback: the previous chips were too small to hit with gloves; the right-side status chip was the last thing read on a long row; PIN/Edit buttons were undersized relative to the rest. The flat-row visual language (see PD-014) survives — what changed is the touch targets *inside* each row.
+
+---
+
+## PD-023: Search-takes-over-tab-dropdown on mobile
+
+**Decision:** On mobile, the search input on Pick List, Equipment, Tasks, and the Radios tabs takes over the full row when active — replacing the type/category dropdown that normally sits next to it. Tapping the search icon expands the input full-width; tapping Cancel returns the dropdown.
+
+The Tasks search and the Project list search both stay inline (no toggle) — they're already half-width or full-width depending on screen size.
+
+**Why:** Mobile horizontal space is the constraint. The type-filter dropdown next to the search input forced both to be narrow enough to be useless. Search-takes-over lets the user type a long enough query to actually filter, then collapse back to the dropdown when done. The pattern is consistent across the four list surfaces that have it; the two pages without it (Tasks search, Projects search) explicitly opted out per user feedback to stay simple.

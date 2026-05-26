@@ -1,6 +1,6 @@
 # Nodal Control — State Diagrams
 
-**Updated:** 2026-05-03
+**Updated:** 2026-05-26
 
 Describes the state machines driving the app's key workflows: panel-key editing, change-request resolution, and equipment deploy status. The **Panel key** states below are the client-side visual states used in Panel Studio; the actual DB model is `PanelKey` + `KeyDraft`.
 
@@ -210,3 +210,68 @@ stateDiagram-v2
         Appears on admin Tasks page with countdown.
     end note
 ```
+
+---
+
+## 6. Radio Status
+
+Status values live in `src/lib/radio-status.ts`. Every radio is created
+with status `na` and moves through the dropdown on the Radios → Radio
+Equipment tab, the scanner-page modal, or `returnRadioByBarcode` (the
+auto-return branch). Transitions are not enforced server-side — admins
+can override directly. This diagram is the expected operational flow.
+
+```mermaid
+stateDiagram-v2
+    direction TB
+
+    [*] --> na : Radio created (always starts here)
+
+    na --> out : Assigned to a member (manual or scan-prompt)
+    out --> returned : Scan auto-return OR manual change
+    out --> damaged : Field failure
+    out --> lost : Reported missing
+
+    returned --> out : Re-issued to a member
+    returned --> na : Reset to pool
+    returned --> damaged : Found broken on intake
+    returned --> lost : Misplaced after return
+
+    damaged --> returned : Repaired
+    damaged --> lost : Written off
+
+    lost --> returned : Found
+    lost --> [*]
+    returned --> [*]
+
+    note right of na
+        Default for new radios.
+        Gray dot.
+    end note
+
+    note right of out
+        Currently assigned to a ProjectMember.
+        Yellow dot.
+    end note
+
+    note right of returned
+        Back in the inventory pool, not yet redeployed.
+        Blue dot.
+    end note
+
+    note right of damaged
+        Needs service.
+        Purple dot.
+    end note
+
+    note right of lost
+        Not accounted for.
+        Red dot.
+    end note
+```
+
+The scanner page branches based on the current status when a barcode is
+recognized: a radio in `out` status triggers a silent
+`returnRadioByBarcode` call; any other status (including `na`,
+`returned`, `damaged`, `lost`) opens the assignment modal pre-filled,
+letting the admin pick a target member + status manually.
