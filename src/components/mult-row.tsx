@@ -58,10 +58,12 @@ export function MultRowHeader({
 
   return (
     // Matches the wrapper used by every other equipment row in
-    // ProjectPage's filteredEquipment map — same gap-4 / py-3 / hover
-    // tint so the parent's divide-y border-b separator lines up
-    // cleanly across mult and non-mult rows.
-    <div className="flex items-start gap-4 py-3 transition-colors hover:bg-white/[0.04]">
+    // ProjectPage's filteredEquipment map — flex-col on mobile so the
+    // Edit button drops to its own full-width row below the identity
+    // strip, flex-row on desktop with the Edit button right-aligned.
+    // Same gap-4 / py-3 / hover tint so the parent's divide-y border-b
+    // separator lines up cleanly across mult and non-mult rows.
+    <div className="flex flex-col items-stretch gap-4 py-3 transition-colors hover:bg-white/[0.04] sm:flex-row sm:items-start sm:gap-4">
       <div className="min-w-0 flex-1">
         <div className="text-sm font-semibold">
           <span className="text-white">{mult.name}</span>
@@ -75,11 +77,11 @@ export function MultRowHeader({
         </div>
       </div>
       {canEdit && (
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:shrink-0 sm:items-center">
           <button
             type="button"
             onClick={onEdit}
-            className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+            className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white sm:w-auto"
           >
             Edit
           </button>

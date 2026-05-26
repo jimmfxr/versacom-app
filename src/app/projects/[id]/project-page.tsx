@@ -283,8 +283,13 @@ function hasField(category: string, field: string, hardwareType?: string | null)
   const audioFields = ['location']
   // Mults: location + physical length. Wiring is recorded at the
   // strand level (MultStrand rows + attach dropdowns), not at the
-  // mult level — there's no "trunk parent" concept.
+  // mult level — there's no "trunk parent" concept. `strandCount` is
+  // editable for Fiber only (Ethernet=5, W1=16, CPC=4 are fixed by
+  // hardware spec — see FIXED_STRAND_COUNT).
   const multFields = ['location', 'lengthFeet']
+  if (field === 'strandCount' && category === 'mults') {
+    return hardwareType === 'Fiber'
+  }
 
   // IP field is hidden for non-managed hardware types — Antaira / TP
   // Link / Intellanet / Media / Pliant hubs on the switches side, and
@@ -1028,6 +1033,7 @@ export function ProjectPage({
       footswitches: item.footswitches ?? 0,
       speakers: item.speakers ?? 0,
       lengthFeet: item.lengthFeet,
+      strandCount: item.strandCount,
     })
   }
 
@@ -1064,6 +1070,11 @@ export function ProjectPage({
         lengthFeet: hasField(item.category, 'lengthFeet')
           ? ((editEqData.lengthFeet as number | null | undefined) ?? null)
           : null,
+        // Fiber-mult-only: strand count. Skipped (undefined) on other
+        // categories / hardware types so the column isn't touched.
+        strandCount: hasField(item.category, 'strandCount', editEqData.hardwareType as string | null)
+          ? ((editEqData.strandCount as number | null | undefined) ?? null)
+          : undefined,
       })
       if (result.error) { showToast('error', result.error); return }
       // Auto-cleanup toast — server side detected the previous
@@ -2214,6 +2225,20 @@ export function ProjectPage({
                                 )}
                                 {hasField(item.category, 'patch') && (
                                   <FormInput compact label="Patch" type="text" value={(editEqData.patch as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, patch: e.target.value })} />
+                                )}
+                                {/* Mult-only strand count — Fiber only.
+                                    Ethernet/W1/CPC have fixed strand
+                                    counts per their hardware spec, so
+                                    the field is hidden for those. */}
+                                {hasField(item.category, 'strandCount', editEqData.hardwareType as string | null) && (
+                                  <SearchableSelect
+                                    compact
+                                    label="Strands"
+                                    value={editEqData.strandCount == null ? '' : String(editEqData.strandCount)}
+                                    placeholder="Select…"
+                                    options={FIBER_STRAND_OPTIONS.map((n) => ({ value: String(n), label: String(n) }))}
+                                    onChange={(v) => setEditEqData({ ...editEqData, strandCount: v ? parseInt(v, 10) : null })}
+                                  />
                                 )}
                                 {/* Mult-only length dropdown. Physical
                                     cable length in feet. */}

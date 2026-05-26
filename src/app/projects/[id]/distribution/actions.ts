@@ -318,6 +318,11 @@ export async function updateEquipment(
     trunkEquipmentId?: number | null
     // Mult-only: physical length in feet.
     lengthFeet?: number | null
+    // Fiber-mult-only: strand count. Changing this also syncs the
+    // MultStrand rows — growing the count appends blank strand rows;
+    // shrinking the count deletes strands beyond the new index
+    // (channel names + attachments on those rows are lost).
+    strandCount?: number | null
   }
 ) {
   const session = await getSession()
@@ -347,6 +352,10 @@ export async function updateEquipment(
       gooseneck: true,
       footswitches: true,
       speakers: true,
+      // strand-sync needs to know the current count so it can append
+      // new strands or trim excess ones to match the new value.
+      strandCount: true,
+      category: true,
     },
   })
 
@@ -354,6 +363,40 @@ export async function updateEquipment(
     where: { id: equipmentId },
     data,
   })
+
+  // Strand sync — only acts when the caller passed a `strandCount`
+  // (defined) AND the value actually changed. Caller is responsible
+  // for only passing this on Fiber mults; we still gate on category
+  // here so a stray write on a non-mult row can't blow away strand
+  // data elsewhere.
+  if (
+    before &&
+    before.category === 'mults' &&
+    data.strandCount !== undefined &&
+    data.strandCount !== before.strandCount
+  ) {
+    const nextCount = data.strandCount ?? 0
+    const prevCount = before.strandCount ?? 0
+    if (nextCount > prevCount) {
+      // Grow — append blank strand rows from prevCount+1 to nextCount.
+      await prisma.multStrand.createMany({
+        data: Array.from({ length: nextCount - prevCount }, (_, i) => ({
+          multEquipmentId: equipmentId,
+          index: prevCount + i + 1,
+          channelName: '',
+          attachedEquipmentId: null,
+        })),
+      })
+    } else if (nextCount < prevCount) {
+      // Shrink — drop strand rows beyond the new count. Channel name
+      // + attachment data on those rows is intentionally lost (admin
+      // confirmed the destructive operation by saving the smaller
+      // value).
+      await prisma.multStrand.deleteMany({
+        where: { multEquipmentId: equipmentId, index: { gt: nextCount } },
+      })
+    }
+  }
 
   if (before) {
     // ─── Deploy status (existing notification path) ───
