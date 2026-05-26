@@ -8,6 +8,8 @@ import { createKioskMember, updatePendingMember } from './actions'
 
 const QR_COUNTDOWN_SECONDS = 15
 const PHONE_READY_SECONDS = 5
+/** How often the kiosk re-fetches the pending check-in list. */
+const PENDING_POLL_MS = 10_000
 
 type PendingMember = {
   id: number
@@ -99,7 +101,7 @@ export function KioskClient({
   useEffect(() => {
     const interval = setInterval(() => {
       void refresh.current()
-    }, 4000)
+    }, PENDING_POLL_MS)
     return () => clearInterval(interval)
   }, [])
 
