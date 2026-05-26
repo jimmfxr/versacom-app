@@ -385,3 +385,206 @@ export async function deleteRadio(radioId: number) {
   revalidatePath('/radios')
   return { success: true }
 }
+
+// ─── Scanner-flow helpers ──────────────────────────────────────────
+
+/**
+ * Result of a barcode lookup. One of three cases drives the scanner UI:
+ *  - 'unknown' → no radio in this project has that barcode yet. The
+ *    UI opens an assignment modal pre-filled with the next blank
+ *    radio's row (which becomes the target on Save).
+ *  - 'out'     → barcode matches a radio currently checkedOut. The
+ *    UI silently flips it to Returned (no modal).
+ *  - 'returned' → barcode matches a radio not currently checked out.
+ *    The UI opens an edit modal pre-filled with that radio's current
+ *    fields; Save flips it to Out.
+ *
+ * Permission-gated to admin/manager since scanning mutates assignment.
+ */
+export type RadioScanLookup =
+  | { error: string }
+  | { kind: 'unknown'; targetRadio: { id: number; name: string } | null }
+  | {
+      kind: 'out' | 'returned'
+      radio: {
+        id: number
+        name: string
+        firstName: string | null
+        lastName: string | null
+        department: string | null
+        position: string | null
+        barcode: string | null
+        checkedOut: boolean
+        assignedToProjectMemberId: number | null
+        fistMic: boolean
+        surveillance: boolean
+        doubleMuff: boolean
+        lightweight: boolean
+      }
+    }
+
+export async function lookupRadioByBarcode(
+  projectId: number,
+  barcode: string,
+): Promise<RadioScanLookup> {
+  const session = await getSession()
+  if (!session) return { error: 'Not authenticated' }
+  if (!(await canEditRadios(session.user.id, projectId))) {
+    return { error: 'Not authorized to scan radios on this project' }
+  }
+  const trimmed = barcode.trim()
+  if (!trimmed) return { error: 'Empty barcode' }
+  if (trimmed.length > MAX_BARCODE) return { error: 'Barcode too long' }
+
+  const match = await prisma.radio.findFirst({
+    where: { projectId, barcode: trimmed },
+    select: {
+      id: true,
+      name: true,
+      firstName: true,
+      lastName: true,
+      department: true,
+      position: true,
+      barcode: true,
+      checkedOut: true,
+      assignedToProjectMemberId: true,
+      fistMic: true,
+      surveillance: true,
+      doubleMuff: true,
+      lightweight: true,
+    },
+  })
+
+  if (match) {
+    return {
+      kind: match.checkedOut ? 'out' : 'returned',
+      radio: match,
+    }
+  }
+
+  // Unknown barcode — find the next blank radio (no barcode yet) so the
+  // scanner UI can offer it as the target slot. Natural sort by name so
+  // "RAD 2" beats "RAD 10".
+  const candidates = await prisma.radio.findMany({
+    where: { projectId, barcode: null },
+    select: { id: true, name: true },
+  })
+  const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
+  candidates.sort((a, b) => collator.compare(a.name, b.name))
+  const targetRadio = candidates[0] ?? null
+
+  return { kind: 'unknown', targetRadio }
+}
+
+/**
+ * Save the assignment modal: attaches the (possibly new) barcode to
+ * the chosen radio, writes the form fields, flips checkedOut to true.
+ * Used for both the "unknown barcode" and the "scanned a returned
+ * radio" flows — same destination state.
+ */
+export async function assignRadioFromScan(
+  radioId: number,
+  data: {
+    barcode: string
+    firstName?: string | null
+    lastName?: string | null
+    department?: string | null
+    position?: string | null
+    assignedToProjectMemberId?: number | null
+    fistMic?: boolean
+    surveillance?: boolean
+    doubleMuff?: boolean
+    lightweight?: boolean
+  },
+) {
+  const session = await getSession()
+  if (!session) return { error: 'Not authenticated' }
+
+  const radio = await prisma.radio.findUnique({
+    where: { id: radioId },
+    select: { projectId: true, barcode: true },
+  })
+  if (!radio) return { error: 'Radio not found' }
+  if (!(await canEditRadios(session.user.id, radio.projectId))) {
+    return { error: 'Not authorized to update this radio' }
+  }
+
+  const scannedBarcode = data.barcode.trim()
+  if (!scannedBarcode) return { error: 'Barcode is required' }
+  if (scannedBarcode.length > MAX_BARCODE) return { error: 'Barcode too long' }
+
+  // If the radio already has a DIFFERENT barcode, something's off — bail
+  // rather than silently overwrite. Refresh and rescan handles it.
+  if (radio.barcode && radio.barcode !== scannedBarcode) {
+    return { error: `That radio is already barcoded as "${radio.barcode}"` }
+  }
+  // Also reject if this barcode is already on a different radio (would
+  // be a duplicate in the project — should be impossible because lookup
+  // would have routed elsewhere, but guard for races).
+  const dupe = await prisma.radio.findFirst({
+    where: {
+      projectId: radio.projectId,
+      barcode: scannedBarcode,
+      NOT: { id: radioId },
+    },
+    select: { id: true, name: true },
+  })
+  if (dupe) {
+    return { error: `Barcode already assigned to ${dupe.name}` }
+  }
+
+  await prisma.radio.update({
+    where: { id: radioId },
+    data: {
+      barcode: scannedBarcode,
+      firstName: clip(data.firstName, MAX_TEXT),
+      lastName: clip(data.lastName, MAX_TEXT),
+      department: clip(data.department, MAX_TEXT),
+      position: clip(data.position, MAX_TEXT),
+      assignedToProjectMemberId: data.assignedToProjectMemberId ?? null,
+      fistMic: data.fistMic ?? false,
+      surveillance: data.surveillance ?? false,
+      doubleMuff: data.doubleMuff ?? false,
+      lightweight: data.lightweight ?? false,
+      checkedOut: true,
+      checkedOutAt: new Date(),
+    },
+  })
+
+  revalidatePath('/radios')
+  return { success: true }
+}
+
+/**
+ * No-prompt return path: scanned barcode matches a radio that's
+ * currently checked out → just flip checkedOut to false. Caller
+ * (the scanner page) already confirmed the lookup kind === 'out'.
+ */
+export async function returnRadioByBarcode(projectId: number, barcode: string) {
+  const session = await getSession()
+  if (!session) return { error: 'Not authenticated' }
+  if (!(await canEditRadios(session.user.id, projectId))) {
+    return { error: 'Not authorized to return radios on this project' }
+  }
+  const trimmed = barcode.trim()
+  if (!trimmed) return { error: 'Empty barcode' }
+
+  const radio = await prisma.radio.findFirst({
+    where: { projectId, barcode: trimmed },
+    select: { id: true, checkedOut: true, name: true },
+  })
+  if (!radio) return { error: 'No radio with that barcode in this project' }
+  if (!radio.checkedOut) {
+    // Already returned — caller should have routed to the prompt
+    // branch; treat as no-op success so duplicate scans don't error.
+    return { success: true, alreadyReturned: true, name: radio.name }
+  }
+
+  await prisma.radio.update({
+    where: { id: radio.id },
+    data: { checkedOut: false },
+  })
+
+  revalidatePath('/radios')
+  return { success: true, name: radio.name }
+}

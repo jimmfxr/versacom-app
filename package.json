@@ -23,6 +23,8 @@
     "@prisma/client": "^7.7.0",
     "@use-gesture/react": "^10.3.1",
     "@vercel/blob": "^2.3.3",
+    "@zxing/browser": "^0.2.0",
+    "@zxing/library": "^0.22.0",
     "bcryptjs": "^3.0.3",
     "next": "16.2.3",
     "prisma": "^7.7.0",

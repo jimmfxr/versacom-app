@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/empty-state'
 import { ComboboxInput } from '@/components/combobox-input'
 import { IconButton } from '@/components/icon-button'
 import { ProjectSwitcher } from '@/app/project-dashboard'
+import { STATUS_BORDER_STYLES } from '@/lib/deploy-status'
 import {
   bulkCreateRadios,
   updateRadio,
@@ -218,18 +219,34 @@ export function RadiosPage({
       inlineAction
       stickyHeader
       action={
-        <div className="hidden shrink-0 items-center gap-2 sm:flex">
-          {/* Desktop page-header keeps only the project switcher far
-              right. The Add + tab dropdown move down to the toolbar
-              row above the cards. */}
-          {userProjects.length > 0 && (
-            <ProjectSwitcher
-              projectId={selectedProject?.id ?? null}
-              projectName={selectedProject?.name ?? '—'}
-              userProjects={userProjects}
-              basePath="/radios"
-            />
+        <div className="flex shrink-0 items-center gap-2">
+          {/* Scanner — always visible (mobile-first; desktop laptops
+              with cams still benefit). Routes to /radios/scan with the
+              current project so the scanner page knows which show. */}
+          {selectedProject && (
+            <a
+              href={`/radios/scan?project=${selectedProject.id}`}
+              aria-label="Scan radio barcode"
+              className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+            >
+              <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h3.375M15.75 3.75h3.375c.621 0 1.125.504 1.125 1.125v3.375M20.25 15.75v3.375c0 .621-.504 1.125-1.125 1.125h-3.375M8.25 20.25H4.875A1.125 1.125 0 0 1 3.75 19.125V15.75M7.5 7.5h.008v.008H7.5V7.5Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm6.75 0h.008v.008h-.008V7.5Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-7.5 6.75h.008v.008H7.5v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM12 7.5v3.75m0 0v3.75m0-3.75h3.75M12 11.25H8.25" />
+              </svg>
+            </a>
           )}
+          {/* Desktop page-header keeps the project switcher far right.
+              The Add + tab dropdown move down to the toolbar row above
+              the cards. */}
+          <div className="hidden sm:block">
+            {userProjects.length > 0 && (
+              <ProjectSwitcher
+                projectId={selectedProject?.id ?? null}
+                projectName={selectedProject?.name ?? '—'}
+                userProjects={userProjects}
+                basePath="/radios"
+              />
+            )}
+          </div>
         </div>
       }
     >
@@ -803,12 +820,29 @@ function RadioCard({
             {radio.barcode}
           </span>
         )}
+        {/* Check-out status chip — matches the Comms Equipment status
+            chip chrome (rounded-lg, bordered, no fill, gray-200 text)
+            using the same STATUS_BORDER_STYLES palette so the radio
+            page reads consistent with the rest of the app. "Out" maps
+            to the `deployed` yellow outline (radio in the field) and
+            "Returned" maps to the `returned` blue outline. */}
+        <span
+          className={`inline-flex items-center justify-center rounded-lg border ${
+            radio.checkedOut ? STATUS_BORDER_STYLES.deployed : STATUS_BORDER_STYLES.returned
+          } px-3 py-1.5 text-xs font-medium text-gray-200 ${
+            radio.barcode ? '' : 'sm:ml-auto'
+          }`}
+        >
+          <span className="min-w-[4.5rem] text-center">
+            {radio.checkedOut ? 'Out' : 'Returned'}
+          </span>
+        </span>
         {/* Edit button — own full-width row on mobile, content-sized
             and right-aligned on desktop. */}
         <button
           type="button"
           onClick={onOpen}
-          className={`w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white sm:w-auto ${radio.barcode ? 'sm:ml-0' : 'sm:ml-auto'}`}
+          className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white sm:w-auto"
         >
           Edit
         </button>
