@@ -2794,8 +2794,18 @@ export function ProjectPage({
                         className="w-full sm:w-auto"
                         disabled={!addMemberData.firstName.trim() || !addMemberData.lastName.trim()}
                         onClick={() => {
-                          const name = `${addMemberData.firstName.trim()} ${addMemberData.lastName.trim()}`
-                          const joinUrl = `https://versacom-app.vercel.app/login/join?pin=${project.pin}`
+                          const firstName = addMemberData.firstName.trim()
+                          const lastName = addMemberData.lastName.trim()
+                          const name = `${firstName} ${lastName}`
+                          // Include first + last in the URL so the join
+                          // page pre-fills the invitee's name. Matches
+                          // the kiosk's buildJoinUrl helper.
+                          const params = new URLSearchParams({
+                            pin: project.pin,
+                            firstName,
+                            lastName,
+                          })
+                          const joinUrl = `https://versacom-app.vercel.app/login/join?${params.toString()}`
                           const text = `Hi ${name}, you've been accepted into ${project.name}! Scan or tap: ${joinUrl}`
                           navigator.clipboard.writeText(text).then(() => showToast('success', 'Invite message copied to clipboard'))
                         }}
