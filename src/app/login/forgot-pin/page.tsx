@@ -56,7 +56,7 @@ export default function ForgotPinPage() {
                   <input
                     id="firstName"
                     type="text"
-                    placeholder="First Name"
+                    placeholder=""
                     value={firstName}
                     onChange={(e) => { setFirstName(e.target.value); setError('') }}
                     disabled={isPending}
@@ -70,7 +70,7 @@ export default function ForgotPinPage() {
                   <input
                     id="lastName"
                     type="text"
-                    placeholder="Last Name"
+                    placeholder=""
                     value={lastName}
                     onChange={(e) => { setLastName(e.target.value); setError('') }}
                     disabled={isPending}

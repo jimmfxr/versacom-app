@@ -318,7 +318,7 @@ function LoginPageInner() {
               <input
                 id="firstName"
                 type="text"
-                placeholder="First Name"
+                placeholder=""
                 value={firstName}
                 onChange={(e) => { setFirstName(e.target.value); setError(null) }}
                 disabled={loading}
@@ -332,7 +332,7 @@ function LoginPageInner() {
               <input
                 id="lastName"
                 type="text"
-                placeholder="Last Name"
+                placeholder=""
                 value={lastName}
                 onChange={(e) => { setLastName(e.target.value); setError(null) }}
                 disabled={loading}
