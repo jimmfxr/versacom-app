@@ -310,7 +310,12 @@ export function Navbar({
                         // with relative positioning so the underline
                         // can sit beneath the TEXT only, not the chip's
                         // rounded outline.
-                        'relative inline-flex items-center gap-1.5 rounded-md px-2 pt-1 pb-1 text-sm font-medium transition-colors duration-300',
+                        //
+                        // Padding matched to the standard Button (Edit /
+                        // Save / etc) — px-4 py-2 text-sm rounded-lg —
+                        // so the nav strip reads at the same chip size
+                        // as the rest of the app's primary actions.
+                        'relative inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors duration-300',
                       )}
                     >
                       {item.name}
@@ -330,7 +335,7 @@ export function Navbar({
                       {item.current && !pressed && (
                         <span
                           aria-hidden
-                          className="pointer-events-none absolute inset-x-2 -bottom-px h-0.5 bg-[#0178a3]"
+                          className="pointer-events-none absolute inset-x-4 -bottom-px h-0.5 bg-[#0178a3]"
                         />
                       )}
                     </a>
