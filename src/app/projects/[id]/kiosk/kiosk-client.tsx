@@ -260,7 +260,7 @@ function FormView({
     const q = pendingSearch.trim().toLowerCase()
     if (!q) return pending
     return pending.filter((m) => {
-      const haystack = `${m.firstName} ${m.lastName} ${m.position ?? ''} ${m.equipmentNames.join(' ')}`.toLowerCase()
+      const haystack = `${m.firstName} ${m.lastName} ${m.position ?? ''} ${m.department ?? ''} ${m.equipmentNames.join(' ')}`.toLowerCase()
       return haystack.includes(q)
     })
   })()
@@ -402,18 +402,28 @@ function FormView({
                   >
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        {/* ID stays mono and bumped a notch heavier, but
+                            recolored from cyan to white per the v2.3
+                            color sweep: ID white, name cyan, dept +
+                            position both gray. */}
                         {m.equipmentNames.length > 0 && (
-                          <span className="font-mono text-base font-bold text-[#22a7d3]">
+                          <span className="font-mono text-base font-bold text-white">
                             {m.equipmentNames.join(', ')}
                           </span>
                         )}
-                        <span className="text-base font-semibold text-white">
+                        <span className="text-base font-semibold text-[#22a7d3]">
                           {m.firstName} {m.lastName}
                         </span>
+                        {m.department && (
+                          <>
+                            <span className="text-sm text-gray-500">·</span>
+                            <span className="text-sm text-gray-400">{m.department}</span>
+                          </>
+                        )}
                         {m.position && (
                           <>
                             <span className="text-sm text-gray-500">·</span>
-                            <span className="text-sm text-[#22a7d3]">{m.position}</span>
+                            <span className="text-sm text-gray-400">{m.position}</span>
                           </>
                         )}
                       </div>
