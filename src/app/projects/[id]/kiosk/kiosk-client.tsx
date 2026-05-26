@@ -7,7 +7,7 @@ import { ComboboxInput } from '@/components/combobox-input'
 import { createKioskMember, updatePendingMember } from './actions'
 
 const QR_COUNTDOWN_SECONDS = 15
-const PHONE_READY_SECONDS = 5
+const PHONE_READY_SECONDS = 6
 /** How often the kiosk re-fetches the pending check-in list. */
 const PENDING_POLL_MS = 4_000
 
