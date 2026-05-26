@@ -595,7 +595,7 @@ function PhoneReadyView({
         <span className="text-3xl font-bold text-[#22a7d3] sm:text-4xl">
           camera
         </span>{' '}
-        to scan the QR link — it&rsquo;ll appear in a few seconds.
+        to scan the QR link.
       </p>
       <div className="mx-auto mb-6 flex size-20 items-center justify-center rounded-full bg-[#0178a3]/20 text-[#22a7d3]">
         <svg
