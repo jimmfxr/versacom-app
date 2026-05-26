@@ -135,6 +135,7 @@ export function KioskClient({
           {view.kind === 'edit' && (
             <EditView
               member={view.member}
+              projectName={projectName}
               positionSuggestions={positionSuggestions}
               departmentSuggestions={departmentSuggestions}
               onSaved={(r) => setView({ kind: 'phone-ready', ...r })}
@@ -234,8 +235,8 @@ function FormView({
     <div className="flex min-h-0 flex-1 flex-col">
       {/* Add form — same width + style as login. Fixed height. */}
       <div className="mx-auto w-full max-w-sm flex-shrink-0">
-        <h2 className="mb-1 text-center text-xl font-semibold text-white">Add Crew</h2>
-        <p className="mb-6 text-center text-xs text-gray-500">{projectName}</p>
+        <h2 className="mb-2 text-center text-xl font-semibold text-white">Add Crew</h2>
+        <p className="mb-6 text-center text-lg font-semibold text-[#22a7d3]">{projectName}</p>
         <form onSubmit={submit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -379,12 +380,14 @@ function FormView({
 
 function EditView({
   member,
+  projectName,
   positionSuggestions,
   departmentSuggestions,
   onSaved,
   onCancel,
 }: {
   member: PendingMember
+  projectName: string
   positionSuggestions: string[]
   departmentSuggestions: string[]
   onSaved: (r: { firstName: string; lastName: string; joinUrl: string }) => void
@@ -420,7 +423,8 @@ function EditView({
     // viewport slot — admins pick a pending check-in and the form they
     // see drops into the middle of the page instead of hugging the top.
     <div className="mx-auto w-full max-w-sm">
-      <h2 className="mb-6 text-center text-xl font-semibold text-white">Edit Crew</h2>
+      <h2 className="mb-2 text-center text-xl font-semibold text-white">Edit Crew</h2>
+      <p className="mb-6 text-center text-lg font-semibold text-[#22a7d3]">{projectName}</p>
       <form onSubmit={submit} className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div>
