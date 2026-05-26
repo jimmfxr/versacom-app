@@ -587,11 +587,15 @@ function PhoneReadyView({
         You&rsquo;re in, {firstName}!
       </h2>
       <p className="mb-8 text-xl leading-snug text-gray-300 sm:text-2xl">
-        Get your phone out and{' '}
-        <span className="font-semibold text-[#22a7d3]">
-          use your camera to scan the QR link
+        Get your{' '}
+        <span className="text-3xl font-bold text-[#22a7d3] sm:text-4xl">
+          phone
         </span>{' '}
-        — it&rsquo;ll appear in a few seconds.
+        out and use your{' '}
+        <span className="text-3xl font-bold text-[#22a7d3] sm:text-4xl">
+          camera
+        </span>{' '}
+        to scan the QR link — it&rsquo;ll appear in a few seconds.
       </p>
       <div className="mx-auto mb-6 flex size-20 items-center justify-center rounded-full bg-[#0178a3]/20 text-[#22a7d3]">
         <svg
