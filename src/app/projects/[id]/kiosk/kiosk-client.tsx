@@ -7,6 +7,7 @@ import { ComboboxInput } from '@/components/combobox-input'
 import { createKioskMember, updatePendingMember } from './actions'
 
 const QR_COUNTDOWN_SECONDS = 15
+const PHONE_READY_SECONDS = 5
 
 type PendingMember = {
   id: number
@@ -20,6 +21,7 @@ type PendingMember = {
 type KioskView =
   | { kind: 'form' }
   | { kind: 'edit'; member: PendingMember }
+  | { kind: 'phone-ready'; firstName: string; lastName: string; joinUrl: string }
   | { kind: 'qr'; firstName: string; lastName: string; joinUrl: string }
 
 export function KioskClient({
@@ -112,7 +114,7 @@ export function KioskClient({
           <FormView
             projectId={projectId}
             projectName={projectName}
-            onCreated={(r) => setView({ kind: 'qr', ...r })}
+            onCreated={(r) => setView({ kind: 'phone-ready', ...r })}
             pending={pending}
             positionSuggestions={positionSuggestions}
             departmentSuggestions={departmentSuggestions}
@@ -125,8 +127,22 @@ export function KioskClient({
             member={view.member}
             positionSuggestions={positionSuggestions}
             departmentSuggestions={departmentSuggestions}
-            onSaved={(r) => setView({ kind: 'qr', ...r })}
+            onSaved={(r) => setView({ kind: 'phone-ready', ...r })}
             onCancel={() => setView({ kind: 'form' })}
+          />
+        )}
+
+        {view.kind === 'phone-ready' && (
+          <PhoneReadyView
+            firstName={view.firstName}
+            onContinue={() =>
+              setView({
+                kind: 'qr',
+                firstName: view.firstName,
+                lastName: view.lastName,
+                joinUrl: view.joinUrl,
+              })
+            }
           />
         )}
 
@@ -389,7 +405,10 @@ function EditView({
   }
 
   return (
-    <div className="mx-auto w-full max-w-sm">
+    // my-auto vertically centers the edit form inside the remaining
+    // viewport slot — admins pick a pending check-in and the form they
+    // see drops into the middle of the page instead of hugging the top.
+    <div className="mx-auto my-auto w-full max-w-sm">
       <h2 className="mb-6 text-center text-xl font-semibold text-white">Edit Crew</h2>
       <form onSubmit={submit} className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
@@ -451,6 +470,70 @@ function EditView({
   )
 }
 
+function PhoneReadyView({
+  firstName,
+  onContinue,
+}: {
+  firstName: string
+  onContinue: () => void
+}) {
+  const [secondsLeft, setSecondsLeft] = useState(PHONE_READY_SECONDS)
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const expireRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    tickRef.current = setInterval(() => {
+      setSecondsLeft((s) => (s > 0 ? s - 1 : 0))
+    }, 1000)
+    expireRef.current = setTimeout(() => {
+      onContinue()
+    }, PHONE_READY_SECONDS * 1000)
+    return () => {
+      if (tickRef.current) clearInterval(tickRef.current)
+      if (expireRef.current) clearTimeout(expireRef.current)
+    }
+  }, [onContinue])
+
+  return (
+    <div className="mx-auto my-auto w-full max-w-sm text-center">
+      <h2 className="mb-3 text-2xl font-semibold text-white">
+        You&rsquo;re in, {firstName}!
+      </h2>
+      <p className="mb-8 text-base text-gray-300">
+        Take out your phone and get the camera ready — a QR code will
+        appear in a moment so you can finish setting up your account.
+      </p>
+      <div className="mx-auto mb-6 flex size-20 items-center justify-center rounded-full bg-[#0178a3]/20 text-[#22a7d3]">
+        <svg
+          className="size-10"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={1.5}
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M10.5 1.875h3a.75.75 0 0 1 .75.75v.375a.375.375 0 0 1-.375.375h-3.75a.375.375 0 0 1-.375-.375V2.625a.75.75 0 0 1 .75-.75ZM7.5 4.5h9a1.5 1.5 0 0 1 1.5 1.5v15a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 21V6a1.5 1.5 0 0 1 1.5-1.5Zm3.75 14.625h1.5"
+          />
+        </svg>
+      </div>
+      <button
+        type="button"
+        onClick={onContinue}
+        className="relative w-full overflow-hidden rounded-lg bg-[#0178a3] py-3 text-sm font-semibold text-white transition-colors hover:bg-[#019bc7]"
+      >
+        <span className="relative z-10">Show QR · {secondsLeft}s</span>
+        <span
+          aria-hidden
+          className="absolute inset-y-0 left-0 bg-white/15 transition-[width] duration-1000 ease-linear"
+          style={{ width: `${(secondsLeft / PHONE_READY_SECONDS) * 100}%` }}
+        />
+      </button>
+    </div>
+  )
+}
+
 function QrView({
   firstName,
   lastName,
@@ -480,7 +563,7 @@ function QrView({
   }, [onDone])
 
   return (
-    <div className="mx-auto w-full max-w-sm">
+    <div className="mx-auto my-auto w-full max-w-sm">
       <h2 className="mb-2 text-center text-xl font-semibold text-white">
         {firstName} {lastName}
       </h2>
