@@ -2693,14 +2693,14 @@ export function ProjectPage({
                         label="Department"
                         value={addMemberData.department}
                         options={departmentSuggestions}
-                        placeholder="e.g. Audio, RF"
+                        placeholder=""
                         onChange={(v) => setAddMemberData({ ...addMemberData, department: v })}
                       />
                       <ComboboxInput
                         label="Position"
                         value={addMemberData.position}
                         options={positionSuggestions}
-                        placeholder="e.g. A1"
+                        placeholder=""
                         onChange={(v) => setAddMemberData({ ...addMemberData, position: v })}
                       />
                       <FormInput

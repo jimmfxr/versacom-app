@@ -331,14 +331,14 @@ function FormView({
               value={department}
               onChange={setDepartment}
               options={departmentSuggestions}
-              placeholder="e.g. Audio, RF"
+              placeholder=""
             />
             <ComboboxInput
               label="Position"
               value={position}
               onChange={setPosition}
               options={positionSuggestions}
-              placeholder="e.g. A1, PLHQ"
+              placeholder=""
             />
           </div>
           {error && <p className="text-sm text-rose-400">{error}</p>}
@@ -518,14 +518,14 @@ function EditView({
             value={department}
             onChange={setDepartment}
             options={departmentSuggestions}
-            placeholder="e.g. Audio, RF"
+            placeholder=""
           />
           <ComboboxInput
             label="Position"
             value={position}
             onChange={setPosition}
             options={positionSuggestions}
-            placeholder="e.g. A1, PLHQ"
+            placeholder=""
           />
         </div>
         {error && <p className="text-sm text-rose-400">{error}</p>}

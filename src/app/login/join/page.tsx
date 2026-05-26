@@ -213,7 +213,7 @@ function JoinProjectPageInner() {
                   <input
                     id="joinDepartment"
                     type="text"
-                    placeholder="e.g. Audio"
+                    placeholder=""
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
                     className="mt-1 w-full rounded-lg border border-white/10 px-3.5 py-2.5 text-base text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
@@ -226,7 +226,7 @@ function JoinProjectPageInner() {
                   <input
                     id="joinPosition"
                     type="text"
-                    placeholder="e.g. A1"
+                    placeholder=""
                     value={position}
                     onChange={(e) => setPosition(e.target.value)}
                     className="mt-1 w-full rounded-lg border border-white/10 px-3.5 py-2.5 text-base text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
