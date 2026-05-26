@@ -244,6 +244,9 @@ function MobileNavPanel({
   )
 }
 
+/** ms the cyan-chip press effect lingers on a nav link after click. */
+const NAV_PRESS_LINGER_MS = 1000
+
 export function Navbar({
   navigation,
   user,
@@ -252,6 +255,20 @@ export function Navbar({
   onSignOut,
   notificationUnread = 0,
 }: NavbarProps) {
+  // Tracks which nav link was most recently pressed so we can render a
+  // lingering cyan chip around it for ~1s after the tap. Pure CSS
+  // :active only holds while the pointer is down — we want the press
+  // acknowledgment to outlive the click so the user *sees* it before
+  // the route change completes.
+  const [pressedHref, setPressedHref] = useState<string | null>(null)
+  const pressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  function markPressed(href: string) {
+    if (pressTimeoutRef.current) clearTimeout(pressTimeoutRef.current)
+    setPressedHref(href)
+    pressTimeoutRef.current = setTimeout(() => {
+      setPressedHref(null)
+    }, NAV_PRESS_LINGER_MS)
+  }
   return (
     <Disclosure as="nav" className="sticky top-0 z-40 bg-[#202020]">
       {({ open, close }) => (
@@ -269,20 +286,27 @@ export function Navbar({
                     its content + pt-1 + the 2px border, so the active
                     indicator hugs the underline of the text. */}
                 <div className="hidden sm:-my-px sm:ml-6 sm:flex sm:items-center sm:space-x-8">
-                  {navigation.map((item) => (
+                  {navigation.map((item) => {
+                    const pressed = pressedHref === item.href
+                    return (
                     <a
                       key={item.name}
                       href={item.href}
                       aria-current={item.current ? 'page' : undefined}
+                      onMouseDown={() => markPressed(item.href)}
+                      onTouchStart={() => markPressed(item.href)}
                       className={classNames(
-                        item.current
-                          ? 'border-[#0178a3] text-white'
-                          : 'border-transparent text-gray-400 hover:border-white/20 hover:text-gray-200',
-                        // Visual press feedback (works on iPad / desktop
-                        // where there's no haptic API): scales down a
-                        // hair + flashes cyan on press for ~75ms so the
-                        // tap is acknowledged before the route changes.
-                        'inline-flex items-center gap-1.5 border-b-2 px-1 pt-1 text-sm font-medium transition-transform duration-75 active:scale-95 active:text-[#22a7d3]',
+                        // Pressed state takes priority: a solid cyan
+                        // chip wraps the text + icon for ~1s so the tap
+                        // is unmistakably acknowledged. Transition is
+                        // applied to both colors AND bg so the chip
+                        // also fades out gently when the timer clears.
+                        pressed
+                          ? 'border-transparent bg-[#0178a3] text-white'
+                          : item.current
+                            ? 'border-[#0178a3] text-white'
+                            : 'border-transparent text-gray-400 hover:border-white/20 hover:text-gray-200',
+                        'inline-flex items-center gap-1.5 rounded-md border-b-2 px-2 pt-1 text-sm font-medium transition-colors duration-300',
                       )}
                     >
                       {item.name}
@@ -292,7 +316,8 @@ export function Navbar({
                         </span>
                       )}
                     </a>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:items-center">
