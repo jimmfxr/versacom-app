@@ -8,7 +8,6 @@ import {
 } from '@headlessui/react'
 import { Bars3Icon, BellIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useDrag } from '@use-gesture/react'
-import { triggerHaptic } from '@/lib/haptic'
 
 export type NavItem = {
   readonly name: string
@@ -209,18 +208,14 @@ function MobileNavPanel({
             as="a"
             href={item.href}
             aria-current={item.current ? 'page' : undefined}
-            // Audio-click haptic for iPadOS / desktop, vibrate on
-            // Android. Matches the desktop nav-strip behaviour.
-            onMouseDown={triggerHaptic}
-            onTouchStart={triggerHaptic}
             className={classNames(
               item.current
                 ? 'border border-[#0178a3] text-[#22a7d3]'
                 : 'border border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04]',
-              // Press feedback: cyan-fill chip-active style so the
-              // tap is visibly acknowledged before navigation
-              // completes — same chip system as the rest of the app.
-              'flex items-center justify-between gap-2 rounded-lg px-5 py-4 text-base font-medium transition-colors duration-100 active:border-[#0178a3] active:bg-[#0178a3] active:text-white',
+              // Press feedback: cyan-fill chip-active + tiny scale-down
+              // so the tap reads as a tactile-feeling press, no sound
+              // needed. iPad / desktop / mobile all get this.
+              'flex items-center justify-between gap-2 rounded-lg px-5 py-4 text-base font-medium transition-[colors,transform] duration-100 active:scale-[0.98] active:border-[#0178a3] active:bg-[#0178a3] active:text-white',
             )}
           >
             <span>{item.name}</span>
@@ -279,17 +274,15 @@ export function Navbar({
                       key={item.name}
                       href={item.href}
                       aria-current={item.current ? 'page' : undefined}
-                      // Cross-platform tap feedback for the desktop /
-                      // iPad nav strip. Tries navigator.vibrate first
-                      // (Android), falls back to a short Web Audio
-                      // click on iPadOS / desktop where vibrate no-ops.
-                      onMouseDown={triggerHaptic}
-                      onTouchStart={triggerHaptic}
                       className={classNames(
                         item.current
                           ? 'border-[#0178a3] text-white'
                           : 'border-transparent text-gray-400 hover:border-white/20 hover:text-gray-200',
-                        'inline-flex items-center gap-1.5 border-b-2 px-1 pt-1 text-sm font-medium',
+                        // Visual press feedback (works on iPad / desktop
+                        // where there's no haptic API): scales down a
+                        // hair + flashes cyan on press for ~75ms so the
+                        // tap is acknowledged before the route changes.
+                        'inline-flex items-center gap-1.5 border-b-2 px-1 pt-1 text-sm font-medium transition-transform duration-75 active:scale-95 active:text-[#22a7d3]',
                       )}
                     >
                       {item.name}
