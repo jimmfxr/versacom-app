@@ -105,10 +105,20 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
+      // Inline style on <html> + <body> paints #202020 from the very
+      // first frame, before the Tailwind stylesheet even parses. Without
+      // this, opening the kiosk in a new tab on Vercel production shows
+      // a brief white flash (the browser's default blank-tab bg) before
+      // the bg-[#202020] class applies and loading.tsx mounts.
+      style={{ backgroundColor: '#202020' }}
       className={`${geistSans.variable} ${geistMono.variable} h-full bg-[#202020] antialiased`}
       suppressHydrationWarning
     >
-      <body className="h-full bg-[#202020]" suppressHydrationWarning>
+      <body
+        style={{ backgroundColor: '#202020' }}
+        className="h-full bg-[#202020]"
+        suppressHydrationWarning
+      >
         <NoZoom />
         <ServiceWorkerRegister />
         {session ? (
