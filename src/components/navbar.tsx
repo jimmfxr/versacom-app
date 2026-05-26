@@ -8,6 +8,7 @@ import {
 } from '@headlessui/react'
 import { Bars3Icon, BellIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useDrag } from '@use-gesture/react'
+import { triggerHaptic } from '@/lib/haptic'
 
 export type NavItem = {
   readonly name: string
@@ -208,6 +209,10 @@ function MobileNavPanel({
             as="a"
             href={item.href}
             aria-current={item.current ? 'page' : undefined}
+            // Audio-click haptic for iPadOS / desktop, vibrate on
+            // Android. Matches the desktop nav-strip behaviour.
+            onMouseDown={triggerHaptic}
+            onTouchStart={triggerHaptic}
             className={classNames(
               item.current
                 ? 'border border-[#0178a3] text-[#22a7d3]'
@@ -274,6 +279,12 @@ export function Navbar({
                       key={item.name}
                       href={item.href}
                       aria-current={item.current ? 'page' : undefined}
+                      // Cross-platform tap feedback for the desktop /
+                      // iPad nav strip. Tries navigator.vibrate first
+                      // (Android), falls back to a short Web Audio
+                      // click on iPadOS / desktop where vibrate no-ops.
+                      onMouseDown={triggerHaptic}
+                      onTouchStart={triggerHaptic}
                       className={classNames(
                         item.current
                           ? 'border-[#0178a3] text-white'
