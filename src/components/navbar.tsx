@@ -245,7 +245,7 @@ function MobileNavPanel({
 }
 
 /** ms the cyan-chip press effect lingers on a nav link after click. */
-const NAV_PRESS_LINGER_MS = 1000
+const NAV_PRESS_LINGER_MS = 500
 
 export function Navbar({
   navigation,
