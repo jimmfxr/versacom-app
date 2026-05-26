@@ -404,8 +404,11 @@ export function ScanContent({
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col bg-black">
-      {/* Top bar — close + project label */}
-      <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-[#202020] px-4 py-3 sm:px-6">
+      {/* Top bar — close + project label.
+          Relative parent so the centered accessory label can sit on
+          the same row as the project info and the X without being
+          shoved by either side's width. */}
+      <div className="relative flex flex-shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-[#202020] px-4 py-3 sm:px-6">
         <div className="min-w-0">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
             Scan
@@ -413,6 +416,13 @@ export function ScanContent({
           <div className="truncate text-sm font-semibold text-white sm:text-base">
             {project.name}
           </div>
+        </div>
+        {/* Scan-target label — plain cyan text (no chip / pill),
+            centered on the top row. Default is "Scan Walkie" so the
+            operator knows what to point the camera at; flips to
+            "Scan {accessory}" while accessoryScanMode is set. */}
+        <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-base font-semibold uppercase tracking-wider text-[#22a7d3] sm:text-lg">
+          Scan {accessoryScanMode ? ACCESSORY_LABELS[accessoryScanMode] : 'Walkie'}
         </div>
         <button
           type="button"
@@ -426,18 +436,10 @@ export function ScanContent({
         </button>
       </div>
 
-      {/* Camera viewport — fills the remaining space */}
+      {/* Camera viewport — fills the remaining space.
+          (The accessory-scan label now lives in the top bar above,
+          not as an overlay here, per the v2.3 chrome refresh.) */}
       <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
-        {/* Accessory-scan label — top-center over the camera. Only
-            renders while accessoryScanMode is set; tells the operator
-            which accessory's barcode is about to be captured. */}
-        {accessoryScanMode && (
-          <div className="pointer-events-none absolute inset-x-0 top-6 z-30 flex justify-center px-4">
-            <div className="rounded-full bg-[#0178a3] px-5 py-2 text-base font-semibold uppercase tracking-wider text-white shadow-lg sm:text-lg">
-              Scan {ACCESSORY_LABELS[accessoryScanMode]}
-            </div>
-          </div>
-        )}
         {!cameraError && (
           <video
             ref={videoRef}
@@ -495,7 +497,7 @@ export function ScanContent({
             onClick={skipAccessoryScan}
             className="w-full rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7]"
           >
-            Skip {ACCESSORY_LABELS[accessoryScanMode]} barcode
+            Skip
           </button>
         ) : (
           <form
@@ -515,7 +517,7 @@ export function ScanContent({
             <button
               type="submit"
               disabled={!manualBarcode.trim()}
-              className="w-full rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              className="w-full whitespace-nowrap rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               Look up
             </button>
@@ -822,6 +824,14 @@ function AccessoryChip({
   disabled?: boolean
   onClick: () => void
 }) {
+  // Three visual states encode capture status:
+  //   • off           → dark neutral chip
+  //   • on, no scan   → cyan border + cyan-tinted bg (Skip path; the
+  //                     accessory is paired but un-barcoded)
+  //   • on, scanned   → GREEN border + green-tinted bg (barcode
+  //                     captured; the chip becomes its own confirmation)
+  // Color now carries the signal, so the trailing dot is gone.
+  const captured = on && !!barcode
   return (
     <button
       type="button"
@@ -830,20 +840,14 @@ function AccessoryChip({
       aria-pressed={on}
       title={on && barcode ? `Barcode: ${barcode}` : undefined}
       className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-        on
-          ? 'border-[#0178a3] bg-[#0178a3]/20 text-[#22a7d3]'
-          : 'border-white/10 bg-[#202020] text-gray-300 hover:border-white/20 hover:bg-white/[0.04]'
+        captured
+          ? 'border-green-500 bg-green-500/20 text-green-400'
+          : on
+            ? 'border-[#0178a3] bg-[#0178a3]/10 text-[#22a7d3]'
+            : 'border-white/10 bg-[#202020] text-gray-300 hover:border-white/20 hover:bg-white/[0.04]'
       }`}
     >
       <span>{label}</span>
-      {/* When the accessory is on, show a tiny indicator: filled cyan
-          dot if barcode captured, hollow ring if paired-no-barcode. */}
-      {on && (
-        <span
-          aria-hidden
-          className={`size-1.5 rounded-full ${barcode ? 'bg-[#22a7d3]' : 'ring-1 ring-[#22a7d3]'}`}
-        />
-      )}
     </button>
   )
 }
