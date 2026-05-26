@@ -101,33 +101,38 @@ export function KioskClient({
         </svg>
       </button>
 
-      {/* Logo — fixed height */}
-      <div className="mb-10 flex flex-shrink-0 justify-center">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/clair_logo_white.png" alt="Clair" className="h-16 w-auto" />
-      </div>
+      {/* Layout split:
+          - Form view keeps the logo pinned at top and the pending list
+            growing to fill below it.
+          - Edit / phone-ready / QR views vertically center the LOGO +
+            card as a group, so the logo follows the card to the middle
+            of the page. */}
+      {view.kind === 'form' ? (
+        <>
+          <div className="mb-10 flex flex-shrink-0 justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/clair_logo_white.png" alt="Clair" className="h-16 w-auto" />
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <FormView
+              projectId={projectId}
+              projectName={projectName}
+              onCreated={(r) => setView({ kind: 'phone-ready', ...r })}
+              pending={pending}
+              positionSuggestions={positionSuggestions}
+              departmentSuggestions={departmentSuggestions}
+              onPickPending={(m) => setView({ kind: 'edit', member: m })}
+            />
+          </div>
+        </>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden">
+          <div className="mb-10 flex flex-shrink-0 justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/clair_logo_white.png" alt="Clair" className="h-16 w-auto" />
+          </div>
 
-      {/* View slot — fills remaining vertical space. min-h-0 lets the
-          inner scroll containers actually size against this. */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {view.kind === 'form' && (
-          <FormView
-            projectId={projectId}
-            projectName={projectName}
-            onCreated={(r) => setView({ kind: 'phone-ready', ...r })}
-            pending={pending}
-            positionSuggestions={positionSuggestions}
-            departmentSuggestions={departmentSuggestions}
-            onPickPending={(m) => setView({ kind: 'edit', member: m })}
-          />
-        )}
-
-        {/* Edit, phone-ready, and QR all use a flex-centering wrapper
-            so their card sits in the dead-center of the remaining
-            viewport slot regardless of content height. Pulls the
-            content up off the logo's baseline. */}
-        {view.kind === 'edit' && (
-          <div className="flex flex-1 items-center justify-center">
+          {view.kind === 'edit' && (
             <EditView
               member={view.member}
               positionSuggestions={positionSuggestions}
@@ -135,11 +140,9 @@ export function KioskClient({
               onSaved={(r) => setView({ kind: 'phone-ready', ...r })}
               onCancel={() => setView({ kind: 'form' })}
             />
-          </div>
-        )}
+          )}
 
-        {view.kind === 'phone-ready' && (
-          <div className="flex flex-1 items-center justify-center">
+          {view.kind === 'phone-ready' && (
             <PhoneReadyView
               firstName={view.firstName}
               onContinue={() =>
@@ -151,11 +154,9 @@ export function KioskClient({
                 })
               }
             />
-          </div>
-        )}
+          )}
 
-        {view.kind === 'qr' && (
-          <div className="flex flex-1 items-center justify-center">
+          {view.kind === 'qr' && (
             <QrView
               firstName={view.firstName}
               lastName={view.lastName}
@@ -167,9 +168,9 @@ export function KioskClient({
                 router.refresh()
               }}
             />
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -488,21 +489,29 @@ function PhoneReadyView({
   onContinue: () => void
 }) {
   const [secondsLeft, setSecondsLeft] = useState(PHONE_READY_SECONDS)
-  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const expireRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Park onContinue in a ref so the auto-advance effect can run with an
+  // empty dep array. Without this, the parent's router.refresh() poll
+  // (every 4s) re-creates the inline onContinue arrow, which used to
+  // cancel + reset the setTimeout below — the 5s countdown would
+  // visually reach 0 but never actually fire onContinue.
+  const onContinueRef = useRef(onContinue)
+  useEffect(() => {
+    onContinueRef.current = onContinue
+  }, [onContinue])
 
   useEffect(() => {
-    tickRef.current = setInterval(() => {
+    const tick = setInterval(() => {
       setSecondsLeft((s) => (s > 0 ? s - 1 : 0))
     }, 1000)
-    expireRef.current = setTimeout(() => {
-      onContinue()
+    const expire = setTimeout(() => {
+      onContinueRef.current()
     }, PHONE_READY_SECONDS * 1000)
     return () => {
-      if (tickRef.current) clearInterval(tickRef.current)
-      if (expireRef.current) clearTimeout(expireRef.current)
+      clearInterval(tick)
+      clearTimeout(expire)
     }
-  }, [onContinue])
+  }, [])
 
   return (
     <div className="mx-auto w-full max-w-sm text-center">
@@ -556,21 +565,28 @@ function QrView({
   onDone: () => void
 }) {
   const [secondsLeft, setSecondsLeft] = useState(QR_COUNTDOWN_SECONDS)
-  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const expireRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Same ref-pin trick as PhoneReadyView: the parent re-renders every
+  // 4s on router.refresh(), which used to keep canceling + restarting
+  // this 15s timeout. Pin onDone in a ref so the effect can run with
+  // empty deps and the timer actually expires.
+  const onDoneRef = useRef(onDone)
+  useEffect(() => {
+    onDoneRef.current = onDone
+  }, [onDone])
 
   useEffect(() => {
-    tickRef.current = setInterval(() => {
+    const tick = setInterval(() => {
       setSecondsLeft((s) => (s > 0 ? s - 1 : 0))
     }, 1000)
-    expireRef.current = setTimeout(() => {
-      onDone()
+    const expire = setTimeout(() => {
+      onDoneRef.current()
     }, QR_COUNTDOWN_SECONDS * 1000)
     return () => {
-      if (tickRef.current) clearInterval(tickRef.current)
-      if (expireRef.current) clearTimeout(expireRef.current)
+      clearInterval(tick)
+      clearTimeout(expire)
     }
-  }, [onDone])
+  }, [])
 
   return (
     <div className="mx-auto w-full max-w-sm">
