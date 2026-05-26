@@ -391,25 +391,6 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                             <span className="text-sm font-semibold text-[#22a7d3]">
                               {project.createdBy.firstName} {project.createdBy.lastName}
                             </span>
-                            {/* Desktop-only: PIN cluster + description
-                                pinned to the far right of this row
-                                (same row as name + admin). Hidden on
-                                mobile + archived projects. */}
-                            {!isArchived && (
-                              <div className="ml-auto hidden items-center gap-2 sm:flex">
-                                <span className="text-[10px] text-gray-500">PIN</span>
-                                <div className="flex gap-1">
-                                  {project.pin.split('').map((digit, i) => (
-                                    <span
-                                      key={i}
-                                      className="flex size-7 items-center justify-center rounded-md border border-white/10 text-xs font-bold text-gray-200"
-                                    >
-                                      {digit}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
                           </div>
                           <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-gray-500">
                             <span>{project.memberCount} members</span>
@@ -421,6 +402,26 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                         </div>
                       </div>
                     </div>
+                    {/* Desktop-only PIN cluster — sibling of the info
+                        column so it sits vertically centered across
+                        BOTH info rows (title + stats), the same way
+                        the Edit button does. Hidden on mobile +
+                        archived projects. */}
+                    {!isArchived && (
+                      <div className="ml-auto hidden items-center gap-2 sm:flex">
+                        <span className="text-[10px] text-gray-500">PIN</span>
+                        <div className="flex gap-1">
+                          {project.pin.split('').map((digit, i) => (
+                            <span
+                              key={i}
+                              className="flex size-7 items-center justify-center rounded-md border border-white/10 text-xs font-bold text-gray-200"
+                            >
+                              {digit}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {isArchived && isAdmin && (
                       <Button
                         size="sm"
