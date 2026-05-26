@@ -420,6 +420,10 @@ export type RadioScanLookup =
         surveillance: boolean
         doubleMuff: boolean
         lightweight: boolean
+        fistMicBarcode: string | null
+        surveillanceBarcode: string | null
+        doubleMuffBarcode: string | null
+        lightweightBarcode: string | null
       }
     }
 
@@ -452,6 +456,10 @@ export async function lookupRadioByBarcode(
       surveillance: true,
       doubleMuff: true,
       lightweight: true,
+      fistMicBarcode: true,
+      surveillanceBarcode: true,
+      doubleMuffBarcode: true,
+      lightweightBarcode: true,
     },
   })
 
@@ -499,6 +507,14 @@ export async function assignRadioFromScan(
     surveillance?: boolean
     doubleMuff?: boolean
     lightweight?: boolean
+    // Optional per-accessory barcodes. The scanner pops a sub-prompt
+    // when an accessory chip is toggled ON so the operator can capture
+    // the accessory's barcode separately from the radio body. Null /
+    // omitted means the accessory is paired but un-barcoded (or off).
+    fistMicBarcode?: string | null
+    surveillanceBarcode?: string | null
+    doubleMuffBarcode?: string | null
+    lightweightBarcode?: string | null
   },
 ) {
   const session = await getSession()
@@ -550,6 +566,13 @@ export async function assignRadioFromScan(
       surveillance: data.surveillance ?? false,
       doubleMuff: data.doubleMuff ?? false,
       lightweight: data.lightweight ?? false,
+      // Only persist accessory barcodes when the matching flag is ON;
+      // toggling a chip OFF should also clear any previously-captured
+      // barcode so stale data doesn't linger on the row.
+      fistMicBarcode: data.fistMic ? clip(data.fistMicBarcode, MAX_BARCODE) : null,
+      surveillanceBarcode: data.surveillance ? clip(data.surveillanceBarcode, MAX_BARCODE) : null,
+      doubleMuffBarcode: data.doubleMuff ? clip(data.doubleMuffBarcode, MAX_BARCODE) : null,
+      lightweightBarcode: data.lightweight ? clip(data.lightweightBarcode, MAX_BARCODE) : null,
       status: 'out',
       checkedOutAt: new Date(),
     },

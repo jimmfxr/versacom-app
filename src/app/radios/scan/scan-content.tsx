@@ -37,6 +37,10 @@ type KnownRadio = {
   surveillance: boolean
   doubleMuff: boolean
   lightweight: boolean
+  fistMicBarcode: string | null
+  surveillanceBarcode: string | null
+  doubleMuffBarcode: string | null
+  lightweightBarcode: string | null
 }
 
 type ToastState = { kind: 'success' | 'error'; message: string } | null
@@ -433,6 +437,27 @@ function AssignmentModal({
   const [surveillance, setSurveillance] = useState(initial?.surveillance ?? false)
   const [doubleMuff, setDoubleMuff] = useState(initial?.doubleMuff ?? false)
   const [lightweight, setLightweight] = useState(initial?.lightweight ?? false)
+  // Per-accessory barcodes captured by the sub-prompt that fires when
+  // a chip is toggled ON. Empty string means "accessory paired but
+  // barcode skipped". Null on a chip that's currently OFF.
+  const [fistMicBarcode, setFistMicBarcode] = useState<string | null>(
+    initial?.fistMicBarcode ?? null,
+  )
+  const [surveillanceBarcode, setSurveillanceBarcode] = useState<string | null>(
+    initial?.surveillanceBarcode ?? null,
+  )
+  const [doubleMuffBarcode, setDoubleMuffBarcode] = useState<string | null>(
+    initial?.doubleMuffBarcode ?? null,
+  )
+  const [lightweightBarcode, setLightweightBarcode] = useState<string | null>(
+    initial?.lightweightBarcode ?? null,
+  )
+  // Which accessory is currently prompting for a barcode (sub-modal
+  // key) — set when a chip flips OFF→ON, cleared when sub-modal saves
+  // or cancels.
+  const [barcodePromptFor, setBarcodePromptFor] = useState<
+    null | 'fistMic' | 'surveillance' | 'doubleMuff' | 'lightweight'
+  >(null)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -485,6 +510,10 @@ function AssignmentModal({
         surveillance,
         doubleMuff,
         lightweight,
+        fistMicBarcode: fistMic ? fistMicBarcode : null,
+        surveillanceBarcode: surveillance ? surveillanceBarcode : null,
+        doubleMuffBarcode: doubleMuff ? doubleMuffBarcode : null,
+        lightweightBarcode: lightweight ? lightweightBarcode : null,
       })
       if (res.error) {
         setError(res.error)
@@ -548,11 +577,55 @@ function AssignmentModal({
           <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-gray-500">
             Accessories
           </span>
+          {/* Each chip toggles its accessory flag. When flipping a
+              chip OFF→ON the sub-prompt (below) asks the operator to
+              scan the accessory's barcode. Flipping ON→OFF clears the
+              chip AND any stored barcode. */}
           <div className="flex flex-wrap gap-2">
-            <ToggleChip label="Fist mic" value={fistMic} onChange={setFistMic} disabled={isPending} />
-            <ToggleChip label="Surveillance" value={surveillance} onChange={setSurveillance} disabled={isPending} />
-            <ToggleChip label="Double muff" value={doubleMuff} onChange={setDoubleMuff} disabled={isPending} />
-            <ToggleChip label="Lightweight" value={lightweight} onChange={setLightweight} disabled={isPending} />
+            <AccessoryChip
+              label="Fist mic"
+              on={fistMic}
+              barcode={fistMicBarcode}
+              disabled={isPending}
+              onToggleOn={() => setBarcodePromptFor('fistMic')}
+              onToggleOff={() => {
+                setFistMic(false)
+                setFistMicBarcode(null)
+              }}
+            />
+            <AccessoryChip
+              label="Surveillance"
+              on={surveillance}
+              barcode={surveillanceBarcode}
+              disabled={isPending}
+              onToggleOn={() => setBarcodePromptFor('surveillance')}
+              onToggleOff={() => {
+                setSurveillance(false)
+                setSurveillanceBarcode(null)
+              }}
+            />
+            <AccessoryChip
+              label="Double muff"
+              on={doubleMuff}
+              barcode={doubleMuffBarcode}
+              disabled={isPending}
+              onToggleOn={() => setBarcodePromptFor('doubleMuff')}
+              onToggleOff={() => {
+                setDoubleMuff(false)
+                setDoubleMuffBarcode(null)
+              }}
+            />
+            <AccessoryChip
+              label="LWHS"
+              on={lightweight}
+              barcode={lightweightBarcode}
+              disabled={isPending}
+              onToggleOn={() => setBarcodePromptFor('lightweight')}
+              onToggleOff={() => {
+                setLightweight(false)
+                setLightweightBarcode(null)
+              }}
+            />
           </div>
         </div>
 
@@ -574,6 +647,190 @@ function AssignmentModal({
             className="w-full rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {isPending ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
+
+      {/* Per-accessory barcode sub-prompt. Pops over the assignment
+          modal when an accessory chip flips OFF→ON; the operator
+          scans (or types) the accessory's barcode and confirms. Skip
+          keeps the accessory paired but un-barcoded; Cancel reverts
+          the chip to OFF. */}
+      {barcodePromptFor && (
+        <AccessoryBarcodePrompt
+          accessory={barcodePromptFor}
+          onSave={(code) => {
+            const trimmed = code.trim()
+            switch (barcodePromptFor) {
+              case 'fistMic':
+                setFistMic(true)
+                setFistMicBarcode(trimmed || '')
+                break
+              case 'surveillance':
+                setSurveillance(true)
+                setSurveillanceBarcode(trimmed || '')
+                break
+              case 'doubleMuff':
+                setDoubleMuff(true)
+                setDoubleMuffBarcode(trimmed || '')
+                break
+              case 'lightweight':
+                setLightweight(true)
+                setLightweightBarcode(trimmed || '')
+                break
+            }
+            setBarcodePromptFor(null)
+          }}
+          onSkip={() => {
+            // Skip = accessory ON with empty barcode.
+            switch (barcodePromptFor) {
+              case 'fistMic':
+                setFistMic(true)
+                setFistMicBarcode('')
+                break
+              case 'surveillance':
+                setSurveillance(true)
+                setSurveillanceBarcode('')
+                break
+              case 'doubleMuff':
+                setDoubleMuff(true)
+                setDoubleMuffBarcode('')
+                break
+              case 'lightweight':
+                setLightweight(true)
+                setLightweightBarcode('')
+                break
+            }
+            setBarcodePromptFor(null)
+          }}
+          onCancel={() => setBarcodePromptFor(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+function AccessoryChip({
+  label,
+  on,
+  barcode,
+  disabled,
+  onToggleOn,
+  onToggleOff,
+}: {
+  label: string
+  on: boolean
+  barcode: string | null
+  disabled?: boolean
+  onToggleOn: () => void
+  onToggleOff: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={on ? onToggleOff : onToggleOn}
+      disabled={disabled}
+      aria-pressed={on}
+      title={on && barcode ? `Barcode: ${barcode}` : undefined}
+      className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+        on
+          ? 'border-[#0178a3] bg-[#0178a3]/20 text-[#22a7d3]'
+          : 'border-white/10 bg-[#202020] text-gray-300 hover:border-white/20 hover:bg-white/[0.04]'
+      }`}
+    >
+      <span>{label}</span>
+      {/* When the accessory is on, show a tiny indicator: filled cyan
+          dot if barcode captured, hollow ring if paired-no-barcode. */}
+      {on && (
+        <span
+          aria-hidden
+          className={`size-1.5 rounded-full ${barcode ? 'bg-[#22a7d3]' : 'ring-1 ring-[#22a7d3]'}`}
+        />
+      )}
+    </button>
+  )
+}
+
+const ACCESSORY_LABELS: Record<
+  'fistMic' | 'surveillance' | 'doubleMuff' | 'lightweight',
+  string
+> = {
+  fistMic: 'Fist mic',
+  surveillance: 'Surveillance',
+  doubleMuff: 'Double muff',
+  lightweight: 'LWHS',
+}
+
+function AccessoryBarcodePrompt({
+  accessory,
+  onSave,
+  onSkip,
+  onCancel,
+}: {
+  accessory: 'fistMic' | 'surveillance' | 'doubleMuff' | 'lightweight'
+  onSave: (code: string) => void
+  onSkip: () => void
+  onCancel: () => void
+}) {
+  const [code, setCode] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Auto-focus the input so a barcode-scanner-gun keystroke immediately
+  // populates the field with no extra tap.
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#1c1c1c] p-5">
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+          Scan accessory barcode
+        </div>
+        <div className="mt-1 text-lg font-semibold text-white">
+          <span className="text-[#22a7d3]">{ACCESSORY_LABELS[accessory]}</span>
+        </div>
+        <p className="mt-3 text-sm text-gray-400">
+          Scan the barcode on the {ACCESSORY_LABELS[accessory].toLowerCase()},
+          or type it in. Leave blank to pair without a barcode.
+        </p>
+        <input
+          ref={inputRef}
+          type="text"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              onSave(code)
+            } else if (e.key === 'Escape') {
+              e.preventDefault()
+              onCancel()
+            }
+          }}
+          className="mt-3 w-full rounded-lg border-2 border-white/10 bg-[#202020] px-3.5 py-2.5 font-mono text-base text-white outline-none transition-colors focus:border-[#0178a3]"
+        />
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-lg border border-white/10 px-3 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onSkip}
+            className="rounded-lg border border-white/10 px-3 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
+          >
+            Skip
+          </button>
+          <button
+            type="button"
+            onClick={() => onSave(code)}
+            className="rounded-lg bg-[#0178a3] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7]"
+          >
+            Save
           </button>
         </div>
       </div>

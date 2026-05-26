@@ -223,6 +223,16 @@ model Radio {
   surveillance Boolean   @default(false)
   doubleMuff   Boolean   @default(false)
   lightweight  Boolean   @default(false)
+  /// Optional barcode for each accessory, captured by the radio
+  /// scanner when the operator toggles a chip ON in the assignment
+  /// modal. The scanner prompts to scan the accessory's barcode so
+  /// individual accessories can be inventoried separately from the
+  /// radio they're paired with. UI labels the lightweight accessory
+  /// as "LWHS" but the DB column keeps the legacy name.
+  fistMicBarcode      String?
+  surveillanceBarcode String?
+  doubleMuffBarcode   String?
+  lightweightBarcode  String?
   /// Optional link to a ProjectMember. Set when the operator picks
   /// an existing team member from autosuggest; falls back to null
   /// when the radio is assigned to someone not on the team. The
