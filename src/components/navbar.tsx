@@ -285,7 +285,7 @@ export function Navbar({
                     the text). With items-center the link only spans
                     its content + pt-1 + the 2px border, so the active
                     indicator hugs the underline of the text. */}
-                <div className="hidden sm:-my-px sm:ml-6 sm:flex sm:items-center sm:space-x-8">
+                <div className="hidden sm:-my-px sm:ml-6 sm:flex sm:items-center sm:space-x-1">
                   {navigation.map((item) => {
                     const pressed = pressedHref === item.href
                     return (
