@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useTransition, useCallback } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { PencilIcon, XMarkIcon, ChevronLeftIcon } from '@heroicons/react/24/outline'
 import { QRCodeSVG } from 'qrcode.react'
@@ -1522,12 +1523,16 @@ export function ProjectPage({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75ZM6.75 16.5h.75v.75h-.75v-.75ZM16.5 6.75h.75v.75h-.75v-.75ZM13.5 13.5h.75v.75h-.75v-.75ZM13.5 19.5h.75v.75h-.75v-.75ZM19.5 13.5h.75v.75h-.75v-.75ZM19.5 19.5h.75v.75h-.75v-.75ZM16.5 16.5h.75v.75h-.75v-.75Z" />
                 </svg>
               </button>
-              {/* Kiosk — opens the full-screen chassis viewer in a
-                  new tab. */}
-              <a
+              {/* Kiosk — opens in the SAME tab so Next.js can do a
+                  client-side route transition. Previously this used
+                  target="_blank" which caused a visible white-flash on
+                  Vercel: a brand-new browser tab paints its default
+                  blank-white state before any HTML/CSS arrives. With
+                  same-tab navigation the existing dark UI stays
+                  painted throughout. The kiosk's X button already
+                  returns to /projects/[id], so the round-trip works. */}
+              <Link
                 href={`/projects/${project.id}/kiosk`}
-                target="_blank"
-                rel="noopener noreferrer"
                 aria-label="Open kiosk"
                 title="Open kiosk"
                 className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
@@ -1536,7 +1541,7 @@ export function ProjectPage({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6a3 3 0 0 1 3-3h13.5a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V6Z" />
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21h7.5M12 18v3" />
                 </svg>
-              </a>
+              </Link>
               <div className="w-[calc(50vw-1rem)] sm:w-auto">
                 <ProjectSwitcher
                   projectId={project.id}
