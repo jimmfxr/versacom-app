@@ -522,7 +522,7 @@ function TaskCardItem({
             // Chip-inactive style — matches the Edit button on
             // Project Details. Transparent fill, thin white/10
             // border, gray-200 text, cyan active state.
-            className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:opacity-50"
+            className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:opacity-50"
           >
             {task.mode === 'return' ? 'Returned' : 'Deployed'}
           </button>
@@ -531,7 +531,7 @@ function TaskCardItem({
           <button
             type="button"
             onClick={onUndo}
-            className="relative overflow-hidden rounded-md bg-white/[0.08] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/[0.14]"
+            className="relative overflow-hidden rounded-md bg-white/[0.08] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/[0.14]"
           >
             <span className="relative z-10">Undo · {secondsLeft}s</span>
             <span
@@ -541,7 +541,7 @@ function TaskCardItem({
             />
           </button>
         )}
-        {state === 'reverting' && <span className="px-3 py-1.5 text-xs text-gray-400">Restoring…</span>}
+        {state === 'reverting' && <span className="px-4 py-2 text-sm text-gray-400">Restoring…</span>}
       </div>
     </div>
   )

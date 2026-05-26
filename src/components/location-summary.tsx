@@ -325,7 +325,7 @@ export function LocationSummary({
                 type="button"
                 onClick={() => { setRenaming(false); setRenameError(null) }}
                 disabled={isPending}
-                className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 Cancel
               </button>
@@ -333,7 +333,7 @@ export function LocationSummary({
                 type="button"
                 onClick={saveRename}
                 disabled={isPending || !draftName.trim()}
-                className="w-full rounded-lg bg-[#0178a3] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                className="w-full rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 {isPending ? 'Saving…' : 'Save'}
               </button>
@@ -355,7 +355,7 @@ export function LocationSummary({
             href={matchingPlot.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center rounded-lg border border-[#22a7d3]/60 px-3 py-1.5 text-xs font-medium text-[#22a7d3] transition-colors hover:bg-[#22a7d3]/10"
+            className="inline-flex items-center rounded-lg border border-[#22a7d3]/60 px-4 py-2 text-sm font-medium text-[#22a7d3] transition-colors hover:bg-[#22a7d3]/10"
           >
             {matchingPlot.label}
           </a>

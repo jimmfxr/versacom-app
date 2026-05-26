@@ -238,7 +238,7 @@ export function MyEquipmentContent({
                       the deploy-status chips on Project Details:
                       rounded-lg, thin colored border, gray-200 label. */}
                   <span
-                    className={`inline-flex shrink-0 items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium text-gray-200 ${STATUS_BORDER_STYLES[item.deployStatus] || STATUS_BORDER_STYLES.na}`}
+                    className={`inline-flex shrink-0 items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium text-gray-200 ${STATUS_BORDER_STYLES[item.deployStatus] || STATUS_BORDER_STYLES.na}`}
                   >
                     <span className="min-w-[4.5rem]">{getStatusLabel(item.deployStatus)}</span>
                   </span>

@@ -44,7 +44,7 @@ export function RadioStatusSelect({
   // width the wrapper provides — wrapper defaults to inline-block so
   // it sizes to its content; callers pass className="w-full" to
   // stretch (e.g. mobile full-width rows on the radio card).
-  const buttonClass = `relative flex w-full items-center justify-center rounded-lg border ${borderClass} px-3 py-1.5 text-xs font-medium text-gray-200 outline-none transition-colors data-open:border-[#0178a3] ${
+  const buttonClass = `relative flex w-full items-center justify-center rounded-lg border ${borderClass} px-4 py-2 text-sm font-medium text-gray-200 outline-none transition-colors data-open:border-[#0178a3] ${
     disabled
       ? 'cursor-default opacity-60'
       : 'cursor-pointer hover:bg-white/[0.04]'
@@ -69,7 +69,7 @@ export function RadioStatusSelect({
             <ListboxOption
               key={s.value}
               value={s.value}
-              className="group flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-xs font-medium text-gray-200 transition-colors data-focus:bg-white/[0.06] data-selected:bg-[#0178a3] data-selected:text-white data-selected:data-focus:bg-[#0178a3]"
+              className="group flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-gray-200 transition-colors data-focus:bg-white/[0.06] data-selected:bg-[#0178a3] data-selected:text-white data-selected:data-focus:bg-[#0178a3]"
             >
               <span className={`size-2 shrink-0 rounded-full ${RADIO_STATUS_DOT_STYLES[s.value]}`} />
               <span className="flex-1 truncate">{s.label}</span>

@@ -300,7 +300,7 @@ export function ScanContent({
           <button
             type="submit"
             disabled={!manualBarcode.trim()}
-            className="w-full rounded-lg bg-[#0178a3] px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            className="w-full rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             Look up
           </button>
@@ -507,7 +507,7 @@ function AssignmentModal({
             type="button"
             onClick={onClose}
             disabled={isPending}
-            className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             Cancel
           </button>
@@ -515,7 +515,7 @@ function AssignmentModal({
             type="button"
             onClick={save}
             disabled={isPending}
-            className="w-full rounded-lg bg-[#0178a3] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            className="w-full rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {isPending ? 'Saving…' : 'Save'}
           </button>
@@ -542,7 +542,7 @@ function ToggleChip({
       onClick={() => onChange(!value)}
       disabled={disabled}
       aria-pressed={value}
-      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+      className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
         value
           ? 'border-[#0178a3] bg-[#0178a3]/20 text-[#22a7d3]'
           : 'border-white/10 bg-[#202020] text-gray-300 hover:border-white/20 hover:bg-white/[0.04]'

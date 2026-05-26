@@ -139,9 +139,13 @@ export function SearchableSelect({
     }
   }
 
+  // compact = true keeps a tighter label-row (smaller label text, less
+  // top margin) so packed grids still feel dense, but the input itself
+  // matches the standard 'px-3 py-2 text-base' size used elsewhere so
+  // it's not visually smaller than the action buttons in the same form.
   const labelClass = compact ? 'block text-[10px] font-medium text-gray-500' : 'block text-xs font-medium text-gray-400'
   const inputClass = compact
-    ? 'mt-0.5 w-full rounded border border-white/10 bg-[#202020] px-2 py-1 text-base text-white outline-none focus:border-[#0178a3] disabled:cursor-not-allowed disabled:opacity-50'
+    ? 'mt-0.5 w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-base text-white outline-none focus:border-[#0178a3] disabled:cursor-not-allowed disabled:opacity-50'
     : 'mt-1 w-full rounded-lg border-2 border-white/10 bg-[#202020] px-3 py-2 text-base text-white outline-none transition-colors focus:border-[#0178a3] disabled:cursor-not-allowed disabled:opacity-50'
 
   return (

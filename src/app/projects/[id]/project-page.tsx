@@ -1982,7 +1982,7 @@ export function ProjectPage({
                           />
                         </div>
                         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
-                          <button type="button" onClick={() => { setShowAdd(false); setAddError('') }} disabled={isPending} className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Cancel</button>
+                          <button type="button" onClick={() => { setShowAdd(false); setAddError('') }} disabled={isPending} className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Cancel</button>
                           <Button type="submit" disabled={isPending} className="w-full sm:w-auto">{isPending ? 'Adding...' : 'Add'}</Button>
                         </div>
                         {addError && <p className="mt-3 text-sm text-red-400">{addError}</p>}
@@ -2058,7 +2058,7 @@ export function ProjectPage({
                           type="button"
                           onClick={() => { setShowAdd(false); setAddError('') }}
                           disabled={isPending}
-                          className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                          className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                         >
                           Cancel
                         </button>
@@ -2309,8 +2309,8 @@ export function ProjectPage({
                                 )}
                               </div>
                               <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
-                                <button type="button" onClick={() => handleDeleteEquipment(item)} disabled={isPending} className="w-full rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Delete</button>
-                                <button type="button" onClick={() => setEditingEqId(null)} disabled={isPending} className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Cancel</button>
+                                <button type="button" onClick={() => handleDeleteEquipment(item)} disabled={isPending} className="w-full rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Delete</button>
+                                <button type="button" onClick={() => setEditingEqId(null)} disabled={isPending} className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Cancel</button>
                                 <Button type="submit" size="sm" disabled={isPending} className="w-full sm:w-auto">Save</Button>
                               </div>
                               {/* Mult-only: strand / pair list appears
@@ -2497,7 +2497,7 @@ export function ProjectPage({
                                       router.refresh()
                                     })
                                   }}
-                                  className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:opacity-50 sm:w-auto"
+                                  className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:opacity-50 sm:w-auto"
                                 >
                                   Returned
                                 </button>
@@ -2522,11 +2522,11 @@ export function ProjectPage({
                                   />
                                 </div>
                               ) : (
-                                <span className={`inline-flex w-full items-center gap-2 rounded-lg border ${STATUS_BORDER_STYLES[item.deployStatus] || STATUS_BORDER_STYLES.na} px-3 py-1.5 text-xs font-medium text-gray-200 sm:w-auto`}>
+                                <span className={`inline-flex w-full items-center gap-2 rounded-lg border ${STATUS_BORDER_STYLES[item.deployStatus] || STATUS_BORDER_STYLES.na} px-4 py-2 text-sm font-medium text-gray-200 sm:w-auto`}>
                                   <span className="min-w-[4.5rem]">{getStatusLabel(item.deployStatus)}</span>
                                 </span>
                               )}
-                              {canEditEquipment && <button type="button" data-edit-button={`equipment-${item.id}`} onClick={() => startEqEdit(item)} className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white sm:w-auto">Edit</button>}
+                              {canEditEquipment && <button type="button" data-edit-button={`equipment-${item.id}`} onClick={() => startEqEdit(item)} className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white sm:w-auto">Edit</button>}
                             </div>
                           )
                         })()}
@@ -2792,7 +2792,7 @@ export function ProjectPage({
                         href={`/projects/${project.id}/kiosk`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex w-full items-center justify-center rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white sm:w-auto"
+                        className="inline-flex w-full items-center justify-center rounded-md border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white sm:w-auto"
                       >
                         Kiosk
                       </a>
@@ -2822,7 +2822,7 @@ export function ProjectPage({
                         type="button"
                         onClick={() => setShowAddMember(false)}
                         disabled={isPending}
-                        className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                        className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                       >
                         Cancel
                       </button>
@@ -2906,8 +2906,8 @@ export function ProjectPage({
                               />
                             </div>
                             <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
-                              <button type="button" onClick={() => handleDeleteMember(m)} disabled={isPending} className="w-full rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Delete</button>
-                              <button type="button" onClick={() => setEditingMemberId(null)} disabled={isPending} className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Cancel</button>
+                              <button type="button" onClick={() => handleDeleteMember(m)} disabled={isPending} className="w-full rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Delete</button>
+                              <button type="button" onClick={() => setEditingMemberId(null)} disabled={isPending} className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Cancel</button>
                               <Button type="submit" size="sm" disabled={isPending} className="w-full sm:w-auto">Save</Button>
                             </div>
                           </form>
@@ -2984,7 +2984,7 @@ export function ProjectPage({
                                 <div className="mt-1.5 text-xs italic text-gray-500">No equipment assigned</div>
                               )}
                             </div>
-                            {canEditTeam && <button type="button" data-edit-button={`team-${m.id}`} onClick={() => startMemberEdit(m)} className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white sm:w-auto">Edit</button>}
+                            {canEditTeam && <button type="button" data-edit-button={`team-${m.id}`} onClick={() => startMemberEdit(m)} className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white sm:w-auto">Edit</button>}
                           </div>
                         )}
                       </div>
@@ -3116,7 +3116,7 @@ export function ProjectPage({
                       />
                     </div>
                     <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
-                      <button type="button" onClick={() => setShowAddPl(false)} disabled={isPending} className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Cancel</button>
+                      <button type="button" onClick={() => setShowAddPl(false)} disabled={isPending} className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Cancel</button>
                       {(() => {
                         const hasName = !!addPlData.name.trim()
                         const qty = parseInt(addPlData.quantity, 10)
@@ -3150,7 +3150,7 @@ export function ProjectPage({
                             <div className="flex items-center gap-2">
                               {item.code && <span className="text-sm font-semibold text-white">{item.code}</span>}
                               <span className="text-sm font-semibold text-white">{item.name}</span>
-                              <span className="inline-flex items-center rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200">{FUNCTION_TYPE_LABELS[item.type] || item.type}</span>
+                              <span className="inline-flex items-center rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200">{FUNCTION_TYPE_LABELS[item.type] || item.type}</span>
                             </div>
                             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
                               <FormInput compact label="ID" type="text" value={editPlData.code} onChange={(e) => setEditPlData({ ...editPlData, code: e.target.value })} />
@@ -3165,8 +3165,8 @@ export function ProjectPage({
                               />
                             </div>
                             <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
-                              <button type="button" onClick={() => handleDeletePl(item)} disabled={isPending} className="w-full rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Delete</button>
-                              <button type="button" onClick={() => setEditingPlId(null)} disabled={isPending} className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Cancel</button>
+                              <button type="button" onClick={() => handleDeletePl(item)} disabled={isPending} className="w-full rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Delete</button>
+                              <button type="button" onClick={() => setEditingPlId(null)} disabled={isPending} className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Cancel</button>
                               <Button type="submit" size="sm" disabled={isPending} className="w-full sm:w-auto">Save</Button>
                             </div>
                           </form>
@@ -3176,7 +3176,7 @@ export function ProjectPage({
                               <div className="flex flex-wrap items-center gap-2">
                                 {item.code && <span className="text-sm font-semibold text-white">{item.code}</span>}
                                 <span className="text-sm font-semibold text-white">{item.name}</span>
-                                <span className="inline-flex items-center rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200">{FUNCTION_TYPE_LABELS[item.type] || item.type}</span>
+                                <span className="inline-flex items-center rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200">{FUNCTION_TYPE_LABELS[item.type] || item.type}</span>
                               </div>
                               {item.users.length > 0 ? (
                                 <PickListUsers users={item.users} />
@@ -3184,7 +3184,7 @@ export function ProjectPage({
                                 <div className="mt-1.5 text-xs italic text-gray-500">Unused</div>
                               )}
                             </div>
-                            {canEditPickList && <button type="button" data-edit-button={`picklist-${item.id}`} onClick={() => startPlEdit(item)} className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white sm:w-auto">Edit</button>}
+                            {canEditPickList && <button type="button" data-edit-button={`picklist-${item.id}`} onClick={() => startPlEdit(item)} className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white sm:w-auto">Edit</button>}
                           </div>
                         )}
                       </div>
@@ -3283,7 +3283,7 @@ export function ProjectPage({
                     </div>
                   </div>
                   <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
-                    <button type="button" onClick={() => { setShowAddPlot(false); setAddPlotLabel(''); setAddPlotUrl('') }} disabled={isPending} className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Cancel</button>
+                    <button type="button" onClick={() => { setShowAddPlot(false); setAddPlotLabel(''); setAddPlotUrl('') }} disabled={isPending} className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Cancel</button>
                     <Button
                       type="button"
                       disabled={!addPlotLabel.trim() || !addPlotUrl.trim() || isPending}
@@ -3357,11 +3357,11 @@ export function ProjectPage({
                                     router.refresh()
                                   })
                                 }}
-                                className="w-full rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                                className="w-full rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                               >
                                 Delete
                               </button>
-                              <button type="button" onClick={() => setEditingPlotId(null)} disabled={isPending} className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Cancel</button>
+                              <button type="button" onClick={() => setEditingPlotId(null)} disabled={isPending} className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Cancel</button>
                               <Button
                                 size="sm"
                                 disabled={!editPlotData.label.trim() || !editPlotData.url.trim() || isPending}
@@ -3398,7 +3398,7 @@ export function ProjectPage({
                                 <button
                                   type="button"
                                   onClick={() => { setEditingPlotId(plot.id); setEditPlotData({ label: plot.label, url: plot.url }) }}
-                                  className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white sm:w-auto"
+                                  className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white sm:w-auto"
                                 >
                                   Edit
                                 </button>
@@ -3457,7 +3457,7 @@ export function ProjectPage({
                             {item.ipAddress && <><span className="text-gray-500">·</span><span className="hidden sm:inline text-gray-500">IP: </span><a href={`http://${item.ipAddress}${item.category === 'panels' ? '/remote-control/' : ''}`} target="_blank" rel="noopener noreferrer" className="text-[#22a7d3] hover:text-[#019bc7]" onClick={(e) => e.stopPropagation()}>{item.ipAddress}</a></>}
                           </div>
                         </div>
-                        <span className={`inline-flex shrink-0 items-center gap-2 rounded-lg border ${STATUS_BORDER_STYLES[item.deployStatus] || STATUS_BORDER_STYLES.na} px-3 py-1.5 text-xs font-medium text-gray-200`}>
+                        <span className={`inline-flex shrink-0 items-center gap-2 rounded-lg border ${STATUS_BORDER_STYLES[item.deployStatus] || STATUS_BORDER_STYLES.na} px-4 py-2 text-sm font-medium text-gray-200`}>
                           <span className="min-w-[4.5rem]">{getStatusLabel(item.deployStatus)}</span>
                         </span>
                       </div>

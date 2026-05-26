@@ -303,7 +303,7 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                   type="button"
                   onClick={() => { setCloneOpen((v) => !v); setError('') }}
                   disabled={isPending}
-                  className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:opacity-50 sm:w-auto"
+                  className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:opacity-50 sm:w-auto"
                 >
                   {cloneOpen ? 'New project' : 'Clone'}
                 </button>
@@ -311,7 +311,7 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                   type="button"
                   onClick={closeForm}
                   disabled={isPending}
-                  className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:opacity-50 sm:w-auto"
+                  className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:opacity-50 sm:w-auto"
                 >
                   Cancel
                 </button>
@@ -373,7 +373,7 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className={`text-sm font-semibold ${isArchived ? 'text-gray-400' : 'text-white'}`}>{project.name}</span>
-                        <span className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-xs font-medium text-gray-200 ${isArchived ? 'border-white/10' : 'border-green-400/60'}`}>
+                        <span className={`inline-flex items-center rounded-lg border px-4 py-2 text-sm font-medium text-gray-200 ${isArchived ? 'border-white/10' : 'border-green-400/60'}`}>
                           {project.status}
                         </span>
                       </div>
@@ -416,7 +416,7 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                           e.stopPropagation()
                           setEditingProjectId(project.id)
                         }}
-                        className="w-full basis-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white sm:w-auto sm:basis-auto"
+                        className="w-full basis-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white sm:w-auto sm:basis-auto"
                       >
                         Edit
                       </button>

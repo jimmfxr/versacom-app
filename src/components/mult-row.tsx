@@ -81,7 +81,7 @@ export function MultRowHeader({
           <button
             type="button"
             onClick={onEdit}
-            className="w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white sm:w-auto"
+            className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white sm:w-auto"
           >
             Edit
           </button>
@@ -256,7 +256,7 @@ function StrandRow({
             }
           }}
           placeholder={isAttachable ? 'Channel name' : 'Label'}
-          className="flex-1 rounded-lg border border-white/10 bg-[#202020] px-3 py-1.5 text-xs text-gray-200 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+          className="flex-1 rounded-lg border border-white/10 bg-[#202020] px-4 py-2 text-sm text-gray-200 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
         />
       </div>
       {isAttachable && (

@@ -20,7 +20,7 @@ type StatusBadgeProps = {
 
 export function StatusBadge({ label, color }: StatusBadgeProps) {
   return (
-    <span className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-xs font-medium text-gray-200 ${BORDERS[color] || BORDERS.gray}`}>
+    <span className={`inline-flex items-center rounded-lg border px-4 py-2 text-sm font-medium text-gray-200 ${BORDERS[color] || BORDERS.gray}`}>
       {label}
     </span>
   )

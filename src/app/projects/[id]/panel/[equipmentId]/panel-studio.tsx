@@ -2346,7 +2346,7 @@ export function PanelStudio({
                             canDrag={canEditKeys}
                             isActive={isActive}
                             onClick={() => selectedKeyId && assignPickerItem(selectedKeyId, item)}
-                            className={`flex w-full min-w-0 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold transition-[colors,transform] active:scale-95 ${
+                            className={`flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold transition-[colors,transform] active:scale-95 ${
                               isActive
                                 ? 'border-[#0178a3] bg-[#0178a3] text-white'
                                 : 'border-white/10 bg-[#202020] text-gray-300 hover:border-white/20 hover:bg-[#2a2a2a] hover:text-white'
@@ -2354,12 +2354,12 @@ export function PanelStudio({
                           >
                             <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{displayName}</span>
                             {item.type === 'PTP' && displayDetail && (
-                              <span className={`overflow-hidden text-ellipsis whitespace-nowrap text-[10px] ${isActive ? 'text-white/85' : 'text-[#22a7d3]'}`}>
+                              <span className={`overflow-hidden text-ellipsis whitespace-nowrap text-xs ${isActive ? 'text-white/85' : 'text-[#22a7d3]'}`}>
                                 {displayDetail}
                               </span>
                             )}
                             {item.type !== 'PTP' && displayDetail && (
-                              <span className={`font-mono text-[10px] ${isActive ? 'text-white/85' : 'text-[#22a7d3]'}`}>{displayDetail}</span>
+                              <span className={`font-mono text-xs ${isActive ? 'text-white/85' : 'text-[#22a7d3]'}`}>{displayDetail}</span>
                             )}
                           </PickerItemDraggable>
                         )
@@ -2565,7 +2565,7 @@ export function PanelStudio({
                               <button
                                 onClick={handleRemoveExpansion}
                                 disabled={saving}
-                                className="w-7 h-7 rounded-lg border border-white/[0.14] bg-transparent text-red-500 text-lg font-bold flex items-center justify-center hover:bg-red-500/[0.08] hover:border-red-500/40 disabled:opacity-50"
+                                className="shrink-0 rounded-md border border-white/10 px-4 py-2 text-sm font-semibold text-red-500 transition-colors hover:border-red-500/40 hover:bg-red-500/[0.08] disabled:opacity-50"
                               >
                                 &minus;
                               </button>
@@ -2574,7 +2574,7 @@ export function PanelStudio({
                               <button
                                 onClick={handleAddExpansion}
                                 disabled={saving}
-                                className="w-7 h-7 rounded-lg border border-white/[0.14] bg-transparent text-[#22a7d3] text-lg font-bold flex items-center justify-center hover:bg-[rgba(34,167,211,0.08)] hover:border-[rgba(34,167,211,0.4)] disabled:opacity-50"
+                                className="shrink-0 rounded-md border border-white/10 px-4 py-2 text-sm font-semibold text-[#22a7d3] transition-colors hover:border-[#22a7d3]/40 hover:bg-[#22a7d3]/[0.08] disabled:opacity-50"
                               >
                                 +
                               </button>
@@ -2600,7 +2600,7 @@ export function PanelStudio({
                           <button
                             type="button"
                             onClick={handleCopyPanel}
-                            className="shrink-0 rounded-md border border-white/10 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+                            className="shrink-0 rounded-md border border-white/10 px-4 py-2 text-sm font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
                           >
                             Copy
                           </button>
@@ -2620,7 +2620,7 @@ export function PanelStudio({
                               // cleanly instead of hijacking the press.
                               onContextMenu={(e) => e.preventDefault()}
                               style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
-                              className={`shrink-0 select-none rounded-md border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                              className={`shrink-0 select-none rounded-md border px-4 py-2 text-sm font-semibold transition-colors ${
                                 pastePreviewOpen
                                   ? 'border-[#10b981] text-[#10b981] hover:bg-[#10b981]/10'
                                   : 'border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
@@ -2636,7 +2636,7 @@ export function PanelStudio({
                           type="button"
                           onClick={handleSave}
                           disabled={saving}
-                          className="shrink-0 rounded-md bg-[#0178a3] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
+                          className="shrink-0 rounded-md bg-[#0178a3] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {saving ? 'Saving...' : 'Save'}
                         </button>
@@ -2689,7 +2689,7 @@ export function PanelStudio({
                           <button
                             onClick={handleRemoveExpansion}
                             disabled={saving}
-                            className="w-7 h-7 rounded-lg border border-white/[0.14] bg-transparent text-red-500 text-lg font-bold flex items-center justify-center hover:bg-red-500/[0.08] hover:border-red-500/40 disabled:opacity-50"
+                            className="shrink-0 rounded-md border border-white/10 px-4 py-2 text-sm font-semibold text-red-500 transition-colors hover:border-red-500/40 hover:bg-red-500/[0.08] disabled:opacity-50"
                           >
                             &minus;
                           </button>
@@ -2698,7 +2698,7 @@ export function PanelStudio({
                           <button
                             onClick={handleAddExpansion}
                             disabled={saving}
-                            className="w-7 h-7 rounded-lg border border-white/[0.14] bg-transparent text-[#22a7d3] text-lg font-bold flex items-center justify-center hover:bg-[rgba(34,167,211,0.08)] hover:border-[rgba(34,167,211,0.4)] disabled:opacity-50"
+                            className="shrink-0 rounded-md border border-white/10 px-4 py-2 text-sm font-semibold text-[#22a7d3] transition-colors hover:border-[#22a7d3]/40 hover:bg-[#22a7d3]/[0.08] disabled:opacity-50"
                           >
                             +
                           </button>
@@ -2774,7 +2774,7 @@ export function PanelStudio({
                   studio header's right group on big screens.
                   Legend + expansion now live ABOVE the user-name
                   strip on mobile, not down here. */}
-              <div className="flex-shrink-0 w-full px-4 pb-3 pt-2 lg:px-5 lg:pb-5 lg:pt-3 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+              <div className="flex-shrink-0 w-full px-4 pb-3 pt-2 lg:px-5 lg:pb-5 lg:pt-3 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-center sm:gap-3">
                 {isReviewMode ? (
                   <>
                     {/* Review mode summary */}
@@ -2795,19 +2795,21 @@ export function PanelStudio({
                     <div className="text-[10px] text-gray-500 -mt-1">
                       Tap a key to reject it
                     </div>
-                    {/* Deny All / Approve buttons */}
-                    <div className="flex gap-3">
+                    {/* Deny All / Approve buttons — each on its own
+                        full-width row on mobile, inline cluster on
+                        desktop. */}
+                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:gap-3">
                       <button
                         onClick={handleDenyAll}
                         disabled={reviewProcessing}
-                        className="bg-red-500 text-white border-none py-2.5 px-6 rounded-[10px] font-bold text-xs cursor-pointer uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-600 transition-colors"
+                        className="w-full bg-red-500 text-white border-none py-2.5 px-6 rounded-[10px] font-bold text-xs cursor-pointer uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-600 transition-colors sm:w-auto"
                       >
                         {reviewProcessing ? 'Processing...' : 'Deny'}
                       </button>
                       <button
                         onClick={handleResolve}
                         disabled={reviewProcessing || approvedCount === 0}
-                        className="bg-[#10b981] text-white border-none py-2.5 px-6 rounded-[10px] font-bold text-xs cursor-pointer uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#0ea472] transition-colors"
+                        className="w-full bg-[#10b981] text-white border-none py-2.5 px-6 rounded-[10px] font-bold text-xs cursor-pointer uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#0ea472] transition-colors sm:w-auto"
                       >
                         {reviewProcessing ? 'Processing...' : approvedCount === totalReviewKeys ? 'Approve' : `Approve ${approvedCount}`}
                       </button>
@@ -2820,14 +2822,16 @@ export function PanelStudio({
                         cyan-fill + white text when active, dark fill
                         with a hairline border when inactive. */}
                     {hasShiftPage ? (
-                      <div className="inline-flex gap-2">
+                      // Mobile: full-width row, Main + Shift split 50/50
+                      // via flex-1. Desktop: content-sized side-by-side.
+                      <div className="flex w-full gap-2 sm:inline-flex sm:w-auto">
                         <button
                           type="button"
                           onClick={() => { setActivePage('main'); deselectAll() }}
-                          className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                          className={`flex-1 rounded-md border px-4 py-2 text-sm font-semibold transition-colors sm:flex-none sm:shrink-0 ${
                             activePage === 'main'
-                              ? 'bg-[#0178a3] text-white'
-                              : 'border border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
+                              ? 'border-[#0178a3] text-white'
+                              : 'border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
                           }`}
                         >
                           Main
@@ -2835,10 +2839,10 @@ export function PanelStudio({
                         <button
                           type="button"
                           onClick={() => { setActivePage('shift'); deselectAll() }}
-                          className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                          className={`flex-1 rounded-md border px-4 py-2 text-sm font-semibold transition-colors sm:flex-none sm:shrink-0 ${
                             activePage === 'shift'
-                              ? 'bg-[#0178a3] text-white'
-                              : 'border border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
+                              ? 'border-[#0178a3] text-white'
+                              : 'border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
                           }`}
                         >
                           Shift
@@ -2857,7 +2861,7 @@ export function PanelStudio({
                           type="button"
                           onClick={handleSubmit}
                           disabled={saving || pendingChanges === 0}
-                          className="rounded-lg bg-[#0178a3] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
+                          className="w-full rounded-lg bg-[#0178a3] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                         >
                           {saving
                             ? 'Submitting…'
@@ -2875,13 +2879,18 @@ export function PanelStudio({
                         layout) so the buttons live below the chassis
                         like mobile rather than crowding the header. */}
                     {canEditKeys && (
-                      <div className={`flex items-center gap-2 sm:hidden ${stackHeader ? 'lg:flex' : ''}`}>
+                      // Mobile: each button on its own full-width row
+                      // (parent footer is flex-col so flex-col here
+                      // keeps the buttons stacked). lg+ with stackHeader
+                      // (small chassis on desktop, mobile-style layout)
+                      // restores the inline row.
+                      <div className={`flex w-full flex-col gap-2 sm:hidden ${stackHeader ? 'lg:flex lg:w-auto lg:flex-row lg:items-center' : ''}`}>
                         {(_currentUserRole === 'admin' || _currentUserRole === 'manager' || isAdminGlobal) && (
                           <>
                             <button
                               type="button"
                               onClick={handleCopyPanel}
-                              className="shrink-0 rounded-md border border-white/10 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+                              className="w-full rounded-md border border-white/10 px-4 py-2 text-sm font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white lg:w-auto lg:shrink-0"
                             >
                               Copy
                             </button>
@@ -2905,7 +2914,7 @@ export function PanelStudio({
                                 // menu on Android Chrome too.
                                 onContextMenu={(e) => e.preventDefault()}
                                 style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
-                                className={`shrink-0 select-none rounded-md border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                                className={`w-full select-none rounded-md border px-4 py-2 text-sm font-semibold transition-colors lg:w-auto lg:shrink-0 ${
                                   pastePreviewOpen
                                     ? 'border-[#10b981] text-[#10b981] hover:bg-[#10b981]/10'
                                     : 'border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
@@ -2921,7 +2930,7 @@ export function PanelStudio({
                             type="button"
                             onClick={handleSave}
                             disabled={saving}
-                            className="shrink-0 rounded-md bg-[#0178a3] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
+                            className="w-full rounded-md bg-[#0178a3] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:shrink-0"
                           >
                             {saving ? 'Saving...' : 'Save'}
                           </button>
@@ -3125,64 +3134,62 @@ export function PanelStudio({
                     fixes that and gives us trigger-mode + talk-key
                     dropdowns to match desktop. */}
                 <div className="px-[18px] pt-0 pb-3.5 border-b border-white/[0.06] flex flex-col gap-2.5 flex-shrink-0">
-                  {/* Row 1: Function-type filter (full width) + search
-                      icon button on the right. Tapping the search
-                      icon swaps in a search-input row directly below. */}
+                  {/* Row 1: either function-type dropdown + search-icon
+                      button (default), or search input + X-close
+                      taking over the same row when search is open.
+                      X sits in the trailing (right) position where
+                      the search icon was. */}
                   <div className="flex items-stretch gap-2">
-                    <div className="min-w-0 flex-1">
-                      <PickerSelect
-                        value={pickerFilter}
-                        onChange={setPickerFilter}
-                        options={filterTypes.map((t) => ({
-                          value: t,
-                          label: filterTypeLabel(t),
-                        }))}
-                      />
-                    </div>
-                    {!mobilePickerSearchOpen && (
-                      <button
-                        type="button"
-                        onClick={() => setMobilePickerSearchOpen(true)}
-                        aria-label="Search"
-                        className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
-                      >
-                        <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.343-4.343m0 0A8 8 0 1 0 5.343 5.343a8 8 0 0 0 11.314 11.314Z" />
-                        </svg>
-                      </button>
+                    {mobilePickerSearchOpen ? (
+                      <>
+                        <input
+                          type="text"
+                          autoFocus
+                          placeholder="Search by name or code..."
+                          value={pickerSearch}
+                          onChange={(e) => setPickerSearch(e.target.value)}
+                          className="min-w-0 flex-1 text-gray-200 border border-white/10 px-3.5 py-2 rounded-lg text-sm outline-none transition-colors placeholder:text-gray-200 hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                          autoCapitalize="off"
+                          autoCorrect="off"
+                          autoComplete="off"
+                          spellCheck={false}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => { setMobilePickerSearchOpen(false); setPickerSearch('') }}
+                          aria-label="Close search"
+                          className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+                        >
+                          <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="min-w-0 flex-1">
+                          <PickerSelect
+                            value={pickerFilter}
+                            onChange={setPickerFilter}
+                            options={filterTypes.map((t) => ({
+                              value: t,
+                              label: filterTypeLabel(t),
+                            }))}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setMobilePickerSearchOpen(true)}
+                          aria-label="Search"
+                          className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+                        >
+                          <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.343-4.343m0 0A8 8 0 1 0 5.343 5.343a8 8 0 0 0 11.314 11.314Z" />
+                          </svg>
+                        </button>
+                      </>
                     )}
                   </div>
-
-                  {/* Row 1.5 (collapsible): search input + X close,
-                      shown only when the search icon was tapped.
-                      Tapping X clears the search and brings the
-                      icon button back. */}
-                  {mobilePickerSearchOpen && (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        autoFocus
-                        placeholder="Search by name or code..."
-                        value={pickerSearch}
-                        onChange={(e) => setPickerSearch(e.target.value)}
-                        className="w-full flex-1 text-gray-200 border border-white/10 px-3.5 py-2 rounded-lg text-sm outline-none transition-colors placeholder:text-gray-200 hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
-                        autoCapitalize="off"
-                        autoCorrect="off"
-                        autoComplete="off"
-                        spellCheck={false}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => { setMobilePickerSearchOpen(false); setPickerSearch('') }}
-                        aria-label="Close search"
-                        className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
-                      >
-                        <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  )}
 
                   {/* Row 2: Trigger mode + Talk/Listen + Unassigned
                       (clear key) all in one horizontal row. Each
@@ -3220,7 +3227,7 @@ export function PanelStudio({
                         // saves a tap to dismiss.
                         closeInspector()
                       }}
-                      className="min-w-0 flex-1 truncate rounded-lg border border-white/10 px-2 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+                      className="min-w-0 flex-1 truncate rounded-lg border border-white/10 px-4 py-3 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
                     >
                       {selectedKey?.pickListItemId ? 'Clear Key' : 'Unassigned'}
                     </button>
@@ -3256,25 +3263,25 @@ export function PanelStudio({
                               // updated key on the chassis.
                               closeInspector()
                             }}
-                            className={`rounded-lg px-3.5 py-2.5 flex items-center gap-2.5 cursor-pointer transition-colors border ${
+                            className={`rounded-lg px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors border ${
                               isActive
                                 ? 'bg-[#0178a3] border-[#0178a3] text-white'
                                 : 'border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
                             }`}
                           >
                             <div className="flex-1 min-w-0 flex items-baseline gap-2 overflow-hidden">
-                              <span className={`text-xs font-semibold whitespace-nowrap overflow-hidden text-ellipsis ${isActive ? 'text-white' : 'text-gray-200'}`}>
+                              <span className={`text-sm font-semibold whitespace-nowrap overflow-hidden text-ellipsis ${isActive ? 'text-white' : 'text-gray-200'}`}>
                                 {item.name}
                               </span>
                               {item.position && (
-                                <span className={`text-[11px] whitespace-nowrap overflow-hidden text-ellipsis ${
+                                <span className={`text-xs whitespace-nowrap overflow-hidden text-ellipsis ${
                                   isActive ? 'text-white/80' : item.type === 'PTP' ? 'text-[#22a7d3]' : 'text-gray-400'
                                 }`}>
                                   {item.position}
                                 </span>
                               )}
                               {item.type !== 'PTP' && item.code && (
-                                <span className={`text-[10px] font-mono ${isActive ? 'text-white/80' : 'text-[#22a7d3]'}`}>{item.code}</span>
+                                <span className={`text-xs font-mono ${isActive ? 'text-white/80' : 'text-[#22a7d3]'}`}>{item.code}</span>
                               )}
                             </div>
                             {/* Function-type badge — cyan text only,
@@ -3282,7 +3289,7 @@ export function PanelStudio({
                                 rather than a pill. Matches the
                                 secondary-text style used elsewhere
                                 on chips. */}
-                            <span className={`text-[11px] font-semibold flex-shrink-0 uppercase tracking-wider ${
+                            <span className={`text-xs font-semibold flex-shrink-0 uppercase tracking-wider ${
                               isActive ? 'text-white' : 'text-[#22a7d3]'
                             }`}>
                               {item.type === 'Audio_IO' ? 'Audio I/O' : item.type}
@@ -3329,17 +3336,17 @@ export function PanelStudio({
           language matches regardless of where the drag started. */}
       <DragOverlay dropAnimation={null}>
         {activeDragChip ? (
-          <div className="pointer-events-none inline-flex items-center gap-1.5 rounded-md border border-[#0178a3] bg-[#0178a3] px-2.5 py-1 text-xs font-semibold text-white shadow-2xl">
+          <div className="pointer-events-none inline-flex items-center gap-2 rounded-md border border-[#0178a3] bg-[#0178a3] px-3 py-2 text-sm font-semibold text-white shadow-2xl">
             <span className="overflow-hidden text-ellipsis whitespace-nowrap">{activeDragChip.name}</span>
             {activeDragChip.code && (
-              <span className="font-mono text-[10px] text-white/70">{activeDragChip.code}</span>
+              <span className="font-mono text-xs text-white/70">{activeDragChip.code}</span>
             )}
           </div>
         ) : activeDragKeyChip ? (
-          <div className="pointer-events-none inline-flex items-center gap-1.5 rounded-md border border-[#0178a3] bg-[#0178a3] px-2.5 py-1 text-xs font-semibold text-white shadow-2xl">
+          <div className="pointer-events-none inline-flex items-center gap-2 rounded-md border border-[#0178a3] bg-[#0178a3] px-3 py-2 text-sm font-semibold text-white shadow-2xl">
             <span className="overflow-hidden text-ellipsis whitespace-nowrap">{activeDragKeyChip.name}</span>
             {activeDragKeyChip.code && (
-              <span className="font-mono text-[10px] text-white/70">{activeDragKeyChip.code}</span>
+              <span className="font-mono text-xs text-white/70">{activeDragKeyChip.code}</span>
             )}
           </div>
         ) : null}
@@ -3481,7 +3488,7 @@ function PickerSelect({
         type="button"
         onClick={() => setOpen((o) => !o)}
         // Close-on-focus-out is handled by the focusin listener above.
-        className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3.5 py-2 text-left text-sm text-gray-200 outline-none transition-colors ${
+        className={`flex w-full items-center justify-between gap-2 rounded-lg border px-4 py-3 text-left text-sm text-gray-200 outline-none transition-colors ${
           open ? 'border-[#22a7d3]/50 bg-white/[0.04]' : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
         }`}
       >
@@ -3528,7 +3535,7 @@ function PickerSelect({
                   onChange(o.value)
                   setOpen(false)
                 }}
-                className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors ${stateClass}`}
+                className={`flex w-full items-center justify-between gap-3 rounded-md px-4 py-3 text-left text-sm font-medium transition-colors ${stateClass}`}
               >
                 <span className="truncate">{o.label}</span>
               </button>

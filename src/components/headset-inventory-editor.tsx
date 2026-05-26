@@ -260,7 +260,7 @@ export function HeadsetInventoryEditor({ projectId, initial, needed, miscInitial
           type="button"
           onClick={onDone}
           disabled={pending}
-          className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
           Cancel
         </button>
@@ -268,7 +268,7 @@ export function HeadsetInventoryEditor({ projectId, initial, needed, miscInitial
           type="button"
           onClick={handleSave}
           disabled={pending}
-          className="rounded-lg border border-[#0178a3] bg-[#0178a3] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#019bc7] hover:border-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-lg border border-[#0178a3] bg-[#0178a3] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#019bc7] hover:border-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {pending ? 'Saving…' : 'Save'}
         </button>
