@@ -122,42 +122,52 @@ export function KioskClient({
           />
         )}
 
+        {/* Edit, phone-ready, and QR all use a flex-centering wrapper
+            so their card sits in the dead-center of the remaining
+            viewport slot regardless of content height. Pulls the
+            content up off the logo's baseline. */}
         {view.kind === 'edit' && (
-          <EditView
-            member={view.member}
-            positionSuggestions={positionSuggestions}
-            departmentSuggestions={departmentSuggestions}
-            onSaved={(r) => setView({ kind: 'phone-ready', ...r })}
-            onCancel={() => setView({ kind: 'form' })}
-          />
+          <div className="flex flex-1 items-center justify-center">
+            <EditView
+              member={view.member}
+              positionSuggestions={positionSuggestions}
+              departmentSuggestions={departmentSuggestions}
+              onSaved={(r) => setView({ kind: 'phone-ready', ...r })}
+              onCancel={() => setView({ kind: 'form' })}
+            />
+          </div>
         )}
 
         {view.kind === 'phone-ready' && (
-          <PhoneReadyView
-            firstName={view.firstName}
-            onContinue={() =>
-              setView({
-                kind: 'qr',
-                firstName: view.firstName,
-                lastName: view.lastName,
-                joinUrl: view.joinUrl,
-              })
-            }
-          />
+          <div className="flex flex-1 items-center justify-center">
+            <PhoneReadyView
+              firstName={view.firstName}
+              onContinue={() =>
+                setView({
+                  kind: 'qr',
+                  firstName: view.firstName,
+                  lastName: view.lastName,
+                  joinUrl: view.joinUrl,
+                })
+              }
+            />
+          </div>
         )}
 
         {view.kind === 'qr' && (
-          <QrView
-            firstName={view.firstName}
-            lastName={view.lastName}
-            joinUrl={view.joinUrl}
-            onDone={() => {
-              setView({ kind: 'form' })
-              // Refresh pending list so the just-added/just-edited member
-              // moves out (or appears) without a manual reload.
-              router.refresh()
-            }}
-          />
+          <div className="flex flex-1 items-center justify-center">
+            <QrView
+              firstName={view.firstName}
+              lastName={view.lastName}
+              joinUrl={view.joinUrl}
+              onDone={() => {
+                setView({ kind: 'form' })
+                // Refresh pending list so the just-added/just-edited member
+                // moves out (or appears) without a manual reload.
+                router.refresh()
+              }}
+            />
+          </div>
         )}
       </div>
     </div>
@@ -408,7 +418,7 @@ function EditView({
     // my-auto vertically centers the edit form inside the remaining
     // viewport slot — admins pick a pending check-in and the form they
     // see drops into the middle of the page instead of hugging the top.
-    <div className="mx-auto my-auto w-full max-w-sm">
+    <div className="mx-auto w-full max-w-sm">
       <h2 className="mb-6 text-center text-xl font-semibold text-white">Edit Crew</h2>
       <form onSubmit={submit} className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
@@ -495,7 +505,7 @@ function PhoneReadyView({
   }, [onContinue])
 
   return (
-    <div className="mx-auto my-auto w-full max-w-sm text-center">
+    <div className="mx-auto w-full max-w-sm text-center">
       <h2 className="mb-3 text-2xl font-semibold text-white">
         You&rsquo;re in, {firstName}!
       </h2>
@@ -563,7 +573,7 @@ function QrView({
   }, [onDone])
 
   return (
-    <div className="mx-auto my-auto w-full max-w-sm">
+    <div className="mx-auto w-full max-w-sm">
       <h2 className="mb-2 text-center text-xl font-semibold text-white">
         {firstName} {lastName}
       </h2>
