@@ -770,7 +770,6 @@ export function ProjectPage({
     false,
   )
   const [showAddMember, setShowAddMember] = useState(false)
-  const [showJoinQr, setShowJoinQr] = useState(false)
   // Crew users don't get the Add Member form but DO get a standalone QR
   // card they can pull up to show to end users during gear deployment.
   const [showTeamQr, setShowTeamQr] = useState(false)
@@ -1497,21 +1496,55 @@ export function ProjectPage({
         // dedicated Projects tab) and the per-tab dropdown moved down
         // next to each tab's search row.
         action={
-          // Mobile: project switcher fills the right half of the
-          // header row next to the title (min-w-0 + flex-1 lets it
-          // expand to whatever space the title leaves). Desktop:
-          // content-sized so the switcher's min-w-[280px] kicks in.
-          // The separate mobile ProjectSwitcher row below the title
-          // is gone — the dropdown rides in the header on every
-          // viewport now.
+          // Mobile: kiosk button + project switcher fill the right
+          // half of the header row next to the title. Desktop:
+          // shrink-0 cluster, switcher's min-w-[280px] kicks in.
+          // The kiosk icon sits to the LEFT of the project dropdown
+          // and opens the full-screen chassis viewer for this project
+          // in a new tab (kiosk-self-check-in flow).
           userProjects.length > 0 ? (
-            <div className="flex w-1/2 items-center justify-end gap-3 sm:w-auto">
-              <ProjectSwitcher
-                projectId={project.id}
-                projectName={project.name}
-                userProjects={userProjects}
-                basePath="/projects/:id"
-              />
+            // Mobile: icons sit OUTSIDE the half-row; only the
+            // project dropdown takes exactly half the viewport
+            // (w-[calc(50vw-1rem)] accounts for the px-4 page
+            // padding). Desktop: switcher's min-w-[280px] kicks in.
+            <div className="flex items-center justify-end gap-2">
+              {/* QR — opens the join-QR modal (project PIN as a QR
+                  code, scannable from the login screen). */}
+              <button
+                type="button"
+                onClick={() => setShowTeamQr(true)}
+                aria-label="Show join QR"
+                title="Show join QR"
+                className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+              >
+                <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75ZM6.75 16.5h.75v.75h-.75v-.75ZM16.5 6.75h.75v.75h-.75v-.75ZM13.5 13.5h.75v.75h-.75v-.75ZM13.5 19.5h.75v.75h-.75v-.75ZM19.5 13.5h.75v.75h-.75v-.75ZM19.5 19.5h.75v.75h-.75v-.75ZM16.5 16.5h.75v.75h-.75v-.75Z" />
+                </svg>
+              </button>
+              {/* Kiosk — opens the full-screen chassis viewer in a
+                  new tab. */}
+              <a
+                href={`/projects/${project.id}/kiosk`}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Open kiosk"
+                title="Open kiosk"
+                className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+              >
+                <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6a3 3 0 0 1 3-3h13.5a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V6Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21h7.5M12 18v3" />
+                </svg>
+              </a>
+              <div className="w-[calc(50vw-1rem)] sm:w-auto">
+                <ProjectSwitcher
+                  projectId={project.id}
+                  projectName={project.name}
+                  userProjects={userProjects}
+                  basePath="/projects/:id"
+                />
+              </div>
             </div>
           ) : null
         }
@@ -1870,29 +1903,10 @@ export function ProjectPage({
                   the scroll so picking a location doesn't pin a tall card
                   above the cards on mobile. */}
               <div data-scroll-container className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto overscroll-none pt-2 pb-4 sm:pb-20">
-              {/* Crew-only: standalone join-QR card. Lives INSIDE the
-                  scroll so the QR doesn't pin above the equipment list
-                  and steal vertical space. */}
-              {isCrew && showTeamQr && (
-                <Card>
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-white">Join QR</h3>
-                    <IconButton onClick={() => setShowTeamQr(false)}><CloseIcon /></IconButton>
-                  </div>
-                  <p className="mt-2 text-xs text-gray-500">Show this to crew during gear deployment. Scanning pre-fills the project PIN; existing users will sign in, new users will create their PIN.</p>
-                  {(() => {
-                    const joinUrl = `https://versacom-app.vercel.app/login/join?pin=${project.pin}`
-                    return (
-                      <div className="mt-4 flex flex-col items-center gap-3">
-                        <div className="rounded-xl bg-white p-3">
-                          <QRCodeSVG value={joinUrl} size={220} level="M" />
-                        </div>
-                        <span className="font-mono text-[11px] text-gray-400 break-all text-center">{joinUrl}</span>
-                      </div>
-                    )
-                  })()}
-                </Card>
-              )}
+              {/* Join-QR card was lifted out into a Modal at the
+                  page root so the QR icon in the header opens it on
+                  any tab (not just Equipment). The Card render here
+                  is gone. */}
               {/* Bulk add card lives INSIDE the scroll so the form
                   doesn't pin above the list and steal vertical space —
                   scrolls naturally with the rest of the tab content.
@@ -2648,7 +2662,7 @@ export function ProjectPage({
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-white">Add Member</h3>
                   </div>
-                  <p className="mt-2 text-xs text-gray-500">Members are added automatically when they join with the project PIN. You can also add members manually, or open the Kiosk for self-service crew check-in.</p>
+                  <p className="mt-2 text-xs text-gray-500">Members are added automatically when they join with the project PIN. You can also add members manually below.</p>
                   <form onSubmit={(e) => { e.preventDefault(); handleAddMember() }}>
                     <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
                       <ComboboxInput
@@ -2774,14 +2788,6 @@ export function ProjectPage({
                       )
                     })()}
                     <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
-                      <a
-                        href={`/projects/${project.id}/kiosk`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex w-full items-center justify-center rounded-md border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-gray-300 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white sm:w-auto"
-                      >
-                        Kiosk
-                      </a>
                       <Button
                         type="button"
                         variant="secondary"
@@ -2796,14 +2802,6 @@ export function ProjectPage({
                       >
                         Invite
                       </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="w-full sm:w-auto"
-                        onClick={() => setShowJoinQr((v) => !v)}
-                      >
-                        {showJoinQr ? 'Hide QR' : 'QR'}
-                      </Button>
                       <button
                         type="button"
                         onClick={() => setShowAddMember(false)}
@@ -2814,17 +2812,6 @@ export function ProjectPage({
                       </button>
                       <Button type="submit" className="w-full sm:w-auto" disabled={isPending || !addMemberData.firstName.trim() || !addMemberData.lastName.trim() || addEquipmentBlocked}>{isPending ? 'Adding...' : 'Add'}</Button>
                     </div>
-                    {showJoinQr && (() => {
-                      const joinUrl = `https://versacom-app.vercel.app/login/join?pin=${project.pin}`
-                      return (
-                        <div className="mt-4 flex flex-col items-center gap-3">
-                          <div className="rounded-xl bg-white p-3">
-                            <QRCodeSVG value={joinUrl} size={192} level="M" />
-                          </div>
-                          <span className="font-mono text-[11px] text-gray-400 break-all text-center">{joinUrl}</span>
-                        </div>
-                      )
-                    })()}
                   </form>
                 </Card>
               )}
@@ -3456,6 +3443,30 @@ export function ProjectPage({
           })()}
         </div>
       </PageLayout>
+
+      {/* Join-QR modal — opened by the QR icon in the page header on
+          every tab. Renders the project's join URL as a QR code so
+          crew can scan from the login screen and the PIN pre-fills. */}
+      <Modal
+        open={showTeamQr}
+        title="Join QR"
+        onClose={() => setShowTeamQr(false)}
+      >
+        {(() => {
+          const joinUrl = `https://versacom-app.vercel.app/login/join?pin=${project.pin}`
+          return (
+            <div className="flex flex-col items-center gap-3">
+              <p className="text-xs text-gray-500">
+                Show this to crew during gear deployment. Scanning pre-fills the project PIN; existing users sign in, new users create their PIN.
+              </p>
+              <div className="rounded-xl bg-white p-3">
+                <QRCodeSVG value={joinUrl} size={220} level="M" />
+              </div>
+              <span className="break-all text-center font-mono text-[11px] text-gray-400">{joinUrl}</span>
+            </div>
+          )
+        })()}
+      </Modal>
 
       <Modal
         open={showDeleteConfirm}

@@ -38,15 +38,19 @@ export default async function RadiosRoute({
     where: { userId: session.user.id, project: { status: 'active' } },
     select: {
       role: true,
-      project: { select: { id: true, name: true } },
+      project: { select: { id: true, name: true, pin: true } },
     },
   })
-  const userProjectsMap = new Map<number, { id: number; name: string }>()
+  const userProjectsMap = new Map<number, { id: number; name: string; pin: string | null }>()
   const adminProjectIds = new Set<number>()
   const editableProjectIds = new Set<number>()
   for (const m of memberships) {
     if (!userProjectsMap.has(m.project.id)) {
-      userProjectsMap.set(m.project.id, { id: m.project.id, name: m.project.name })
+      userProjectsMap.set(m.project.id, {
+        id: m.project.id,
+        name: m.project.name,
+        pin: m.project.pin,
+      })
     }
     if (m.role === 'admin') adminProjectIds.add(m.project.id)
     if (m.role === 'admin' || m.role === 'manager') editableProjectIds.add(m.project.id)
