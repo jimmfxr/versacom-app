@@ -20,9 +20,9 @@ type TeamMember = {
   position: string | null
 }
 
-// Decoupled "known radio" shape mirroring lookupRadioByBarcode's payload
-// for the 'out' | 'returned' branches. Kept local so this component
-// doesn't have to import the Prisma type.
+// Decoupled "known radio" shape mirroring lookupRadioByBarcode's
+// payload for the auto-return / prompt branches. Kept local so this
+// component doesn't have to import the Prisma type.
 type KnownRadio = {
   id: number
   name: string
@@ -31,7 +31,7 @@ type KnownRadio = {
   department: string | null
   position: string | null
   barcode: string | null
-  checkedOut: boolean
+  status: string
   assignedToProjectMemberId: number | null
   fistMic: boolean
   surveillance: boolean
@@ -89,8 +89,8 @@ export function ScanContent({
         modeRef.current = 'idle'
         return
       }
-      if (result.kind === 'out') {
-        // Auto-return — silently flip checkedOut to false.
+      if (result.kind === 'auto-return') {
+        // Auto-return — silently flip status to 'returned'.
         const res = await returnRadioByBarcode(project.id, barcode)
         modeRef.current = 'idle'
         if (res && 'error' in res && res.error) {

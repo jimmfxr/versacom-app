@@ -393,11 +393,11 @@ export async function deleteRadio(radioId: number) {
  *  - 'unknown' → no radio in this project has that barcode yet. The
  *    UI opens an assignment modal pre-filled with the next blank
  *    radio's row (which becomes the target on Save).
- *  - 'out'     → barcode matches a radio currently checkedOut. The
- *    UI silently flips it to Returned (no modal).
- *  - 'returned' → barcode matches a radio not currently checked out.
- *    The UI opens an edit modal pre-filled with that radio's current
- *    fields; Save flips it to Out.
+ *  - 'auto-return' → barcode matches a radio currently 'out'. The UI
+ *    silently flips its status to 'returned' (no modal).
+ *  - 'prompt' → barcode matches a radio with status na / returned /
+ *    damaged / lost. The UI opens an edit modal pre-filled with that
+ *    radio's current fields; Save flips status to 'out'.
  *
  * Permission-gated to admin/manager since scanning mutates assignment.
  */
@@ -405,7 +405,7 @@ export type RadioScanLookup =
   | { error: string }
   | { kind: 'unknown'; targetRadio: { id: number; name: string } | null }
   | {
-      kind: 'out' | 'returned'
+      kind: 'auto-return' | 'prompt'
       radio: {
         id: number
         name: string
@@ -414,7 +414,7 @@ export type RadioScanLookup =
         department: string | null
         position: string | null
         barcode: string | null
-        checkedOut: boolean
+        status: string
         assignedToProjectMemberId: number | null
         fistMic: boolean
         surveillance: boolean
@@ -446,7 +446,7 @@ export async function lookupRadioByBarcode(
       department: true,
       position: true,
       barcode: true,
-      checkedOut: true,
+      status: true,
       assignedToProjectMemberId: true,
       fistMic: true,
       surveillance: true,
@@ -457,7 +457,11 @@ export async function lookupRadioByBarcode(
 
   if (match) {
     return {
-      kind: match.checkedOut ? 'out' : 'returned',
+      // Only an 'out' radio auto-returns on scan. Everything else
+      // (na / returned / damaged / lost) prompts the operator via the
+      // assignment modal so they confirm + can edit fields before
+      // the radio flips back to 'out'.
+      kind: match.status === 'out' ? 'auto-return' : 'prompt',
       radio: match,
     }
   }
@@ -546,7 +550,7 @@ export async function assignRadioFromScan(
       surveillance: data.surveillance ?? false,
       doubleMuff: data.doubleMuff ?? false,
       lightweight: data.lightweight ?? false,
-      checkedOut: true,
+      status: 'out',
       checkedOutAt: new Date(),
     },
   })
@@ -556,9 +560,9 @@ export async function assignRadioFromScan(
 }
 
 /**
- * No-prompt return path: scanned barcode matches a radio that's
- * currently checked out → just flip checkedOut to false. Caller
- * (the scanner page) already confirmed the lookup kind === 'out'.
+ * No-prompt return path: scanned barcode matches a radio whose status
+ * is currently 'out' → flip status to 'returned'. Caller (the scanner
+ * page) already confirmed the lookup kind === 'auto-return'.
  */
 export async function returnRadioByBarcode(projectId: number, barcode: string) {
   const session = await getSession()
@@ -571,20 +575,58 @@ export async function returnRadioByBarcode(projectId: number, barcode: string) {
 
   const radio = await prisma.radio.findFirst({
     where: { projectId, barcode: trimmed },
-    select: { id: true, checkedOut: true, name: true },
+    select: { id: true, status: true, name: true },
   })
   if (!radio) return { error: 'No radio with that barcode in this project' }
-  if (!radio.checkedOut) {
-    // Already returned — caller should have routed to the prompt
+  if (radio.status !== 'out') {
+    // Not actually out — caller should have routed to the prompt
     // branch; treat as no-op success so duplicate scans don't error.
     return { success: true, alreadyReturned: true, name: radio.name }
   }
 
   await prisma.radio.update({
     where: { id: radio.id },
-    data: { checkedOut: false },
+    data: { status: 'returned' },
   })
 
   revalidatePath('/radios')
   return { success: true, name: radio.name }
+}
+
+// ─── Manual status change (no-scan) ────────────────────────────────
+
+const RADIO_STATUS_VALUES = new Set(['na', 'out', 'returned', 'damaged', 'lost'])
+
+/**
+ * Manual status flip from the dropdown on the radio card. Validates
+ * the value against the canonical set so a bad input can't write
+ * arbitrary strings to the column. checkedOutAt is stamped only when
+ * the radio moves INTO 'out' (audit trail for the most recent check
+ * out — other transitions leave the timestamp alone).
+ */
+export async function setRadioStatus(radioId: number, status: string) {
+  const session = await getSession()
+  if (!session) return { error: 'Not authenticated' }
+  if (!RADIO_STATUS_VALUES.has(status)) return { error: 'Invalid radio status' }
+
+  const radio = await prisma.radio.findUnique({
+    where: { id: radioId },
+    select: { projectId: true, status: true },
+  })
+  if (!radio) return { error: 'Radio not found' }
+  if (!(await canEditRadios(session.user.id, radio.projectId))) {
+    return { error: 'Not authorized to update this radio' }
+  }
+  if (radio.status === status) return { success: true }
+
+  await prisma.radio.update({
+    where: { id: radioId },
+    data: {
+      status,
+      ...(status === 'out' ? { checkedOutAt: new Date() } : {}),
+    },
+  })
+
+  revalidatePath('/radios')
+  return { success: true }
 }

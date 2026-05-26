@@ -7,7 +7,8 @@ import { EmptyState } from '@/components/empty-state'
 import { ComboboxInput } from '@/components/combobox-input'
 import { IconButton } from '@/components/icon-button'
 import { ProjectSwitcher } from '@/app/project-dashboard'
-import { STATUS_BORDER_STYLES } from '@/lib/deploy-status'
+import { RadioStatusSelect } from '@/components/radio-status-select'
+import type { RadioStatus } from '@/lib/radio-status'
 import {
   bulkCreateRadios,
   updateRadio,
@@ -16,6 +17,7 @@ import {
   createZone,
   updateZone,
   deleteZone,
+  setRadioStatus,
 } from './actions'
 
 // Phase-1 surface is admin/manager only. User/crew get the zone
@@ -30,7 +32,7 @@ type Radio = {
   department: string | null
   position: string | null
   barcode: string | null
-  checkedOut: boolean
+  status: string
   assignedToProjectMemberId: number | null
   fistMic: boolean
   surveillance: boolean
@@ -434,6 +436,17 @@ export function RadiosPage({
                   router.refresh()
                 })
               }}
+              onStatusChange={(next) => {
+                setError(null)
+                startTransition(async () => {
+                  const res = await setRadioStatus(radio.id, next)
+                  if ('error' in res && res.error) {
+                    setError(res.error)
+                    return
+                  }
+                  router.refresh()
+                })
+              }}
             />
           ))}
         </div>
@@ -659,6 +672,7 @@ function RadioCard({
   onCancel,
   onSave,
   onDelete,
+  onStatusChange,
 }: {
   radio: Radio
   editing: boolean
@@ -685,6 +699,7 @@ function RadioCard({
     nextZoneIds: number[],
   ) => void
   onDelete: () => void
+  onStatusChange: (next: RadioStatus) => void
 }) {
   const [name, setName] = useState(radio.name)
   const [firstName, setFirstName] = useState(radio.firstName ?? '')
@@ -799,17 +814,21 @@ function RadioCard({
             participate in the outer flex on desktop so they flow with
             the rest of the row. */}
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0 sm:contents">
-          <span className="text-sm font-semibold text-[#22a7d3]">{radio.name}</span>
+          {/* ID in white, assignee name in cyan, dept + position in
+              the same 70%-cyan tone the Comms Equipment card uses for
+              assignee suffixes — keeps the two surfaces visually
+              consistent. */}
+          <span className="text-sm font-semibold text-white">{radio.name}</span>
           {(radio.firstName || radio.lastName) && (
-            <span className="text-sm font-medium text-white">
+            <span className="text-sm font-medium text-[#22a7d3]">
               {radio.firstName} {radio.lastName}
             </span>
           )}
           {radio.department && (
-            <span className="text-xs text-gray-400">· {radio.department}</span>
+            <span className="text-xs text-[#22a7d3]/70">· {radio.department}</span>
           )}
           {radio.position && (
-            <span className="text-xs text-gray-400">· {radio.position}</span>
+            <span className="text-xs text-[#22a7d3]/70">· {radio.position}</span>
           )}
           {radio.fistMic && <span className="text-xs text-gray-400">· Fist mic</span>}
           {radio.surveillance && <span className="text-xs text-gray-400">· Surveillance</span>}
@@ -821,23 +840,15 @@ function RadioCard({
             {radio.barcode}
           </span>
         )}
-        {/* Check-out status chip — matches the Comms Equipment status
-            chip chrome (rounded-lg, bordered, no fill, gray-200 text)
-            using the same STATUS_BORDER_STYLES palette so the radio
-            page reads consistent with the rest of the app. "Out" maps
-            to the `deployed` yellow outline (radio in the field) and
-            "Returned" maps to the `returned` blue outline. */}
-        <span
-          className={`inline-flex items-center justify-center rounded-lg border ${
-            radio.checkedOut ? STATUS_BORDER_STYLES.deployed : STATUS_BORDER_STYLES.returned
-          } px-3 py-1.5 text-xs font-medium text-gray-200 ${
-            radio.barcode ? '' : 'sm:ml-auto'
-          }`}
-        >
-          <span className="min-w-[4.5rem] text-center">
-            {radio.checkedOut ? 'Out' : 'Returned'}
-          </span>
-        </span>
+        {/* Status dropdown — five-state radio inventory enum (N/A,
+            Out, Returned, Damaged, Lost). Same chip chrome as the
+            Comms Equipment DeployStatusSelect. Click to change. */}
+        <RadioStatusSelect
+          value={radio.status}
+          onChange={onStatusChange}
+          disabled={isPending}
+          className={radio.barcode ? '' : 'sm:ml-auto'}
+        />
         {/* Edit button — own full-width row on mobile, content-sized
             and right-aligned on desktop. */}
         <button

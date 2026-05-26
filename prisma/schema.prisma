@@ -207,11 +207,13 @@ model Radio {
   /// (e.g. `C8098764`). Nullable because admin can pre-create blank
   /// radios via bulk-add and fill the barcode later.
   barcode      String?
-  /// True when the radio is currently checked OUT to a person. The
-  /// kiosk flow flips this on scan + assignment. checkedOutAt
-  /// records when the most recent check-out happened so we can show
-  /// "out for 3h" etc. in the kiosk UI later.
-  checkedOut   Boolean   @default(false)
+  /// Inventory status — replaces the old `checkedOut` boolean. Values:
+  /// 'na' (default — fresh, no cycle), 'out' (checked out to a
+  /// person), 'returned' (back in inventory), 'damaged' (broken),
+  /// 'lost' (missing). See src/lib/radio-status.ts for the canonical
+  /// enum + label/border maps. `checkedOutAt` is kept as an audit
+  /// timestamp for the most recent check-out.
+  status       String    @default("na")
   checkedOutAt DateTime?
   /// Accessory flags — yes/no toggles surfaced in the radio edit
   /// card. When true the collapsed row renders a chip for each.
