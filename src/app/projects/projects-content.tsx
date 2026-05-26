@@ -371,20 +371,25 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                     className={`flex-wrap ${isArchived ? 'opacity-60' : ''}`}
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-sm font-semibold ${isArchived ? 'text-gray-400' : 'text-white'}`}>{project.name}</span>
-                        <span className={`inline-flex items-center rounded-lg border px-4 py-2 text-sm font-medium text-gray-200 ${isArchived ? 'border-white/10' : 'border-green-400/60'}`}>
+                      {/* Title row — everything inline: status chip,
+                          project name, admin credit, then the stats
+                          (members · equipment · date). Wraps to the
+                          next line as the row narrows. */}
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className={`inline-block shrink-0 rounded-md border px-2.5 py-0.5 text-[11px] font-medium capitalize leading-4 text-gray-200 ${isArchived ? 'border-white/10' : 'border-green-400/60'}`}>
                           {project.status}
                         </span>
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-gray-500">
-                        <span>{project.memberCount} members</span>
-                        <span>·</span>
-                        <span>{project.equipmentCount} equipment</span>
-                        <span>·</span>
-                        <span suppressHydrationWarning>{formatDate(project.createdAt)}</span>
-                        <span>·</span>
-                        <span>by <span className="text-[#22a7d3]">{project.createdBy.firstName} {project.createdBy.lastName}</span></span>
+                        <span className={`text-sm font-semibold ${isArchived ? 'text-gray-400' : 'text-white'}`}>{project.name}</span>
+                        <span className="text-gray-500">·</span>
+                        <span className="text-sm font-semibold text-[#22a7d3]">
+                          {project.createdBy.firstName} {project.createdBy.lastName}
+                        </span>
+                        <span className="text-gray-500">·</span>
+                        <span className="text-xs text-gray-500">{project.memberCount} members</span>
+                        <span className="text-gray-500">·</span>
+                        <span className="text-xs text-gray-500">{project.equipmentCount} equipment</span>
+                        <span className="text-gray-500">·</span>
+                        <span className="text-xs text-gray-500" suppressHydrationWarning>{formatDate(project.createdAt)}</span>
                       </div>
                     </div>
                     {isArchived && isAdmin && (
