@@ -77,6 +77,109 @@ export function ScanContent({
   } | null>(null)
   const [manualBarcode, setManualBarcode] = useState('')
 
+  // ─── Accessory scan mode ─────────────────────────────────────────
+  // When the assignment modal is open and the operator toggles an
+  // accessory chip OFF→ON, we want them to scan the accessory's
+  // barcode WITHOUT a nested modal. Instead the assignment modal
+  // gets hidden (display:none, state preserved), a label appears at
+  // the top of the camera viewport announcing the accessory, and a
+  // Skip button takes over the bottom action bar. Scanning a code
+  // in this mode captures it for that accessory and snaps back to
+  // the assignment modal. (AccessoryKey + ACCESSORY_LABELS live at
+  // module scope below so the modal can share the types.)
+  const [accessoryScanMode, setAccessoryScanMode] = useState<AccessoryKey | null>(null)
+
+  // Accessory state lives at this level so it survives the modal's
+  // hide/show during accessory scan mode. The modal becomes a
+  // controlled consumer.
+  const [fistMicFlag, setFistMicFlag] = useState(false)
+  const [surveillanceFlag, setSurveillanceFlag] = useState(false)
+  const [doubleMuffFlag, setDoubleMuffFlag] = useState(false)
+  const [lightweightFlag, setLightweightFlag] = useState(false)
+  const [fistMicBC, setFistMicBC] = useState<string | null>(null)
+  const [surveillanceBC, setSurveillanceBC] = useState<string | null>(null)
+  const [doubleMuffBC, setDoubleMuffBC] = useState<string | null>(null)
+  const [lightweightBC, setLightweightBC] = useState<string | null>(null)
+
+  // Seed (or reset) accessory state every time the modal opens with a
+  // new radio — pre-fill from the radio's existing flags + barcodes
+  // when re-issuing, blank when checking out a fresh radio.
+  useEffect(() => {
+    if (!modal) {
+      setAccessoryScanMode(null)
+      return
+    }
+    setFistMicFlag(modal.initial?.fistMic ?? false)
+    setSurveillanceFlag(modal.initial?.surveillance ?? false)
+    setDoubleMuffFlag(modal.initial?.doubleMuff ?? false)
+    setLightweightFlag(modal.initial?.lightweight ?? false)
+    setFistMicBC(modal.initial?.fistMicBarcode ?? null)
+    setSurveillanceBC(modal.initial?.surveillanceBarcode ?? null)
+    setDoubleMuffBC(modal.initial?.doubleMuffBarcode ?? null)
+    setLightweightBC(modal.initial?.lightweightBarcode ?? null)
+  }, [modal])
+
+  // Click handler given to each accessory chip. Toggling ON requests
+  // an accessory scan; toggling OFF clears the flag + any barcode.
+  const handleAccessoryToggle = useCallback(
+    (key: AccessoryKey, currentlyOn: boolean) => {
+      if (currentlyOn) {
+        // Going OFF — clear flag + barcode in one step.
+        switch (key) {
+          case 'fistMic':
+            setFistMicFlag(false)
+            setFistMicBC(null)
+            break
+          case 'surveillance':
+            setSurveillanceFlag(false)
+            setSurveillanceBC(null)
+            break
+          case 'doubleMuff':
+            setDoubleMuffFlag(false)
+            setDoubleMuffBC(null)
+            break
+          case 'lightweight':
+            setLightweightFlag(false)
+            setLightweightBC(null)
+            break
+        }
+      } else {
+        // Going ON — switch into accessory-scan mode. The assignment
+        // modal hides while the camera + Skip button take over.
+        setAccessoryScanMode(key)
+        modeRef.current = 'idle'
+        lastScannedRef.current = null
+      }
+    },
+    [],
+  )
+
+  // Skip = pair accessory ON without a barcode, back to the modal.
+  const skipAccessoryScan = useCallback(() => {
+    if (!accessoryScanMode) return
+    const key = accessoryScanMode
+    switch (key) {
+      case 'fistMic':
+        setFistMicFlag(true)
+        setFistMicBC('')
+        break
+      case 'surveillance':
+        setSurveillanceFlag(true)
+        setSurveillanceBC('')
+        break
+      case 'doubleMuff':
+        setDoubleMuffFlag(true)
+        setDoubleMuffBC('')
+        break
+      case 'lightweight':
+        setLightweightFlag(true)
+        setLightweightBC('')
+        break
+    }
+    setAccessoryScanMode(null)
+    modeRef.current = 'modal'
+  }, [accessoryScanMode])
+
   const showToast = useCallback((kind: 'success' | 'error', message: string) => {
     setToast({ kind, message })
     setTimeout(() => setToast(null), 2800)
@@ -136,6 +239,34 @@ export function ScanContent({
   // returned → out) or auto-mark as returned (out → returned).
   const handleScan = useCallback(
     async (barcode: string) => {
+      // Accessory-scan branch: short-circuit any radio lookup. The
+      // captured barcode is the accessory's, not a radio's.
+      if (accessoryScanMode) {
+        const key = accessoryScanMode
+        switch (key) {
+          case 'fistMic':
+            setFistMicFlag(true)
+            setFistMicBC(barcode)
+            break
+          case 'surveillance':
+            setSurveillanceFlag(true)
+            setSurveillanceBC(barcode)
+            break
+          case 'doubleMuff':
+            setDoubleMuffFlag(true)
+            setDoubleMuffBC(barcode)
+            break
+          case 'lightweight':
+            setLightweightFlag(true)
+            setLightweightBC(barcode)
+            break
+        }
+        setAccessoryScanMode(null)
+        modeRef.current = 'modal'
+        beep(1)
+        return
+      }
+
       modeRef.current = 'busy'
       const result: RadioScanLookup = await lookupRadioByBarcode(project.id, barcode)
       if ('error' in result) {
@@ -186,7 +317,7 @@ export function ScanContent({
       }
       modeRef.current = 'modal'
     },
-    [project.id, showToast, beep],
+    [project.id, showToast, beep, accessoryScanMode],
   )
 
   // ─── Camera lifecycle ─────────────────────────────────────────────
@@ -297,6 +428,16 @@ export function ScanContent({
 
       {/* Camera viewport — fills the remaining space */}
       <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
+        {/* Accessory-scan label — top-center over the camera. Only
+            renders while accessoryScanMode is set; tells the operator
+            which accessory's barcode is about to be captured. */}
+        {accessoryScanMode && (
+          <div className="pointer-events-none absolute inset-x-0 top-6 z-30 flex justify-center px-4">
+            <div className="rounded-full bg-[#0178a3] px-5 py-2 text-base font-semibold uppercase tracking-wider text-white shadow-lg sm:text-lg">
+              Scan {ACCESSORY_LABELS[accessoryScanMode]}
+            </div>
+          </div>
+        )}
         {!cameraError && (
           <video
             ref={videoRef}
@@ -341,30 +482,45 @@ export function ScanContent({
         )}
       </div>
 
-      {/* Bottom bar — manual entry + last-result toast slot */}
+      {/* Bottom bar — flips between two layouts:
+          • Normal scan mode  → manual barcode entry + Look up button.
+          • Accessory scan mode → single full-width Skip button so the
+            operator can pair the accessory without a barcode and
+            return to the assignment modal. Same chip styling as the
+            Look up button. */}
       <div className="flex-shrink-0 border-t border-white/10 bg-[#202020] px-4 py-3 sm:px-6">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            submitManual()
-          }}
-          className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3"
-        >
-          <input
-            type="text"
-            value={manualBarcode}
-            onChange={(e) => setManualBarcode(e.target.value)}
-            placeholder="Enter barcode manually…"
-            className="block w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3 py-2 text-sm text-white outline-none transition-colors focus:border-[#0178a3]"
-          />
+        {accessoryScanMode ? (
           <button
-            type="submit"
-            disabled={!manualBarcode.trim()}
-            className="w-full rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            type="button"
+            onClick={skipAccessoryScan}
+            className="w-full rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7]"
           >
-            Look up
+            Skip {ACCESSORY_LABELS[accessoryScanMode]} barcode
           </button>
-        </form>
+        ) : (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              submitManual()
+            }}
+            className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3"
+          >
+            <input
+              type="text"
+              value={manualBarcode}
+              onChange={(e) => setManualBarcode(e.target.value)}
+              placeholder="Enter barcode manually…"
+              className="block w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3 py-2 text-sm text-white outline-none transition-colors focus:border-[#0178a3]"
+            />
+            <button
+              type="submit"
+              disabled={!manualBarcode.trim()}
+              className="w-full rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            >
+              Look up
+            </button>
+          </form>
+        )}
       </div>
 
       {/* Toast */}
@@ -384,28 +540,44 @@ export function ScanContent({
         </div>
       )}
 
-      {/* Assignment modal — shows for the unknown / returned branches */}
+      {/* Assignment modal — shows for the unknown / returned branches.
+          While accessoryScanMode is set the modal hides via display:
+          none but stays mounted so its form state survives the
+          camera detour. */}
       {modal && (
-        <AssignmentModal
-          projectName={project.name}
-          barcode={modal.barcode}
-          targetRadio={modal.targetRadio}
-          initial={modal.initial}
-          teamMembers={teamMembers}
-          departmentSuggestions={departmentSuggestions}
-          onClose={closeModal}
-          onSaved={(name) => {
-            closeModal()
-            showToast('success', `${name} checked out`)
-            startTransition(() => router.refresh())
-          }}
-        />
+        <div style={accessoryScanMode ? { display: 'none' } : undefined}>
+          <AssignmentModal
+            projectName={project.name}
+            barcode={modal.barcode}
+            targetRadio={modal.targetRadio}
+            initial={modal.initial}
+            teamMembers={teamMembers}
+            departmentSuggestions={departmentSuggestions}
+            fistMic={fistMicFlag}
+            surveillance={surveillanceFlag}
+            doubleMuff={doubleMuffFlag}
+            lightweight={lightweightFlag}
+            fistMicBarcode={fistMicBC}
+            surveillanceBarcode={surveillanceBC}
+            doubleMuffBarcode={doubleMuffBC}
+            lightweightBarcode={lightweightBC}
+            onAccessoryToggle={handleAccessoryToggle}
+            onClose={closeModal}
+            onSaved={(name) => {
+              closeModal()
+              showToast('success', `${name} checked out`)
+              startTransition(() => router.refresh())
+            }}
+          />
+        </div>
       )}
     </div>
   )
 }
 
 // ─── Assignment modal ───────────────────────────────────────────────
+
+type AccessoryKey = 'fistMic' | 'surveillance' | 'doubleMuff' | 'lightweight'
 
 function AssignmentModal({
   projectName,
@@ -414,6 +586,18 @@ function AssignmentModal({
   initial,
   teamMembers,
   departmentSuggestions,
+  // Accessory state is now lifted up to ScanContent so it survives
+  // the modal's hide/show during accessory-scan mode. The modal
+  // becomes a pure consumer of these props.
+  fistMic,
+  surveillance,
+  doubleMuff,
+  lightweight,
+  fistMicBarcode,
+  surveillanceBarcode,
+  doubleMuffBarcode,
+  lightweightBarcode,
+  onAccessoryToggle,
   onClose,
   onSaved,
 }: {
@@ -423,6 +607,15 @@ function AssignmentModal({
   initial: KnownRadio | null
   teamMembers: TeamMember[]
   departmentSuggestions: string[]
+  fistMic: boolean
+  surveillance: boolean
+  doubleMuff: boolean
+  lightweight: boolean
+  fistMicBarcode: string | null
+  surveillanceBarcode: string | null
+  doubleMuffBarcode: string | null
+  lightweightBarcode: string | null
+  onAccessoryToggle: (key: AccessoryKey, currentlyOn: boolean) => void
   onClose: () => void
   onSaved: (name: string) => void
 }) {
@@ -433,31 +626,6 @@ function AssignmentModal({
   const [memberId, setMemberId] = useState<number | null>(
     initial?.assignedToProjectMemberId ?? null,
   )
-  const [fistMic, setFistMic] = useState(initial?.fistMic ?? false)
-  const [surveillance, setSurveillance] = useState(initial?.surveillance ?? false)
-  const [doubleMuff, setDoubleMuff] = useState(initial?.doubleMuff ?? false)
-  const [lightweight, setLightweight] = useState(initial?.lightweight ?? false)
-  // Per-accessory barcodes captured by the sub-prompt that fires when
-  // a chip is toggled ON. Empty string means "accessory paired but
-  // barcode skipped". Null on a chip that's currently OFF.
-  const [fistMicBarcode, setFistMicBarcode] = useState<string | null>(
-    initial?.fistMicBarcode ?? null,
-  )
-  const [surveillanceBarcode, setSurveillanceBarcode] = useState<string | null>(
-    initial?.surveillanceBarcode ?? null,
-  )
-  const [doubleMuffBarcode, setDoubleMuffBarcode] = useState<string | null>(
-    initial?.doubleMuffBarcode ?? null,
-  )
-  const [lightweightBarcode, setLightweightBarcode] = useState<string | null>(
-    initial?.lightweightBarcode ?? null,
-  )
-  // Which accessory is currently prompting for a barcode (sub-modal
-  // key) — set when a chip flips OFF→ON, cleared when sub-modal saves
-  // or cancels.
-  const [barcodePromptFor, setBarcodePromptFor] = useState<
-    null | 'fistMic' | 'surveillance' | 'doubleMuff' | 'lightweight'
-  >(null)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -577,54 +745,40 @@ function AssignmentModal({
           <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-gray-500">
             Accessories
           </span>
-          {/* Each chip toggles its accessory flag. When flipping a
-              chip OFF→ON the sub-prompt (below) asks the operator to
-              scan the accessory's barcode. Flipping ON→OFF clears the
-              chip AND any stored barcode. */}
+          {/* Each chip toggles its accessory flag. Flipping a chip
+              OFF→ON delegates to ScanContent via onAccessoryToggle —
+              the parent hides this modal and switches the camera
+              into accessory-scan mode so the operator can scan the
+              accessory's barcode (or hit Skip to pair without one).
+              Flipping ON→OFF clears flag + barcode in one step. */}
           <div className="flex flex-wrap gap-2">
             <AccessoryChip
               label="Fist mic"
               on={fistMic}
               barcode={fistMicBarcode}
               disabled={isPending}
-              onToggleOn={() => setBarcodePromptFor('fistMic')}
-              onToggleOff={() => {
-                setFistMic(false)
-                setFistMicBarcode(null)
-              }}
+              onClick={() => onAccessoryToggle('fistMic', fistMic)}
             />
             <AccessoryChip
               label="Surveillance"
               on={surveillance}
               barcode={surveillanceBarcode}
               disabled={isPending}
-              onToggleOn={() => setBarcodePromptFor('surveillance')}
-              onToggleOff={() => {
-                setSurveillance(false)
-                setSurveillanceBarcode(null)
-              }}
+              onClick={() => onAccessoryToggle('surveillance', surveillance)}
             />
             <AccessoryChip
               label="Double muff"
               on={doubleMuff}
               barcode={doubleMuffBarcode}
               disabled={isPending}
-              onToggleOn={() => setBarcodePromptFor('doubleMuff')}
-              onToggleOff={() => {
-                setDoubleMuff(false)
-                setDoubleMuffBarcode(null)
-              }}
+              onClick={() => onAccessoryToggle('doubleMuff', doubleMuff)}
             />
             <AccessoryChip
               label="LWHS"
               on={lightweight}
               barcode={lightweightBarcode}
               disabled={isPending}
-              onToggleOn={() => setBarcodePromptFor('lightweight')}
-              onToggleOff={() => {
-                setLightweight(false)
-                setLightweightBarcode(null)
-              }}
+              onClick={() => onAccessoryToggle('lightweight', lightweight)}
             />
           </div>
         </div>
@@ -651,61 +805,6 @@ function AssignmentModal({
         </div>
       </div>
 
-      {/* Per-accessory barcode sub-prompt. Pops over the assignment
-          modal when an accessory chip flips OFF→ON; the operator
-          scans (or types) the accessory's barcode and confirms. Skip
-          keeps the accessory paired but un-barcoded; Cancel reverts
-          the chip to OFF. */}
-      {barcodePromptFor && (
-        <AccessoryBarcodePrompt
-          accessory={barcodePromptFor}
-          onSave={(code) => {
-            const trimmed = code.trim()
-            switch (barcodePromptFor) {
-              case 'fistMic':
-                setFistMic(true)
-                setFistMicBarcode(trimmed || '')
-                break
-              case 'surveillance':
-                setSurveillance(true)
-                setSurveillanceBarcode(trimmed || '')
-                break
-              case 'doubleMuff':
-                setDoubleMuff(true)
-                setDoubleMuffBarcode(trimmed || '')
-                break
-              case 'lightweight':
-                setLightweight(true)
-                setLightweightBarcode(trimmed || '')
-                break
-            }
-            setBarcodePromptFor(null)
-          }}
-          onSkip={() => {
-            // Skip = accessory ON with empty barcode.
-            switch (barcodePromptFor) {
-              case 'fistMic':
-                setFistMic(true)
-                setFistMicBarcode('')
-                break
-              case 'surveillance':
-                setSurveillance(true)
-                setSurveillanceBarcode('')
-                break
-              case 'doubleMuff':
-                setDoubleMuff(true)
-                setDoubleMuffBarcode('')
-                break
-              case 'lightweight':
-                setLightweight(true)
-                setLightweightBarcode('')
-                break
-            }
-            setBarcodePromptFor(null)
-          }}
-          onCancel={() => setBarcodePromptFor(null)}
-        />
-      )}
     </div>
   )
 }
@@ -715,20 +814,18 @@ function AccessoryChip({
   on,
   barcode,
   disabled,
-  onToggleOn,
-  onToggleOff,
+  onClick,
 }: {
   label: string
   on: boolean
   barcode: string | null
   disabled?: boolean
-  onToggleOn: () => void
-  onToggleOff: () => void
+  onClick: () => void
 }) {
   return (
     <button
       type="button"
-      onClick={on ? onToggleOff : onToggleOn}
+      onClick={onClick}
       disabled={disabled}
       aria-pressed={on}
       title={on && barcode ? `Barcode: ${barcode}` : undefined}
@@ -759,83 +856,6 @@ const ACCESSORY_LABELS: Record<
   surveillance: 'Surveillance',
   doubleMuff: 'Double muff',
   lightweight: 'LWHS',
-}
-
-function AccessoryBarcodePrompt({
-  accessory,
-  onSave,
-  onSkip,
-  onCancel,
-}: {
-  accessory: 'fistMic' | 'surveillance' | 'doubleMuff' | 'lightweight'
-  onSave: (code: string) => void
-  onSkip: () => void
-  onCancel: () => void
-}) {
-  const [code, setCode] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  // Auto-focus the input so a barcode-scanner-gun keystroke immediately
-  // populates the field with no extra tap.
-  useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#1c1c1c] p-5">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-          Scan accessory barcode
-        </div>
-        <div className="mt-1 text-lg font-semibold text-white">
-          <span className="text-[#22a7d3]">{ACCESSORY_LABELS[accessory]}</span>
-        </div>
-        <p className="mt-3 text-sm text-gray-400">
-          Scan the barcode on the {ACCESSORY_LABELS[accessory].toLowerCase()},
-          or type it in. Leave blank to pair without a barcode.
-        </p>
-        <input
-          ref={inputRef}
-          type="text"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              onSave(code)
-            } else if (e.key === 'Escape') {
-              e.preventDefault()
-              onCancel()
-            }
-          }}
-          className="mt-3 w-full rounded-lg border-2 border-white/10 bg-[#202020] px-3.5 py-2.5 font-mono text-base text-white outline-none transition-colors focus:border-[#0178a3]"
-        />
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded-lg border border-white/10 px-3 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onSkip}
-            className="rounded-lg border border-white/10 px-3 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
-          >
-            Skip
-          </button>
-          <button
-            type="button"
-            onClick={() => onSave(code)}
-            className="rounded-lg bg-[#0178a3] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7]"
-          >
-            Save
-          </button>
-        </div>
-      </div>
-    </div>
-  )
 }
 
 function ToggleChip({
