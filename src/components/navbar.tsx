@@ -298,15 +298,19 @@ export function Navbar({
                       className={classNames(
                         // Pressed state takes priority: a solid cyan
                         // chip wraps the text + icon for ~1s so the tap
-                        // is unmistakably acknowledged. Transition is
-                        // applied to both colors AND bg so the chip
-                        // also fades out gently when the timer clears.
+                        // is unmistakably acknowledged.
                         pressed
-                          ? 'border-transparent bg-[#0178a3] text-white'
+                          ? 'bg-[#0178a3] text-white'
                           : item.current
-                            ? 'border-[#0178a3] text-white'
-                            : 'border-transparent text-gray-400 hover:border-white/20 hover:text-gray-200',
-                        'inline-flex items-center gap-1.5 rounded-md border-b-2 px-2 pt-1 text-sm font-medium transition-colors duration-300',
+                            ? 'text-white'
+                            : 'text-gray-400 hover:text-gray-200',
+                        // Active-route underline is now a child span
+                        // (see below) instead of a full-width border-b
+                        // on the link itself. The link is just a chip
+                        // with relative positioning so the underline
+                        // can sit beneath the TEXT only, not the chip's
+                        // rounded outline.
+                        'relative inline-flex items-center gap-1.5 rounded-md px-2 pt-1 pb-1 text-sm font-medium transition-colors duration-300',
                       )}
                     >
                       {item.name}
@@ -314,6 +318,20 @@ export function Navbar({
                         <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
                           {item.badge > 99 ? '99+' : item.badge}
                         </span>
+                      )}
+                      {/* Active-route indicator: a short, flat cyan
+                          underline that sits below the text only, NOT
+                          the full chip width. inset-x-2 trims the
+                          line in by exactly the link's horizontal
+                          padding so it reads as a clean straight bar
+                          beneath the text rather than tracing the
+                          chip's rounded corners. Hidden during the
+                          press flash so the chip stays uncluttered. */}
+                      {item.current && !pressed && (
+                        <span
+                          aria-hidden
+                          className="pointer-events-none absolute inset-x-2 -bottom-px h-0.5 bg-[#0178a3]"
+                        />
                       )}
                     </a>
                     )
