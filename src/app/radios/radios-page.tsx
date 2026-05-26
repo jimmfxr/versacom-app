@@ -346,8 +346,9 @@ export function RadiosPage({
       {/* Scrollable content region — flex-1 + overflow-y-auto so it
           fills the rest of the viewport-locked page and the toolbar
           above stays pinned. Pads the bottom so the last card clears
-          iOS PWA home-indicator territory. */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-none pb-20">
+          iOS PWA home-indicator territory. `data-scroll-container`
+          opts this region into the global ScrollToTop button. */}
+      <div data-scroll-container className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-none pb-20">
       {/* ─── Equipment tab ─────────────────────────────────────── */}
       {tab === 'equipment' && (<>
       {/* Bulk-add card */}
