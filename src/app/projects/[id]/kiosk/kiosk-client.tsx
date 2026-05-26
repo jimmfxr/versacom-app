@@ -500,8 +500,8 @@ function PhoneReadyView({
         You&rsquo;re in, {firstName}!
       </h2>
       <p className="mb-8 text-base text-gray-300">
-        Take out your phone and get the camera ready — a QR code will
-        appear in a moment so you can finish setting up your account.
+        Get your phone out and use your camera to scan the QR link —
+        it&rsquo;ll appear in a few seconds.
       </p>
       <div className="mx-auto mb-6 flex size-20 items-center justify-center rounded-full bg-[#0178a3]/20 text-[#22a7d3]">
         <svg
