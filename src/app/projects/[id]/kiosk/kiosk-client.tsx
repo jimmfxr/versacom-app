@@ -27,9 +27,9 @@ type KioskView =
 export function KioskClient({
   projectId,
   projectName,
-  pending,
-  positionSuggestions,
-  departmentSuggestions,
+  pending: initialPending,
+  positionSuggestions: initialPositionSuggestions,
+  departmentSuggestions: initialDepartmentSuggestions,
 }: {
   projectId: number
   projectName: string
@@ -40,18 +40,68 @@ export function KioskClient({
   const router = useRouter()
   const [view, setView] = useState<KioskView>({ kind: 'form' })
 
+  // Local state seeded from the server-rendered props, then incrementally
+  // refreshed by hitting the JSON-only `/api/projects/[id]/kiosk-pending`
+  // endpoint every 4s. Using local state + an API poll (instead of the
+  // old `router.refresh()` interval) is what kills the visible glitch
+  // on the live kiosk: router.refresh re-fetches the whole Server
+  // Component tree and triggers a full client re-render — combobox
+  // focus would reset, the pending list would briefly flash, etc.
+  const [pending, setPending] = useState<PendingMember[]>(initialPending)
+  const [positionSuggestions, setPositionSuggestions] = useState<string[]>(
+    initialPositionSuggestions,
+  )
+  const [departmentSuggestions, setDepartmentSuggestions] = useState<string[]>(
+    initialDepartmentSuggestions,
+  )
+
   function close() {
     router.push(`/projects/${projectId}`)
   }
 
-  // Poll fresh pending data every 4s. Without this the kiosk only
-  // refreshes when the QR view times out (20s) or a form submits, so a
-  // person who completed signup on their phone keeps showing in the
-  // pending list until then.
+  // Cheap deep-equality check that lets us skip setState (and the
+  // resulting re-render) when the polled payload didn't actually
+  // change. Most polls return identical data, so this collapses the
+  // hot path to a single string compare.
+  function sameAsPrev<T>(prev: T, next: T): boolean {
+    try {
+      return JSON.stringify(prev) === JSON.stringify(next)
+    } catch {
+      return false
+    }
+  }
+
+  const refresh = useRef(async () => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/kiosk-pending`, {
+        cache: 'no-store',
+      })
+      if (!res.ok) return
+      const data = (await res.json()) as {
+        pending: PendingMember[]
+        positionSuggestions: string[]
+        departmentSuggestions: string[]
+      }
+      setPending((prev) => (sameAsPrev(prev, data.pending) ? prev : data.pending))
+      setPositionSuggestions((prev) =>
+        sameAsPrev(prev, data.positionSuggestions) ? prev : data.positionSuggestions,
+      )
+      setDepartmentSuggestions((prev) =>
+        sameAsPrev(prev, data.departmentSuggestions)
+          ? prev
+          : data.departmentSuggestions,
+      )
+    } catch {
+      // Swallow network blips — next tick will retry.
+    }
+  })
+
   useEffect(() => {
-    const interval = setInterval(() => router.refresh(), 4000)
+    const interval = setInterval(() => {
+      void refresh.current()
+    }, 4000)
     return () => clearInterval(interval)
-  }, [router])
+  }, [])
 
   // Auto-dismiss the QR card the moment the person we're showing it for
   // disappears from pending — i.e. they set their PIN on their phone.
@@ -164,9 +214,11 @@ export function KioskClient({
               joinUrl={view.joinUrl}
               onDone={() => {
                 setView({ kind: 'form' })
-                // Refresh pending list so the just-added/just-edited member
-                // moves out (or appears) without a manual reload.
-                router.refresh()
+                // Kick the API poll so the just-added/just-edited member
+                // shows up immediately without waiting for the next 4s
+                // tick. No router.refresh() — that's what causes the
+                // glitchy full-page re-render this commit removes.
+                void refresh.current()
               }}
             />
           )}
