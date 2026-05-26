@@ -71,7 +71,7 @@ export function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`shrink-0 rounded-md px-4 py-3 text-sm font-semibold transition-colors ${
+      className={`shrink-0 rounded-md px-4 py-2 text-sm font-semibold transition-colors ${
         active
           ? 'bg-[#0178a3] text-white'
           : 'border border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
