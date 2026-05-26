@@ -209,7 +209,7 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                 placeholder="Search projects..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="hidden w-64 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white focus:border-[#0178a3] sm:block"
+                className="hidden w-64 rounded-lg border-2 border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white focus:border-[#0178a3] sm:block"
               />
             )}
             {!showForm && (
@@ -336,7 +336,7 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
               placeholder="Search projects..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white focus:border-[#0178a3]"
+              className="w-full rounded-lg border-2 border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white focus:border-[#0178a3]"
             />
           </div>
         )}
@@ -371,25 +371,54 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                     className={`flex-wrap ${isArchived ? 'opacity-60' : ''}`}
                   >
                     <div className="min-w-0 flex-1">
-                      {/* Title row — everything inline: status chip,
-                          project name, admin credit, then the stats
-                          (members · equipment · date). Wraps to the
-                          next line as the row narrows. */}
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span className={`inline-block shrink-0 rounded-md border px-2.5 py-0.5 text-[11px] font-medium capitalize leading-4 text-gray-200 ${isArchived ? 'border-white/10' : 'border-green-400/60'}`}>
+                      {/* Same layout on every viewport — chip in its
+                          own leading column (vertically centered
+                          across both info rows); to the right of it,
+                          name + admin sit on row 1 and the stats
+                          (members · equipment · date) stack on row 2
+                          directly under the show name. Desktop adds
+                          the PIN cluster + label to the far right of
+                          the same row as the name/admin (active
+                          projects only). */}
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <span className={`inline-block shrink-0 rounded-lg border px-4 py-2 text-sm font-medium capitalize leading-5 text-gray-200 ${isArchived ? 'border-white/10' : 'border-green-400/60'}`}>
                           {project.status}
                         </span>
-                        <span className={`text-sm font-semibold ${isArchived ? 'text-gray-400' : 'text-white'}`}>{project.name}</span>
-                        <span className="text-gray-500">·</span>
-                        <span className="text-sm font-semibold text-[#22a7d3]">
-                          {project.createdBy.firstName} {project.createdBy.lastName}
-                        </span>
-                        <span className="text-gray-500">·</span>
-                        <span className="text-xs text-gray-500">{project.memberCount} members</span>
-                        <span className="text-gray-500">·</span>
-                        <span className="text-xs text-gray-500">{project.equipmentCount} equipment</span>
-                        <span className="text-gray-500">·</span>
-                        <span className="text-xs text-gray-500" suppressHydrationWarning>{formatDate(project.createdAt)}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span className={`text-sm font-semibold ${isArchived ? 'text-gray-400' : 'text-white'}`}>{project.name}</span>
+                            <span className="text-gray-500">·</span>
+                            <span className="text-sm font-semibold text-[#22a7d3]">
+                              {project.createdBy.firstName} {project.createdBy.lastName}
+                            </span>
+                            {/* Desktop-only: PIN cluster + description
+                                pinned to the far right of this row
+                                (same row as name + admin). Hidden on
+                                mobile + archived projects. */}
+                            {!isArchived && (
+                              <div className="ml-auto hidden items-center gap-2 sm:flex">
+                                <span className="text-[10px] text-gray-500">PIN</span>
+                                <div className="flex gap-1">
+                                  {project.pin.split('').map((digit, i) => (
+                                    <span
+                                      key={i}
+                                      className="flex size-7 items-center justify-center rounded-md border border-white/10 text-xs font-bold text-gray-200"
+                                    >
+                                      {digit}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-gray-500">
+                            <span>{project.memberCount} members</span>
+                            <span>·</span>
+                            <span>{project.equipmentCount} equipment</span>
+                            <span>·</span>
+                            <span suppressHydrationWarning>{formatDate(project.createdAt)}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                     {isArchived && isAdmin && (

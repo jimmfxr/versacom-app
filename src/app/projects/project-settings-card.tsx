@@ -119,26 +119,11 @@ export function ProjectSettingsCard({
   return (
     <>
       <Card>
-        {/* Top row: heading on the left, PIN centered. The close-X
-            has been removed — the Cancel button in the action row
-            below now handles closing. */}
-        <div className="relative flex items-center justify-center gap-3">
-          <h3 className="absolute left-0 top-0 text-xl font-bold text-white sm:text-2xl">Project Details</h3>
-          <div className="flex flex-col items-center gap-2 pt-10 sm:pt-2">
-            <div className="flex gap-2">
-              {project.pin.split('').map((digit, i) => (
-                <span
-                  key={i}
-                  className="flex size-10 items-center justify-center rounded-lg border border-white/10 text-lg font-bold text-gray-200"
-                >
-                  {digit}
-                </span>
-              ))}
-            </div>
-            <p className="text-[11px] text-gray-500">Project PIN — share with your crew so they can join.</p>
-          </div>
-        </div>
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {/* Form fields — PIN moved out to the collapsed project row
+            on the list (rendered next to the project name on the
+            same row), so the settings card just carries the
+            editable fields now. */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormInput
             label="Project name"
             type="text"
@@ -163,20 +148,6 @@ export function ProjectSettingsCard({
             onChange={(v) => setManagerId(v)}
           />
         </div>
-        {isProjectAdmin && (
-          <div className="mt-5 pt-4">
-            <div className="min-w-0">
-              <h4 className="text-sm font-semibold text-white">
-                {status === 'archived' ? 'Restore project' : 'Archive project'}
-              </h4>
-              <p className="mt-0.5 text-xs text-gray-500">
-                {status === 'archived'
-                  ? 'Bring this project back to Active so crew can edit equipment again.'
-                  : 'Lock the project as read-only after the show wraps. Everything is preserved; you can restore it later.'}
-              </p>
-            </div>
-          </div>
-        )}
         {editError && <p className="mt-3 text-sm text-red-400">{editError}</p>}
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-2">
           {isProjectAdmin && (

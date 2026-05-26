@@ -187,7 +187,7 @@ export function RadiosPage({
         placeholder={tab === 'equipment' ? 'Search radios…' : 'Search zones…'}
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+        className="w-[280px] rounded-lg border-2 border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
       />
       <button
         type="button"
@@ -274,7 +274,7 @@ export function RadiosPage({
                 placeholder={tab === 'equipment' ? 'Search radios…' : 'Search zones…'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                className="flex-1 rounded-lg border-2 border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
               />
               <button
                 type="button"
@@ -314,9 +314,11 @@ export function RadiosPage({
             {assignedRadios} of {totalRadios} assigned
           </div>
           <div className="hidden items-center gap-2 sm:flex">
-            <div className="w-[280px] min-w-0">
-              <TabDropdown value={tab} onChange={setTab} />
-            </div>
+            {!searchOpen && (
+              <div className="w-[280px] min-w-0">
+                <TabDropdown value={tab} onChange={setTab} />
+              </div>
+            )}
             {searchBlock}
             {addButton}
           </div>

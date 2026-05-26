@@ -1688,7 +1688,7 @@ export function ProjectPage({
                           else if (activeTab === 'picklist') setPlSearch(v)
                           else if (activeTab === 'stage-plots') setPlotSearch(v)
                         }}
-                        className="flex-1 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                        className="flex-1 rounded-lg border-2 border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
                       />
                       <button
                         type="button"
@@ -1816,7 +1816,7 @@ export function ProjectPage({
                     swaps the icon to an X that closes it. Input
                     autoFocuses when opened. */}
                 <div className="hidden items-center gap-2 sm:flex">
-                  {desktopTabDropdown}
+                  {!searchOpen && desktopTabDropdown}
                   {searchOpen ? (
                     <>
                       <input
@@ -1825,7 +1825,7 @@ export function ProjectPage({
                         placeholder="Search equipment..."
                         value={eqSearch}
                         onChange={(e) => setEqSearch(e.target.value)}
-                        className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                        className="w-[280px] rounded-lg border-2 border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
                       />
                       <button
                         type="button"
@@ -2567,7 +2567,7 @@ export function ProjectPage({
                       member. Search icon ↔ input toggle same as the
                       Equipment tab pattern above. */}
                   <div className="hidden items-center gap-2 sm:flex">
-                    {desktopTabDropdown}
+                    {!searchOpen && desktopTabDropdown}
                     {searchOpen ? (
                       <>
                         <input
@@ -2576,7 +2576,7 @@ export function ProjectPage({
                           placeholder="Search team..."
                           value={teamSearch}
                           onChange={(e) => setTeamSearch(e.target.value)}
-                          className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                          className="w-[280px] rounded-lg border-2 border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
                         />
                         <button
                           type="button"
@@ -3021,7 +3021,7 @@ export function ProjectPage({
                   {/* Desktop tab dropdown + collapsible search + Add
                       function. Search icon ↔ input toggle same pattern. */}
                   <div className="hidden items-center gap-2 sm:flex">
-                    {desktopTabDropdown}
+                    {!searchOpen && desktopTabDropdown}
                     {searchOpen ? (
                       <>
                         <input
@@ -3030,7 +3030,7 @@ export function ProjectPage({
                           placeholder="Search functions..."
                           value={plSearch}
                           onChange={(e) => setPlSearch(e.target.value)}
-                          className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                          className="w-[280px] rounded-lg border-2 border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
                         />
                         <button
                           type="button"
@@ -3190,7 +3190,7 @@ export function ProjectPage({
                   aligned to the right so the toolbar pattern is
                   consistent across tabs. */}
               <div className="hidden items-center justify-end gap-2 pb-3 sm:flex">
-                {desktopTabDropdown}
+                {!searchOpen && desktopTabDropdown}
                 {searchOpen ? (
                   <>
                     <input
@@ -3199,7 +3199,7 @@ export function ProjectPage({
                       placeholder="Search plots..."
                       value={plotSearch}
                       onChange={(e) => setPlotSearch(e.target.value)}
-                      className="w-56 rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                      className="w-[280px] rounded-lg border-2 border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
                     />
                     <button
                       type="button"
