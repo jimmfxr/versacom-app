@@ -142,13 +142,44 @@ export async function deleteMember(projectId: number, memberId: number) {
   const session = await getSession()
   if (!session) return { error: 'Not authenticated' }
 
-  // Unassign any equipment assigned to this member
-  await prisma.equipment.updateMany({
-    where: { assignedToId: memberId },
-    data: { assignedToId: null },
-  })
-
-  await prisma.projectMember.delete({ where: { id: memberId } })
+  // ProjectMember has dependents that don't cascade-delete in the
+  // schema: PanelKey rows (with KeyDraft + ChangeRequestItem children),
+  // ChangeRequest rows targeting this member, plus FK references from
+  // Equipment.assignedToId. Radio.assignedToProjectMemberId DOES cascade
+  // (SetNull), so we leave it alone. Run everything in one transaction
+  // so a partial cleanup never leaves orphaned children behind.
+  await prisma.$transaction([
+    // 1. KeyDraft rows whose panel key belongs to this member.
+    prisma.keyDraft.deleteMany({
+      where: { panelKey: { projectMemberId: memberId } },
+    }),
+    // 2. ChangeRequestItem rows linked either to one of this member's
+    //    panel keys OR to a change request targeting this member.
+    prisma.changeRequestItem.deleteMany({
+      where: {
+        OR: [
+          { panelKey: { projectMemberId: memberId } },
+          { changeRequest: { targetMemberId: memberId } },
+        ],
+      },
+    }),
+    // 3. ChangeRequest rows targeting this member.
+    prisma.changeRequest.deleteMany({
+      where: { targetMemberId: memberId },
+    }),
+    // 4. PanelKey rows owned by this member.
+    prisma.panelKey.deleteMany({
+      where: { projectMemberId: memberId },
+    }),
+    // 5. Detach any equipment assigned to this member.
+    prisma.equipment.updateMany({
+      where: { assignedToId: memberId },
+      data: { assignedToId: null },
+    }),
+    // 6. Finally remove the member. Radio.assignedToProjectMemberId
+    //    nulls out automatically via onDelete: SetNull.
+    prisma.projectMember.delete({ where: { id: memberId } }),
+  ])
 
   revalidatePath(`/projects/${projectId}`)
   return { success: true }
