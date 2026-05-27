@@ -31,6 +31,7 @@ import { SearchableSelect } from '@/components/searchable-select'
 import { ComboboxInput } from '@/components/combobox-input'
 import { FilterBar, Chip } from '@/components/filter-bar'
 import { ChipScroller } from '@/components/chip-scroller'
+import { FilterDropdown } from '@/components/filter-dropdown'
 import { LocationSummary } from '@/components/location-summary'
 import { HeadsetInventoryEditor } from '@/components/headset-inventory-editor'
 import { usePersistentState } from '@/lib/use-persistent-state'
@@ -357,6 +358,9 @@ function CloseIcon({ className = 'size-5' }: { className?: string }) {
     </svg>
   )
 }
+
+// FilterDropdown moved to src/components/filter-dropdown.tsx so the
+// Tasks page can share the same chip-replacement dropdown UI.
 
 /**
  * Mode switcher for the Add Equipment card. Replaces the side-by-side
@@ -1542,10 +1546,55 @@ export function ProjectPage({
             // (w-[calc(50vw-1rem)] accounts for the px-4 page
             // padding). Desktop: switcher's min-w-[280px] kicks in.
             <div className="flex items-center justify-end gap-2">
-              {/* Header chrome (QR / Kiosk icon buttons) moved into
-                  the global Navbar — left of the notifications bell
-                  on desktop, in the 3-up grid on mobile. The header
-                  just owns the project switcher now. */}
+              {/* Per-tab + (Add) icon button. Tab-aware: opens the
+                  appropriate inline add form for the current tab.
+                  Sits to the LEFT of the project switcher in the
+                  page header so the toolbar rows below don't carry
+                  the button anymore. Crew without edit perms on
+                  Equipment/Team get a + that opens the join-QR
+                  modal (legacy "Show QR" fallback). */}
+              {(() => {
+                let onClick: (() => void) | null = null
+                let ariaLabel = 'Add'
+                if (activeTab === 'equipment') {
+                  if (canAddEquipment && !showAdd) {
+                    onClick = () => setShowAdd(true)
+                    ariaLabel = 'Add Equipment'
+                  } else if (!canAddEquipment && isCrew && !showTeamQr) {
+                    onClick = () => setShowTeamQr(true)
+                    ariaLabel = 'Show QR'
+                  }
+                } else if (activeTab === 'team') {
+                  if (canEditTeam && !showAddMember) {
+                    onClick = () => setShowAddMember(true)
+                    ariaLabel = 'Add Member'
+                  } else if (!canEditTeam && isCrew && !showTeamQr) {
+                    onClick = () => setShowTeamQr(true)
+                    ariaLabel = 'Show QR'
+                  }
+                } else if (activeTab === 'picklist') {
+                  if (canEditPickList && !showAddPl) {
+                    onClick = () => setShowAddPl(true)
+                    ariaLabel = 'Add Function'
+                  }
+                } else if (activeTab === 'stage-plots') {
+                  if (isAdmin && !showAddPlot) {
+                    onClick = () => setShowAddPlot(true)
+                    ariaLabel = 'Add Plot'
+                  }
+                }
+                if (!onClick) return null
+                return (
+                  <button
+                    type="button"
+                    onClick={onClick}
+                    aria-label={ariaLabel}
+                    className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]"
+                  >
+                    +
+                  </button>
+                )
+              })()}
               <div className="w-[calc(50vw-1rem)] sm:w-auto">
                 <ProjectSwitcher
                   projectId={project.id}
@@ -1761,26 +1810,9 @@ export function ProjectPage({
                       </svg>
                     </button>
                   )}
-                  {/* Per-tab + (Add) button. Sits to the right of the
-                      search affordance. */}
-                  {activeTab === 'equipment' && canAddEquipment && !showAdd && (
-                    <button type="button" onClick={() => setShowAdd(true)} aria-label="Add Equipment" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
-                  )}
-                  {activeTab === 'equipment' && !canAddEquipment && isCrew && !showTeamQr && (
-                    <button type="button" onClick={() => setShowTeamQr(true)} aria-label="Show QR" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
-                  )}
-                  {activeTab === 'team' && canEditTeam && !showAddMember && (
-                    <button type="button" onClick={() => setShowAddMember(true)} aria-label="Add Member" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
-                  )}
-                  {activeTab === 'team' && !canEditTeam && isCrew && !showTeamQr && (
-                    <button type="button" onClick={() => setShowTeamQr(true)} aria-label="Show QR" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
-                  )}
-                  {activeTab === 'picklist' && canEditPickList && !showAddPl && (
-                    <button type="button" onClick={() => setShowAddPl(true)} aria-label="Add Function" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
-                  )}
-                  {activeTab === 'stage-plots' && isAdmin && !showAddPlot && (
-                    <button type="button" onClick={() => setShowAddPlot(true)} aria-label="Add Plot" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]">+</button>
-                  )}
+                  {/* Per-tab + (Add) icon button moved into the page
+                      header (left of the project switcher) so the
+                      toolbar row only carries the search affordance. */}
                 </div>
                 {/* Desktop tab strip removed — desktop now uses
                     the same dropdown component as mobile, rendered
@@ -1808,46 +1840,46 @@ export function ProjectPage({
                     role of separating toolbar from per-tab content). */}
 {/* removed — page-header bottomBorder serves as the toolbar / content divider now */}
 
-              {/* Filter chips (left) + desktop search + add button
-                  (right). Chips left-aligned. Search/+ moved here
-                  from the page header so the header chrome only
-                  carries the tab dropdown + Edit/Back. Mobile keeps
-                  the search/+ in the dropdown row above. */}
+              {/* Filter dropdowns (left) + desktop search + add button
+                  (right). Category + Location pickers are now native
+                  dropdowns instead of horizontal chip scrollers — same
+                  pattern on mobile and desktop. Side-by-side via flex
+                  with equal widths so neither dominates. */}
               <div className="pb-3 sm:flex sm:items-center sm:gap-3">
                 {(usedEquipmentCategories.length > 0 || equipmentLocations.length > 0) ? (
-                  <div className="min-w-0 sm:flex-1">
-                    <ChipScroller containerClassName="flex flex-1 gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                      <Chip
-                        active={!eqCategoryFilter && !eqLocationFilter}
-                        onClick={() => {
-                          setEqCategoryFilter(null)
-                          setEqLocationFilter(null)
-                        }}
-                      >
-                        All
-                      </Chip>
-                      {usedEquipmentCategories.map((c) => (
-                        <Chip
-                          key={`cat:${c.value}`}
-                          active={eqCategoryFilter === c.value}
-                          onClick={() => setEqCategoryFilter(eqCategoryFilter === c.value ? null : c.value)}
-                        >
-                          {c.label}
-                        </Chip>
-                      ))}
-                      {usedEquipmentCategories.length > 0 && equipmentLocations.length > 0 && (
-                        <span aria-hidden className="flex shrink-0 items-center px-1 text-2xl font-bold leading-none text-[#22a7d3]">·</span>
-                      )}
-                      {equipmentLocations.map((loc) => (
-                        <Chip
-                          key={`loc:${loc}`}
-                          active={eqLocationFilter === loc}
-                          onClick={() => setEqLocationFilter(eqLocationFilter === loc ? null : loc)}
-                        >
-                          {loc}
-                        </Chip>
-                      ))}
-                    </ChipScroller>
+                  // sm:flex-1 still pushes the desktop search + Add
+                  // button to the right edge; the dropdowns inside
+                  // hug the LEFT thanks to their fixed width + the
+                  // flex container's default left alignment.
+                  <div className="flex gap-2 sm:flex-1">
+                    {usedEquipmentCategories.length > 0 && (
+                      <FilterDropdown
+                        ariaLabel="Filter by category"
+                        value={eqCategoryFilter ?? ''}
+                        onChange={(v) => setEqCategoryFilter(v || null)}
+                        options={[
+                          { value: '', label: 'All categories' },
+                          ...usedEquipmentCategories.map((c) => ({
+                            value: c.value,
+                            label: c.label,
+                          })),
+                        ]}
+                      />
+                    )}
+                    {equipmentLocations.length > 0 && (
+                      <FilterDropdown
+                        ariaLabel="Filter by location"
+                        value={eqLocationFilter ?? ''}
+                        onChange={(v) => setEqLocationFilter(v || null)}
+                        options={[
+                          { value: '', label: 'All locations' },
+                          ...equipmentLocations.map((loc) => ({
+                            value: loc,
+                            label: loc,
+                          })),
+                        ]}
+                      />
+                    )}
                   </div>
                 ) : (
                   <div className="sm:flex-1" />
@@ -1892,12 +1924,7 @@ export function ProjectPage({
                       </svg>
                     </button>
                   )}
-                  {canAddEquipment && !showAdd && (
-                    <button type="button" onClick={() => setShowAdd(true)} aria-label="Add Equipment" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
-                  )}
-                  {!canAddEquipment && isCrew && !showTeamQr && (
-                    <button type="button" onClick={() => setShowTeamQr(true)} aria-label="Show QR" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
-                  )}
+                  {/* + Add moved into the page header. */}
                 </div>
               </div>
               </div>{/* /sticky bundle */}
@@ -2587,25 +2614,22 @@ export function ProjectPage({
                     const cats = usedEquipmentCategories.filter((c) => c.assignable)
                     if (cats.length === 0) return <div className="sm:flex-1" />
                     return (
-                      <div className="min-w-0 sm:flex-1">
-                        <ChipScroller containerClassName="flex flex-1 gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                          <Chip active={teamCategoryFilter === null} onClick={() => setTeamCategoryFilter(null)}>
-                            All
-                          </Chip>
-                          {cats.map((c) => (
-                            <Chip
-                              key={c.value}
-                              active={teamCategoryFilter === c.value}
-                              onClick={() => setTeamCategoryFilter(teamCategoryFilter === c.value ? null : c.value)}
-                            >
-                              {c.label}
-                            </Chip>
-                          ))}
-                          <span aria-hidden className="flex shrink-0 items-center px-1 text-2xl font-bold leading-none text-[#22a7d3]">·</span>
-                          <Chip active={teamSortAbc} onClick={() => setTeamSortAbc(!teamSortAbc)}>
-                            A–Z
-                          </Chip>
-                        </ChipScroller>
+                      // sm:flex-1 keeps the desktop search/Add buttons
+                      // anchored right; the dropdown + A-Z chip sit
+                      // far-left.
+                      <div className="flex items-center gap-2 sm:flex-1">
+                        <FilterDropdown
+                          ariaLabel="Filter by category"
+                          value={teamCategoryFilter ?? ''}
+                          onChange={(v) => setTeamCategoryFilter(v || null)}
+                          options={[
+                            { value: '', label: 'All categories' },
+                            ...cats.map((c) => ({ value: c.value, label: c.label })),
+                          ]}
+                        />
+                        <Chip active={teamSortAbc} onClick={() => setTeamSortAbc(!teamSortAbc)}>
+                          A–Z
+                        </Chip>
                       </div>
                     )
                   })()}
@@ -2647,12 +2671,7 @@ export function ProjectPage({
                         </svg>
                       </button>
                     )}
-                    {canEditTeam && !showAddMember && (
-                      <button type="button" onClick={() => setShowAddMember(true)} aria-label="Add Member" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
-                    )}
-                    {!canEditTeam && isCrew && !showTeamQr && (
-                      <button type="button" onClick={() => setShowTeamQr(true)} aria-label="Show QR" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
-                    )}
+                    {/* + Add moved into the page header. */}
                   </div>
                 </div>
               </div>{/* /sticky bundle */}
@@ -3027,25 +3046,25 @@ export function ProjectPage({
                     right. Mirrors the equipment tab's category-then-location
                     pattern. */}
                 <div className="pb-3 sm:flex sm:items-center sm:gap-3">
-                  <div className="min-w-0 sm:flex-1">
-                    <ChipScroller containerClassName="flex flex-1 gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                      <Chip active={plTypeFilter === null} onClick={() => setPlTypeFilter(null)}>
-                        All
-                      </Chip>
-                      {FUNCTION_TYPES.map((t) => (
-                        <Chip
-                          key={t}
-                          active={plTypeFilter === t}
-                          onClick={() => setPlTypeFilter(plTypeFilter === t ? null : t)}
-                        >
-                          {FUNCTION_TYPE_LABELS[t] || t}
-                        </Chip>
-                      ))}
-                      <span aria-hidden className="flex shrink-0 items-center px-1 text-2xl font-bold leading-none text-[#22a7d3]">·</span>
-                      <Chip active={plSortAbc} onClick={() => setPlSortAbc(!plSortAbc)}>
-                        A–Z
-                      </Chip>
-                    </ChipScroller>
+                  {/* Type dropdown + A-Z toggle, far-left within the
+                      flex row. sm:flex-1 keeps desktop search/Add
+                      anchored on the right. */}
+                  <div className="flex items-center gap-2 sm:flex-1">
+                    <FilterDropdown
+                      ariaLabel="Filter by function type"
+                      value={plTypeFilter ?? ''}
+                      onChange={(v) => setPlTypeFilter(v || null)}
+                      options={[
+                        { value: '', label: 'All types' },
+                        ...FUNCTION_TYPES.map((t) => ({
+                          value: t,
+                          label: FUNCTION_TYPE_LABELS[t] || t,
+                        })),
+                      ]}
+                    />
+                    <Chip active={plSortAbc} onClick={() => setPlSortAbc(!plSortAbc)}>
+                      A–Z
+                    </Chip>
                   </div>
                   {/* Desktop tab dropdown + collapsible search + Add
                       function. Search icon ↔ input toggle same pattern. */}
@@ -3084,9 +3103,7 @@ export function ProjectPage({
                         </svg>
                       </button>
                     )}
-                    {canEditPickList && !showAddPl && (
-                      <button type="button" onClick={() => setShowAddPl(true)} aria-label="Add Function" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
-                    )}
+                    {/* + Add moved into the page header. */}
                   </div>
                 </div>
               </div>{/* /sticky bundle */}
@@ -3253,9 +3270,7 @@ export function ProjectPage({
                     </svg>
                   </button>
                 )}
-                {isAdmin && !showAddPlot && (
-                  <button type="button" onClick={() => setShowAddPlot(true)} aria-label="Add Plot" className="shrink-0 rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50">+</button>
-                )}
+                {/* + Add moved into the page header. */}
               </div>
 
               {/* Count text — pinned above the scroll on desktop. */}

@@ -178,6 +178,7 @@ model Project {
   equipment      Equipment[]
   rackTemplates  RackTemplate[]
   headsetInventory ProjectHeadsetInventory[]
+  accessoryInventory ProjectAccessoryInventory[]
   plots          Plot[]
   notifications  Notification[]
   radios         Radio[]
@@ -331,6 +332,25 @@ model ProjectHeadsetInventory {
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, headsetType])
+  @@index([projectId])
+}
+
+/// Per-project total counts of radio accessories brought to the show.
+/// Independent from the per-Radio accessory flags: this tracks how many
+/// physical fist mics / surveillance kits / double-muff headsets /
+/// LWHS the team brought, including spares not yet paired with a radio.
+/// `accessoryType` is one of: 'fistMic', 'surveillance', 'doubleMuff',
+/// 'lightweight'.
+model ProjectAccessoryInventory {
+  id            Int      @id @default(autoincrement())
+  projectId     Int
+  accessoryType String
+  brought       Int      @default(0)
+  updatedAt     DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, accessoryType])
   @@index([projectId])
 }
 

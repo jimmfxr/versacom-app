@@ -318,7 +318,7 @@ export default async function HomePage({
   }
 
   // Fetch just the slice of data the dashboard needs.
-  const [project, equipment, memberCount, headsetInventory, selectedMembership] = await Promise.all([
+  const [project, equipment, memberCount, headsetInventory, selectedMembership, radios, accessoryInventory] = await Promise.all([
     prisma.project.findUnique({
       where: { id: selectedProjectId },
       select: {
@@ -355,7 +355,59 @@ export default async function HomePage({
       where: { projectId: selectedProjectId, userId: session.user.id },
       select: { role: true },
     }),
+    // Radios + accessory flags drive the new dashboard "Radios" card.
+    // Aggregated client-side below into total/out counts per accessory.
+    prisma.radio.findMany({
+      where: { projectId: selectedProjectId },
+      select: {
+        status: true,
+        fistMic: true,
+        surveillance: true,
+        doubleMuff: true,
+        lightweight: true,
+      },
+    }),
+    // Per-accessory inventory ("brought" counts) — drives the
+    // accessory totals on the Radios dashboard card. Independent of
+    // the per-Radio boolean flags so spares not yet paired with a
+    // radio still count toward "in inventory".
+    prisma.projectAccessoryInventory.findMany({
+      where: { projectId: selectedProjectId },
+      select: { accessoryType: true, brought: true },
+    }),
   ])
+
+  // Hydrate accessory inventory into a quick-lookup map keyed by type.
+  const accessoryBrought = new Map<string, number>()
+  for (const row of accessoryInventory) {
+    accessoryBrought.set(row.accessoryType, row.brought)
+  }
+
+  // Aggregate radio inventory: how many of each type are signed out
+  // (status='out') vs total in inventory. Fed to the Radios card.
+  const radioInventory = (() => {
+    const total = radios.length
+    const out = radios.filter((r) => r.status === 'out').length
+    const returned = radios.filter((r) => r.status === 'returned').length
+    // Per-accessory: total comes from ProjectAccessoryInventory.brought
+    // (physical units brought to the show, including spares). "Out"
+    // means "currently paired with a checked-out radio" — radios with
+    // the boolean flag AND status='out'. So the bar shows accessories
+    // currently in use vs total inventory available.
+    const tally = (flag: 'fistMic' | 'surveillance' | 'doubleMuff' | 'lightweight') => ({
+      total: accessoryBrought.get(flag) ?? 0,
+      out: radios.filter((r) => r[flag] && r.status === 'out').length,
+    })
+    return {
+      total,
+      out,
+      returned,
+      fistMic: tally('fistMic'),
+      surveillance: tally('surveillance'),
+      doubleMuff: tally('doubleMuff'),
+      lightweight: tally('lightweight'),
+    }
+  })()
 
   // Headset inventory editing is restricted to admins only.
   const canEditInventory = isAdmin || selectedMembership?.role === 'admin'
@@ -411,6 +463,7 @@ export default async function HomePage({
             db9XlrfBrought: project.db9XlrfBrought,
             rj45XlrmfBrought: project.rj45XlrmfBrought,
           }}
+          radioInventory={radioInventory}
           canEditInventory={canEditInventory}
         />
       </div>

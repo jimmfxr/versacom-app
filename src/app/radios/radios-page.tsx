@@ -9,6 +9,7 @@ import { IconButton } from '@/components/icon-button'
 import { ProjectSwitcher } from '@/app/project-dashboard'
 import { RadioStatusSelect } from '@/components/radio-status-select'
 import type { RadioStatus } from '@/lib/radio-status'
+import { RadioAccessoryInventoryEditor } from '@/components/radio-accessory-inventory-editor'
 import {
   bulkCreateRadios,
   updateRadio,
@@ -80,6 +81,7 @@ export function RadiosPage({
   teamMembers,
   departmentSuggestions,
   zones,
+  accessoryInventory,
 }: {
   projectId: number
   userProjects: UserProject[]
@@ -87,6 +89,10 @@ export function RadiosPage({
   teamMembers: TeamMember[]
   departmentSuggestions: string[]
   zones: Zone[]
+  /** Per-accessoryType "brought" counts loaded from
+   *  ProjectAccessoryInventory. Drives the in-stock preview on the
+   *  bulk-add card. Missing keys mean "no row yet" — treated as 0. */
+  accessoryInventory: Record<string, number>
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -170,7 +176,7 @@ export function RadiosPage({
         setError(null)
       }}
       aria-label={tab === 'equipment' ? 'Add radios' : 'Add zone'}
-      className="rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7]"
+      className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-base font-medium text-white transition-colors hover:bg-[#019bc7]"
     >
       +
     </button>
@@ -228,10 +234,9 @@ export function RadiosPage({
         // Desktop: switcher's min-w-[280px] kicks in so its width
         // doesn't depend on viewport math.
         <div className="flex items-center justify-end gap-2">
-          {/* QR + Scanner icon buttons moved into the global Navbar
-              (left of the bell on desktop, in the 3-up grid on
-              mobile). The header just owns the project switcher
-              now. */}
+          {/* Tab-aware Add (+) sits LEFT of the project switcher.
+              QR / Scanner / Kiosk live in the global Navbar. */}
+          {addButton}
           {userProjects.length > 0 && (
             <div className="w-[calc(50vw-1rem)] sm:w-auto">
               <ProjectSwitcher
@@ -248,8 +253,10 @@ export function RadiosPage({
       {/* Toolbar — pins above the scrolling list.
           Project switcher + scanner moved into the PageLayout header
           (top right) on every viewport. This toolbar carries the tab
-          dropdown + search + Add only. */}
-      <div className="flex-shrink-0 space-y-3 pb-3">
+          dropdown + search + Add only. pt-3 matches the Comms tabs'
+          sticky-bundle top padding so the count + dropdown row
+          aligns the same distance below the page header. */}
+      <div className="flex-shrink-0 space-y-3 pb-3 pt-3">
         {/* Mobile-only: tab dropdown + search + Add directly under
             project. When search is open the dropdown shrinks and the
             input takes the space between it and the X close button. */}
@@ -292,16 +299,10 @@ export function RadiosPage({
               </svg>
             </button>
           )}
-          {addButton}
+          {/* + Add moved into the page header (left of project dropdown). */}
         </div>
 
-        {/* Stats row.
-            Mobile: stat sits alone (tab dropdown + Add already lived
-            on the row above).
-            Desktop: stat on the left + tab dropdown + Add on the
-            right. The right group reserves enough width (sm:min-w-
-            [328px]: 280 + gap + ~40 button) so the dropdown's `flex-1`
-            expands to fill when Add is hidden. */}
+        {/* Stats row. + Add lives in the page header now. */}
         <div className="flex items-center justify-between gap-2">
           <div className="text-xs font-medium text-gray-500">
             {assignedRadios} of {totalRadios} assigned
@@ -313,7 +314,6 @@ export function RadiosPage({
               </div>
             )}
             {searchBlock}
-            {addButton}
           </div>
         </div>
       </div>
@@ -332,13 +332,20 @@ export function RadiosPage({
       <div data-scroll-container className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-none pb-20">
       {/* ─── Equipment tab ─────────────────────────────────────── */}
       {tab === 'equipment' && (<>
-      {/* Bulk-add card */}
+      {/* Bulk-add card — two modes via the AddMode switcher at the
+          top of the card:
+            • "Radios"    → bulk-create Radio rows (Quantity +
+                            Starting ID, calls bulkCreateRadios).
+            • "Inventory" → manage per-accessory "brought" counts
+                            (renders RadioAccessoryInventoryEditor;
+                            Save commits all 4 in a transaction). */}
       {showAdd && (
         <BulkAddCard
           projectId={projectId}
           isPending={isPending}
+          accessoryInventory={accessoryInventory}
           onCancel={() => setShowAdd(false)}
-          onSubmit={(qty, startingId) => {
+          onSubmitRadios={(qty, startingId) => {
             setError(null)
             startTransition(async () => {
               const res = await bulkCreateRadios(projectId, qty, startingId)
@@ -349,6 +356,10 @@ export function RadiosPage({
               setShowAdd(false)
               router.refresh()
             })
+          }}
+          onInventorySaved={() => {
+            setShowAdd(false)
+            router.refresh()
           }}
         />
       )}
@@ -572,13 +583,104 @@ function TabDropdown({
 
 // ─── Bulk add ──────────────────────────────────────────────────────
 
+type AddMode = 'radios' | 'inventory'
+
 function BulkAddCard({
-  projectId: _projectId,
+  projectId,
+  isPending,
+  accessoryInventory,
+  onSubmitRadios,
+  onInventorySaved,
+  onCancel,
+}: {
+  projectId: number
+  isPending: boolean
+  accessoryInventory: Record<string, number>
+  onSubmitRadios: (qty: number, startingId: string) => void
+  /** Fires after RadioAccessoryInventoryEditor's Save succeeds —
+   *  parent uses this to close the card + refresh router data. */
+  onInventorySaved: () => void
+  onCancel: () => void
+}) {
+  const [mode, setMode] = useState<AddMode>('radios')
+
+  return (
+    <div className="mb-3 border-b border-white/[0.06] px-2 py-4">
+      {/* Mode header: pill switcher on the right (Radios | Inventory),
+          dropdown-style chip. Same right-side header pattern Comms
+          uses (AddTabSwitcher). Cancel X sits on the same row when
+          we're in Inventory mode so the operator can bail without
+          scrolling to the bottom. */}
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+          {mode === 'radios' ? 'Add radios' : 'Add Headsets & Misc'}
+        </span>
+        <ModeSwitcher value={mode} onChange={setMode} disabled={isPending} />
+      </div>
+
+      {mode === 'radios' ? (
+        <RadiosAddForm
+          isPending={isPending}
+          onCancel={onCancel}
+          onSubmit={onSubmitRadios}
+        />
+      ) : (
+        <RadioAccessoryInventoryEditor
+          projectId={projectId}
+          initial={accessoryInventory}
+          onDone={onInventorySaved}
+        />
+      )}
+    </div>
+  )
+}
+
+/** Dropdown picker for the bulk-add card's mode (Radios or
+ *  Inventory). Mirrors the Comms "Add Headsets & Misc" dropdown.
+ *  Styled as a native <select> with a custom chevron so it
+ *  matches the dark form chrome used elsewhere. */
+function ModeSwitcher({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: AddMode
+  onChange: (v: AddMode) => void
+  disabled?: boolean
+}) {
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value as AddMode)}
+        disabled={disabled}
+        className="appearance-none rounded-lg border border-white/10 bg-[#202020] py-2 pl-3 pr-9 text-sm font-medium text-white outline-none transition-colors focus:border-[#0178a3] disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <option value="radios">Add Radios</option>
+        <option value="inventory">Add Headsets &amp; Misc</option>
+      </select>
+      {/* Custom chevron — sits inside the right padding of the
+          select so the native arrow isn't drawn (appearance-none). */}
+      <svg
+        aria-hidden
+        className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-gray-400"
+        fill="none"
+        viewBox="0 0 24 24"
+        strokeWidth={2}
+        stroke="currentColor"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+      </svg>
+    </div>
+  )
+}
+
+/** Bulk-create radios sub-form. Quantity + Starting ID. */
+function RadiosAddForm({
   isPending,
   onSubmit,
   onCancel,
 }: {
-  projectId: number
   isPending: boolean
   onSubmit: (qty: number, startingId: string) => void
   onCancel: () => void
@@ -593,53 +695,46 @@ function BulkAddCard({
   }
 
   return (
-    <div className="mb-3 border-b border-white/[0.06] px-2 py-4">
-      <div className="mb-3">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-          Add radios
-        </span>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        submit()
+      }}
+    >
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Field
+          label="Quantity"
+          inputMode="numeric"
+          value={quantity}
+          onChange={(v) => setQuantity(v.replace(/\D/g, ''))}
+          disabled={isPending}
+        />
+        <Field
+          label="Starting ID"
+          placeholder="RAD 1 (auto)"
+          value={startingId}
+          onChange={setStartingId}
+          disabled={isPending}
+        />
       </div>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault()
-          submit()
-        }}
-      >
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Field
-            label="Quantity"
-            inputMode="numeric"
-            value={quantity}
-            onChange={(v) => setQuantity(v.replace(/\D/g, ''))}
-            disabled={isPending}
-          />
-          <Field
-            label="Starting ID"
-            placeholder="RAD 1 (auto)"
-            value={startingId}
-            onChange={setStartingId}
-            disabled={isPending}
-          />
-        </div>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={isPending}
-            className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={isPending || !quantity}
-            className="w-full rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-          >
-            {isPending ? 'Creating…' : 'Create'}
-          </button>
-        </div>
-      </form>
-    </div>
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={isPending}
+          className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={isPending || !quantity}
+          className="w-full rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+        >
+          {isPending ? 'Creating…' : 'Create'}
+        </button>
+      </div>
+    </form>
   )
 }
 
@@ -1225,27 +1320,29 @@ function ZoneCard({
 
   return (
     <div className="border-b border-white/[0.06]">
-      {/* Header row — zone name on the left, Edit/X chip on the right.
-          Header itself is no longer a button; only the chip toggles
-          the expansion so the rest of the row stays inert. Matches
-          the Edit-chip pattern used on the radio cards. */}
-      <div className="flex flex-col gap-4 px-2 py-3">
-        <div className="flex items-baseline gap-2">
-          <span className="text-sm font-semibold text-white">{persistedName}</span>
+      {/* Header row — zone name on the left, Edit chip on the FAR
+          RIGHT of the same row (mobile + desktop). Header itself is
+          no longer a button; only the chip toggles the expansion so
+          the rest of the row stays inert. */}
+      <div className="flex items-center justify-between gap-2 px-2 py-3">
+        <div className="flex items-baseline gap-2 min-w-0">
+          <span className="truncate text-sm font-semibold text-white">{persistedName}</span>
           {dirty && (
-            <span className="text-[10px] font-medium uppercase tracking-wider text-[#22a7d3]">
+            <span className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-[#22a7d3]">
               unsaved
             </span>
           )}
         </div>
-        {/* Edit chip — only visible while collapsed. Once expanded the
-            Cancel button in the action row at the bottom handles close. */}
+        {/* Edit chip — only visible while collapsed. Once expanded
+            the Cancel button in the action row at the bottom handles
+            close. Content-sized + flush right via the parent's
+            justify-between. */}
         {collapsed && (
           <button
             type="button"
             onClick={() => setCollapsed(false)}
             aria-label="Edit zone"
-            className="flex w-full items-center justify-center rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+            className="flex shrink-0 items-center justify-center rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
           >
             Edit
           </button>

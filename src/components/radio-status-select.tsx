@@ -56,8 +56,11 @@ export function RadioStatusSelect({
         <ListboxButton className={buttonClass}>
           {/* Fixed-width label so every status chip ("N/A", "Out",
               "Returned", "Damaged", "Lost") renders the same overall
-              width — keeps the row tidy when statuses change. */}
-          <span className="min-w-[4.5rem] text-center">{getRadioStatusLabel(status)}</span>
+              width — keeps the row tidy when statuses change.
+              min-w-[6.5rem] matches DeployStatusSelect so the longer
+              labels ("Returned", "Damaged") fit alongside the dot +
+              chevron without clipping on desktop. */}
+          <span className="min-w-[6.5rem] text-center">{getRadioStatusLabel(status)}</span>
           <ChevronDownIcon className="absolute right-3 size-3" />
         </ListboxButton>
         <ListboxOptions

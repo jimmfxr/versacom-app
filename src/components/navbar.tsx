@@ -231,7 +231,10 @@ function MobileNavPanel({
               // Press feedback: cyan-fill chip-active + tiny scale-down
               // so the tap reads as a tactile-feeling press, no sound
               // needed. iPad / desktop / mobile all get this.
-              'flex items-center justify-between gap-2 rounded-lg px-5 py-4 text-base font-medium transition-[colors,transform] duration-100 active:scale-[0.98] active:border-[#0178a3] active:bg-[#0178a3] active:text-white',
+              // justify-center keeps the name + optional badge as a
+              // centered group inside the chip (was justify-between,
+              // which pinned the name left and the badge right).
+              'flex items-center justify-center gap-2 rounded-lg px-5 py-4 text-base font-medium transition-[colors,transform] duration-100 active:scale-[0.98] active:border-[#0178a3] active:bg-[#0178a3] active:text-white',
             )}
           >
             <span>{item.name}</span>
@@ -257,7 +260,7 @@ function MobileNavPanel({
               aria-label="Scan radio barcode"
               className="flex items-center justify-center rounded-lg border border-white/10 px-5 py-4 text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
             >
-              <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
+              <svg className="size-7" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h3.375M15.75 3.75h3.375c.621 0 1.125.504 1.125 1.125v3.375M20.25 15.75v3.375c0 .621-.504 1.125-1.125 1.125h-3.375M8.25 20.25H4.875A1.125 1.125 0 0 1 3.75 19.125V15.75M7.5 7.5h.008v.008H7.5V7.5Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm6.75 0h.008v.008h-.008V7.5Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-7.5 6.75h.008v.008H7.5v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM12 7.5v3.75m0 0v3.75m0-3.75h3.75M12 11.25H8.25" />
               </svg>
             </DisclosureButton>
@@ -267,7 +270,7 @@ function MobileNavPanel({
               aria-label="Show join QR"
               className="flex items-center justify-center rounded-lg border border-white/10 px-5 py-4 text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
             >
-              <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
+              <svg className="size-7" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75ZM6.75 16.5h.75v.75h-.75v-.75ZM16.5 6.75h.75v.75h-.75v-.75ZM13.5 13.5h.75v.75h-.75v-.75ZM13.5 19.5h.75v.75h-.75v-.75ZM19.5 13.5h.75v.75h-.75v-.75ZM19.5 19.5h.75v.75h-.75v-.75ZM16.5 16.5h.75v.75h-.75v-.75Z" />
               </svg>
@@ -278,7 +281,7 @@ function MobileNavPanel({
               aria-label="Open kiosk"
               className="flex items-center justify-center rounded-lg border border-white/10 px-5 py-4 text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
             >
-              <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
+              <svg className="size-7" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6a3 3 0 0 1 3-3h13.5a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V6Z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21h7.5M12 18v3" />
               </svg>

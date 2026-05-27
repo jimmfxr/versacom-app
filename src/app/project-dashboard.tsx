@@ -32,11 +32,24 @@ type MiscInventory = {
   rj45XlrmfBrought: number
 }
 
+type RadioInventory = {
+  total: number
+  out: number
+  returned: number
+  fistMic: { total: number; out: number }
+  surveillance: { total: number; out: number }
+  doubleMuff: { total: number; out: number }
+  lightweight: { total: number; out: number }
+}
+
 type ProjectDashboardProps = {
   projectId: number
   equipment: EquipmentForDashboard[]
   headsetInventory: HeadsetInventoryRow[]
   miscInventory: MiscInventory
+  /** Aggregated radio + accessory inventory. Renders the Radios
+   *  dashboard card with progress bars for total-vs-signed-out. */
+  radioInventory: RadioInventory
   canEditInventory: boolean
   /** Project totals for the small stats line rendered on the right
    *  side of the "Deployment status" header on desktop. Hidden on
@@ -464,7 +477,7 @@ function StatusHero({
 
 /* ─── Main component ─── */
 
-export function ProjectDashboard({ projectId, equipment, headsetInventory, miscInventory, canEditInventory, memberCount, equipmentCount }: ProjectDashboardProps) {
+export function ProjectDashboard({ projectId, equipment, headsetInventory, miscInventory, radioInventory, canEditInventory, memberCount, equipmentCount }: ProjectDashboardProps) {
   // Inventory editing was removed from the dashboard — it now lives under
   // the project's Equipment tab (Add Equipment card → Inventory tab). The
   // canEditInventory prop and projectId are retained on the props type for
@@ -693,7 +706,7 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
             in DashboardHeaderAction was removed alongside this change. */}
         <div className="mb-2.5 mt-2 flex items-baseline justify-between gap-3">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-            Deployment status
+            Comms
           </div>
           <div className="text-xs text-gray-500">
             {memberCount} {memberCount === 1 ? 'member' : 'members'} · {equipmentCount}{' '}
@@ -958,6 +971,108 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
           )
         })()}
       </div>
+
+      {/* ─── Radios ──────────────────────────────────────────────
+          Hero + inventory card are bundled under ONE wrapper so the
+          parent's divide-y doesn't draw a line BETWEEN them — they
+          read as a single radio section. */}
+      {(() => {
+        const rTotal = radioInventory.total
+        const rOut = radioInventory.out
+        const rReturned = radioInventory.returned
+        const outPct = rTotal > 0 ? Math.round((rOut / rTotal) * 100) : 0
+        const returnedPct = rTotal > 0 ? Math.round((rReturned / rTotal) * 100) : 0
+        // Headline = whichever stage leads. Tie-break: out > returned
+        // (out is the more actionable state for show ops).
+        const radioStats = [
+          { key: 'out', pct: outPct, label: 'Out', color: 'text-yellow-500/80' },
+          { key: 'returned', pct: returnedPct, label: 'Returned', color: 'text-blue-500/80' },
+        ]
+        const radioHeadline = radioStats.reduce((best, s) => (s.pct > best.pct ? s : best), radioStats[0])
+        return (
+          <div style={{ touchAction: 'pan-y' }}>
+            <div className="mb-2.5 mt-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+              Radios
+            </div>
+            <div className="pt-2 sm:pt-3">
+              <div className="flex flex-row items-center gap-4 sm:gap-6">
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                    {radioHeadline.label}
+                  </div>
+                  <div className={`text-[36px] font-bold leading-none tabular-nums sm:text-[42px] ${radioHeadline.color}`}>
+                    {radioHeadline.pct}%
+                  </div>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex h-[18px] w-full overflow-hidden rounded-full bg-white/[0.06]">
+                    <div
+                      className="h-full bg-yellow-500/80"
+                      style={{ width: `${outPct}%` }}
+                      title={`${rOut} out`}
+                    />
+                    <div
+                      className="h-full bg-blue-500/80"
+                      style={{ width: `${returnedPct}%` }}
+                      title={`${rReturned} returned`}
+                    />
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] sm:text-xs">
+                    <StatusStat dotClass="bg-yellow-500/80" pctClass="text-yellow-500/80" label="Out" count={rOut} total={rTotal} />
+                    <StatusStat dotClass="bg-blue-500/80" pctClass="text-blue-500/80" label="Returned" count={rReturned} total={rTotal} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <SectionHeader>Radio inventory</SectionHeader>
+              <div className="flex flex-col rounded-lg border border-white/10 p-4 sm:p-5">
+                <CardHeader
+                  title="Signed out"
+                  tag={`${radioInventory.out} / ${radioInventory.total}`}
+                />
+                {radioInventory.total === 0 ? (
+                  <EmptyRow>No radios in this project yet</EmptyRow>
+                ) : (
+                  <div className="mt-4">
+                    <BarRow
+                      label="Radios"
+                      count={radioInventory.out}
+                      total={radioInventory.total}
+                      deployed={radioInventory.out}
+                    />
+                    <BarRow
+                      label="Fist mics"
+                      count={radioInventory.fistMic.out}
+                      total={radioInventory.fistMic.total}
+                      deployed={radioInventory.fistMic.out}
+                    />
+                    <BarRow
+                      label="Surveillance"
+                      count={radioInventory.surveillance.out}
+                      total={radioInventory.surveillance.total}
+                      deployed={radioInventory.surveillance.out}
+                    />
+                    <BarRow
+                      label="Double"
+                      count={radioInventory.doubleMuff.out}
+                      total={radioInventory.doubleMuff.total}
+                      deployed={radioInventory.doubleMuff.out}
+                    />
+                    <BarRow
+                      label="LWHS"
+                      count={radioInventory.lightweight.out}
+                      total={radioInventory.lightweight.total}
+                      deployed={radioInventory.lightweight.out}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
     </div>
   )

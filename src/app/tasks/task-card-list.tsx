@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useBackgroundRefresh } from '@/hooks/use-background-refresh'
 import { markDeployed, undoDeployed, markReturned, undoReturned } from './actions'
 import { LocationSummary } from '@/components/location-summary'
-import { FilterBar } from '@/components/filter-bar'
+import { FilterDropdown } from '@/components/filter-dropdown'
 import { usePersistentState } from '@/lib/use-persistent-state'
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -275,27 +275,21 @@ export function TaskCardList({
         </div>
       )}
       {locations.length > 0 && (
-        // Desktop: chips on the left (flex-1, scroll if too many),
-        // search input on the right of the same row. Mobile: chips
-        // only — search lives in the page header / collapsible row.
-        // The min-w-0 flex-1 wrapper around FilterBar is REQUIRED for
-        // the ChipScroller's < > chevrons to appear: without it the
-        // chip row sizes to its content, never overflows, and the
-        // chevrons never trigger. (Same pattern as project details.)
+        // Location filter dropdown on the left (small fixed width,
+        // far-left within the flex row). Desktop also shows the
+        // search input flush right. Same pattern as the Comms
+        // Equipment filter row.
         <div className="flex items-center gap-3">
-          <div className="min-w-0 flex-1">
-            <FilterBar
-              options={locations.map((loc) => ({ value: loc, label: loc }))}
-              selected={selectedLocation}
-              onSelect={(loc) => setSelectedLocation(loc)}
-              visibleMobile={3}
-              visibleDesktop={6}
-              containerClassName="flex flex-1 gap-2 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            />
-          </div>
-          {/* ml-auto pushes the search input flush to the right edge
-              of the row regardless of how few chips render. */}
-          <div className="hidden sm:block">
+          <FilterDropdown
+            ariaLabel="Filter by location"
+            value={selectedLocation ?? ''}
+            onChange={(v) => setSelectedLocation(v || null)}
+            options={[
+              { value: '', label: 'All locations' },
+              ...locations.map((loc) => ({ value: loc, label: loc })),
+            ]}
+          />
+          <div className="hidden sm:ml-auto sm:block">
             <input
               type="text"
               placeholder="Search tasks..."

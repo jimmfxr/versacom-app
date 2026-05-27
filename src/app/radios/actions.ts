@@ -653,3 +653,73 @@ export async function setRadioStatus(radioId: number, status: string) {
   revalidatePath('/radios')
   return { success: true }
 }
+
+/* ─── Accessory inventory ───────────────────────────────────────────
+ * Per-project "brought" counts for radio accessories (fist mic /
+ * surveillance / double / LWHS). Stored in ProjectAccessoryInventory
+ * with one row per (project, accessoryType). Mirrors the headset-
+ * inventory editor pattern.
+ *
+ * The bulk-add card on /radios uses addAccessoryToInventory to
+ * increment the brought count by the typed quantity.
+ */
+
+type AccessoryType = 'fistMic' | 'surveillance' | 'doubleMuff' | 'lightweight'
+
+const ACCESSORY_TYPES: ReadonlySet<AccessoryType> = new Set([
+  'fistMic',
+  'surveillance',
+  'doubleMuff',
+  'lightweight',
+])
+
+/**
+ * Batch SET the brought counts for all 4 accessory types in one
+ * transaction. Mirrors how the headset / misc inventory editor on
+ * Comms works — the editor shows all types at once and Save commits
+ * everything atomically. Quantity 0 is valid (clears the inventory
+ * row down to zero, doesn't delete it).
+ */
+export async function setAccessoryInventory(
+  projectId: number,
+  items: Array<{ accessoryType: string; brought: number }>,
+) {
+  const session = await getSession()
+  if (!session) return { error: 'Not authenticated' }
+  if (!(await canEditRadios(session.user.id, projectId))) {
+    return { error: 'Not authorized to manage accessories on this project' }
+  }
+  // Validate every item BEFORE writing so a single bad row aborts the
+  // whole save instead of half-applying.
+  for (const item of items) {
+    if (!ACCESSORY_TYPES.has(item.accessoryType as AccessoryType)) {
+      return { error: `Unknown accessory type: ${item.accessoryType}` }
+    }
+    if (!Number.isInteger(item.brought) || item.brought < 0 || item.brought > 9999) {
+      return { error: 'Brought count must be between 0 and 9999' }
+    }
+  }
+
+  await prisma.$transaction(
+    items.map((item) =>
+      prisma.projectAccessoryInventory.upsert({
+        where: {
+          projectId_accessoryType: {
+            projectId,
+            accessoryType: item.accessoryType,
+          },
+        },
+        update: { brought: item.brought },
+        create: {
+          projectId,
+          accessoryType: item.accessoryType,
+          brought: item.brought,
+        },
+      }),
+    ),
+  )
+
+  revalidatePath('/radios')
+  revalidatePath('/')
+  return { success: true }
+}

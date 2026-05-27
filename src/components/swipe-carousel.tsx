@@ -53,14 +53,16 @@ export function SwipeCarousel({ children, hiddenAbove = 'sm:hidden' }: Props) {
     <div className={hiddenAbove}>
       <div
         ref={trackRef}
-        // touch-action: pan-x — touch on the carousel only handles
-        // horizontal pans, so a diagonal swipe doesn't move BOTH the
-        // carousel and the page's vertical scroll at the same time
-        // (iOS Safari will treat the swipe as page-scroll once it
-        // detects vertical intent, leaving the carousel alone).
-        // overscroll-behavior: contain prevents a swipe past the
+        // touch-action: manipulation — allow BOTH horizontal pans
+        // (carousel snap) AND vertical pans (page scroll) so a finger
+        // landing on the carousel can still swipe up/down to reach
+        // content rendered below it (e.g. the Radios card). Previously
+        // this was `pan-x`, which on some browsers (Chrome Android)
+        // strictly blocked vertical pans within the carousel — making
+        // anything past the carousel unreachable from mobile.
+        // overscroll-behavior: contain still prevents a swipe past the
         // first/last slide from rubber-banding the whole page.
-        style={{ touchAction: 'pan-x', overscrollBehavior: 'contain' }}
+        style={{ touchAction: 'manipulation', overscrollBehavior: 'contain' }}
         className="-mx-2 flex snap-x snap-mandatory items-stretch overflow-x-auto scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {slides.map((child, i) => (

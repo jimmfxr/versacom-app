@@ -90,7 +90,7 @@ export default async function RadiosRoute({
   // Zones + their channel rows + radio↔zone links are pulled in one
   // pass so the Radio Channels tab + radio edit card both have what
   // they need.
-  const [radioRows, projectMembers, departmentRows, zoneRows] = await Promise.all([
+  const [radioRows, projectMembers, departmentRows, zoneRows, accessoryInventoryRows] = await Promise.all([
     prisma.radio.findMany({
       where: { projectId: filteredProjectId },
       select: {
@@ -138,7 +138,19 @@ export default async function RadiosRoute({
         },
       },
     }),
+    prisma.projectAccessoryInventory.findMany({
+      where: { projectId: filteredProjectId },
+      select: { accessoryType: true, brought: true },
+    }),
   ])
+
+  // Per-type accessory "brought" counts keyed by accessoryType. Used to
+  // pre-fill the bulk-add card's "in stock" preview + drive the SET
+  // semantics when the operator edits the count.
+  const accessoryInventory: Record<string, number> = {}
+  for (const row of accessoryInventoryRows) {
+    accessoryInventory[row.accessoryType] = row.brought
+  }
 
   const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
   // Flatten the zones join shape: client just needs the zone ids per
@@ -184,6 +196,7 @@ export default async function RadiosRoute({
       teamMembers={teamMembers}
       departmentSuggestions={departmentSuggestions}
       zones={zoneRows}
+      accessoryInventory={accessoryInventory}
     />
   )
 }

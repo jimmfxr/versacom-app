@@ -60,8 +60,11 @@ export function DeployStatusSelect({ value, onChange, disabled, className = '' }
         <ListboxButton className={buttonClass}>
           {/* Fixed-width label so every status chip ("N/A", "Done",
               "Not Needed", "Damaged"…) renders at the same overall
-              width — keeps the row tidy when statuses change. */}
-          <span className="min-w-[4.5rem] text-center">{getStatusLabel(value)}</span>
+              width — keeps the row tidy when statuses change.
+              min-w-[6.5rem] is wide enough that "Not Needed"
+              (the longest label) fits without wrapping or getting
+              clipped by the chevron icon on the right. */}
+          <span className="min-w-[6.5rem] text-center">{getStatusLabel(value)}</span>
           <ChevronDownIcon className="absolute right-3 size-3" />
         </ListboxButton>
         <ListboxOptions
