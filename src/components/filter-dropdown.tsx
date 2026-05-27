@@ -31,16 +31,23 @@ export function FilterDropdown({
   onChange,
   options,
   ariaLabel,
+  /** Tailwind classes for the wrapper width / shrink behavior.
+   *  Default keeps the v2.3 chip sizing (w-36 fixed). Callers that
+   *  need a different mobile width (e.g. 50/50 splits on Comms
+   *  filter rows) override this with something like
+   *  "flex-1 sm:flex-none sm:w-36" or "w-1/2 sm:w-36 sm:shrink-0". */
+  widthClass = 'w-36 shrink-0',
 }: {
   value: string
   onChange: (v: string) => void
   options: Array<{ value: string; label: string }>
   ariaLabel: string
+  widthClass?: string
 }) {
   const current = options.find((o) => o.value === value)
   return (
     <Listbox value={value} onChange={onChange}>
-      <div className="relative w-36 shrink-0">
+      <div className={`relative ${widthClass}`}>
         <ListboxButton
           aria-label={ariaLabel}
           className="flex w-full items-center justify-between gap-2 truncate rounded-lg border-2 border-white/10 bg-[#202020] py-2 pl-3 pr-2.5 text-sm text-white outline-none transition-colors hover:border-white/20 focus:border-[#0178a3] data-open:border-[#0178a3]"

@@ -1852,9 +1852,13 @@ export function ProjectPage({
                   // hug the LEFT thanks to their fixed width + the
                   // flex container's default left alignment.
                   <div className="flex gap-2 sm:flex-1">
+                    {/* Mobile: each dropdown takes 50% of the row
+                        via flex-1. Desktop: snap back to fixed chip
+                        width (w-36) left-aligned. */}
                     {usedEquipmentCategories.length > 0 && (
                       <FilterDropdown
                         ariaLabel="Filter by category"
+                        widthClass="min-w-0 flex-1 sm:flex-none sm:w-36 sm:shrink-0"
                         value={eqCategoryFilter ?? ''}
                         onChange={(v) => setEqCategoryFilter(v || null)}
                         options={[
@@ -1869,6 +1873,7 @@ export function ProjectPage({
                     {equipmentLocations.length > 0 && (
                       <FilterDropdown
                         ariaLabel="Filter by location"
+                        widthClass="min-w-0 flex-1 sm:flex-none sm:w-36 sm:shrink-0"
                         value={eqLocationFilter ?? ''}
                         onChange={(v) => setEqLocationFilter(v || null)}
                         options={[
@@ -2618,8 +2623,12 @@ export function ProjectPage({
                       // anchored right; the dropdown + A-Z chip sit
                       // far-left.
                       <div className="flex items-center gap-2 sm:flex-1">
+                        {/* Dropdown takes half the row on mobile; the
+                            A-Z toggle keeps its compact chip size.
+                            Desktop reverts to the fixed chip width. */}
                         <FilterDropdown
                           ariaLabel="Filter by category"
+                          widthClass="w-1/2 sm:w-36 sm:shrink-0"
                           value={teamCategoryFilter ?? ''}
                           onChange={(v) => setTeamCategoryFilter(v || null)}
                           options={[
@@ -3050,8 +3059,12 @@ export function ProjectPage({
                       flex row. sm:flex-1 keeps desktop search/Add
                       anchored on the right. */}
                   <div className="flex items-center gap-2 sm:flex-1">
+                    {/* Dropdown takes half the row on mobile; A-Z
+                        toggle keeps its compact chip size. Desktop
+                        reverts to the fixed chip width. */}
                     <FilterDropdown
                       ariaLabel="Filter by function type"
+                      widthClass="w-1/2 sm:w-36 sm:shrink-0"
                       value={plTypeFilter ?? ''}
                       onChange={(v) => setPlTypeFilter(v || null)}
                       options={[
