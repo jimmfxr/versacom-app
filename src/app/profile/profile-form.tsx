@@ -155,7 +155,7 @@ export function ProfileForm({
           <button
             type="button"
             onClick={handleSignOut}
-            className="rounded-md border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white"
+            className="w-full rounded-md border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white sm:w-auto"
           >
             Sign out
           </button>
@@ -246,12 +246,12 @@ export function ProfileForm({
             </div>
           )}
 
-          <div className="flex justify-end pt-2">
+          <div className="pt-2 sm:flex sm:justify-end">
             <button
               type="button"
               onClick={handleSave}
               disabled={!dirty || isPending}
-              className="rounded-md border border-[#0178a3] bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] active:bg-[#015d80] disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded-md border border-[#0178a3] bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] active:bg-[#015d80] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               {isPending ? 'Saving…' : 'Save changes'}
             </button>
@@ -319,7 +319,7 @@ export function ProfileForm({
                   </div>
                 )}
 
-                <div className="flex justify-end">
+                <div className="sm:flex sm:justify-end">
                   <button
                     type="button"
                     onClick={handlePinChange}
@@ -329,7 +329,7 @@ export function ProfileForm({
                       newPin.length !== 4 ||
                       confirmPin.length !== 4
                     }
-                    className="rounded-md border border-[#0178a3] bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] active:bg-[#015d80] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="w-full rounded-md border border-[#0178a3] bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] active:bg-[#015d80] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                   >
                     {pinPending ? 'Updating…' : 'Update PIN'}
                   </button>
