@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { PageLayout } from '@/components/page-layout'
+import { showToast } from '@/components/toast'
 import { updateProfile, changePin } from './actions'
 
 /**
@@ -84,6 +85,10 @@ export function ProfileForm({
         return
       }
       setSaved(true)
+      // Bottom-right green toast mirrors the panel-studio save flow
+      // so the confirmation is visible without scrolling back to the
+      // inline "Saved" pill at the top of the form.
+      showToast('success', 'Profile saved')
       router.refresh()
     })
   }
@@ -113,6 +118,7 @@ export function ProfileForm({
       setCurrentPin('')
       setNewPin('')
       setConfirmPin('')
+      showToast('success', 'PIN updated')
     })
   }
 
@@ -240,12 +246,6 @@ export function ProfileForm({
               {error}
             </div>
           )}
-          {saved && !error && (
-            <div className="rounded-lg border border-[#22a7d3]/40 bg-[#22a7d3]/10 px-3 py-2 text-sm text-[#22a7d3]">
-              Saved
-            </div>
-          )}
-
           <div className="pt-2 sm:flex sm:justify-end">
             <button
               type="button"
@@ -313,12 +313,6 @@ export function ProfileForm({
                     {pinError}
                   </div>
                 )}
-                {pinSaved && !pinError && (
-                  <div className="rounded-lg border border-[#22a7d3]/40 bg-[#22a7d3]/10 px-3 py-2 text-sm text-[#22a7d3]">
-                    PIN updated
-                  </div>
-                )}
-
                 <div className="sm:flex sm:justify-end">
                   <button
                     type="button"
