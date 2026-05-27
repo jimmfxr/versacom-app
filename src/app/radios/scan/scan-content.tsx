@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { useRouter } from 'next/navigation'
 import { BrowserMultiFormatReader } from '@zxing/browser'
 import type { IScannerControls } from '@zxing/browser'
+import { DecodeHintType } from '@zxing/library'
 import { ComboboxInput } from '@/components/combobox-input'
 import {
   lookupRadioByBarcode,
@@ -50,6 +51,18 @@ type ToastState = { kind: 'success' | 'error'; message: string } | null
 // 30x/sec doesn't spam writes or stack modals.
 type ScanMode = 'idle' | 'busy' | 'modal'
 
+// Clair asset tags are "C######" — capital C followed by 6 to 8
+// digits. Anything else (Pliant battery DM codes, RoHS Code 128,
+// random QR codes in the background, etc.) gets silently ignored
+// so the operator's scanner doesn't accidentally try to look up a
+// non-radio barcode.
+const CLAIR_TAG_PATTERN = /^C\d{6,8}$/
+
+/** Reject any decoded value that doesn't match a Clair asset tag. */
+function isValidClairTag(s: string): boolean {
+  return CLAIR_TAG_PATTERN.test(s.trim())
+}
+
 export function ScanContent({
   project,
   teamMembers,
@@ -65,6 +78,14 @@ export function ScanContent({
   const lastScannedRef = useRef<{ value: string; at: number } | null>(null)
   const modeRef = useRef<ScanMode>('idle')
   const [cameraError, setCameraError] = useState<string | null>(null)
+  // Front-facing webcams (laptop FaceTime cameras, selfie cameras on
+  // phones) ship a mirrored video feed by default — so a barcode the
+  // operator moves left appears to move right in the preview. The raw
+  // stream ZXing reads is unaffected (decode still works), but the
+  // mirror is disorienting when aiming. We flip the <video> element
+  // back to non-mirrored via scaleX(-1) when the selected camera
+  // looks front-facing.
+  const [videoMirrored, setVideoMirrored] = useState(false)
   const [toast, setToast] = useState<ToastState>(null)
   const [, startTransition] = useTransition()
   // When the assignment modal is open, this carries the data the modal
@@ -77,38 +98,28 @@ export function ScanContent({
   } | null>(null)
   const [manualBarcode, setManualBarcode] = useState('')
 
-  // ─── Accessory scan mode ─────────────────────────────────────────
-  // When the assignment modal is open and the operator toggles an
-  // accessory chip OFF→ON, we want them to scan the accessory's
-  // barcode WITHOUT a nested modal. Instead the assignment modal
-  // gets hidden (display:none, state preserved), a label appears at
-  // the top of the camera viewport announcing the accessory, and a
-  // Skip button takes over the bottom action bar. Scanning a code
-  // in this mode captures it for that accessory and snaps back to
-  // the assignment modal. (AccessoryKey + ACCESSORY_LABELS live at
-  // module scope below so the modal can share the types.)
-  const [accessoryScanMode, setAccessoryScanMode] = useState<AccessoryKey | null>(null)
-
   // Accessory state lives at this level so it survives the modal's
-  // hide/show during accessory scan mode. The modal becomes a
-  // controlled consumer.
+  // re-renders. Each chip is now a simple boolean toggle — picking
+  // "Fist mic" just flips the flag; the camera no longer hijacks
+  // into an accessory-scan flow asking for a barcode.
   const [fistMicFlag, setFistMicFlag] = useState(false)
   const [surveillanceFlag, setSurveillanceFlag] = useState(false)
   const [doubleMuffFlag, setDoubleMuffFlag] = useState(false)
   const [lightweightFlag, setLightweightFlag] = useState(false)
+  // Barcode columns kept null — the assignRadioFromScan payload
+  // still accepts them, but the scanner UI no longer captures them.
+  // Pre-fill from the radio's existing values on re-issue so we
+  // don't blow away barcodes that were entered some other way.
   const [fistMicBC, setFistMicBC] = useState<string | null>(null)
   const [surveillanceBC, setSurveillanceBC] = useState<string | null>(null)
   const [doubleMuffBC, setDoubleMuffBC] = useState<string | null>(null)
   const [lightweightBC, setLightweightBC] = useState<string | null>(null)
 
-  // Seed (or reset) accessory state every time the modal opens with a
-  // new radio — pre-fill from the radio's existing flags + barcodes
-  // when re-issuing, blank when checking out a fresh radio.
+  // Seed (or reset) accessory state every time the modal opens with
+  // a new radio — pre-fill from the radio's existing flags +
+  // barcodes when re-issuing, blank when checking out a fresh radio.
   useEffect(() => {
-    if (!modal) {
-      setAccessoryScanMode(null)
-      return
-    }
+    if (!modal) return
     setFistMicFlag(modal.initial?.fistMic ?? false)
     setSurveillanceFlag(modal.initial?.surveillance ?? false)
     setDoubleMuffFlag(modal.initial?.doubleMuff ?? false)
@@ -119,66 +130,32 @@ export function ScanContent({
     setLightweightBC(modal.initial?.lightweightBarcode ?? null)
   }, [modal])
 
-  // Click handler given to each accessory chip. Toggling ON requests
-  // an accessory scan; toggling OFF clears the flag + any barcode.
+  // Click handler given to each accessory chip. Simple flip — no
+  // barcode capture, no scan-mode switch.
   const handleAccessoryToggle = useCallback(
     (key: AccessoryKey, currentlyOn: boolean) => {
-      if (currentlyOn) {
-        // Going OFF — clear flag + barcode in one step.
-        switch (key) {
-          case 'fistMic':
-            setFistMicFlag(false)
-            setFistMicBC(null)
-            break
-          case 'surveillance':
-            setSurveillanceFlag(false)
-            setSurveillanceBC(null)
-            break
-          case 'doubleMuff':
-            setDoubleMuffFlag(false)
-            setDoubleMuffBC(null)
-            break
-          case 'lightweight':
-            setLightweightFlag(false)
-            setLightweightBC(null)
-            break
-        }
-      } else {
-        // Going ON — switch into accessory-scan mode. The assignment
-        // modal hides while the camera + Skip button take over.
-        setAccessoryScanMode(key)
-        modeRef.current = 'idle'
-        lastScannedRef.current = null
+      const next = !currentlyOn
+      switch (key) {
+        case 'fistMic':
+          setFistMicFlag(next)
+          if (!next) setFistMicBC(null)
+          break
+        case 'surveillance':
+          setSurveillanceFlag(next)
+          if (!next) setSurveillanceBC(null)
+          break
+        case 'doubleMuff':
+          setDoubleMuffFlag(next)
+          if (!next) setDoubleMuffBC(null)
+          break
+        case 'lightweight':
+          setLightweightFlag(next)
+          if (!next) setLightweightBC(null)
+          break
       }
     },
     [],
   )
-
-  // Skip = pair accessory ON without a barcode, back to the modal.
-  const skipAccessoryScan = useCallback(() => {
-    if (!accessoryScanMode) return
-    const key = accessoryScanMode
-    switch (key) {
-      case 'fistMic':
-        setFistMicFlag(true)
-        setFistMicBC('')
-        break
-      case 'surveillance':
-        setSurveillanceFlag(true)
-        setSurveillanceBC('')
-        break
-      case 'doubleMuff':
-        setDoubleMuffFlag(true)
-        setDoubleMuffBC('')
-        break
-      case 'lightweight':
-        setLightweightFlag(true)
-        setLightweightBC('')
-        break
-    }
-    setAccessoryScanMode(null)
-    modeRef.current = 'modal'
-  }, [accessoryScanMode])
 
   const showToast = useCallback((kind: 'success' | 'error', message: string) => {
     setToast({ kind, message })
@@ -239,34 +216,6 @@ export function ScanContent({
   // returned → out) or auto-mark as returned (out → returned).
   const handleScan = useCallback(
     async (barcode: string) => {
-      // Accessory-scan branch: short-circuit any radio lookup. The
-      // captured barcode is the accessory's, not a radio's.
-      if (accessoryScanMode) {
-        const key = accessoryScanMode
-        switch (key) {
-          case 'fistMic':
-            setFistMicFlag(true)
-            setFistMicBC(barcode)
-            break
-          case 'surveillance':
-            setSurveillanceFlag(true)
-            setSurveillanceBC(barcode)
-            break
-          case 'doubleMuff':
-            setDoubleMuffFlag(true)
-            setDoubleMuffBC(barcode)
-            break
-          case 'lightweight':
-            setLightweightFlag(true)
-            setLightweightBC(barcode)
-            break
-        }
-        setAccessoryScanMode(null)
-        modeRef.current = 'modal'
-        beep(1)
-        return
-      }
-
       modeRef.current = 'busy'
       const result: RadioScanLookup = await lookupRadioByBarcode(project.id, barcode)
       if ('error' in result) {
@@ -317,13 +266,24 @@ export function ScanContent({
       }
       modeRef.current = 'modal'
     },
-    [project.id, showToast, beep, accessoryScanMode],
+    [project.id, showToast, beep],
   )
 
   // ─── Camera lifecycle ─────────────────────────────────────────────
   useEffect(() => {
     if (!videoRef.current) return
-    const reader = new BrowserMultiFormatReader()
+    // Decode hints:
+    //   • ALSO_INVERTED — also try a polarity-inverted bitmap each
+    //     frame so we read both standard (black-on-white) AND inverted
+    //     (white-on-black) Clair labels. Some asset tags are printed
+    //     reversed-out, and the default decoder skips those.
+    //   • TRY_HARDER — spend a bit more CPU per frame for harder reads
+    //     (off-angle, low-contrast, partially obstructed). Pays off
+    //     for small dense codes like the Clair `C######` tags.
+    const hints = new Map<DecodeHintType, unknown>()
+    hints.set(DecodeHintType.ALSO_INVERTED, true)
+    hints.set(DecodeHintType.TRY_HARDER, true)
+    const reader = new BrowserMultiFormatReader(hints)
     let cancelled = false
 
     BrowserMultiFormatReader.listVideoInputDevices()
@@ -337,6 +297,12 @@ export function ScanContent({
         // since spec exposes no flag. Falls back to first device.
         const back =
           devices.find((d) => /back|rear|environment/i.test(d.label)) ?? devices[0]
+        // If the chosen camera's label doesn't read as a back camera,
+        // assume it's a front-facing webcam (laptop FaceTime, selfie
+        // cam, etc.) and visually un-mirror the preview so left/right
+        // motion lines up with the operator's hand.
+        const isLikelyBack = /back|rear|environment/i.test(back.label)
+        setVideoMirrored(!isLikelyBack)
         try {
           const controls = await reader.decodeFromVideoDevice(
             back.deviceId,
@@ -346,6 +312,39 @@ export function ScanContent({
               if (modeRef.current !== 'idle') return
               const value = result.getText().trim()
               if (!value) return
+
+              // ── Center-region filter ─────────────────────────────
+              // ZXing scans the full frame, which means background
+              // codes (Pliant battery Data Matrix, RoHS Code 128,
+              // adjacent radio tags) can trigger a read even when the
+              // operator is aiming at one specific label. Require the
+              // decoded result's points to sit inside the inner 60%
+              // of the video; reject if any point falls outside.
+              const video = videoRef.current
+              if (video && video.videoWidth > 0) {
+                const points = result.getResultPoints?.() ?? []
+                const w = video.videoWidth
+                const h = video.videoHeight
+                // Allow ±30% from center on both axes.
+                const minX = w * 0.2
+                const maxX = w * 0.8
+                const minY = h * 0.2
+                const maxY = h * 0.8
+                const outside = points.some((p) => {
+                  const x = p.getX()
+                  const y = p.getY()
+                  return x < minX || x > maxX || y < minY || y > maxY
+                })
+                if (outside) return
+              }
+
+              // ── Clair format filter ──────────────────────────────
+              // Only accept the Clair asset-tag pattern. Any other
+              // decoded value (Data Matrix on a battery pack, a
+              // poster QR, a UPC, etc.) is silently ignored and the
+              // scan loop keeps running.
+              if (!isValidClairTag(value)) return
+
               // Debounce same-barcode reads within 1.5s so a barcode
               // sitting in front of the camera doesn't re-fire.
               const now = Date.now()
@@ -395,9 +394,15 @@ export function ScanContent({
 
   // Manual entry fallback — for when the camera can't be opened (perm
   // denied, no device) so the operator can still complete a check-out.
+  // Same Clair-tag format validation as the camera path so typo'd
+  // entries surface an error toast instead of hitting the server.
   function submitManual() {
     const value = manualBarcode.trim()
     if (!value) return
+    if (!isValidClairTag(value)) {
+      showToast('error', 'Not a Clair tag — must look like C123456')
+      return
+    }
     setManualBarcode('')
     void handleScan(value)
   }
@@ -418,11 +423,10 @@ export function ScanContent({
           </div>
         </div>
         {/* Scan-target label — plain cyan text (no chip / pill),
-            centered on the top row. Default is "Scan Walkie" so the
-            operator knows what to point the camera at; flips to
-            "Scan {accessory}" while accessoryScanMode is set. */}
+            centered on the top row. Accessory chips no longer steer
+            the camera, so the label is always "Scan Walkie". */}
         <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-base font-semibold uppercase tracking-wider text-[#22a7d3] sm:text-lg">
-          Scan {accessoryScanMode ? ACCESSORY_LABELS[accessoryScanMode] : 'Walkie'}
+          Scan Walkie
         </div>
         <button
           type="button"
@@ -443,6 +447,11 @@ export function ScanContent({
         {!cameraError && (
           <video
             ref={videoRef}
+            // Front-facing cameras come pre-mirrored — flip back to
+            // a non-mirrored view so the operator's hand motion
+            // matches the on-screen barcode motion. Phone back
+            // cameras (preferred) skip the flip and render natural.
+            style={videoMirrored ? { transform: 'scaleX(-1)' } : undefined}
             className="h-full w-full object-cover"
             autoPlay
             muted
@@ -484,45 +493,30 @@ export function ScanContent({
         )}
       </div>
 
-      {/* Bottom bar — flips between two layouts:
-          • Normal scan mode  → manual barcode entry + Look up button.
-          • Accessory scan mode → single full-width Skip button so the
-            operator can pair the accessory without a barcode and
-            return to the assignment modal. Same chip styling as the
-            Look up button. */}
+      {/* Bottom bar — manual barcode entry + Look up button. */}
       <div className="flex-shrink-0 border-t border-white/10 bg-[#202020] px-4 py-3 sm:px-6">
-        {accessoryScanMode ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            submitManual()
+          }}
+          className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3"
+        >
+          <input
+            type="text"
+            value={manualBarcode}
+            onChange={(e) => setManualBarcode(e.target.value)}
+            placeholder="Enter barcode manually…"
+            className="block w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3 py-2 text-sm text-white outline-none transition-colors focus:border-[#0178a3]"
+          />
           <button
-            type="button"
-            onClick={skipAccessoryScan}
-            className="w-full rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7]"
+            type="submit"
+            disabled={!manualBarcode.trim()}
+            className="w-full whitespace-nowrap rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
-            Skip
+            Look up
           </button>
-        ) : (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              submitManual()
-            }}
-            className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3"
-          >
-            <input
-              type="text"
-              value={manualBarcode}
-              onChange={(e) => setManualBarcode(e.target.value)}
-              placeholder="Enter barcode manually…"
-              className="block w-full rounded-lg border border-white/10 bg-[#2a2a2a] px-3 py-2 text-sm text-white outline-none transition-colors focus:border-[#0178a3]"
-            />
-            <button
-              type="submit"
-              disabled={!manualBarcode.trim()}
-              className="w-full whitespace-nowrap rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-            >
-              Look up
-            </button>
-          </form>
-        )}
+        </form>
       </div>
 
       {/* Toast */}
@@ -542,12 +536,9 @@ export function ScanContent({
         </div>
       )}
 
-      {/* Assignment modal — shows for the unknown / returned branches.
-          While accessoryScanMode is set the modal hides via display:
-          none but stays mounted so its form state survives the
-          camera detour. */}
+      {/* Assignment modal — shows for the unknown / returned branches. */}
       {modal && (
-        <div style={accessoryScanMode ? { display: 'none' } : undefined}>
+        <div>
           <AssignmentModal
             projectName={project.name}
             barcode={modal.barcode}
@@ -850,16 +841,6 @@ function AccessoryChip({
       <span>{label}</span>
     </button>
   )
-}
-
-const ACCESSORY_LABELS: Record<
-  'fistMic' | 'surveillance' | 'doubleMuff' | 'lightweight',
-  string
-> = {
-  fistMic: 'Fist mic',
-  surveillance: 'Surveillance',
-  doubleMuff: 'Double',
-  lightweight: 'LWHS',
 }
 
 function ToggleChip({
