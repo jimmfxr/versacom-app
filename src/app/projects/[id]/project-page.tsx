@@ -212,6 +212,39 @@ function isAssignable(category: string) {
 }
 
 /**
+ * Whether an equipment row counts as "in use" for the equipment-tab
+ * usage counter. The definition depends on category because the
+ * different gear types track utilization differently:
+ *
+ *   - panels / beltpacks → assigned to a member
+ *   - switches / mults   → has a location set
+ *   - antennas           → has a location OR a "Name" set
+ *                          (the antenna's free-form Name field is
+ *                          stored in Equipment.position — the auto-
+ *                          generated "ANT 1" `name` column doesn't
+ *                          count as a real label since every row
+ *                          gets one at bulk-create time)
+ *
+ * Everything else falls back to the assigned-to-a-member rule.
+ */
+function isEquipmentUsed(e: {
+  category: string
+  assignedToId: number | null
+  location: string | null
+  position: string | null
+}): boolean {
+  const hasLocation = !!e.location && e.location.trim() !== ''
+  if (e.category === 'switches' || e.category === 'mults') {
+    return hasLocation
+  }
+  if (e.category === 'antennas') {
+    const hasName = !!e.position && e.position.trim() !== ''
+    return hasLocation || hasName
+  }
+  return e.assignedToId != null
+}
+
+/**
  * Natural sort comparator — sorts "C1, C10, C2, C20" as "C1, C2, C10, C20"
  * by splitting each string into runs of digits and non-digits and comparing
  * digit runs numerically. Needed now that auto-generated codes (C1, C2, ...)
@@ -1869,11 +1902,34 @@ export function ProjectPage({
               </div>
               </div>{/* /sticky bundle */}
 
-              {/* Count text — pinned above the scroll on desktop. */}
-              <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
-                {filteredEquipment.length} of {equipment.length} items
-                {eqSearch && ` matching "${eqSearch}"`}
-              </p>
+              {/* Count text — pinned above the scroll on desktop.
+                  Two formats:
+                  • When filtering by location, the used/unused split
+                    isn't meaningful (everything in a location is in
+                    use there), so we just show the row count.
+                  • Otherwise, show {used} of {total} used · {unused}
+                    unused so the operator can see the utilization
+                    breakdown at a glance. Both formats respect the
+                    active category + search filter. */}
+              {(() => {
+                const total = filteredEquipment.length
+                if (eqLocationFilter) {
+                  return (
+                    <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
+                      {total} item{total === 1 ? '' : 's'}
+                      {eqSearch && ` matching "${eqSearch}"`}
+                    </p>
+                  )
+                }
+                const used = filteredEquipment.filter(isEquipmentUsed).length
+                const unused = total - used
+                return (
+                  <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
+                    {used} of {total} used · {unused} unused
+                    {eqSearch && ` matching "${eqSearch}"`}
+                  </p>
+                )
+              })()}
 
               {/* Scrollable list region. The Pull List card lives INSIDE
                   the scroll so picking a location doesn't pin a tall card
