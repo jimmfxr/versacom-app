@@ -169,7 +169,9 @@ function MobileNavPanel({
         <a
           href="/profile"
           onClick={() => close()}
-          className="flex min-w-0 flex-1 items-center gap-3 rounded-md transition-colors"
+          // `group` so the initials chip can invert on press (white
+          // bg + cyan glyph) — matches the desktop avatar press state.
+          className="group flex min-w-0 flex-1 items-center gap-3 rounded-md transition-colors"
         >
           <div className="shrink-0">
             {user.imageUrl ? (
@@ -179,7 +181,7 @@ function MobileNavPanel({
                 className="size-10 rounded-full outline -outline-offset-1 outline-white/10"
               />
             ) : (
-              <span className="flex size-10 items-center justify-center rounded-full bg-[#0178a3] text-sm font-medium text-white outline -outline-offset-1 outline-white/10">
+              <span className="flex size-10 items-center justify-center rounded-full bg-[#0178a3] text-sm font-medium text-white outline -outline-offset-1 outline-white/10 transition-colors group-active:bg-white group-active:text-[#0178a3]">
                 {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
               </span>
             )}
@@ -191,7 +193,9 @@ function MobileNavPanel({
         <a
           href="/notifications"
           onClick={() => close()}
-          className="relative shrink-0 rounded-full p-1 text-gray-400 hover:text-white focus:outline-2 focus:outline-offset-2 focus:outline-[#0178a3]"
+          // Press state mirrors the desktop bell — cyan fill + white
+          // glyph — so taps register identically on mobile.
+          className="relative shrink-0 rounded-full p-1 text-gray-400 transition-colors hover:text-white active:bg-[#0178a3] active:text-white focus:outline-2 focus:outline-offset-2 focus:outline-[#0178a3]"
         >
           <span className="absolute -inset-1.5" />
           <span className="sr-only">
