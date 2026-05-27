@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useBackgroundRefresh } from '@/hooks/use-background-refresh'
 import { SwipeCarousel } from '@/components/swipe-carousel'
+import { FilterDropdown } from '@/components/filter-dropdown'
+import { usePersistentState } from '@/lib/use-persistent-state'
 
 /* ─── Types ─── */
 
@@ -478,6 +480,17 @@ function StatusHero({
 /* ─── Main component ─── */
 
 export function ProjectDashboard({ projectId, equipment, headsetInventory, miscInventory, radioInventory, canEditInventory, memberCount, equipmentCount }: ProjectDashboardProps) {
+  // Department picker — single dropdown at the top of the dashboard
+  // that swaps the entire view between Comms (deployment status hero
+  // + Distribution cards) and Radios (out/returned hero + accessory
+  // inventory). Defaults to Comms. Persisted via sessionStorage so
+  // the user's choice survives navigation away from /dashboard and
+  // page refreshes within the tab session.
+  const [department, setDepartment] = usePersistentState<'comms' | 'radios'>(
+    'dashboard-department',
+    'comms',
+  )
+
   // Inventory editing was removed from the dashboard — it now lives under
   // the project's Equipment tab (Add Equipment card → Inventory tab). The
   // canEditInventory prop and projectId are retained on the props type for
@@ -681,6 +694,13 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
       className="divide-y divide-white/[0.06] [&>div]:py-3 sm:[&>div]:py-4 pb-6"
       style={{ touchAction: 'pan-y' }}
     >
+      {/* Department picker — swaps the entire dashboard view between
+          Comms and Radios. Lives INSIDE each section at the position
+          where the old "Comms" / "Radios" labels sat (the section
+          title is the picker itself). Declared once and reused below
+          inside each conditional block. */}
+
+      {department === 'comms' && (<>
       {/* Deployment status — single combined card.
           touch-action: pan-y on the OUTER div (not just the inner
           padded one) so a touch starting anywhere on this card —
@@ -704,10 +724,20 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
             stats (members / equipment counts). Renders on both mobile
             and desktop now — the duplicate stats line under the title
             in DashboardHeaderAction was removed alongside this change. */}
-        <div className="mb-2.5 mt-2 flex items-baseline justify-between gap-3">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-            Comms
-          </div>
+        {/* Section "title" row — Department dropdown on the left
+            (where the old "Comms" label sat) so picking from it
+            swaps the whole dashboard view, and the members /
+            equipment stats line on the right. */}
+        <div className="mb-2.5 mt-2 flex items-center justify-between gap-3">
+          <FilterDropdown
+            ariaLabel="Pick department"
+            value={department}
+            onChange={(v) => setDepartment(v === 'radios' ? 'radios' : 'comms')}
+            options={[
+              { value: 'comms', label: 'Comms' },
+              { value: 'radios', label: 'Radios' },
+            ]}
+          />
           <div className="text-xs text-gray-500">
             {memberCount} {memberCount === 1 ? 'member' : 'members'} · {equipmentCount}{' '}
             {equipmentCount === 1 ? 'equipment item' : 'equipment items'}
@@ -971,7 +1001,9 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
           )
         })()}
       </div>
+      </>)}
 
+      {department === 'radios' && (<>
       {/* ─── Radios ──────────────────────────────────────────────
           Hero + inventory card are bundled under ONE wrapper so the
           parent's divide-y doesn't draw a line BETWEEN them — they
@@ -991,8 +1023,19 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
         const radioHeadline = radioStats.reduce((best, s) => (s.pct > best.pct ? s : best), radioStats[0])
         return (
           <div style={{ touchAction: 'pan-y' }}>
-            <div className="mb-2.5 mt-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-              Radios
+            {/* Section "title" — Department dropdown sits where the
+                old "Radios" label was. Picking swaps the whole
+                dashboard view. */}
+            <div className="mb-2.5 mt-2 flex items-center">
+              <FilterDropdown
+                ariaLabel="Pick department"
+                value={department}
+                onChange={(v) => setDepartment(v === 'radios' ? 'radios' : 'comms')}
+                options={[
+                  { value: 'comms', label: 'Comms' },
+                  { value: 'radios', label: 'Radios' },
+                ]}
+              />
             </div>
             <div className="pt-2 sm:pt-3">
               <div className="flex flex-row items-center gap-4 sm:gap-6">
@@ -1073,6 +1116,7 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
           </div>
         )
       })()}
+      </>)}
 
     </div>
   )

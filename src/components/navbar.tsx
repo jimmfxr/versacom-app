@@ -296,7 +296,7 @@ function MobileNavPanel({
           <DisclosureButton
             as="button"
             onClick={onSignOut}
-            className="block w-full rounded-lg border border-white/10 px-5 py-4 text-left text-base font-medium text-gray-200 transition-colors duration-100 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+            className="block w-full rounded-lg border border-white/10 px-5 py-4 text-center text-base font-medium text-gray-200 transition-colors duration-100 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
           >
             Sign out
           </DisclosureButton>
