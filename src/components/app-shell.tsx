@@ -306,6 +306,8 @@ export function AppShell({
           user={navUser}
           onSignOut={handleSignOut}
           notificationUnread={notificationUnread}
+          currentProjectId={lastProjectId}
+          currentProjectName={lastProjectName}
         />
       )}
       {/* Children wrapper is just a flex column with horizontal

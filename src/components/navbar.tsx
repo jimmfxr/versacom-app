@@ -8,6 +8,8 @@ import {
 } from '@headlessui/react'
 import { Bars3Icon, BellIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useDrag } from '@use-gesture/react'
+import { QRCodeSVG } from 'qrcode.react'
+import { Modal } from './modal'
 
 export type NavItem = {
   readonly name: string
@@ -32,6 +34,12 @@ export type NavbarProps = {
   /** Count of unread in-app notifications for the current user.
    *  Drives the small cyan dot on the bell icon. 0 hides it. */
   readonly notificationUnread?: number
+  /** Currently-active project context — drives the Scanner / QR /
+   *  Kiosk chrome buttons in the nav. Both are nullable so we hide
+   *  the buttons entirely on routes with no project context (login,
+   *  profile, notifications, etc.). */
+  readonly currentProjectId?: string | null
+  readonly currentProjectName?: string | null
 }
 
 function classNames(...classes: Array<string | false | null | undefined>): string {
@@ -60,6 +68,8 @@ function MobileNavPanel({
   logoAlt,
   onSignOut,
   notificationUnread = 0,
+  currentProjectId,
+  onShowQr,
 }: {
   open: boolean
   close: () => void
@@ -69,6 +79,8 @@ function MobileNavPanel({
   logoAlt: string
   onSignOut?: () => void
   notificationUnread?: number
+  currentProjectId: string | null
+  onShowQr: () => void
 }) {
   const [dragY, setDragY] = useState(0)
   const [dragging, setDragging] = useState(false)
@@ -228,6 +240,49 @@ function MobileNavPanel({
         ))}
       </div>
 
+      {/* Project chrome — Scanner / QR / Kiosk in a 3-up grid of
+          squared icon buttons. Only renders when there's a current
+          project context. Sits directly above the Sign out button
+          per the v2.3 nav refresh. */}
+      {currentProjectId && (
+        <div className="shrink-0 px-4 pt-2">
+          <div className="grid grid-cols-3 gap-2">
+            <DisclosureButton
+              as="a"
+              href={`/radios/scan?project=${currentProjectId}`}
+              aria-label="Scan radio barcode"
+              className="flex items-center justify-center rounded-lg border border-white/10 px-5 py-4 text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+            >
+              <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h3.375M15.75 3.75h3.375c.621 0 1.125.504 1.125 1.125v3.375M20.25 15.75v3.375c0 .621-.504 1.125-1.125 1.125h-3.375M8.25 20.25H4.875A1.125 1.125 0 0 1 3.75 19.125V15.75M7.5 7.5h.008v.008H7.5V7.5Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm6.75 0h.008v.008h-.008V7.5Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-7.5 6.75h.008v.008H7.5v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM12 7.5v3.75m0 0v3.75m0-3.75h3.75M12 11.25H8.25" />
+              </svg>
+            </DisclosureButton>
+            <DisclosureButton
+              as="button"
+              onClick={onShowQr}
+              aria-label="Show join QR"
+              className="flex items-center justify-center rounded-lg border border-white/10 px-5 py-4 text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+            >
+              <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75ZM6.75 16.5h.75v.75h-.75v-.75ZM16.5 6.75h.75v.75h-.75v-.75ZM13.5 13.5h.75v.75h-.75v-.75ZM13.5 19.5h.75v.75h-.75v-.75ZM19.5 13.5h.75v.75h-.75v-.75ZM19.5 19.5h.75v.75h-.75v-.75ZM16.5 16.5h.75v.75h-.75v-.75Z" />
+              </svg>
+            </DisclosureButton>
+            <DisclosureButton
+              as="a"
+              href={`/projects/${currentProjectId}/kiosk`}
+              aria-label="Open kiosk"
+              className="flex items-center justify-center rounded-lg border border-white/10 px-5 py-4 text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+            >
+              <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6a3 3 0 0 1 3-3h13.5a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V6Z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21h7.5M12 18v3" />
+              </svg>
+            </DisclosureButton>
+          </div>
+        </div>
+      )}
+
       {/* Sign out */}
       <div className="shrink-0 px-4 pt-2 pb-6">
         {onSignOut && (
@@ -254,6 +309,8 @@ export function Navbar({
   logoAlt = 'Clair',
   onSignOut,
   notificationUnread = 0,
+  currentProjectId = null,
+  currentProjectName = null,
 }: NavbarProps) {
   // Tracks which nav link was most recently pressed so we can render a
   // lingering cyan chip around it for ~1s after the tap. Pure CSS
@@ -269,7 +326,44 @@ export function Navbar({
       setPressedHref(null)
     }, NAV_PRESS_LINGER_MS)
   }
+
+  // Project-scoped chrome modal (join QR). Opened from the Scanner/
+  // QR/Kiosk button cluster in the nav; closes via backdrop tap or X.
+  // The PIN is fetched lazily on open so the navbar doesn't have to
+  // know the PIN ahead of time.
+  const [qrOpen, setQrOpen] = useState(false)
+  const [qrLoading, setQrLoading] = useState(false)
+  const [qrPin, setQrPin] = useState<string | null>(null)
+  const [qrError, setQrError] = useState<string | null>(null)
+  function openQr() {
+    if (!currentProjectId) return
+    setQrOpen(true)
+    setQrLoading(true)
+    setQrError(null)
+    setQrPin(null)
+    fetch(`/api/projects/${currentProjectId}/pin`, { cache: 'no-store' })
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error(`Failed (${res.status})`)
+        }
+        const data = (await res.json()) as { pin: string }
+        setQrPin(data.pin)
+      })
+      .catch((e) => {
+        setQrError(e instanceof Error ? e.message : 'Unable to load QR')
+      })
+      .finally(() => setQrLoading(false))
+  }
+  function closeQr() {
+    setQrOpen(false)
+    setQrPin(null)
+    setQrError(null)
+  }
+  const joinUrl =
+    qrPin != null ? `https://versacom-app.vercel.app/login/join?pin=${qrPin}` : null
+  const hasProjectContext = !!currentProjectId
   return (
+    <>
     <Disclosure as="nav" className="sticky top-0 z-40 bg-[#202020]">
       {({ open, close }) => (
         <>
@@ -343,10 +437,55 @@ export function Navbar({
                   })}
                 </div>
               </div>
-              <div className="hidden sm:ml-6 sm:flex sm:items-center">
+              <div className="hidden sm:ml-6 sm:flex sm:items-center sm:gap-2">
+                {/* Project-scoped chrome — Scanner, QR, Kiosk. Sits
+                    left of the notification bell. Hidden when there
+                    is no current project context (login, profile,
+                    notifications etc.). All three are simple icon
+                    buttons matching the size of the bell. */}
+                {hasProjectContext && (
+                  <div className="flex items-center gap-1">
+                    <a
+                      href={`/radios/scan?project=${currentProjectId}`}
+                      aria-label="Scan radio barcode"
+                      title="Scanner"
+                      className="flex size-9 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:text-white active:bg-[#0178a3] active:text-white"
+                    >
+                      <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h3.375M15.75 3.75h3.375c.621 0 1.125.504 1.125 1.125v3.375M20.25 15.75v3.375c0 .621-.504 1.125-1.125 1.125h-3.375M8.25 20.25H4.875A1.125 1.125 0 0 1 3.75 19.125V15.75M7.5 7.5h.008v.008H7.5V7.5Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm6.75 0h.008v.008h-.008V7.5Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-7.5 6.75h.008v.008H7.5v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM12 7.5v3.75m0 0v3.75m0-3.75h3.75M12 11.25H8.25" />
+                      </svg>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={openQr}
+                      aria-label="Show join QR"
+                      title="Join QR"
+                      className="flex size-9 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:text-white active:bg-[#0178a3] active:text-white"
+                    >
+                      <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75ZM6.75 16.5h.75v.75h-.75v-.75ZM16.5 6.75h.75v.75h-.75v-.75ZM13.5 13.5h.75v.75h-.75v-.75ZM13.5 19.5h.75v.75h-.75v-.75ZM19.5 13.5h.75v.75h-.75v-.75ZM19.5 19.5h.75v.75h-.75v-.75ZM16.5 16.5h.75v.75h-.75v-.75Z" />
+                      </svg>
+                    </button>
+                    <a
+                      href={`/projects/${currentProjectId}/kiosk`}
+                      aria-label="Open kiosk"
+                      title="Kiosk"
+                      className="flex size-9 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:text-white active:bg-[#0178a3] active:text-white"
+                    >
+                      <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6a3 3 0 0 1 3-3h13.5a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V6Z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21h7.5M12 18v3" />
+                      </svg>
+                    </a>
+                  </div>
+                )}
                 <a
                   href="/notifications"
-                  className="relative rounded-full p-1 text-gray-400 hover:text-white focus:outline-2 focus:outline-offset-2 focus:outline-[#0178a3]"
+                  // Press state: bell fills cyan, glyph white. Matches
+                  // the chrome icon-press language used elsewhere in
+                  // the nav.
+                  className="relative rounded-full p-1 text-gray-400 transition-colors hover:text-white active:bg-[#0178a3] active:text-white focus:outline-2 focus:outline-offset-2 focus:outline-[#0178a3]"
                 >
                   <span className="absolute -inset-1.5" />
                   <span className="sr-only">
@@ -372,7 +511,11 @@ export function Navbar({
                     sign-out moved into the profile page. */}
                 <a
                   href="/profile"
-                  className="relative ml-3 flex max-w-xs items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0178a3]"
+                  // `group` so the initials chip can flip its colors
+                  // via group-active: when the link is pressed
+                  // (white bg + cyan glyph — the inverse of its
+                  // default cyan-bg/white-glyph state).
+                  className="group relative ml-3 flex max-w-xs items-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0178a3]"
                 >
                   <span className="absolute -inset-1.5" />
                   <span className="sr-only">Open profile</span>
@@ -383,7 +526,7 @@ export function Navbar({
                       className="size-8 rounded-full outline -outline-offset-1 outline-white/10"
                     />
                   ) : (
-                    <span className="flex size-8 items-center justify-center rounded-full bg-[#0178a3] text-sm font-medium text-white outline -outline-offset-1 outline-white/10">
+                    <span className="flex size-8 items-center justify-center rounded-full bg-[#0178a3] text-sm font-medium text-white outline -outline-offset-1 outline-white/10 transition-colors group-active:bg-white group-active:text-[#0178a3]">
                       {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                     </span>
                   )}
@@ -409,9 +552,43 @@ export function Navbar({
             logoAlt={logoAlt}
             onSignOut={onSignOut}
             notificationUnread={notificationUnread}
+            currentProjectId={currentProjectId}
+            onShowQr={() => {
+              close()
+              openQr()
+            }}
           />
         </>
       )}
     </Disclosure>
+
+    {/* Join-QR modal — opened from either the desktop chrome strip
+        or the mobile slide-down. Renders the QR for the current
+        project's join URL. PIN is fetched lazily via /api on open. */}
+    <Modal
+      open={qrOpen}
+      onClose={closeQr}
+      title={currentProjectName ? `Join — ${currentProjectName}` : 'Join QR'}
+    >
+      {qrLoading && (
+        <div className="flex h-64 items-center justify-center text-sm text-gray-400">
+          Loading…
+        </div>
+      )}
+      {qrError && (
+        <p className="py-4 text-center text-sm text-red-400">{qrError}</p>
+      )}
+      {!qrLoading && !qrError && joinUrl && (
+        <div className="flex flex-col items-center gap-3 py-2">
+          <div className="rounded-2xl bg-white p-4">
+            <QRCodeSVG value={joinUrl} size={220} level="M" />
+          </div>
+          <span className="break-all text-center font-mono text-[11px] text-gray-400">
+            {joinUrl}
+          </span>
+        </div>
+      )}
+    </Modal>
+    </>
   )
 }

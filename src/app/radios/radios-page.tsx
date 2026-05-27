@@ -6,9 +6,7 @@ import { PageLayout } from '@/components/page-layout'
 import { EmptyState } from '@/components/empty-state'
 import { ComboboxInput } from '@/components/combobox-input'
 import { IconButton } from '@/components/icon-button'
-import { QRCodeSVG } from 'qrcode.react'
 import { ProjectSwitcher } from '@/app/project-dashboard'
-import { Modal } from '@/components/modal'
 import { RadioStatusSelect } from '@/components/radio-status-select'
 import type { RadioStatus } from '@/lib/radio-status'
 import {
@@ -103,7 +101,6 @@ export function RadiosPage({
   // zones on Radio channels).
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [showJoinQr, setShowJoinQr] = useState(false)
 
   const visibleRadios = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
@@ -231,35 +228,10 @@ export function RadiosPage({
         // Desktop: switcher's min-w-[280px] kicks in so its width
         // doesn't depend on viewport math.
         <div className="flex items-center justify-end gap-2">
-          {/* QR — opens the join-QR modal. Sits to the LEFT of the
-              scanner icon, mirroring the Comms header chrome. */}
-          {selectedProject?.pin && (
-            <button
-              type="button"
-              onClick={() => setShowJoinQr(true)}
-              aria-label="Show join QR"
-              title="Show join QR"
-              className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
-            >
-              <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75ZM6.75 16.5h.75v.75h-.75v-.75ZM16.5 6.75h.75v.75h-.75v-.75ZM13.5 13.5h.75v.75h-.75v-.75ZM13.5 19.5h.75v.75h-.75v-.75ZM19.5 13.5h.75v.75h-.75v-.75ZM19.5 19.5h.75v.75h-.75v-.75ZM16.5 16.5h.75v.75h-.75v-.75Z" />
-              </svg>
-            </button>
-          )}
-          {/* Scanner — sits to the LEFT of the project switcher,
-              RIGHT of the QR icon. */}
-          {selectedProject && (
-            <a
-              href={`/radios/scan?project=${selectedProject.id}`}
-              aria-label="Scan radio barcode"
-              className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
-            >
-              <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h3.375M15.75 3.75h3.375c.621 0 1.125.504 1.125 1.125v3.375M20.25 15.75v3.375c0 .621-.504 1.125-1.125 1.125h-3.375M8.25 20.25H4.875A1.125 1.125 0 0 1 3.75 19.125V15.75M7.5 7.5h.008v.008H7.5V7.5Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm6.75 0h.008v.008h-.008V7.5Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-7.5 6.75h.008v.008H7.5v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM12 7.5v3.75m0 0v3.75m0-3.75h3.75M12 11.25H8.25" />
-              </svg>
-            </a>
-          )}
+          {/* QR + Scanner icon buttons moved into the global Navbar
+              (left of the bell on desktop, in the 3-up grid on
+              mobile). The header just owns the project switcher
+              now. */}
           {userProjects.length > 0 && (
             <div className="w-[calc(50vw-1rem)] sm:w-auto">
               <ProjectSwitcher
@@ -508,31 +480,9 @@ export function RadiosPage({
       </div>
     </PageLayout>
 
-    {/* Join-QR modal — opened by the QR icon in the header. Renders
-        the project's join URL as a QR code (login screen pre-fills
-        the PIN when scanned). */}
-    {selectedProject?.pin && (
-      <Modal
-        open={showJoinQr}
-        title="Join QR"
-        onClose={() => setShowJoinQr(false)}
-      >
-        {(() => {
-          const joinUrl = `https://versacom-app.vercel.app/login/join?pin=${selectedProject.pin}`
-          return (
-            <div className="flex flex-col items-center gap-3">
-              <p className="text-xs text-gray-500">
-                Show this to crew during gear deployment. Scanning pre-fills the project PIN; existing users sign in, new users create their PIN.
-              </p>
-              <div className="rounded-xl bg-white p-3">
-                <QRCodeSVG value={joinUrl} size={220} level="M" />
-              </div>
-              <span className="break-all text-center font-mono text-[11px] text-gray-400">{joinUrl}</span>
-            </div>
-          )
-        })()}
-      </Modal>
-    )}
+    {/* The page-local join-QR modal moved to the global Navbar so
+        the QR icon now lives in the nav alongside Scanner + Kiosk
+        (left of the bell on desktop, in the 3-up grid on mobile). */}
     </>
   )
 }

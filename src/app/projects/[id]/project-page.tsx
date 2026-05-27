@@ -1509,43 +1509,10 @@ export function ProjectPage({
             // (w-[calc(50vw-1rem)] accounts for the px-4 page
             // padding). Desktop: switcher's min-w-[280px] kicks in.
             <div className="flex items-center justify-end gap-2">
-              {/* QR — opens the join-QR modal (project PIN as a QR
-                  code, scannable from the login screen). */}
-              <button
-                type="button"
-                onClick={() => setShowTeamQr(true)}
-                aria-label="Show join QR"
-                title="Show join QR"
-                // Press state turns the chrome icon button cyan with
-                // white glyphs so taps register the same way the nav
-                // chips do. active: covers mouse + touch; focus-visible
-                // keeps a keyboard outline.
-                className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
-              >
-                <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75ZM6.75 16.5h.75v.75h-.75v-.75ZM16.5 6.75h.75v.75h-.75v-.75ZM13.5 13.5h.75v.75h-.75v-.75ZM13.5 19.5h.75v.75h-.75v-.75ZM19.5 13.5h.75v.75h-.75v-.75ZM19.5 19.5h.75v.75h-.75v-.75ZM16.5 16.5h.75v.75h-.75v-.75Z" />
-                </svg>
-              </button>
-              {/* Kiosk — opens in the SAME tab so Next.js can do a
-                  client-side route transition. Previously this used
-                  target="_blank" which caused a visible white-flash on
-                  Vercel: a brand-new browser tab paints its default
-                  blank-white state before any HTML/CSS arrives. With
-                  same-tab navigation the existing dark UI stays
-                  painted throughout. The kiosk's X button already
-                  returns to /projects/[id], so the round-trip works. */}
-              <Link
-                href={`/projects/${project.id}/kiosk`}
-                aria-label="Open kiosk"
-                title="Open kiosk"
-                className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
-              >
-                <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6a3 3 0 0 1 3-3h13.5a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V6Z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21h7.5M12 18v3" />
-                </svg>
-              </Link>
+              {/* Header chrome (QR / Kiosk icon buttons) moved into
+                  the global Navbar — left of the notifications bell
+                  on desktop, in the 3-up grid on mobile. The header
+                  just owns the project switcher now. */}
               <div className="w-[calc(50vw-1rem)] sm:w-auto">
                 <ProjectSwitcher
                   projectId={project.id}
