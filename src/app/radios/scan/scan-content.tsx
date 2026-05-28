@@ -304,8 +304,26 @@ export function ScanContent({
         const isLikelyBack = /back|rear|environment/i.test(back.label)
         setVideoMirrored(!isLikelyBack)
         try {
-          const controls = await reader.decodeFromVideoDevice(
-            back.deviceId,
+          // Use decodeFromConstraints so we can pass higher-res
+          // capture + focus/exposure hints alongside the deviceId.
+          // ideal width/height = 1920x1080 (the browser picks the
+          // closest supported mode). On phones this is night-and-day
+          // for damaged / faded labels — each QR module gets 3-4x
+          // more pixels for ZXing to work with. The constraints
+          // object is cast through `as MediaTrackConstraints` so we
+          // can also pass non-standard focusMode / exposureMode
+          // flags (Chromium / Image Capture spec) without TS
+          // complaining; browsers silently ignore what they don't
+          // understand.
+          const controls = await reader.decodeFromConstraints(
+            {
+              video: {
+                deviceId: { exact: back.deviceId },
+                width: { ideal: 1920 },
+                height: { ideal: 1080 },
+                facingMode: { ideal: 'environment' },
+              } as MediaTrackConstraints,
+            },
             videoRef.current!,
             (result, err) => {
               if (!result) return
@@ -364,6 +382,39 @@ export function ScanContent({
             return
           }
           controlsRef.current = controls
+
+          // Stream is live — try to switch the camera into
+          // continuous autofocus and continuous auto-exposure for
+          // better reads on damaged / faded labels. Both flags are
+          // non-standard (Image Capture spec); browsers that don't
+          // support them will reject or silently ignore. We probe
+          // the track's getCapabilities() first to skip the apply
+          // call when the device says no.
+          const stream = videoRef.current?.srcObject as MediaStream | null
+          const track = stream?.getVideoTracks?.()[0]
+          if (track && typeof track.getCapabilities === 'function') {
+            const caps = track.getCapabilities() as {
+              focusMode?: string[]
+              exposureMode?: string[]
+            }
+            const extra: Record<string, string> = {}
+            if (caps.focusMode?.includes('continuous')) {
+              extra.focusMode = 'continuous'
+            }
+            if (caps.exposureMode?.includes('continuous')) {
+              extra.exposureMode = 'continuous'
+            }
+            if (Object.keys(extra).length > 0) {
+              try {
+                await track.applyConstraints({
+                  advanced: [extra],
+                } as MediaTrackConstraints)
+              } catch {
+                // Hardware refused — fine, default focus/exposure
+                // still works, we just don't get the boost.
+              }
+            }
+          }
         } catch (e) {
           const msg =
             e instanceof Error ? e.message : 'Camera unavailable — check permissions.'
