@@ -272,16 +272,17 @@ export function ScanContent({
   // ─── Camera lifecycle ─────────────────────────────────────────────
   useEffect(() => {
     if (!videoRef.current) return
-    // Decode hints:
-    //   • ALSO_INVERTED — also try a polarity-inverted bitmap each
-    //     frame so we read both standard (black-on-white) AND inverted
-    //     (white-on-black) Clair labels. Some asset tags are printed
-    //     reversed-out, and the default decoder skips those.
+    // Decode hint:
     //   • TRY_HARDER — spend a bit more CPU per frame for harder reads
     //     (off-angle, low-contrast, partially obstructed). Pays off
     //     for small dense codes like the Clair `C######` tags.
+    //
+    // ALSO_INVERTED was the obvious companion (white-on-black labels)
+    // but the installed @zxing/library 0.22.0 doesn't define it (added
+    // in a later release). Bumping the package version is a separate
+    // change — for now we live without the auto-inversion, since the
+    // labels you've shown so far are all dark-on-light.
     const hints = new Map<DecodeHintType, unknown>()
-    hints.set(DecodeHintType.ALSO_INVERTED, true)
     hints.set(DecodeHintType.TRY_HARDER, true)
     const reader = new BrowserMultiFormatReader(hints)
     let cancelled = false
