@@ -101,6 +101,21 @@ export function RadiosPage({
   const [showAddZone, setShowAddZone] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<RadiosTab>('equipment')
+
+  // Multi-operator polling — when crew members on a different device
+  // scan a walkie via /radios/scan, the underlying DB rows update but
+  // this page's already-rendered list stays frozen. Refresh every 8s
+  // so out/returned/status flips made elsewhere on the show propagate
+  // without the operator having to navigate away and back. Suppressed
+  // while a row is being edited or an add card is open so we don't
+  // wipe out in-progress changes.
+  useEffect(() => {
+    if (editingId !== null || showAdd || showAddZone) return
+    const interval = setInterval(() => {
+      router.refresh()
+    }, 8000)
+    return () => clearInterval(interval)
+  }, [router, editingId, showAdd, showAddZone])
   // Search toggle + active query — same pattern as the Comms page.
   // Icon by default, expands inline into an input with an X close.
   // The query filters whichever tab is active (radios on Equipment,

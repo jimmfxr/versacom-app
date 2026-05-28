@@ -515,6 +515,10 @@ export async function assignRadioFromScan(
     surveillanceBarcode?: string | null
     doubleMuffBarcode?: string | null
     lightweightBarcode?: string | null
+    /** Internal recursion guard — number of times the action has
+     *  hopped to a fresh target radio because the previous one was
+     *  claimed by a concurrent scan. Don't pass from callers. */
+    _reassignHops?: number
   },
 ) {
   const session = await getSession()
@@ -533,14 +537,43 @@ export async function assignRadioFromScan(
   if (!scannedBarcode) return { error: 'Barcode is required' }
   if (scannedBarcode.length > MAX_BARCODE) return { error: 'Barcode too long' }
 
-  // If the radio already has a DIFFERENT barcode, something's off — bail
-  // rather than silently overwrite. Refresh and rescan handles it.
+  // Concurrent-scan recovery: the target radio row already has a
+  // DIFFERENT barcode, meaning another operator's scan claimed this
+  // blank slot between our lookup and our assign. Find the next
+  // available blank row (status='na', barcode=null) and recurse so
+  // every downstream check still runs against the correct radio.
+  // Capped at 25 hops to prevent an infinite loop if someone manages
+  // to fill the entire project's pool between iterations.
+  const MAX_REASSIGN_HOPS = 25
   if (radio.barcode && radio.barcode !== scannedBarcode) {
-    return { error: `That radio is already barcoded as "${radio.barcode}"` }
+    const hops = (data._reassignHops ?? 0) + 1
+    if (hops > MAX_REASSIGN_HOPS) {
+      return {
+        error:
+          'No blank radio rows left — bulk-create more in the Radios tab.',
+      }
+    }
+    const nextBlank = await prisma.radio.findFirst({
+      where: {
+        projectId: radio.projectId,
+        barcode: null,
+        status: 'na',
+      },
+      orderBy: { name: 'asc' },
+      select: { id: true },
+    })
+    if (!nextBlank) {
+      return {
+        error:
+          'No blank radio rows left — bulk-create more in the Radios tab.',
+      }
+    }
+    return assignRadioFromScan(nextBlank.id, { ...data, _reassignHops: hops })
   }
-  // Also reject if this barcode is already on a different radio (would
-  // be a duplicate in the project — should be impossible because lookup
-  // would have routed elsewhere, but guard for races).
+
+  // If this exact barcode is already on a different radio, treat the
+  // scan as a no-op success — another operator just registered this
+  // walkie. Returning success keeps the UI flowing instead of erroring.
   const dupe = await prisma.radio.findFirst({
     where: {
       projectId: radio.projectId,
@@ -550,7 +583,8 @@ export async function assignRadioFromScan(
     select: { id: true, name: true },
   })
   if (dupe) {
-    return { error: `Barcode already assigned to ${dupe.name}` }
+    revalidatePath('/radios')
+    return { success: true }
   }
 
   await prisma.radio.update({
