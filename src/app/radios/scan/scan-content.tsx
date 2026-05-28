@@ -51,16 +51,23 @@ type ToastState = { kind: 'success' | 'error'; message: string } | null
 // 30x/sec doesn't spam writes or stack modals.
 type ScanMode = 'idle' | 'busy' | 'modal'
 
-// Clair asset tags are "C######" — capital C followed by 6 to 8
-// digits. Anything else (Pliant battery DM codes, RoHS Code 128,
-// random QR codes in the background, etc.) gets silently ignored
-// so the operator's scanner doesn't accidentally try to look up a
-// non-radio barcode.
-const CLAIR_TAG_PATTERN = /^C\d{6,8}$/
+// Vendor asset-tag whitelist. Real-world labels seen on rental gear
+// include several patterns:
+//   Clair        → C1109512, C1670274, C775553   (C + 6–7 digits)
+//                  8091092, 8101383, 351686       (bare 6–7 digits)
+//   Britannia    → 660319                          (bare 6 digits)
+//   Riedel       → A64243                          (A + 5 digits)
+//   Mixed bag    → other rental houses use letter-prefix codes
+// Pattern: 4–12 uppercase-alphanumeric characters with NO spaces,
+// dashes, or punctuation. Tight enough to reject background junk
+// (URLs, RoHS Code 128 with `/` separators, English words from
+// random scanned posters) while permissive enough for any short
+// alphanumeric asset tag a vendor might stamp.
+const ASSET_TAG_PATTERN = /^[A-Z0-9]{4,12}$/
 
-/** Reject any decoded value that doesn't match a Clair asset tag. */
-function isValidClairTag(s: string): boolean {
-  return CLAIR_TAG_PATTERN.test(s.trim())
+/** Reject any decoded value that doesn't look like a short asset tag. */
+function isValidAssetTag(s: string): boolean {
+  return ASSET_TAG_PATTERN.test(s.trim().toUpperCase())
 }
 
 export function ScanContent({
@@ -357,12 +364,15 @@ export function ScanContent({
                 if (outside) return
               }
 
-              // ── Clair format filter ──────────────────────────────
-              // Only accept the Clair asset-tag pattern. Any other
-              // decoded value (Data Matrix on a battery pack, a
-              // poster QR, a UPC, etc.) is silently ignored and the
-              // scan loop keeps running.
-              if (!isValidClairTag(value)) return
+              // ── Asset-tag format filter ──────────────────────────
+              // Accept the broad asset-tag pattern (4–12 uppercase
+              // alphanumeric, no separators). Catches Clair tags
+              // with or without the C prefix, Riedel A-prefixed
+              // codes, Britannia Row bare digits, etc. Background
+              // junk (UPC barcodes on packaging with 13 digits,
+              // text on signage with spaces / slashes, URLs) gets
+              // silently rejected and the scan loop keeps running.
+              if (!isValidAssetTag(value)) return
 
               // Debounce same-barcode reads within 1.5s so a barcode
               // sitting in front of the camera doesn't re-fire.
@@ -455,13 +465,16 @@ export function ScanContent({
 
   // Manual entry fallback — for when the camera can't be opened (perm
   // denied, no device) so the operator can still complete a check-out.
-  // Same Clair-tag format validation as the camera path so typo'd
+  // Same asset-tag format validation as the camera path so typo'd
   // entries surface an error toast instead of hitting the server.
   function submitManual() {
     const value = manualBarcode.trim()
     if (!value) return
-    if (!isValidClairTag(value)) {
-      showToast('error', 'Not a Clair tag — must look like C123456')
+    if (!isValidAssetTag(value)) {
+      showToast(
+        'error',
+        'Not a valid asset tag — 4–12 letters/digits, no spaces.',
+      )
       return
     }
     setManualBarcode('')
