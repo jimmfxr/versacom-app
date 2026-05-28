@@ -5,6 +5,11 @@
 // deploy. Add caching later if/when we decide we want offline support,
 // with a clear cache-versioning strategy.
 
+// SW_VERSION — bump on any sw.js content change so the browser
+// byte-compares as different and triggers an install. Drives the
+// "New version available" banner via the SkipWaiting flow.
+const SW_VERSION = '2026-05-28.1'
+
 self.addEventListener('install', () => {
   // Do NOT call skipWaiting() here. We want the new worker to sit in
   // the "waiting" state so the client can show an "update available"
@@ -14,6 +19,10 @@ self.addEventListener('install', () => {
 })
 
 self.addEventListener('activate', (event) => {
+  // Log the SW version on activate so it's visible in DevTools
+  // → Application → Service Workers (useful when debugging a
+  // stuck-on-old-version PWA).
+  console.log('[sw] activated', SW_VERSION)
   event.waitUntil(self.clients.claim())
 })
 
