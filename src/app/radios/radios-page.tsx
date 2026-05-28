@@ -127,9 +127,9 @@ export function RadiosPage({
 
   // Sort + assignment-filter chips. Persisted in sessionStorage so
   // the operator's picks survive a navigate-away-and-back.
-  type RadioSort = 'name-asc' | 'name-desc' | 'id-asc' | 'id-desc'
+  type RadioSort = 'user-asc' | 'user-desc' | 'id-asc' | 'id-desc'
   type RadioFilter = 'all' | 'unassigned'
-  const [sortBy, setSortBy] = usePersistentState<RadioSort>('radios:sort', 'name-asc')
+  const [sortBy, setSortBy] = usePersistentState<RadioSort>('radios:sort', 'id-desc')
   const [filterBy, setFilterBy] = usePersistentState<RadioFilter>('radios:filter', 'all')
 
   const visibleRadios = useMemo(() => {
@@ -139,6 +139,10 @@ export function RadiosPage({
       r.assignedToProjectMemberId != null ||
       (r.firstName ? r.firstName.trim().length > 0 : false) ||
       (r.lastName ? r.lastName.trim().length > 0 : false)
+    // User-name sort key — combined first+last so people get grouped
+    // by family. Empty names sort to the bottom regardless of asc/desc
+    // direction so unassigned radios never crowd the top of the list.
+    const userKey = (r: Radio) => `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim().toLowerCase()
     let list = radios
     if (filterBy === 'unassigned') list = list.filter((r) => !isAssigned(r))
     if (q) {
@@ -158,8 +162,24 @@ export function RadiosPage({
     }
     const sorted = [...list]
     switch (sortBy) {
-      case 'name-asc': sorted.sort((a, b) => collator.compare(a.name, b.name)); break
-      case 'name-desc': sorted.sort((a, b) => collator.compare(b.name, a.name)); break
+      case 'user-asc':
+        sorted.sort((a, b) => {
+          const ak = userKey(a), bk = userKey(b)
+          if (!ak && !bk) return 0
+          if (!ak) return 1
+          if (!bk) return -1
+          return collator.compare(ak, bk)
+        })
+        break
+      case 'user-desc':
+        sorted.sort((a, b) => {
+          const ak = userKey(a), bk = userKey(b)
+          if (!ak && !bk) return 0
+          if (!ak) return 1
+          if (!bk) return -1
+          return collator.compare(bk, ak)
+        })
+        break
       case 'id-asc': sorted.sort((a, b) => a.id - b.id); break
       case 'id-desc': sorted.sort((a, b) => b.id - a.id); break
     }
@@ -342,11 +362,43 @@ export function RadiosPage({
           {/* + Add moved into the page header (left of project dropdown). */}
         </div>
 
-        {/* Stats row. + Add lives in the page header now. */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="text-xs font-medium text-gray-500">
-            {assignedRadios} of {totalRadios} assigned
-          </div>
+        {/* Filters (left) + desktop tab dropdown + search (right) —
+            same single-row pattern as the Comms Equipment tab. On
+            mobile the row collapses to just the filter chips; on
+            desktop the tab/search slides in on the right. */}
+        <div
+          className={`items-center gap-2 sm:gap-3 ${
+            tab === 'equipment' ? 'flex' : 'hidden sm:flex'
+          }`}
+        >
+          {tab === 'equipment' ? (
+            <div className="flex flex-1 gap-2">
+              <FilterDropdown
+                ariaLabel="Sort radios"
+                value={sortBy}
+                onChange={(v) => setSortBy(v as typeof sortBy)}
+                widthClass="min-w-0 flex-1 sm:flex-none sm:w-44 sm:shrink-0"
+                options={[
+                  { value: 'user-asc', label: 'User A → Z' },
+                  { value: 'user-desc', label: 'User Z → A' },
+                  { value: 'id-asc', label: 'ID low → high' },
+                  { value: 'id-desc', label: 'ID high → low' },
+                ]}
+              />
+              <FilterDropdown
+                ariaLabel="Filter radios"
+                value={filterBy}
+                onChange={(v) => setFilterBy(v as typeof filterBy)}
+                widthClass="min-w-0 flex-1 sm:flex-none sm:w-40 sm:shrink-0"
+                options={[
+                  { value: 'all', label: 'All radios' },
+                  { value: 'unassigned', label: 'Unassigned' },
+                ]}
+              />
+            </div>
+          ) : (
+            <div className="hidden flex-1 sm:block" />
+          )}
           <div className="hidden items-center gap-2 sm:flex">
             {!searchOpen && (
               <div className="w-[280px] min-w-0">
@@ -357,36 +409,10 @@ export function RadiosPage({
           </div>
         </div>
 
-        {/* Sort + assignment-filter chips. Only on the Equipment tab
-            (the Zones tab doesn't have an assignment concept). Mobile
-            stacks them in a 50/50 row; desktop keeps the chip width
-            so they sit on the left of the same row. */}
-        {tab === 'equipment' && (
-          <div className="flex items-center gap-2">
-            <FilterDropdown
-              ariaLabel="Sort radios"
-              value={sortBy}
-              onChange={(v) => setSortBy(v as typeof sortBy)}
-              widthClass="flex-1 sm:flex-none sm:w-44"
-              options={[
-                { value: 'name-asc', label: 'Name A → Z' },
-                { value: 'name-desc', label: 'Name Z → A' },
-                { value: 'id-asc', label: 'ID low → high' },
-                { value: 'id-desc', label: 'ID high → low' },
-              ]}
-            />
-            <FilterDropdown
-              ariaLabel="Filter radios"
-              value={filterBy}
-              onChange={(v) => setFilterBy(v as typeof filterBy)}
-              widthClass="flex-1 sm:flex-none sm:w-40"
-              options={[
-                { value: 'all', label: 'All radios' },
-                { value: 'unassigned', label: 'Unassigned' },
-              ]}
-            />
-          </div>
-        )}
+        {/* Stats text — sits beneath the filter chips. */}
+        <div className="text-xs font-medium text-gray-500">
+          {assignedRadios} of {totalRadios} assigned
+        </div>
       </div>
 
       {error && (
