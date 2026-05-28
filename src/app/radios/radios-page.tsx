@@ -10,6 +10,8 @@ import { ProjectSwitcher } from '@/app/project-dashboard'
 import { RadioStatusSelect } from '@/components/radio-status-select'
 import type { RadioStatus } from '@/lib/radio-status'
 import { RadioAccessoryInventoryEditor } from '@/components/radio-accessory-inventory-editor'
+import { FilterDropdown } from '@/components/filter-dropdown'
+import { usePersistentState } from '@/lib/use-persistent-state'
 import {
   bulkCreateRadios,
   updateRadio,
@@ -123,23 +125,46 @@ export function RadiosPage({
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
+  // Sort + assignment-filter chips. Persisted in sessionStorage so
+  // the operator's picks survive a navigate-away-and-back.
+  type RadioSort = 'name-asc' | 'name-desc' | 'id-asc' | 'id-desc'
+  type RadioFilter = 'all' | 'unassigned'
+  const [sortBy, setSortBy] = usePersistentState<RadioSort>('radios:sort', 'name-asc')
+  const [filterBy, setFilterBy] = usePersistentState<RadioFilter>('radios:filter', 'all')
+
   const visibleRadios = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
-    if (!q) return radios
-    return radios.filter((r) => {
-      const haystack = [
-        r.name,
-        r.firstName ?? '',
-        r.lastName ?? '',
-        r.department ?? '',
-        r.position ?? '',
-        r.barcode ?? '',
-      ]
-        .join(' ')
-        .toLowerCase()
-      return haystack.includes(q)
-    })
-  }, [radios, searchQuery])
+    const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
+    const isAssigned = (r: Radio) =>
+      r.assignedToProjectMemberId != null ||
+      (r.firstName ? r.firstName.trim().length > 0 : false) ||
+      (r.lastName ? r.lastName.trim().length > 0 : false)
+    let list = radios
+    if (filterBy === 'unassigned') list = list.filter((r) => !isAssigned(r))
+    if (q) {
+      list = list.filter((r) => {
+        const haystack = [
+          r.name,
+          r.firstName ?? '',
+          r.lastName ?? '',
+          r.department ?? '',
+          r.position ?? '',
+          r.barcode ?? '',
+        ]
+          .join(' ')
+          .toLowerCase()
+        return haystack.includes(q)
+      })
+    }
+    const sorted = [...list]
+    switch (sortBy) {
+      case 'name-asc': sorted.sort((a, b) => collator.compare(a.name, b.name)); break
+      case 'name-desc': sorted.sort((a, b) => collator.compare(b.name, a.name)); break
+      case 'id-asc': sorted.sort((a, b) => a.id - b.id); break
+      case 'id-desc': sorted.sort((a, b) => b.id - a.id); break
+    }
+    return sorted
+  }, [radios, searchQuery, sortBy, filterBy])
 
   const visibleZones = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
@@ -331,6 +356,37 @@ export function RadiosPage({
             {searchBlock}
           </div>
         </div>
+
+        {/* Sort + assignment-filter chips. Only on the Equipment tab
+            (the Zones tab doesn't have an assignment concept). Mobile
+            stacks them in a 50/50 row; desktop keeps the chip width
+            so they sit on the left of the same row. */}
+        {tab === 'equipment' && (
+          <div className="flex items-center gap-2">
+            <FilterDropdown
+              ariaLabel="Sort radios"
+              value={sortBy}
+              onChange={(v) => setSortBy(v as typeof sortBy)}
+              widthClass="flex-1 sm:flex-none sm:w-44"
+              options={[
+                { value: 'name-asc', label: 'Name A → Z' },
+                { value: 'name-desc', label: 'Name Z → A' },
+                { value: 'id-asc', label: 'ID low → high' },
+                { value: 'id-desc', label: 'ID high → low' },
+              ]}
+            />
+            <FilterDropdown
+              ariaLabel="Filter radios"
+              value={filterBy}
+              onChange={(v) => setFilterBy(v as typeof filterBy)}
+              widthClass="flex-1 sm:flex-none sm:w-40"
+              options={[
+                { value: 'all', label: 'All radios' },
+                { value: 'unassigned', label: 'Unassigned' },
+              ]}
+            />
+          </div>
+        )}
       </div>
 
       {error && (
