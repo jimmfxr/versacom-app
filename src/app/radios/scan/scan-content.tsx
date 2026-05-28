@@ -304,23 +304,22 @@ export function ScanContent({
         const isLikelyBack = /back|rear|environment/i.test(back.label)
         setVideoMirrored(!isLikelyBack)
         try {
-          // Use decodeFromConstraints so we can pass higher-res
-          // capture + focus/exposure hints alongside the deviceId.
-          // ideal width/height = 1920x1080 (the browser picks the
-          // closest supported mode). On phones this is night-and-day
-          // for damaged / faded labels — each QR module gets 3-4x
-          // more pixels for ZXing to work with. The constraints
-          // object is cast through `as MediaTrackConstraints` so we
-          // can also pass non-standard focusMode / exposureMode
-          // flags (Chromium / Image Capture spec) without TS
-          // complaining; browsers silently ignore what they don't
-          // understand.
+          // Use decodeFromConstraints so we can pass focus / exposure
+          // hints alongside the deviceId after the stream starts.
+          //
+          // RESOLUTION: deliberately NOT pinned to 1080p. Higher res
+          // means more pixels per frame for ZXing to chew through,
+          // which on mobile CPUs cuts the decode-loop frame rate and
+          // makes the scanner *feel* slower even when individual
+          // reads are sharper. Default browser resolution (usually
+          // 640x480 or 720p) gives faster polling and more attempts
+          // per second — which dominates for QR's built-in error
+          // correction. Continuous focus + auto-exposure (applied
+          // post-stream below) carry the load on damaged labels.
           const controls = await reader.decodeFromConstraints(
             {
               video: {
                 deviceId: { exact: back.deviceId },
-                width: { ideal: 1920 },
-                height: { ideal: 1080 },
                 facingMode: { ideal: 'environment' },
               } as MediaTrackConstraints,
             },
