@@ -52,28 +52,21 @@ export default async function ZonesPublicPage({
           getting cramped. py-8 gives breathing room at the very top
           below the iOS status bar. */}
       <div className="mx-auto max-w-md px-5 py-8 sm:max-w-4xl sm:px-8">
-        {/* Header: Clair logo centered up top, then a left-aligned
-            block with "Radios" label and the project name as the main
-            heading in cyan — bigger so crew can clock the show at a
-            glance from across the room. */}
-        <div className="flex flex-col items-center gap-4">
+        {/* Header on a single row, 3-col grid so "Radios" sits dead
+            center regardless of show-name length: logo far-left,
+            "Radios" centered, project name justified to the right. */}
+        <div className="grid w-full grid-cols-3 items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/clair_logo_white.png"
             alt="Clair"
-            className="h-10 w-auto"
+            className="h-8 w-auto justify-self-start"
           />
-          {/* Mobile: Radios left / project name right (flex). Desktop:
-              3-col grid so the project name sits dead center while
-              Radios stays anchored to the left. The empty third
-              column reserves the right side for symmetry. */}
-          <div className="flex w-full items-baseline justify-between gap-4 sm:grid sm:grid-cols-3">
-            <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-              Radios
-            </h1>
-            <div className="min-w-0 truncate text-2xl font-bold text-[#22a7d3] sm:text-center sm:text-3xl">
-              {project.name}
-            </div>
+          <h1 className="text-center text-base font-bold tracking-tight text-white sm:text-lg">
+            Radios
+          </h1>
+          <div className="min-w-0 justify-self-end truncate text-base font-bold text-[#22a7d3] sm:text-lg">
+            {project.name}
           </div>
         </div>
 
