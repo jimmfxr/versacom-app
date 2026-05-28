@@ -748,7 +748,10 @@ function AssignmentModal({
         setError(res.error)
         return
       }
-      onSaved(targetRadio.name)
+      // Action returns the actual destination radio name — collisions
+      // hop to the next blank row, so the toast must reflect where
+      // the data actually landed (not the slot we opened the modal on).
+      onSaved(res.radioName ?? targetRadio.name)
     })
   }
 

@@ -526,7 +526,7 @@ export async function assignRadioFromScan(
 
   const radio = await prisma.radio.findUnique({
     where: { id: radioId },
-    select: { projectId: true, barcode: true },
+    select: { projectId: true, barcode: true, name: true },
   })
   if (!radio) return { error: 'Radio not found' }
   if (!(await canEditRadios(session.user.id, radio.projectId))) {
@@ -584,7 +584,7 @@ export async function assignRadioFromScan(
   })
   if (dupe) {
     revalidatePath('/radios')
-    return { success: true }
+    return { success: true, radioName: dupe.name }
   }
 
   await prisma.radio.update({
@@ -613,7 +613,7 @@ export async function assignRadioFromScan(
   })
 
   revalidatePath('/radios')
-  return { success: true }
+  return { success: true, radioName: radio.name }
 }
 
 /**
