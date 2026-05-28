@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { QRCodeSVG } from 'qrcode.react'
+import { QrCodeIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { ComboboxInput } from '@/components/combobox-input'
 import { createKioskMember, updatePendingMember } from './actions'
 
@@ -257,6 +258,10 @@ function FormView({
 
   const [pending2, startTransition] = useTransition()
   const [pendingSearch, setPendingSearch] = useState('')
+  // Mobile-only: the side QR card is hidden because it pushed the
+  // pending list off-screen. Tapping the QR icon next to "Add Crew"
+  // opens this modal with the same QR + URL.
+  const [showZonesQr, setShowZonesQr] = useState(false)
 
   const filteredPending = (() => {
     const q = pendingSearch.trim().toLowerCase()
@@ -296,7 +301,20 @@ function FormView({
       <div className="mx-auto flex w-full max-w-3xl flex-shrink-0 flex-col items-center gap-8 sm:flex-row sm:items-start sm:justify-center sm:gap-12">
         {/* Add Crew form — pinned to its previous max-w-sm sizing. */}
         <div className="w-full max-w-sm shrink-0">
-        <h2 className="mb-6 text-center text-xl font-semibold text-white">Add Crew</h2>
+        {/* Header row: text dead-center, QR icon absolute right on
+            mobile so the title doesn't shift off-axis. Hidden at sm+
+            because the side QR card is visible there. */}
+        <div className="relative mb-6">
+          <h2 className="text-center text-xl font-semibold text-white">Add Crew</h2>
+          <button
+            type="button"
+            onClick={() => setShowZonesQr(true)}
+            aria-label="Show radio zones QR code"
+            className="absolute right-0 top-1/2 -translate-y-1/2 rounded-md p-1 text-gray-300 transition-colors hover:bg-white/[0.06] hover:text-white sm:hidden"
+          >
+            <QrCodeIcon className="size-6" />
+          </button>
+        </div>
         <form onSubmit={submit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -361,8 +379,11 @@ function FormView({
         {/* Radio Zones QR — points to the public /zones/[id] page
             so crew can scan with their phone and see this show's
             zone + channel layout without signing in. Same small
-            white card chrome as the join-QR on the project page. */}
-        <div className="flex w-full max-w-[14rem] shrink-0 flex-col items-center gap-3">
+            white card chrome as the join-QR on the project page.
+            Hidden on mobile to keep the pending list above the fold;
+            mobile users open the same QR via the icon next to
+            "Add Crew" which surfaces it in a modal. */}
+        <div className="hidden w-full max-w-[14rem] shrink-0 flex-col items-center gap-3 sm:flex">
           <div className="text-center">
             <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
               Radio Zones
@@ -475,6 +496,51 @@ function FormView({
           </div>
         )}
       </div>
+
+      {/* Mobile-only modal for the Radio Zones QR. Backdrop click +
+          X button both close it. Same content as the desktop side
+          card so admins / crew get the identical scan target. */}
+      {showZonesQr && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6 sm:hidden"
+          onClick={() => setShowZonesQr(false)}
+        >
+          <div
+            className="relative flex w-full max-w-xs flex-col items-center gap-4 rounded-2xl bg-[#2a2a2a] p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setShowZonesQr(false)}
+              aria-label="Close"
+              className="absolute right-3 top-3 rounded-md p-1 text-gray-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+            >
+              <XMarkIcon className="size-5" />
+            </button>
+            <div className="text-center">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                Radio Zones
+              </div>
+              <div className="mt-1 text-sm text-gray-300">Scan for channels</div>
+            </div>
+            <div className="rounded-2xl bg-white p-3">
+              <QRCodeSVG
+                value={`https://versacom-app.vercel.app/zones/${projectId}`}
+                size={208}
+                level="M"
+              />
+            </div>
+            <a
+              href={`https://versacom-app.vercel.app/zones/${projectId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="break-all text-center font-mono text-[10px] text-gray-500 hover:text-gray-300"
+            >
+              versacom-app.vercel.app/zones/{projectId}
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
