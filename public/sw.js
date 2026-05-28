@@ -5,15 +5,28 @@
 // deploy. Add caching later if/when we decide we want offline support,
 // with a clear cache-versioning strategy.
 
-self.addEventListener('install', (event) => {
-  // Activate this SW as soon as it's installed instead of waiting for
-  // every tab to close. Combined with clients.claim() below, a deploy
-  // takes effect on the next navigation.
-  event.waitUntil(self.skipWaiting())
+self.addEventListener('install', () => {
+  // Do NOT call skipWaiting() here. We want the new worker to sit in
+  // the "waiting" state so the client can show an "update available"
+  // banner and let the user choose when to refresh — instead of
+  // forcing a reload mid-task. The client posts a SKIP_WAITING
+  // message (see below) when the user clicks Refresh.
 })
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim())
+})
+
+// Update-available coordination — the client (sw-register.tsx) posts
+// { type: 'SKIP_WAITING' } when the user taps Refresh on the banner.
+// We honor it by calling skipWaiting(), which lets this newly-
+// installed worker take over the page; the activate handler above
+// then claims all open tabs and the client reloads to pick up the
+// new build.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+  }
 })
 
 // Passthrough fetch handler — required by Chrome for the install prompt.

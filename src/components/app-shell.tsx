@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from 'next/navigation'
 import { Navbar, type NavItem, type NavUser } from '@/components/navbar'
 import { ToastContainer } from '@/components/toast'
 import { ScrollToTop } from '@/components/scroll-to-top'
+import { SwUpdateBanner } from '@/components/sw-update-banner'
 
 function getNavigation(
   pathname: string,
@@ -301,14 +302,21 @@ export function AppShell({
           rendered for every other authed route via the root
           layout's AppShell, but kiosk gets the bare children. */}
       {!pathname.includes('/kiosk') && (
-        <Navbar
-          navigation={getNavigation(pathname, isAdmin, isUserOnly, showMyEquipment, canManageRadios, lastProjectId, lastProjectName, taskCount, inMyEquipmentBrowse)}
-          user={navUser}
-          onSignOut={handleSignOut}
-          notificationUnread={notificationUnread}
-          currentProjectId={lastProjectId}
-          currentProjectName={lastProjectName}
-        />
+        <>
+          <Navbar
+            navigation={getNavigation(pathname, isAdmin, isUserOnly, showMyEquipment, canManageRadios, lastProjectId, lastProjectName, taskCount, inMyEquipmentBrowse)}
+            user={navUser}
+            onSignOut={handleSignOut}
+            notificationUnread={notificationUnread}
+            currentProjectId={lastProjectId}
+            currentProjectName={lastProjectName}
+          />
+          {/* "New version available" banner — appears when the
+              service worker has a fresher build waiting. Tap
+              Refresh to skipWaiting + reload. Hidden on kiosk
+              routes (already excluded by the parent guard). */}
+          <SwUpdateBanner />
+        </>
       )}
       {/* Children wrapper is just a flex column with horizontal
           overflow locked. Vertical scroll is owned by individual
