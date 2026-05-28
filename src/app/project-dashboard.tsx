@@ -876,15 +876,21 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
                         Headsets · {headsetRows.length} {headsetRows.length === 1 ? 'type' : 'types'}
                       </CollapsibleLabel>
                       {!headsetsCollapsed && headsetRows.map((r) => (
+                        // Headsets don't move through the Faxed lifecycle the
+                        // way panels do (most are on wireless beltpacks that
+                        // get assigned but never marked Faxed). Treat
+                        // assigned-out-of-brought as the completion signal:
+                        // pass the full assigned count into the leading
+                        // segment and paint it green so the bar reads as
+                        // "we have enough headsets for everyone we assigned."
                         <BarRow
                           key={r.type}
                           label={r.type}
                           count={r.assigned}
                           total={Math.max(r.brought, 1)}
                           tagOverride={`${r.assigned} / ${r.brought}`}
-                          deployed={r.deployed}
-                          done={r.done}
-                          returned={r.returned}
+                          deployed={r.assigned}
+                          deployedClass="bg-green-500/80"
                         />
                       ))}
                     </div>
@@ -1084,41 +1090,24 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
                   <EmptyRow>No radios in this project yet</EmptyRow>
                 ) : (
                   <div className="mt-4">
-                    <BarRow
-                      label="Radios"
-                      count={radioInventory.out}
-                      total={radioInventory.total}
-                      deployed={radioInventory.out}
-                      deployedClass="bg-green-500/80"
-                    />
-                    <BarRow
-                      label="Fist mics"
-                      count={radioInventory.fistMic.out}
-                      total={radioInventory.fistMic.total}
-                      deployed={radioInventory.fistMic.out}
-                      deployedClass="bg-green-500/80"
-                    />
-                    <BarRow
-                      label="Surveillance"
-                      count={radioInventory.surveillance.out}
-                      total={radioInventory.surveillance.total}
-                      deployed={radioInventory.surveillance.out}
-                      deployedClass="bg-green-500/80"
-                    />
-                    <BarRow
-                      label="Double"
-                      count={radioInventory.doubleMuff.out}
-                      total={radioInventory.doubleMuff.total}
-                      deployed={radioInventory.doubleMuff.out}
-                      deployedClass="bg-green-500/80"
-                    />
-                    <BarRow
-                      label="LWHS"
-                      count={radioInventory.lightweight.out}
-                      total={radioInventory.lightweight.total}
-                      deployed={radioInventory.lightweight.out}
-                      deployedClass="bg-green-500/80"
-                    />
+                    {[
+                      { label: 'Radios', out: radioInventory.out, total: radioInventory.total },
+                      { label: 'Fist mics', out: radioInventory.fistMic.out, total: radioInventory.fistMic.total },
+                      { label: 'Surveillance', out: radioInventory.surveillance.out, total: radioInventory.surveillance.total },
+                      { label: 'Double', out: radioInventory.doubleMuff.out, total: radioInventory.doubleMuff.total },
+                      { label: 'LWHS', out: radioInventory.lightweight.out, total: radioInventory.lightweight.total },
+                    ]
+                      .filter((r) => r.total > 0)
+                      .map((r) => (
+                        <BarRow
+                          key={r.label}
+                          label={r.label}
+                          count={r.out}
+                          total={r.total}
+                          deployed={r.out}
+                          deployedClass="bg-green-500/80"
+                        />
+                      ))}
                   </div>
                 )}
               </div>
