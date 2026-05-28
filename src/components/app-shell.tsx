@@ -297,11 +297,14 @@ export function AppShell({
         overscrollBehaviorX: 'contain',
       }}
     >
-      {/* Kiosk routes (/projects/<id>/kiosk) are full-screen
-          chassis viewers — no nav, no chrome. The navbar is
-          rendered for every other authed route via the root
-          layout's AppShell, but kiosk gets the bare children. */}
-      {!pathname.includes('/kiosk') && (
+      {/* Kiosk routes (/projects/<id>/kiosk) AND the public
+          /zones/[id] page are full-screen chrome-free views — kiosk
+          because it's the chassis viewer, /zones because it's the
+          QR-target page anyone can hit without an account (so an
+          admin viewing it shouldn't see the authed navbar). The
+          navbar is rendered for every other route by the root
+          layout's AppShell. */}
+      {!pathname.includes('/kiosk') && !pathname.startsWith('/zones/') && (
         <>
           <Navbar
             navigation={getNavigation(pathname, isAdmin, isUserOnly, showMyEquipment, canManageRadios, lastProjectId, lastProjectName, taskCount, inMyEquipmentBrowse)}

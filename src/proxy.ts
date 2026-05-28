@@ -8,6 +8,10 @@ export function proxy(request: NextRequest) {
     pathname === '/' ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/docs') ||
+    // /zones/[id] is the public read-only radio zones page — kiosk
+    // QR codes point here so crew can scan with their phone and see
+    // the show's zone + channel layout without signing in.
+    pathname.startsWith('/zones/') ||
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
     pathname.startsWith('/favicon') ||

@@ -161,9 +161,10 @@ export function KioskClient({
             of the page. */}
       {view.kind === 'form' ? (
         <>
-          <div className="mb-10 flex flex-shrink-0 justify-center">
+          <div className="mb-10 flex flex-shrink-0 flex-col items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/clair_logo_white.png" alt="Clair" className="h-16 w-auto" />
+            <div className="text-lg font-semibold text-[#22a7d3]">{projectName}</div>
           </div>
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <FormView
@@ -179,9 +180,10 @@ export function KioskClient({
         </>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden">
-          <div className="mb-10 flex flex-shrink-0 justify-center">
+          <div className="mb-10 flex flex-shrink-0 flex-col items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/clair_logo_white.png" alt="Clair" className="h-16 w-auto" />
+            <div className="text-lg font-semibold text-[#22a7d3]">{projectName}</div>
           </div>
 
           {view.kind === 'edit' && (
@@ -287,10 +289,14 @@ function FormView({
     // its inner scroll region fills whatever vertical space the form
     // didn't claim.
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* Add form — same width + style as login. Fixed height. */}
-      <div className="mx-auto w-full max-w-sm flex-shrink-0">
-        <h2 className="mb-2 text-center text-xl font-semibold text-white">Add Crew</h2>
-        <p className="mb-6 text-center text-lg font-semibold text-[#22a7d3]">{projectName}</p>
+      {/* Add form (left) + Radio Zones QR (right). Stacks vertically
+          on mobile; flips to side-by-side on sm: with the QR card
+          flush to the right of the form. flex-shrink-0 on the whole
+          row keeps the pending list below free to grow. */}
+      <div className="mx-auto flex w-full max-w-3xl flex-shrink-0 flex-col items-center gap-8 sm:flex-row sm:items-start sm:justify-center sm:gap-12">
+        {/* Add Crew form — pinned to its previous max-w-sm sizing. */}
+        <div className="w-full max-w-sm shrink-0">
+        <h2 className="mb-6 text-center text-xl font-semibold text-white">Add Crew</h2>
         <form onSubmit={submit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -350,6 +356,37 @@ function FormView({
             {pending2 ? 'Adding…' : 'Submit'}
           </button>
         </form>
+        </div>
+
+        {/* Radio Zones QR — points to the public /zones/[id] page
+            so crew can scan with their phone and see this show's
+            zone + channel layout without signing in. Same small
+            white card chrome as the join-QR on the project page. */}
+        <div className="flex w-full max-w-[14rem] shrink-0 flex-col items-center gap-3">
+          <div className="text-center">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+              Radio Zones
+            </div>
+            <div className="mt-1 text-sm text-gray-300">
+              Scan for channels
+            </div>
+          </div>
+          <div className="rounded-2xl bg-white p-3">
+            <QRCodeSVG
+              value={`https://versacom-app.vercel.app/zones/${projectId}`}
+              size={176}
+              level="M"
+            />
+          </div>
+          <a
+            href={`https://versacom-app.vercel.app/zones/${projectId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="break-all text-center font-mono text-[10px] text-gray-500 hover:text-gray-300"
+          >
+            versacom-app.vercel.app/zones/{projectId}
+          </a>
+        </div>
       </div>
 
       {/* Divider — fixed */}
@@ -487,8 +524,7 @@ function EditView({
     // viewport slot — admins pick a pending check-in and the form they
     // see drops into the middle of the page instead of hugging the top.
     <div className="mx-auto w-full max-w-sm">
-      <h2 className="mb-2 text-center text-xl font-semibold text-white">Edit Crew</h2>
-      <p className="mb-6 text-center text-lg font-semibold text-[#22a7d3]">{projectName}</p>
+      <h2 className="mb-6 text-center text-xl font-semibold text-white">Edit Crew</h2>
       <form onSubmit={submit} className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div>

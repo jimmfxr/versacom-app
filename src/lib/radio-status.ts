@@ -29,7 +29,7 @@ export const RADIO_STATUSES: Array<{ value: RadioStatus; label: string }> = [
  *  Radio status chip reads visually consistent with the Equipment one. */
 export const RADIO_STATUS_BORDER_STYLES: Record<RadioStatus, string> = {
   na: 'border-white/10',
-  out: 'border-yellow-400/60',
+  out: 'border-green-400/60',
   returned: 'border-blue-400/60',
   damaged: 'border-purple-400/60',
   lost: 'border-red-400/60',
@@ -38,7 +38,7 @@ export const RADIO_STATUS_BORDER_STYLES: Record<RadioStatus, string> = {
 /** Dot color shown next to each option inside the dropdown menu. */
 export const RADIO_STATUS_DOT_STYLES: Record<RadioStatus, string> = {
   na: 'bg-gray-400',
-  out: 'bg-yellow-400',
+  out: 'bg-green-400',
   returned: 'bg-blue-400',
   damaged: 'bg-purple-400',
   lost: 'bg-red-400',

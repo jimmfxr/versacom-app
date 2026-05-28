@@ -294,6 +294,7 @@ function BarRow({
   deployed = 0,
   done = 0,
   returned = 0,
+  deployedClass = 'bg-yellow-500/80',
 }: {
   label: string
   count: number
@@ -303,6 +304,10 @@ function BarRow({
   deployed?: number
   done?: number
   returned?: number
+  /** Tailwind class for the leading segment. Default = yellow (Comms
+   *  "deployed"). Radios pass green so the "out" segment matches the
+   *  green Out chip on the radios page. */
+  deployedClass?: string
 }) {
   const safeTotal = total > 0 ? total : 1
   const deployedPct = (deployed / safeTotal) * 100
@@ -317,7 +322,7 @@ function BarRow({
     <div className="mb-3 grid grid-cols-[110px_1fr_auto] items-center gap-3 last:mb-0 sm:grid-cols-[120px_1fr_auto] sm:gap-3.5">
       <div className="truncate text-[11px] font-medium text-gray-300 sm:text-xs">{label}</div>
       <div className="flex h-[18px] overflow-hidden rounded-md bg-white/[0.05]">
-        <div className="h-full bg-yellow-500/80" style={{ width: `${deployedPct}%` }} />
+        <div className={`h-full ${deployedClass}`} style={{ width: `${deployedPct}%` }} />
         <div className="h-full bg-green-500/80" style={{ width: `${donePct}%` }} />
         <div className="h-full bg-blue-500/80" style={{ width: `${returnedPct}%` }} />
         <div className="h-full bg-white/[0.18]" style={{ width: `${otherPct}%` }} />
@@ -1017,7 +1022,7 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
         // Headline = whichever stage leads. Tie-break: out > returned
         // (out is the more actionable state for show ops).
         const radioStats = [
-          { key: 'out', pct: outPct, label: 'Out', color: 'text-yellow-500/80' },
+          { key: 'out', pct: outPct, label: 'Out', color: 'text-green-500/80' },
           { key: 'returned', pct: returnedPct, label: 'Returned', color: 'text-blue-500/80' },
         ]
         const radioHeadline = radioStats.reduce((best, s) => (s.pct > best.pct ? s : best), radioStats[0])
@@ -1050,7 +1055,7 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
                 <div className="min-w-0 flex-1">
                   <div className="flex h-[18px] w-full overflow-hidden rounded-full bg-white/[0.06]">
                     <div
-                      className="h-full bg-yellow-500/80"
+                      className="h-full bg-green-500/80"
                       style={{ width: `${outPct}%` }}
                       title={`${rOut} out`}
                     />
@@ -1061,7 +1066,7 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
                     />
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] sm:text-xs">
-                    <StatusStat dotClass="bg-yellow-500/80" pctClass="text-yellow-500/80" label="Out" count={rOut} total={rTotal} />
+                    <StatusStat dotClass="bg-green-500/80" pctClass="text-green-500/80" label="Out" count={rOut} total={rTotal} />
                     <StatusStat dotClass="bg-blue-500/80" pctClass="text-blue-500/80" label="Returned" count={rReturned} total={rTotal} />
                   </div>
                 </div>
@@ -1084,30 +1089,35 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
                       count={radioInventory.out}
                       total={radioInventory.total}
                       deployed={radioInventory.out}
+                      deployedClass="bg-green-500/80"
                     />
                     <BarRow
                       label="Fist mics"
                       count={radioInventory.fistMic.out}
                       total={radioInventory.fistMic.total}
                       deployed={radioInventory.fistMic.out}
+                      deployedClass="bg-green-500/80"
                     />
                     <BarRow
                       label="Surveillance"
                       count={radioInventory.surveillance.out}
                       total={radioInventory.surveillance.total}
                       deployed={radioInventory.surveillance.out}
+                      deployedClass="bg-green-500/80"
                     />
                     <BarRow
                       label="Double"
                       count={radioInventory.doubleMuff.out}
                       total={radioInventory.doubleMuff.total}
                       deployed={radioInventory.doubleMuff.out}
+                      deployedClass="bg-green-500/80"
                     />
                     <BarRow
                       label="LWHS"
                       count={radioInventory.lightweight.out}
                       total={radioInventory.lightweight.total}
                       deployed={radioInventory.lightweight.out}
+                      deployedClass="bg-green-500/80"
                     />
                   </div>
                 )}
