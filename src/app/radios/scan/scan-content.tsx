@@ -294,46 +294,42 @@ export function ScanContent({
     const reader = new BrowserMultiFormatReader(hints)
     let cancelled = false
 
-    BrowserMultiFormatReader.listVideoInputDevices()
-      .then(async (devices) => {
-        if (cancelled || !videoRef.current) return
-        if (devices.length === 0) {
-          setCameraError('No camera detected on this device.')
-          return
-        }
-        // Prefer a back-facing camera on phones — label heuristics
-        // since spec exposes no flag. Falls back to first device.
-        const back =
-          devices.find((d) => /back|rear|environment/i.test(d.label)) ?? devices[0]
-        // Don't decide mirror state from labels — iOS frequently
-        // returns empty strings for privacy reasons, which used to
-        // make us treat back cameras as front. We default to NOT
-        // mirrored here and let the post-stream block below check
-        // the actual track's facingMode setting (the authoritative
-        // source once the camera is open).
-        setVideoMirrored(false)
-        try {
-          // Use decodeFromConstraints so we can pass focus / exposure
-          // hints alongside the deviceId after the stream starts.
-          //
-          // RESOLUTION: deliberately NOT pinned to 1080p. Higher res
-          // means more pixels per frame for ZXing to chew through,
-          // which on mobile CPUs cuts the decode-loop frame rate and
-          // makes the scanner *feel* slower even when individual
-          // reads are sharper. Default browser resolution (usually
-          // 640x480 or 720p) gives faster polling and more attempts
-          // per second — which dominates for QR's built-in error
-          // correction. Continuous focus + auto-exposure (applied
-          // post-stream below) carry the load on damaged labels.
-          const controls = await reader.decodeFromConstraints(
-            {
-              video: {
-                deviceId: { exact: back.deviceId },
-                facingMode: { ideal: 'environment' },
-              } as MediaTrackConstraints,
+    ;(async () => {
+      if (cancelled || !videoRef.current) return
+      // Default to non-mirrored. The post-stream block below checks
+      // the active track's facingMode (the authoritative source)
+      // and flips the preview only if the browser handed us the
+      // user-facing camera.
+      setVideoMirrored(false)
+      try {
+        // CAMERA SELECTION: pass `facingMode: { ideal: 'environment' }`
+        // and let the browser pick the back camera natively. We used
+        // to enumerateDevices() + match labels first, but iPadOS /
+        // iOS Safari returns blank device labels until the user
+        // grants camera permission — which meant the label regex
+        // failed, we fell back to devices[0] (front camera on
+        // iPads), pinned its deviceId, and `facingMode` couldn't
+        // override the pin. Dropping the deviceId lets the
+        // constraint do its job: back camera on phones/iPads,
+        // gracefully falls back to whatever's available on laptops.
+        //
+        // RESOLUTION: deliberately NOT pinned to 1080p. Higher res
+        // means more pixels per frame for ZXing to chew through,
+        // which on mobile CPUs cuts the decode-loop frame rate and
+        // makes the scanner *feel* slower even when individual
+        // reads are sharper. Default browser resolution (usually
+        // 640x480 or 720p) gives faster polling and more attempts
+        // per second — which dominates for QR's built-in error
+        // correction. Continuous focus + auto-exposure (applied
+        // post-stream below) carry the load on damaged labels.
+        const controls = await reader.decodeFromConstraints(
+          {
+            video: {
+              facingMode: { ideal: 'environment' },
             },
-            videoRef.current!,
-            (result, err) => {
+          },
+          videoRef.current!,
+          (result, err) => {
               if (!result) return
               if (modeRef.current !== 'idle') return
               const value = result.getText().trim()
@@ -440,12 +436,7 @@ export function ScanContent({
             e instanceof Error ? e.message : 'Camera unavailable — check permissions.'
           if (!cancelled) setCameraError(msg)
         }
-      })
-      .catch((e) => {
-        const msg =
-          e instanceof Error ? e.message : 'Unable to list cameras on this device.'
-        if (!cancelled) setCameraError(msg)
-      })
+      })()
 
     return () => {
       cancelled = true
