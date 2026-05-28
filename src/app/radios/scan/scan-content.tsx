@@ -197,18 +197,21 @@ export function ScanContent({
     if (ctx.state === 'suspended') {
       ctx.resume().catch(() => {})
     }
-    const beepMs = 0.09
+    // "Pluck": sine wave at 1200Hz with a fast exponential decay so
+    // each beep reads as a soft pop instead of the harsh square-wave
+    // chirp. 180ms gives the tail enough room to ring out before the
+    // 70ms gap on a double-beep.
+    const beepMs = 0.18
     const gapMs = 0.07
     for (let i = 0; i < count; i++) {
       const start = ctx.currentTime + i * (beepMs + gapMs)
       try {
         const osc = ctx.createOscillator()
         const gain = ctx.createGain()
-        osc.type = 'square'
-        osc.frequency.value = 2200
+        osc.type = 'sine'
+        osc.frequency.value = 1200
         gain.gain.setValueAtTime(0.0001, start)
         gain.gain.exponentialRampToValueAtTime(0.18, start + 0.004)
-        gain.gain.setValueAtTime(0.18, start + beepMs - 0.012)
         gain.gain.exponentialRampToValueAtTime(0.0001, start + beepMs)
         osc.connect(gain).connect(ctx.destination)
         osc.start(start)
