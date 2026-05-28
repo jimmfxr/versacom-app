@@ -298,12 +298,13 @@ export function ScanContent({
         // since spec exposes no flag. Falls back to first device.
         const back =
           devices.find((d) => /back|rear|environment/i.test(d.label)) ?? devices[0]
-        // If the chosen camera's label doesn't read as a back camera,
-        // assume it's a front-facing webcam (laptop FaceTime, selfie
-        // cam, etc.) and visually un-mirror the preview so left/right
-        // motion lines up with the operator's hand.
-        const isLikelyBack = /back|rear|environment/i.test(back.label)
-        setVideoMirrored(!isLikelyBack)
+        // Don't decide mirror state from labels — iOS frequently
+        // returns empty strings for privacy reasons, which used to
+        // make us treat back cameras as front. We default to NOT
+        // mirrored here and let the post-stream block below check
+        // the actual track's facingMode setting (the authoritative
+        // source once the camera is open).
+        setVideoMirrored(false)
         try {
           // Use decodeFromConstraints so we can pass focus / exposure
           // hints alongside the deviceId after the stream starts.
@@ -392,6 +393,15 @@ export function ScanContent({
           // call when the device says no.
           const stream = videoRef.current?.srcObject as MediaStream | null
           const track = stream?.getVideoTracks?.()[0]
+          if (track && typeof track.getSettings === 'function') {
+            // Authoritative front/back detection — getSettings() on
+            // the active track reports facingMode reliably once the
+            // stream is open, even when device labels were empty
+            // (common on iOS). Only mirror when the camera is the
+            // 'user' (front-facing) one.
+            const settings = track.getSettings() as { facingMode?: string }
+            setVideoMirrored(settings.facingMode === 'user')
+          }
           if (track && typeof track.getCapabilities === 'function') {
             const caps = track.getCapabilities() as {
               focusMode?: string[]
