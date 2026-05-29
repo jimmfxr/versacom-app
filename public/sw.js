@@ -5,10 +5,13 @@
 // deploy. Add caching later if/when we decide we want offline support,
 // with a clear cache-versioning strategy.
 
-// SW_VERSION — bump on any sw.js content change so the browser
-// byte-compares as different and triggers an install. Drives the
-// "New version available" banner via the SkipWaiting flow.
-const SW_VERSION = '2026-05-28.1'
+// SW_VERSION — overwritten on every production build by
+// scripts/stamp-sw.mjs (wired as `prebuild` in package.json) using
+// the Vercel commit SHA. Every deploy serves byte-different SW
+// content, which triggers the browser's update flow and surfaces
+// the SwUpdateBanner. The literal below is the dev / fallback value
+// when the stamp hasn't run.
+const SW_VERSION = '2026-05-29.1'
 
 self.addEventListener('install', () => {
   // Do NOT call skipWaiting() here. We want the new worker to sit in
