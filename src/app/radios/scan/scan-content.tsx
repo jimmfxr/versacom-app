@@ -605,10 +605,14 @@ export function ScanContent({
           className={`pointer-events-none fixed inset-x-0 top-4 z-50 mx-auto flex max-w-md justify-center px-4`}
         >
           <div
-            className={`pointer-events-auto rounded-lg border px-4 py-2 text-sm font-medium shadow-2xl ${
+            // Match the global ToastContainer chrome (bottom-right) —
+            // solid green / red 90% with white text — so the scanner
+            // success notification reads the same as every other
+            // success toast in the app.
+            className={`pointer-events-auto rounded-lg px-4 py-3 text-sm font-medium shadow-lg ${
               toast.kind === 'success'
-                ? 'border-green-400/40 bg-green-500/15 text-green-200'
-                : 'border-red-500/40 bg-red-500/15 text-red-200'
+                ? 'bg-green-500/90 text-white'
+                : 'bg-red-500/90 text-white'
             }`}
           >
             {toast.message}
