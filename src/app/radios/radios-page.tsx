@@ -118,6 +118,32 @@ export function RadiosPage({
     }, 8000)
     return () => clearInterval(interval)
   }, [router, editingId, showAdd, showAddZone])
+
+  // Scroll the just-opened radio edit form into the middle of its
+  // scroll container — without this, tapping Edit on a card near
+  // the bottom of the list can leave Save / Cancel off-screen.
+  // Mirrors the comms pattern at project-page.tsx (querySelector by
+  // data attribute + scrollIntoView). The child-component ref version
+  // raced React commit timing on production PWA builds. The double
+  // requestAnimationFrame defers past React's commit + any layout
+  // shift from sibling state updates so the smooth scroll has a
+  // stable target.
+  useEffect(() => {
+    if (editingId == null) return
+    let cancelled = false
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (cancelled) return
+        const form = document.querySelector<HTMLFormElement>(
+          `[data-edit-form="radio"][data-card-id="${editingId}"]`,
+        )
+        form?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [editingId])
   // Search toggle + active query — same pattern as the Comms page.
   // Icon by default, expands inline into an input with an X close.
   // The query filters whichever tab is active (radios on Equipment,
@@ -892,17 +918,6 @@ function RadioCard({
   const [lightweight, setLightweight] = useState(radio.lightweight)
   const [selectedZoneIds, setSelectedZoneIds] = useState<number[]>(radio.zoneIds)
 
-  // Scroll the edit form into the middle of its scroll container the
-  // moment the card opens for editing. Without this, tapping Edit on
-  // a card near the bottom of the list can leave the Save / Cancel
-  // buttons off-screen — the operator has to scroll down to commit.
-  const formRef = useRef<HTMLFormElement>(null)
-  useEffect(() => {
-    if (editing) {
-      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
-  }, [editing])
-
   // Reset local state on each open so cancelling and re-opening the
   // SAME row starts from the persisted values, not the last unsaved
   // edits.
@@ -1053,7 +1068,8 @@ function RadioCard({
 
   return (
     <form
-      ref={formRef}
+      data-edit-form="radio"
+      data-card-id={radio.id}
       onSubmit={(e) => {
         e.preventDefault()
         save()
