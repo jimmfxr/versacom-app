@@ -17,6 +17,15 @@ export function ScrollToTop() {
 
   useEffect(() => {
     function update() {
+      // Suppress while any card is in edit mode — the chevron sits in
+      // the bottom-right gutter and overlaps the edit form's Save /
+      // Cancel buttons on phones. Comms + radios both tag their edit
+      // forms with [data-edit-form="..."], so a single querySelector
+      // covers every page.
+      if (document.querySelector('[data-edit-form]')) {
+        setVisible(false)
+        return
+      }
       // Inner scroll containers take priority: if any is scrolled past
       // the threshold, surface that one. Falls back to the window.
       const containers = Array.from(
@@ -42,9 +51,19 @@ export function ScrollToTop() {
     // containers (regular bubbling doesn't fire `scroll`).
     document.addEventListener('scroll', update, true)
     window.addEventListener('scroll', update, { passive: true })
+    // Watch for edit forms appearing / disappearing so the button
+    // re-hides/re-shows without needing a scroll event.
+    const mo = new MutationObserver(update)
+    mo.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-edit-form'],
+    })
     return () => {
       document.removeEventListener('scroll', update, true)
       window.removeEventListener('scroll', update)
+      mo.disconnect()
     }
   }, [])
 
