@@ -1012,35 +1012,51 @@ function RadioCard({
       // row via `sm:contents` on the inner groups, matching the prior
       // inline-everything look.
       <div className="flex flex-col gap-4 border-b border-white/[0.06] px-2 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-1">
-        {/* Identity strip — ID, first/last, department, position, and
-            the accessory flags as plain dot-separated text all sit on
-            one mobile row. `sm:contents` lets the inner spans
-            participate in the outer flex on desktop so they flow with
-            the rest of the row. */}
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0 sm:contents">
-          {/* ID in white, assignee name in cyan, dept + position in
-              the same 70%-cyan tone the Comms Equipment card uses for
-              assignee suffixes — keeps the two surfaces visually
-              consistent. */}
-          <span className="text-sm font-semibold text-white">{radio.name}</span>
-          {(radio.firstName || radio.lastName) && (
-            <span className="text-sm font-medium text-[#22a7d3]">
-              {radio.firstName} {radio.lastName}
-            </span>
+        {/* Identity area — on mobile, two stacked sub-rows:
+              row 1: ID + names + dept + position + barcode (far right)
+              row 2: accessory flags (fist mic / surveillance / etc.)
+            On desktop (sm:) the wrappers collapse via `sm:contents`
+            so everything flows back into the outer flex row exactly
+            like before. */}
+        <div className="flex flex-col gap-1 sm:contents">
+          {/* Names row — ID white, assignee cyan, dept + position
+              70%-cyan to match Comms Equipment. Mobile-only barcode
+              chip sits at the far right (ml-auto). */}
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0 sm:contents">
+            <span className="text-sm font-semibold text-white">{radio.name}</span>
+            {(radio.firstName || radio.lastName) && (
+              <span className="text-sm font-medium text-[#22a7d3]">
+                {radio.firstName} {radio.lastName}
+              </span>
+            )}
+            {radio.department && (
+              <span className="text-xs text-[#22a7d3]/70">· {radio.department}</span>
+            )}
+            {radio.position && (
+              <span className="text-xs text-[#22a7d3]/70">· {radio.position}</span>
+            )}
+            {radio.barcode && (
+              <span className="ml-auto rounded-md border border-white/10 px-2 py-0.5 font-mono text-sm text-gray-200 sm:hidden">
+                {radio.barcode}
+              </span>
+            )}
+          </div>
+          {/* Accessories sub-row (mobile only as own row; desktop
+              flows inline via sm:contents). */}
+          {(radio.fistMic || radio.surveillance || radio.doubleMuff || radio.lightweight) && (
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0 sm:contents">
+              {radio.fistMic && <span className="text-xs text-gray-400">· Fist mic</span>}
+              {radio.surveillance && <span className="text-xs text-gray-400">· Surveillance</span>}
+              {radio.doubleMuff && <span className="text-xs text-gray-400">· Double muff</span>}
+              {radio.lightweight && <span className="text-xs text-gray-400">· Lightweight</span>}
+            </div>
           )}
-          {radio.department && (
-            <span className="text-xs text-[#22a7d3]/70">· {radio.department}</span>
-          )}
-          {radio.position && (
-            <span className="text-xs text-[#22a7d3]/70">· {radio.position}</span>
-          )}
-          {radio.fistMic && <span className="text-xs text-gray-400">· Fist mic</span>}
-          {radio.surveillance && <span className="text-xs text-gray-400">· Surveillance</span>}
-          {radio.doubleMuff && <span className="text-xs text-gray-400">· Double muff</span>}
-          {radio.lightweight && <span className="text-xs text-gray-400">· Lightweight</span>}
         </div>
+        {/* Desktop-only barcode chip — pushed to the right via
+            sm:ml-auto. Mobile renders its own copy inside the names
+            row above. */}
         {radio.barcode && (
-          <span className="rounded-md border border-white/10 px-2 py-0.5 font-mono text-[11px] text-gray-300 sm:ml-auto">
+          <span className="hidden rounded-md border border-white/10 px-2.5 py-1 font-mono text-sm text-gray-200 sm:ml-auto sm:inline-block">
             {radio.barcode}
           </span>
         )}
