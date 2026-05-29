@@ -632,13 +632,25 @@ export async function returnRadioByBarcode(projectId: number, barcode: string) {
 
   const radio = await prisma.radio.findFirst({
     where: { projectId, barcode: trimmed },
-    select: { id: true, status: true, name: true },
+    select: {
+      id: true,
+      status: true,
+      name: true,
+      firstName: true,
+      lastName: true,
+    },
   })
   if (!radio) return { error: 'No radio with that barcode in this project' }
   if (radio.status !== 'out') {
     // Not actually out — caller should have routed to the prompt
     // branch; treat as no-op success so duplicate scans don't error.
-    return { success: true, alreadyReturned: true, name: radio.name }
+    return {
+      success: true,
+      alreadyReturned: true,
+      name: radio.name,
+      firstName: radio.firstName,
+      lastName: radio.lastName,
+    }
   }
 
   await prisma.radio.update({
@@ -647,7 +659,12 @@ export async function returnRadioByBarcode(projectId: number, barcode: string) {
   })
 
   revalidatePath('/radios')
-  return { success: true, name: radio.name }
+  return {
+    success: true,
+    name: radio.name,
+    firstName: radio.firstName,
+    lastName: radio.lastName,
+  }
 }
 
 // ─── Manual status change (no-scan) ────────────────────────────────

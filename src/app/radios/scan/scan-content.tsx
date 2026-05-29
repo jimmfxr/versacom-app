@@ -244,7 +244,19 @@ export function ScanContent({
         // Double-beep = "radio returned to the pool" — distinct from
         // the single chirp used for outbound scans below.
         beep(2)
-        showToast('success', `${res.name ?? barcode} returned`)
+        // Include who had the walkie out so the operator confirms by
+        // name, not just radio number — important when a crew member
+        // is handing one back and you want to clock who's now clear.
+        const who = [res.firstName, res.lastName]
+          .map((s) => s?.trim())
+          .filter(Boolean)
+          .join(' ')
+        showToast(
+          'success',
+          who
+            ? `${res.name ?? barcode} returned · ${who}`
+            : `${res.name ?? barcode} returned`,
+        )
         // Server action revalidates /radios; the scanner itself doesn't
         // display the radio list so no router.refresh needed here.
         return
