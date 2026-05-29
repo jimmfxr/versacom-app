@@ -10,6 +10,7 @@ import { RowCard } from '@/components/row-card'
 import { EmptyState } from '@/components/empty-state'
 import { IconButton } from '@/components/icon-button'
 import { FormInput } from '@/components/form-field'
+import { SearchableSelect } from '@/components/searchable-select'
 import { createProject, cloneProject } from './actions'
 import { setProjectStatus } from './[id]/actions'
 import { ProjectSettingsCard } from './project-settings-card'
@@ -241,25 +242,54 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                       are still cloneable (sometimes useful for
                       revisiting a tour stop config). */}
                   <div className="flex flex-col gap-1.5">
-                    <label htmlFor="sourceId" className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-gray-400">
                       Source project
                     </label>
-                    <select
-                      id="sourceId"
-                      value={cloneSourceId ?? ''}
-                      onChange={(e) => {
-                        setCloneSourceId(e.target.value ? parseInt(e.target.value, 10) : null)
+                    {/* SearchableSelect (typeable filter + scoped
+                        options list) instead of a native <select>.
+                        Same dark dropdown chrome as elsewhere in the
+                        app, and as the project list grows the operator
+                        can type a few characters to narrow it down
+                        instead of scrolling through every show. */}
+                    <SearchableSelect
+                      placeholder="Search projects to clone…"
+                      value={cloneSourceId == null ? '' : String(cloneSourceId)}
+                      onChange={(v) => {
+                        setCloneSourceId(v ? parseInt(v, 10) : null)
                         setError('')
                       }}
-                      className="w-full rounded-lg border border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
-                    >
-                      <option value="">Select a project…</option>
-                      {projects.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}{p.status === 'archived' ? ' (archived)' : ''}
-                        </option>
-                      ))}
-                    </select>
+                      options={projects.map((p) => {
+                        // Include the creator's name + status in the
+                        // label so operators can search by either —
+                        // SearchableSelect filters against the full
+                        // label string (e.g. typing "archived" or
+                        // "jimmy" both narrow the list). displayLabel
+                        // paints the row with the creator in cyan and
+                        // the status tinted green / gray for at-a-
+                        // glance scanning.
+                        const creator = `${p.createdBy.firstName} ${p.createdBy.lastName}`.trim()
+                        const isArchived = p.status === 'archived'
+                        const statusLabel = isArchived ? 'archived' : 'active'
+                        const statusClass = isArchived ? 'text-gray-400' : 'text-green-400'
+                        return {
+                          value: String(p.id),
+                          label: `${p.name} · ${creator} · ${statusLabel}`,
+                          displayLabel: (
+                            <>
+                              {p.name}
+                              {creator && (
+                                <>
+                                  {' · '}
+                                  <span className="text-[#22a7d3]">{creator}</span>
+                                </>
+                              )}
+                              {' · '}
+                              <span className={statusClass}>{statusLabel}</span>
+                            </>
+                          ),
+                        }
+                      })}
+                    />
                   </div>
                   {/* Toggle switches — left label, right switch. */}
                   <div className="flex flex-col gap-3">

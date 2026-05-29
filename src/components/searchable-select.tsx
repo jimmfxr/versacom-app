@@ -2,7 +2,18 @@
 
 import { useState, useRef, useEffect } from 'react'
 
-type Option = { value: string; label: string }
+type Option = {
+  value: string
+  /** Plain-text label — used for the trigger's placeholder display
+   *  AND as the haystack for search filtering. Keep it descriptive
+   *  enough that typing any part of it surfaces the option. */
+  label: string
+  /** Optional rich JSX shown inside the dropdown list row, when you
+   *  want parts of the label tinted differently (e.g. a creator name
+   *  in cyan). Falls back to `label` when omitted. The plain `label`
+   *  is still what drives search + the selected-state placeholder. */
+  displayLabel?: React.ReactNode
+}
 
 export function SearchableSelect({
   label,
@@ -195,7 +206,7 @@ export function SearchableSelect({
                 onClick={() => { onChange(o.value); setSearch(o.label); setOpen(false) }}
                 className={`w-full px-3 py-2 text-left text-sm font-medium ${stateClass}`}
               >
-                {o.label}
+                {o.displayLabel ?? o.label}
               </button>
             )
           })}
