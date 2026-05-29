@@ -412,6 +412,8 @@ export function RadiosPage({
         {/* Stats text — sits beneath the filter chips. */}
         <div className="text-xs font-medium text-gray-500">
           {assignedRadios} of {totalRadios} assigned
+          {' · '}
+          {totalRadios - assignedRadios} unassigned
         </div>
       </div>
 
@@ -890,6 +892,17 @@ function RadioCard({
   const [lightweight, setLightweight] = useState(radio.lightweight)
   const [selectedZoneIds, setSelectedZoneIds] = useState<number[]>(radio.zoneIds)
 
+  // Scroll the edit form into the middle of its scroll container the
+  // moment the card opens for editing. Without this, tapping Edit on
+  // a card near the bottom of the list can leave the Save / Cancel
+  // buttons off-screen — the operator has to scroll down to commit.
+  const formRef = useRef<HTMLFormElement>(null)
+  useEffect(() => {
+    if (editing) {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [editing])
+
   // Reset local state on each open so cancelling and re-opening the
   // SAME row starts from the persisted values, not the last unsaved
   // edits.
@@ -1040,6 +1053,7 @@ function RadioCard({
 
   return (
     <form
+      ref={formRef}
       onSubmit={(e) => {
         e.preventDefault()
         save()

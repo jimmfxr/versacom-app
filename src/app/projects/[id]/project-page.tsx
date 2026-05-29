@@ -873,24 +873,35 @@ export function ProjectPage({
    *  button so the user can press Enter to walk down the list. The
    *  data-edit-form / data-edit-button selectors are how we find the
    *  right DOM nodes without threading refs through every component. */
+  // Scroll the just-opened edit form into the middle of its scroll
+  // container — without this the Save / Cancel buttons can land off
+  // the bottom of the viewport when the user taps Edit on a card near
+  // the bottom. block: 'center' keeps the card framed; the browser
+  // handles the smooth animation.
+  //
+  // CRITICAL: focus() must use { preventScroll: true } so the browser
+  // doesn't auto-snap to the input and clobber our smooth scroll.
   useEffect(() => {
     if (editingEqId == null) return
     const form = document.querySelector<HTMLFormElement>(`[data-edit-form="equipment"][data-card-id="${editingEqId}"]`)
-    form?.querySelector<HTMLElement>('input:not([type="hidden"])')?.focus()
+    form?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    form?.querySelector<HTMLElement>('input:not([type="hidden"])')?.focus({ preventScroll: true })
   }, [editingEqId])
   useEffect(() => {
     if (editingMemberId == null) return
     const form = document.querySelector<HTMLFormElement>(`[data-edit-form="team"][data-card-id="${editingMemberId}"]`)
+    form?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     // Focus + select-all on First Name so the user can start typing
     // to replace the value immediately — same idiom as macOS rename.
     const input = form?.querySelector<HTMLInputElement>('input:not([type="hidden"])')
-    input?.focus()
+    input?.focus({ preventScroll: true })
     input?.select()
   }, [editingMemberId])
   useEffect(() => {
     if (editingPlId == null) return
     const form = document.querySelector<HTMLFormElement>(`[data-edit-form="picklist"][data-card-id="${editingPlId}"]`)
-    form?.querySelector<HTMLElement>('input:not([type="hidden"])')?.focus()
+    form?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    form?.querySelector<HTMLElement>('input:not([type="hidden"])')?.focus({ preventScroll: true })
   }, [editingPlId])
   useEffect(() => {
     if (!chainTarget) return
