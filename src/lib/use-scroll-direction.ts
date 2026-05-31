@@ -50,6 +50,16 @@ export function useHideProgress(
     // Touch tracking — separate from scroll because touch on a non-
     // overflowing element never produces scroll events.
     let touchLastY: number | null = null
+    // Gesture direction lock. At touchstart we record the start X/Y
+    // and leave `gestureAxis` pending. As soon as the cumulative touch
+    // movement crosses 8px we decide horizontal vs vertical: whichever
+    // axis is larger wins, and from then until touchend the OTHER
+    // axis is ignored. Prevents a slightly-angled horizontal swipe on
+    // the panel chassis from reading as a vertical scroll and flipping
+    // the chrome's hide state.
+    let touchStartX: number | null = null
+    let touchStartY: number | null = null
+    let gestureAxis: 'pending' | 'horizontal' | 'vertical' = 'pending'
     // Cooldown after each commit. When chrome hides the AutoHideHeader
     // collapses layout, which fires a scroll event whose delta would
     // otherwise be read as "scroll-up" and immediately flip the state
@@ -124,22 +134,40 @@ export function useHideProgress(
 
     function onTouchStart(e: TouchEvent) {
       if (e.touches.length !== 1) return
+      touchStartX = e.touches[0].clientX
+      touchStartY = e.touches[0].clientY
       touchLastY = e.touches[0].clientY
+      gestureAxis = 'pending'
     }
 
     function onTouchMove(e: TouchEvent) {
-      if (touchLastY == null || e.touches.length !== 1) return
+      if (touchLastY == null || touchStartX == null || touchStartY == null) return
+      if (e.touches.length !== 1) return
+      const x = e.touches[0].clientX
       const y = e.touches[0].clientY
-      // Finger moves UP (y decreases) → user is trying to scroll down →
-      // positive delta (advance hide). Finger moves DOWN (y increases)
-      // → trying to scroll up → negative delta (reveal).
+      // Decide axis once the gesture has clearly committed to a
+      // direction. 8px of total travel is enough to tell horizontal
+      // from vertical without being trigger-happy on the first frame.
+      if (gestureAxis === 'pending') {
+        const dx = Math.abs(x - touchStartX)
+        const dy = Math.abs(y - touchStartY)
+        if (dx + dy >= 8) {
+          gestureAxis = dx > dy ? 'horizontal' : 'vertical'
+        }
+      }
+      // Track Y regardless so a delayed axis-lock decision still has
+      // a fresh anchor when vertical mode kicks in.
       const delta = touchLastY - y
       touchLastY = y
+      if (gestureAxis !== 'vertical') return
       applyDelta(delta)
     }
 
     function onTouchEnd() {
       touchLastY = null
+      touchStartX = null
+      touchStartY = null
+      gestureAxis = 'pending'
     }
 
     document.addEventListener('scroll', onScroll, true)
