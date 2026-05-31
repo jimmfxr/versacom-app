@@ -6,6 +6,7 @@ import { BrowserMultiFormatReader } from '@zxing/browser'
 import type { IScannerControls } from '@zxing/browser'
 import { DecodeHintType } from '@zxing/library'
 import { ComboboxInput } from '@/components/combobox-input'
+import { usePersistentState } from '@/lib/use-persistent-state'
 import {
   lookupRadioByBarcode,
   assignRadioFromScan,
@@ -102,8 +103,30 @@ export function ScanContent({
     barcode: string
     targetRadio: { id: number; name: string }
     initial: KnownRadio | null // null → unknown-barcode branch
+    /** When re-assigning a returned radio, carry the previous
+     *  assignee snapshot so the modal can show a clickable chip:
+     *  tap to repopulate the form with their info (e.g. they came
+     *  right back to grab the same walkie). Nothing persists until
+     *  Save. */
+    previousUser?: {
+      firstName: string | null
+      lastName: string | null
+      department: string | null
+      position: string | null
+      assignedToProjectMemberId: number | null
+    } | null
   } | null>(null)
   const [manualBarcode, setManualBarcode] = useState('')
+
+  // Input mode toggle — camera (default, phone / webcam) vs hardware
+  // scanner (USB or Bluetooth HID-keyboard wedge like the Tera 8100).
+  // Persisted across sessions so a station set up for hardware
+  // scanning stays in that mode.
+  type InputMode = 'camera' | 'scanner'
+  const [inputMode, setInputMode] = usePersistentState<InputMode>(
+    'radios:scanner:inputMode',
+    'camera',
+  )
 
   // Accessory state lives at this level so it survives the modal's
   // re-renders. Each chip is now a simple boolean toggle — picking
@@ -280,10 +303,41 @@ export function ScanContent({
         })
       } else {
         beep(1)
+        // For a radio currently in 'returned' state, treat the modal
+        // like a fresh check-out: blank person fields so the operator
+        // doesn't have to manually clear the previous user before
+        // typing the new one. Accessory flags + barcodes stay because
+        // they describe the physical walkie, not who's holding it.
+        // The DB write only happens on Save, so cancelling preserves
+        // the previous user in the list.
+        const isReturning = result.radio.status === 'returned'
+        const hasPrev = isReturning && (
+          (result.radio.firstName ?? '').trim() !== '' ||
+          (result.radio.lastName ?? '').trim() !== ''
+        )
+        const initial = isReturning
+          ? {
+              ...result.radio,
+              firstName: null,
+              lastName: null,
+              department: null,
+              position: null,
+              assignedToProjectMemberId: null,
+            }
+          : result.radio
         setModal({
           barcode,
           targetRadio: { id: result.radio.id, name: result.radio.name },
-          initial: result.radio,
+          initial,
+          previousUser: hasPrev
+            ? {
+                firstName: result.radio.firstName,
+                lastName: result.radio.lastName,
+                department: result.radio.department,
+                position: result.radio.position,
+                assignedToProjectMemberId: result.radio.assignedToProjectMemberId,
+              }
+            : null,
         })
       }
       modeRef.current = 'modal'
@@ -293,6 +347,10 @@ export function ScanContent({
 
   // ─── Camera lifecycle ─────────────────────────────────────────────
   useEffect(() => {
+    // Skip the entire camera lifecycle when the operator picked the
+    // hardware-scanner wedge mode. The mode-switch effect below will
+    // tear down any running stream when this fires on re-mount.
+    if (inputMode !== 'camera') return
     if (!videoRef.current) return
     // Decode hint:
     //   • TRY_HARDER — spend a bit more CPU per frame for harder reads
@@ -458,7 +516,55 @@ export function ScanContent({
       controlsRef.current?.stop()
       controlsRef.current = null
     }
-  }, [handleScan])
+  }, [handleScan, inputMode])
+
+  // Hardware-scanner wedge — captures fast-typed barcodes from a USB
+  // or Bluetooth HID-keyboard scanner (e.g. Tera 8100) anywhere on
+  // the page, ending in Enter / CR. Only active when inputMode is
+  // 'scanner'. Skips when the user is typing in an editable element
+  // so the manual barcode input still works the way the operator
+  // expects.
+  useEffect(() => {
+    if (inputMode !== 'scanner') return
+    let buffer = ''
+    let lastKeyAt = 0
+    // Inter-key threshold: hardware scanners emit chars in tight
+    // bursts (typically <30ms apart). Anything slower is treated as
+    // human typing and resets the buffer so a stray keypress doesn't
+    // contaminate the next scan.
+    const MAX_INTERVAL_MS = 100
+    function isEditableTarget(t: EventTarget | null): boolean {
+      if (!(t instanceof HTMLElement)) return false
+      const tag = t.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
+      if (t.isContentEditable) return true
+      return false
+    }
+    function onKey(e: KeyboardEvent) {
+      // Don't fight with the manual barcode input; let the form's
+      // onSubmit handle it (the scanner's Enter will fire submit
+      // naturally on that input).
+      if (isEditableTarget(e.target)) return
+      const now = performance.now()
+      if (now - lastKeyAt > MAX_INTERVAL_MS) buffer = ''
+      lastKeyAt = now
+      if (e.key === 'Enter') {
+        const code = buffer.trim()
+        buffer = ''
+        if (code && modeRef.current === 'idle') {
+          handleScan(code)
+        }
+        return
+      }
+      // Single-character printable keys only — ignore modifiers,
+      // arrow keys, function keys, etc.
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        buffer += e.key
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [inputMode, handleScan])
 
   // Closing the modal returns scanner to idle so the next decode fires.
   const closeModal = useCallback(() => {
@@ -493,20 +599,39 @@ export function ScanContent({
           Relative parent so the centered accessory label can sit on
           the same row as the project info and the X without being
           shoved by either side's width. */}
-      <div className="relative flex flex-shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-[#202020] px-4 py-3 sm:px-6">
-        <div className="min-w-0">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+      <div className="relative flex flex-shrink-0 items-center justify-between gap-3 bg-[#202020] px-4 py-3 sm:px-6">
+        <div className="flex min-w-0 items-baseline gap-2">
+          {/* "Scan" sits to the left of the project name, both at
+              header weight. Cyan label tags this page as the scanner
+              (matches the cyan accents used elsewhere on radios). */}
+          <span className="shrink-0 text-2xl font-bold tracking-tight text-white sm:text-3xl">
             Scan
-          </div>
-          <div className="truncate text-sm font-semibold text-white sm:text-base">
+          </span>
+          <h1 className="truncate text-2xl font-bold tracking-tight text-[#22a7d3] sm:text-3xl">
             {project.name}
-          </div>
+          </h1>
         </div>
-        {/* Scan-target label — plain cyan text (no chip / pill),
-            centered on the top row. Accessory chips no longer steer
-            the camera, so the label is always "Scan Walkie". */}
-        <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-base font-semibold uppercase tracking-wider text-[#22a7d3] sm:text-lg">
-          Scan Walkie
+        {/* Input-mode toggle (desktop) — Camera vs Scanner. Centered
+            in the top bar. On mobile the toggle moves to its own
+            full-width row below the bar (see further down). */}
+        <div className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-2 sm:flex">
+          {(['camera', 'scanner'] as const).map((mode) => {
+            const active = inputMode === mode
+            return (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setInputMode(mode)}
+                className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                  active
+                    ? 'border-[#22a7d3] bg-[#22a7d3] text-white'
+                    : 'border-white/15 text-gray-300 hover:border-white/30 hover:text-white'
+                }`}
+              >
+                {mode === 'camera' ? 'Camera' : 'Scanner'}
+              </button>
+            )
+          })}
         </div>
         <button
           type="button"
@@ -520,11 +645,57 @@ export function ScanContent({
         </button>
       </div>
 
+      {/* Mobile-only input-mode toggle row — full width, 50/50
+          split. Sits directly under the top bar so it's the first
+          thing the operator sees on phones (the toggle is centered
+          in the top bar on desktop and hidden here). No bottom
+          border — the camera viewport's dark background provides
+          enough visual separation. */}
+      <div className="flex flex-shrink-0 gap-2 bg-[#202020] px-4 py-2 sm:hidden">
+        {(['camera', 'scanner'] as const).map((mode) => {
+          const active = inputMode === mode
+          return (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setInputMode(mode)}
+              className={`flex-1 rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                active
+                  ? 'border-[#22a7d3] bg-[#22a7d3] text-white'
+                  : 'border-white/15 text-gray-300 hover:border-white/30 hover:text-white'
+              }`}
+            >
+              {mode === 'camera' ? 'Camera' : 'Scanner'}
+            </button>
+          )
+        })}
+      </div>
+
       {/* Camera viewport — fills the remaining space.
           (The accessory-scan label now lives in the top bar above,
-          not as an overlay here, per the v2.3 chrome refresh.) */}
+          not as an overlay here, per the v2.3 chrome refresh.)
+          When the operator picked the hardware-scanner wedge mode we
+          render a calmer "Scanner ready" panel instead — no video,
+          no permission prompts, page-level keydowns drive the
+          lookup flow. */}
       <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
-        {!cameraError && (
+        {inputMode === 'scanner' && (
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="rounded-full border-2 border-[#22a7d3]/60 p-6">
+              <svg className="size-12 text-[#22a7d3]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h3.375M15.75 3.75h3.375c.621 0 1.125.504 1.125 1.125v3.375M20.25 15.75v3.375c0 .621-.504 1.125-1.125 1.125h-3.375M8.25 20.25H4.875A1.125 1.125 0 0 1 3.75 19.125V15.75" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7 12h10" />
+              </svg>
+            </div>
+            <div className="text-lg font-semibold uppercase tracking-wider text-[#22a7d3]">
+              Scanner ready
+            </div>
+            <div className="max-w-sm text-sm text-gray-400">
+              Connect your USB or Bluetooth scanner (HID keyboard mode) and pull the trigger. The page captures the keystrokes — no input field focus needed.
+            </div>
+          </div>
+        )}
+        {inputMode === 'camera' && !cameraError && (
           <video
             ref={videoRef}
             // Front-facing cameras come pre-mirrored — flip back to
@@ -539,7 +710,7 @@ export function ScanContent({
           />
         )}
         {/* Decoration: corner brackets framing a central scan zone */}
-        {!cameraError && (
+        {inputMode === 'camera' && !cameraError && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div className="relative h-56 w-72 max-w-[80%] sm:h-64 sm:w-96">
               {(['tl', 'tr', 'bl', 'br'] as const).map((corner) => (
@@ -562,7 +733,7 @@ export function ScanContent({
             </div>
           </div>
         )}
-        {cameraError && (
+        {inputMode === 'camera' && cameraError && (
           <div className="mx-4 max-w-md rounded-xl border border-red-500/30 bg-red-500/10 p-5 text-sm text-red-200">
             <div className="mb-2 font-semibold text-red-200">Camera unavailable</div>
             <p className="text-red-200/80">{cameraError}</p>
@@ -573,8 +744,12 @@ export function ScanContent({
         )}
       </div>
 
-      {/* Bottom bar — manual barcode entry + Look up button. */}
-      <div className="flex-shrink-0 border-t border-white/10 bg-[#202020] px-4 py-3 sm:px-6">
+      {/* Bottom bar — manual barcode entry + Look up button. Extra
+          bottom padding on mobile so the button clears the iOS PWA
+          home-indicator strip and feels less crammed against the
+          edge. Desktop reverts to symmetric py-3. No top border —
+          the dark camera viewport above is its own divider. */}
+      <div className="flex-shrink-0 bg-[#202020] px-4 pb-8 pt-3 sm:px-6 sm:py-3">
         <form
           onSubmit={(e) => {
             e.preventDefault()
@@ -628,6 +803,7 @@ export function ScanContent({
             barcode={modal.barcode}
             targetRadio={modal.targetRadio}
             initial={modal.initial}
+            previousUser={modal.previousUser ?? null}
             teamMembers={teamMembers}
             departmentSuggestions={departmentSuggestions}
             fistMic={fistMicFlag}
@@ -661,6 +837,7 @@ function AssignmentModal({
   barcode,
   targetRadio,
   initial,
+  previousUser,
   teamMembers,
   departmentSuggestions,
   // Accessory state is now lifted up to ScanContent so it survives
@@ -682,6 +859,18 @@ function AssignmentModal({
   barcode: string
   targetRadio: { id: number; name: string }
   initial: KnownRadio | null
+  /** Previous assignee snapshot when re-assigning a returned radio.
+   *  Surfaced as a clickable header chip — tap to restore the
+   *  previous person's info into the form (useful when the same
+   *  crew is taking the walkie right back out). Nothing persists
+   *  until Save. */
+  previousUser: {
+    firstName: string | null
+    lastName: string | null
+    department: string | null
+    position: string | null
+    assignedToProjectMemberId: number | null
+  } | null
   teamMembers: TeamMember[]
   departmentSuggestions: string[]
   fistMic: boolean
@@ -786,6 +975,47 @@ function AssignmentModal({
           </div>
           <span className="hidden text-xs text-gray-500 sm:inline">{projectName}</span>
         </div>
+        {/* Previous-user chip — when a returned walkie comes back in
+            for a new user, show the previous holder as a clickable
+            chip with name + department + position. Tap to restore
+            them into the form (e.g. same person taking it right
+            back out); nothing persists until Save. */}
+        {previousUser && (() => {
+          const prevName = [previousUser.firstName, previousUser.lastName]
+            .map((s) => s?.trim())
+            .filter(Boolean)
+            .join(' ')
+          const meta = [previousUser.department, previousUser.position]
+            .map((s) => s?.trim())
+            .filter(Boolean)
+            .join(' · ')
+          return (
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                Previous
+              </span>
+              {/* Sized + shaped to match the Save button below
+                  (rounded-lg, px-4 py-2, text-sm font-medium,
+                  w-full sm:w-auto) so the chip reads as a peer
+                  action — tap to restore the previous user. */}
+              <button
+                type="button"
+                onClick={() => {
+                  setFirstName(previousUser.firstName ?? '')
+                  setLastName(previousUser.lastName ?? '')
+                  setDepartment(previousUser.department ?? '')
+                  setPosition(previousUser.position ?? '')
+                  setMemberId(previousUser.assignedToProjectMemberId)
+                }}
+                className="flex w-full items-baseline justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-[#22a7d3]/60 hover:bg-[#22a7d3]/10 sm:w-auto"
+                aria-label={`Restore previous user ${prevName || ''}`}
+              >
+                <span className="font-semibold text-[#22a7d3]">{prevName || '—'}</span>
+                {meta && <span className="text-gray-400">· {meta}</span>}
+              </button>
+            </div>
+          )
+        })()}
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <ComboboxInput
