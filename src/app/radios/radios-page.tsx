@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { PageLayout } from '@/components/page-layout'
+import { AutoHideHeader } from '@/components/auto-hide-header'
 import { EmptyState } from '@/components/empty-state'
 import { ComboboxInput } from '@/components/combobox-input'
 import { IconButton } from '@/components/icon-button'
@@ -342,7 +343,8 @@ export function RadiosPage({
           dropdown + search + Add only. pt-3 matches the Comms tabs'
           sticky-bundle top padding so the count + dropdown row
           aligns the same distance below the page header. */}
-      <div className="flex-shrink-0 space-y-3 pb-3 pt-3">
+      <AutoHideHeader>
+      <div className="space-y-3 pb-3 pt-3">
         {/* Mobile-only: tab dropdown + search + Add directly under
             project. When search is open the dropdown shrinks and the
             input takes the space between it and the X close button. */}
@@ -442,6 +444,7 @@ export function RadiosPage({
           {totalRadios - assignedRadios} unassigned
         </div>
       </div>
+      </AutoHideHeader>
 
       {error && (
         <div className="mb-3 flex-shrink-0 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">

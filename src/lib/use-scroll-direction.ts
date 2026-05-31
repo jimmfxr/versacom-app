@@ -20,12 +20,23 @@ import { useEffect, useState } from 'react'
  * bar slides out of view when the operator is reading down a long
  * list and slides back the moment they nudge upward.
  */
-export function useScrollDirection(threshold = 8, topAt = 4): 'up' | 'down' {
+export function useScrollDirection(
+  threshold = 16,
+  topAt = 4,
+  /** Milliseconds to lock the direction after a flip — damps the
+   *  oscillation that AutoHideHeader's collapse can introduce when
+   *  the parent layout reflows mid-scroll (was causing the Radios
+   *  Zones tab chrome to rapidly open/close). 150ms is enough to
+   *  outlast the 200ms transition AND any scroll-anchor jitter. */
+  cooldownMs = 150,
+): 'up' | 'down' {
   const [direction, setDirection] = useState<'up' | 'down'>('up')
 
   useEffect(() => {
     if (typeof window === 'undefined') return
     let lastY = readScroll()
+    let lastFlipAt = 0
+    let lastDirection: 'up' | 'down' = 'up'
     let ticking = false
 
     function readScroll(): number {
@@ -43,13 +54,28 @@ export function useScrollDirection(threshold = 8, topAt = 4): 'up' | 'down' {
       ticking = false
       const y = readScroll()
       if (y <= topAt) {
-        if (direction !== 'up') setDirection('up')
+        if (lastDirection !== 'up') {
+          lastDirection = 'up'
+          lastFlipAt = performance.now()
+          setDirection('up')
+        }
         lastY = y
         return
       }
       const delta = y - lastY
       if (Math.abs(delta) < threshold) return
-      setDirection(delta > 0 ? 'down' : 'up')
+      const next: 'up' | 'down' = delta > 0 ? 'down' : 'up'
+      // Hysteresis — don't allow a direction flip within the cooldown
+      // window of the previous flip. Prevents oscillation when the
+      // parent layout reflows during the auto-hide transition.
+      if (next !== lastDirection && performance.now() - lastFlipAt < cooldownMs) {
+        return
+      }
+      if (next !== lastDirection) {
+        lastDirection = next
+        lastFlipAt = performance.now()
+        setDirection(next)
+      }
       lastY = y
     }
 
@@ -67,11 +93,7 @@ export function useScrollDirection(threshold = 8, topAt = 4): 'up' | 'down' {
       document.removeEventListener('scroll', onScroll, true)
       window.removeEventListener('scroll', onScroll)
     }
-    // direction intentionally omitted from deps — we read+write it
-    // inside the listener, re-subscribing on every change would
-    // thrash the handler.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [threshold, topAt])
+  }, [threshold, topAt, cooldownMs])
 
   return direction
 }

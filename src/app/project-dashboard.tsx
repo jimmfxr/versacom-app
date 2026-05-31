@@ -211,7 +211,7 @@ export function ProjectSwitcher({
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 top-full z-30 mt-1 min-w-[280px] rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl">
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl sm:min-w-[280px]">
           {showAllOption && (() => {
             const isActive = projectId == null
             return (

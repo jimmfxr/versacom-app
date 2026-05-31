@@ -6,6 +6,7 @@ import { useBackgroundRefresh } from '@/hooks/use-background-refresh'
 import { markDeployed, undoDeployed, markReturned, undoReturned } from './actions'
 import { LocationSummary } from '@/components/location-summary'
 import { FilterDropdown } from '@/components/filter-dropdown'
+import { AutoHideHeader } from '@/components/auto-hide-header'
 import { usePersistentState } from '@/lib/use-persistent-state'
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -258,7 +259,8 @@ export function TaskCardList({
     // pt-3 matches the equipment-details tab spacing — gives the chip
     // row 12px of breathing room below the page-header bottomBorder
     // line. mb-3 keeps existing spacing below.
-    <div className="flex-shrink-0 -mx-4 mb-3 bg-[#202020] px-4 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+    <AutoHideHeader className="-mx-4 mb-3 bg-[#202020] sm:-mx-6 lg:-mx-8">
+    <div className="px-4 pt-3 sm:px-6 lg:px-8">
       {/* Mobile-only internal search input. Desktop search lives on
           the chips row below (right side). */}
       {!isExternalSearch && (
@@ -301,6 +303,7 @@ export function TaskCardList({
         </div>
       )}
     </div>
+    </AutoHideHeader>
   )
 
   if (visible.length === 0) {

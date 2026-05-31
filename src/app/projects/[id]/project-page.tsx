@@ -32,6 +32,7 @@ import { ComboboxInput } from '@/components/combobox-input'
 import { FilterBar, Chip } from '@/components/filter-bar'
 import { ChipScroller } from '@/components/chip-scroller'
 import { FilterDropdown } from '@/components/filter-dropdown'
+import { AutoHideHeader } from '@/components/auto-hide-header'
 import { LocationSummary } from '@/components/location-summary'
 import { HeadsetInventoryEditor } from '@/components/headset-inventory-editor'
 import { usePersistentState } from '@/lib/use-persistent-state'
@@ -1751,7 +1752,13 @@ export function ProjectPage({
           {/* ─── Tab Switcher + per-tab toolbar (mobile only) ─── */}
           {/* Desktop tab dropdown moved into each tab's search row
               (below). Mobile keeps the toolbar here with the dropdown
-              on the left + search toggle + per-tab Add on the right. */}
+              on the left + search toggle + per-tab Add on the right.
+              NOT wrapped in AutoHideHeader: the dropdown popover
+              extends below this row and AutoHideHeader's required
+              overflow-hidden (for the collapse animation) would clip
+              the popover open menu. The per-tab toolbar inside each
+              tab's render IS wrapped so the bulk of the chrome still
+              auto-hides on scroll-down. */}
           <div className="flex-shrink-0">
           <div>
               <>
@@ -1841,8 +1848,12 @@ export function ProjectPage({
           {activeTab === 'equipment' && (
             <div className="flex min-h-0 flex-1 flex-col">
               {/* Mobile-only sticky bundle: search + filter chips ride
-                  together. Desktop search+add is in the top toolbar. */}
-              <div className="flex-shrink-0 -mx-4 bg-[#202020] px-4 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+                  together. Desktop search+add is in the top toolbar.
+                  Wrapped in AutoHideHeader so on mobile the toolbar
+                  collapses on scroll-down + restores on scroll-up
+                  (Instagram / Facebook pattern). */}
+              <AutoHideHeader className="-mx-4 bg-[#202020] sm:-mx-6 lg:-mx-8">
+              <div className="px-4 pt-3 sm:px-6 lg:px-8">
                 {/* Search + Add moved into the tab dropdown row above
                     on mobile (search icon toggles a collapsible
                     input). */}
@@ -1954,6 +1965,7 @@ export function ProjectPage({
                     unused so the operator can see the utilization
                     breakdown at a glance. Both formats respect the
                     active category + search filter. */}
+              <div className="px-4 sm:px-6 lg:px-8">
               {(() => {
                 const total = filteredEquipment.length
                 if (eqLocationFilter) {
@@ -1973,6 +1985,8 @@ export function ProjectPage({
                   </p>
                 )
               })()}
+              </div>
+              </AutoHideHeader>
 
               {/* Scrollable list region. The Pull List card lives INSIDE
                   the scroll so picking a location doesn't pin a tall card
@@ -2617,8 +2631,10 @@ export function ProjectPage({
           {/* ═══════════════════════════════ TEAM TAB ═══════════════════════════════ */}
           {activeTab === 'team' && (
             <div className="flex min-h-0 flex-1 flex-col">
-              {/* Mobile-only sticky bundle: search + filter chips. */}
-              <div className="flex-shrink-0 -mx-4 bg-[#202020] px-4 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+              {/* Mobile-only sticky bundle — wrapped in AutoHideHeader
+                  so it collapses on scroll-down with the page header. */}
+              <AutoHideHeader className="-mx-4 bg-[#202020] sm:-mx-6 lg:-mx-8">
+              <div className="px-4 pt-3 sm:px-6 lg:px-8">
                 {/* Search + Add moved into the tab dropdown row above
                     on mobile. */}
                 {/* Mobile-only divider line below the search row. */}
@@ -2697,10 +2713,13 @@ export function ProjectPage({
               </div>{/* /sticky bundle */}
 
               {/* Count text — pinned above the scroll on desktop. */}
+              <div className="px-4 sm:px-6 lg:px-8">
               <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
                 {filteredMembers.length} of {project.members.length} members
                 {teamSearch && ` matching "${teamSearch}"`}
               </p>
+              </div>
+              </AutoHideHeader>
 
               {/* Scrollable list region (desktop). Add Member card lives
                   INSIDE so it scrolls with the team list instead of
@@ -3053,8 +3072,10 @@ export function ProjectPage({
           {/* ═══════════════════════════════ PICK LIST TAB ═══════════════════════════════ */}
           {activeTab === 'picklist' && (
             <div className="flex min-h-0 flex-1 flex-col">
-              {/* Mobile-only sticky bundle: search + filter chips. */}
-              <div className="flex-shrink-0 -mx-4 bg-[#202020] px-4 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+              {/* Mobile-only sticky bundle — wrapped in AutoHideHeader
+                  so it collapses on scroll-down with the page header. */}
+              <AutoHideHeader className="-mx-4 bg-[#202020] sm:-mx-6 lg:-mx-8">
+              <div className="px-4 pt-3 sm:px-6 lg:px-8">
                 {/* Search + Add moved into the tab dropdown row above
                     on mobile. */}
                 {/* Mobile-only divider line below the search row. */}
@@ -3133,10 +3154,13 @@ export function ProjectPage({
               </div>{/* /sticky bundle */}
 
               {/* Count text — pinned above the scroll on desktop. */}
+              <div className="px-4 sm:px-6 lg:px-8">
               <p className="text-xs flex-shrink-0 pt-1 pb-2 text-gray-500">
                 {filteredPickList.length} of {pickListItems.filter((p) => p.type !== 'PTP').length} functions
                 {plSearch && ` matching "${plSearch}"`}
               </p>
+              </div>
+              </AutoHideHeader>
 
               {/* Scrollable list region (desktop). Add Function card lives
                   INSIDE so it scrolls with the function list. */}
