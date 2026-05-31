@@ -2092,8 +2092,23 @@ export function PanelStudio({
   // moves with it when the chassis is short enough to be vertically
   // centered. See the chassis-scroller jsx below for placement.
   const studioHeader = (
-    <div className="w-full pb-2 lg:pt-3 lg:pb-3">
-      <div className={`mx-auto flex w-full max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8 ${stackHeader ? 'flex-col sm:max-lg:flex-row sm:max-lg:flex-nowrap sm:max-lg:justify-between' : 'flex-nowrap justify-between'}`}>
+    <div className="w-full pt-4 lg:pt-3 lg:pb-3">
+      <div
+        className={`mx-auto flex w-full max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8 ${stackHeader ? 'flex-col sm:max-lg:flex-row sm:max-lg:flex-nowrap sm:max-lg:justify-between' : 'flex-nowrap justify-between'}`}
+        // Desktop small-panel polish: cap the strip's max-width to the
+        // chassis card's measured width (when known) so the identity
+        // (left) and controls (right) cluster closer to the chassis
+        // instead of splaying out to the corners of max-w-7xl. When
+        // the chassis is wider than max-w-7xl this just falls back to
+        // max-w-7xl. On mobile (stackHeader) we DON'T cap — the strip
+        // should still span the full viewport width because the
+        // chassis is offscreen-wide and the strip is sticky.
+        style={
+          !stackHeader && chassisWidth
+            ? { maxWidth: `min(80rem, ${chassisWidth}px)` }
+            : undefined
+        }
+      >
         <div className={`flex min-w-0 flex-col gap-y-0.5 overflow-hidden ${stackHeader ? 'items-center sm:max-lg:flex-1 sm:max-lg:items-start' : 'flex-1 items-center sm:items-start'}`}>
           {presenceViewers.length > 0 && (
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px]">
@@ -2627,6 +2642,18 @@ export function PanelStudio({
               )}
 
 
+              {/* ─── Mobile-only studio identity strip ───
+                  Rendered HERE — outside the chassis-scroller — on
+                  mobile because the strip would otherwise translate
+                  left along with the chassis card as the user pans a
+                  wider-than-viewport chassis horizontally. Out here
+                  it never enters the horizontal-scroll context, so
+                  it stays anchored to the viewport. On desktop this
+                  copy is hidden (sm:hidden) and the strip is rendered
+                  INSIDE the chassis-scroller below where it can
+                  vertically center with the chassis via m-auto. */}
+              <div className="sm:hidden">{studioHeader}</div>
+
               {/* ─── Mobile-only expansion row ───
                   Sits BELOW the user-name strip on mobile so the
                   expansion controls (and the request-mode Changed /
@@ -2725,23 +2752,29 @@ export function PanelStudio({
                     anchors to the top — top rows remain reachable
                     via scroll. Same fallback as `align-items: safe
                     center` but works without that newer keyword. */}
-                <div className="m-auto w-full max-w-7xl flex flex-col gap-2" ref={chassisRef}>
-                  {/* Studio header (identity strip + expansion + Copy /
-                      Save controls). Lives inside the scroller so it
-                      visually anchors to the chassis and centers
-                      vertically with it via the wrapper's m-auto.
-                      The wrapper is w-full + max-w-7xl so the studio
-                      header gets its full normal width (identity LEFT,
-                      controls RIGHT via justify-between) instead of
-                      shrinking to chassis-card width. */}
-                  {studioHeader}
+                <div className="m-auto w-full max-w-7xl flex flex-col gap-2">
+                  {/* Studio header — DESKTOP only (mobile renders an
+                      equivalent copy outside the chassis-scroller, so
+                      it doesn't translate horizontally as the user
+                      pans a wide chassis). Here on desktop the strip
+                      lives inside the scroller so it visually anchors
+                      to the chassis card and centers vertically with
+                      it via the wrapper's m-auto. */}
+                  <div className="hidden sm:block">{studioHeader}</div>
                   {/* Single chassis card containing expansions + main panel.
                       `mx-auto` centers it when it fits within the
                       max-w-7xl wrapper; when it's wider (lots of expansions
                       or a wide hardware type) it overflows naturally to
                       the right, leaving the chassis-scroller's horizontal
-                      scroll usable. */}
-                  <div className="relative mx-auto bg-[#2a2a2a] border border-white/[0.06] rounded-[14px] p-8 gap-4 flex flex-col items-center">
+                      scroll usable.
+                      chassisRef is on the CARD itself (not the outer
+                      wrapper) so chassisWidth measures the real chassis
+                      width — that value drives stackHeader (mobile vs
+                      desktop stripe layout) AND the desktop maxWidth
+                      cap on the studio header (so identity + controls
+                      cluster near a narrow chassis instead of splaying
+                      to the corners of max-w-7xl). */}
+                  <div ref={chassisRef} className="relative mx-auto bg-[#2a2a2a] border border-white/[0.06] rounded-[14px] p-8 gap-4 flex flex-col items-center">
                     {/* Hardware type label, top-right corner of the
                         chassis card. Plain cyan label — no engraved
                         silkscreen shadow. Key count dropped from the
