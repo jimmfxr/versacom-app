@@ -2799,6 +2799,10 @@ export function PanelStudio({
                 // positioning).
                 style={{
                   transform: `translateY(${footerHideProgress * (footerHeight + 92)}px)`,
+                  // 180ms ease-out — matches AutoHideHeader / BottomNav
+                  // so the top chrome, footer, and bottom nav animate
+                  // in sync.
+                  transition: 'transform 180ms ease-out',
                 }}
                 className="fixed bottom-[5.75rem] left-0 right-0 z-30 bg-[#202020] flex flex-col items-stretch gap-2 px-4 pb-3 pt-2 sm:static sm:translate-y-0 sm:bg-transparent sm:flex-shrink-0 sm:flex-row sm:items-center sm:justify-center sm:gap-3 lg:px-5 lg:pb-5 lg:pt-3"
               >
@@ -3771,11 +3775,21 @@ export function BrowseProjectDropdown({
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const ref = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  // Portal-rendered popover position. position:fixed lets the popover
+  // escape `overflow: hidden` ancestors (most importantly the
+  // AutoHideHeader wrapper around the panel-studio top header bar).
+  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number; width: number } | null>(null)
 
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      const target = e.target as Node
+      // Check both the trigger AND the portaled popover.
+      const insideTrigger = ref.current?.contains(target)
+      const insidePopover = popoverRef.current?.contains(target)
+      if (!insideTrigger && !insidePopover) setOpen(false)
     }
     if (open) document.addEventListener('mousedown', onMouseDown)
     return () => document.removeEventListener('mousedown', onMouseDown)
@@ -3785,6 +3799,26 @@ export function BrowseProjectDropdown({
     if (open) {
       setQuery('')
       inputRef.current?.focus()
+    }
+  }, [open])
+
+  // Track trigger position so the portaled popover stays anchored as
+  // the page scrolls or the layout reflows (e.g. when the AutoHideHeader
+  // collapses).
+  useLayoutEffect(() => {
+    if (!open) { setPopoverPos(null); return }
+    function updatePos() {
+      const btn = buttonRef.current
+      if (!btn) return
+      const rect = btn.getBoundingClientRect()
+      setPopoverPos({ top: rect.bottom + 4, left: rect.left, width: rect.width })
+    }
+    updatePos()
+    window.addEventListener('scroll', updatePos, true)
+    window.addEventListener('resize', updatePos)
+    return () => {
+      window.removeEventListener('scroll', updatePos, true)
+      window.removeEventListener('resize', updatePos)
     }
   }, [open])
 
@@ -3814,6 +3848,7 @@ export function BrowseProjectDropdown({
     // instead of being clamped at exactly 280px.
     <div ref={ref} className={`relative w-full sm:inline-block sm:w-auto ${className}`}>
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={`flex w-full items-center justify-between gap-2.5 rounded-lg border-2 bg-[#202020] px-3.5 py-2 text-sm font-medium text-white transition-colors sm:min-w-[280px] ${
@@ -3823,8 +3858,17 @@ export function BrowseProjectDropdown({
         <span className="truncate">{project.name}</span>
         <svg className={`size-3.5 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
       </button>
-      {open && (
-        <div className="absolute left-0 right-0 top-full z-30 mt-1 flex max-h-[320px] flex-col rounded-lg border border-white/10 bg-[#2a2a2a] shadow-2xl">
+      {open && popoverPos && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={popoverRef}
+          className="z-[1000] flex max-h-[320px] flex-col rounded-lg border border-white/10 bg-[#2a2a2a] shadow-2xl"
+          style={{
+            position: 'fixed',
+            top: popoverPos.top,
+            left: popoverPos.left,
+            width: popoverPos.width,
+          }}
+        >
           <input
             ref={inputRef}
             type="text"
@@ -3862,7 +3906,8 @@ export function BrowseProjectDropdown({
               <div className="px-3 py-2 text-[12px] text-gray-500">No shows match</div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
@@ -3899,11 +3944,20 @@ export function BrowseMemberSwitcher({
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const ref = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  // Portal-rendered popover position. position:fixed lets the popover
+  // escape `overflow: hidden` ancestors (most importantly the
+  // AutoHideHeader wrapper around the panel-studio top header bar).
+  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number; width: number } | null>(null)
 
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      const target = e.target as Node
+      const insideTrigger = ref.current?.contains(target)
+      const insidePopover = popoverRef.current?.contains(target)
+      if (!insideTrigger && !insidePopover) setOpen(false)
     }
     if (open) document.addEventListener('mousedown', onMouseDown)
     return () => document.removeEventListener('mousedown', onMouseDown)
@@ -3913,6 +3967,25 @@ export function BrowseMemberSwitcher({
     if (open) {
       setQuery('')
       inputRef.current?.focus()
+    }
+  }, [open])
+
+  // Track trigger position so the portaled popover stays anchored as
+  // the page scrolls or layout reflows (AutoHideHeader collapsing, etc).
+  useLayoutEffect(() => {
+    if (!open) { setPopoverPos(null); return }
+    function updatePos() {
+      const btn = buttonRef.current
+      if (!btn) return
+      const rect = btn.getBoundingClientRect()
+      setPopoverPos({ top: rect.bottom + 4, left: rect.left, width: rect.width })
+    }
+    updatePos()
+    window.addEventListener('scroll', updatePos, true)
+    window.addEventListener('resize', updatePos)
+    return () => {
+      window.removeEventListener('scroll', updatePos, true)
+      window.removeEventListener('resize', updatePos)
     }
   }, [open])
 
@@ -3968,6 +4041,7 @@ export function BrowseMemberSwitcher({
       </button>
       <div className="relative flex-1 sm:w-[280px] sm:flex-initial">
         <button
+          ref={buttonRef}
           type="button"
           onClick={() => setOpen((o) => !o)}
           className={`flex w-full items-center justify-between gap-2.5 rounded-lg border-2 bg-[#202020] px-3.5 py-2 text-sm font-medium text-white transition-colors ${
@@ -3977,8 +4051,17 @@ export function BrowseMemberSwitcher({
           <span className="truncate">{memberLabel}</span>
           <svg className={`size-3.5 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
         </button>
-        {open && (
-          <div className="absolute left-0 right-0 top-full z-30 mt-1 flex max-h-[360px] flex-col rounded-lg border border-white/10 bg-[#2a2a2a] shadow-2xl">
+        {open && popoverPos && typeof document !== 'undefined' && createPortal(
+          <div
+            ref={popoverRef}
+            className="z-[1000] flex max-h-[360px] flex-col rounded-lg border border-white/10 bg-[#2a2a2a] shadow-2xl"
+            style={{
+              position: 'fixed',
+              top: popoverPos.top,
+              left: popoverPos.left,
+              width: popoverPos.width,
+            }}
+          >
             <input
               ref={inputRef}
               type="text"
@@ -4024,7 +4107,8 @@ export function BrowseMemberSwitcher({
                 <div className="px-3 py-2 text-[12px] text-gray-500">No users match</div>
               )}
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
       <button

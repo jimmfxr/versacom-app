@@ -64,9 +64,14 @@ export function AutoHideHeader({
   }, [])
 
   const hidePx = isMobile ? progress * height : 0
+  // Short transition smooths the motion — without it the chrome
+  // tracks scroll frame-perfectly which reads as jittery. ~180ms
+  // ease-out is the sweet spot: fast enough to feel responsive,
+  // slow enough to read as a gentle slide.
   const style: React.CSSProperties = {
     transform: `translateY(${-hidePx}px)`,
     marginBottom: hidePx > 0 ? `${-hidePx}px` : undefined,
+    transition: 'transform 180ms ease-out, margin-bottom 180ms ease-out',
   }
 
   return (

@@ -3,58 +3,53 @@
 import { useEffect, useState } from 'react'
 
 /**
- * Scroll-linked "hide progress" tracker. Returns a number in [0, 1]
- * where 0 = chrome fully visible, 1 = chrome fully hidden. The value
- * follows the user's finger 1:1 — every pixel of scroll-down advances
- * hide progress, every pixel of scroll-up rewinds it — until the
- * cumulative offset hits `maxScrollPx`. Net scroll back to the top
- * forces 0 so the chrome always re-anchors at page top.
+ * Direction-snapping "hide progress" tracker. Returns 0 (chrome
+ * visible) or 1 (chrome hidden). Snaps to 1 after the user scrolls
+ * OR swipes down past `downThreshold` of cumulative same-direction
+ * movement, and snaps back to 0 after up-direction movement past
+ * `upThreshold` or reaching the top of the page.
  *
- * Behaves like the Google / Instagram / Chrome top bars: slow scroll
- * → slow reveal, fast flick → fast reveal. AutoHideHeader and
- * BottomNav consume this via `transform: translateY(${progress * h}px)`
- * so they collapse / un-collapse in step with the gesture rather
- * than snapping over a fixed transition.
+ * Listens to BOTH scroll events AND raw touch events. Scroll events
+ * cover the normal case (page overflows, finger drag triggers scroll).
+ * Touch events cover the case where content fits the viewport — no
+ * scroll event ever fires there, but the user's swipe intent should
+ * still hide the chrome so they can see content overlapped by the
+ * fixed footer / bottom nav.
  *
- * Reads from both `window.scrollY` AND any element tagged
- * `[data-scroll-container]` (kiosk pages own their internal scroll
- * region). Whichever is currently scrolled wins.
+ * Snap (vs scroll-linked) keeps the chrome predictable: progress is
+ * always 0 or 1, the consumer's CSS transition (~180ms ease-out)
+ * carries the visual smoothness, and the direction thresholds give
+ * iOS rubber-band overshoot a generous dead-zone before it can flip
+ * state.
  *
- * @param maxScrollPx Pixels of net downward scroll required to reach
- *   fully-hidden (progress = 1). Default 120 = roughly two slow
- *   thumb-flicks on mobile.
- * @param topAt Pixels from the top where progress is forced to 0 so
- *   the chrome always re-anchors at the page top.
- *
- * Overflow guard: if the active scroll container's content barely
- * exceeds its viewport (overflow < `minOverflowPx`, default 200) the
- * progress is forced to 0. Without this, pages that just barely
- * overflow (e.g. a small panel chassis) flicker — every tiny rubber-
- * band scroll jumps the chrome in and out. The guard means "don't
- * bother hiding the chrome when there's nothing to scroll for".
+ * @param _maxScrollPx Unused — kept for source-compatibility with
+ *   call sites that pass an explicit pixel budget.
+ * @param topAt Pixels from the top where progress is forced to 0
+ *   (applies only when the page has measurable scroll position).
+ * @param downThreshold Cumulative downward-swipe / scroll-down delta
+ *   required to commit to hidden. Small (8px) so a deliberate swipe
+ *   registers right away.
+ * @param upThreshold Cumulative upward-swipe / scroll-up delta to
+ *   commit back to visible. Larger (30px) so rubber-band / momentum
+ *   settling doesn't reveal the chrome.
  */
-export function useHideProgress(maxScrollPx = 120, topAt = 4, minOverflowPx = 200): number {
+export function useHideProgress(
+  _maxScrollPx = 120,
+  topAt = 4,
+  downThreshold = 8,
+  upThreshold = 30,
+): number {
   const [progress, setProgress] = useState(0)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    let offset = 0
+    let hidden = false
     let lastY = readScroll()
+    let dirAccum = 0 // signed accumulator
     let ticking = false
-
-    /** The element whose scrollTop is currently driving the hook —
-     *  either a `[data-scroll-container]` or, by fallback, the
-     *  document. Used to check overflow against minOverflowPx. */
-    function activeOverflow(): number {
-      const containers = document.querySelectorAll<HTMLElement>('[data-scroll-container]')
-      for (const c of containers) {
-        if (c.scrollTop > 0 || c.scrollHeight > c.clientHeight) {
-          return c.scrollHeight - c.clientHeight
-        }
-      }
-      const doc = document.documentElement
-      return doc.scrollHeight - doc.clientHeight
-    }
+    // Touch tracking — separate from scroll because touch on a non-
+    // overflowing element never produces scroll events.
+    let touchLastY: number | null = null
 
     function readScroll(): number {
       const containers = document.querySelectorAll<HTMLElement>('[data-scroll-container]')
@@ -64,63 +59,87 @@ export function useHideProgress(maxScrollPx = 120, topAt = 4, minOverflowPx = 20
       return window.scrollY
     }
 
-    function update() {
+    function commit(next: boolean) {
+      if (hidden === next) return
+      hidden = next
+      setProgress(next ? 1 : 0)
+      dirAccum = 0
+    }
+
+    /** Apply a movement delta (positive = "wants to scroll down" =
+     *  swipe finger up; negative = "wants to scroll up" = swipe finger
+     *  down) toward the hide state. */
+    function applyDelta(delta: number) {
+      if (delta === 0) return
+      // Direction-change resets the accumulator so a small reversal
+      // doesn't immediately flip state.
+      if ((delta > 0) !== (dirAccum > 0)) dirAccum = 0
+      dirAccum += delta
+      if (!hidden && dirAccum >= downThreshold) commit(true)
+      else if (hidden && dirAccum <= -upThreshold) commit(false)
+    }
+
+    function updateFromScroll() {
       ticking = false
       const y = readScroll()
-      const max = activeOverflow()
       if (y <= topAt) {
-        if (offset !== 0) {
-          offset = 0
-          setProgress(0)
-        }
+        commit(false)
         lastY = y
         return
       }
-      // Clamp-induced-delta suppression. When chrome hides, the
-      // scroll-container's clientHeight grows, so its max scrollTop
-      // shrinks. If the user was scrolled past the new max, the engine
-      // clamps scrollTop down — and fires a scroll event whose delta
-      // would otherwise read as a "scroll-up" and unwind the hide. We
-      // collapse `lastY` to the new max BEFORE computing delta so that
-      // engine clamping registers as zero movement, not phantom user
-      // input. Real user scroll-up (lastY <= max) is unaffected.
-      if (lastY > max) lastY = max
       const delta = y - lastY
       lastY = y
-      // If the page barely overflows, don't START hiding — small
-      // rubber-band scrolls would otherwise flicker the chrome in and
-      // out. Only veto increasing the hide (positive delta); reversing
-      // is always allowed so a user can rewind a stuck-hidden state.
-      if (delta > 0 && offset === 0 && max < minOverflowPx) {
-        return
-      }
-      const next = Math.max(0, Math.min(maxScrollPx, offset + delta))
-      if (next === offset) return
-      offset = next
-      setProgress(offset / maxScrollPx)
+      applyDelta(delta)
     }
 
     function onScroll() {
       if (ticking) return
       ticking = true
-      requestAnimationFrame(update)
+      requestAnimationFrame(updateFromScroll)
+    }
+
+    function onTouchStart(e: TouchEvent) {
+      if (e.touches.length !== 1) return
+      touchLastY = e.touches[0].clientY
+    }
+
+    function onTouchMove(e: TouchEvent) {
+      if (touchLastY == null || e.touches.length !== 1) return
+      const y = e.touches[0].clientY
+      // Finger moves UP (y decreases) → user is trying to scroll down →
+      // positive delta (advance hide). Finger moves DOWN (y increases)
+      // → trying to scroll up → negative delta (reveal).
+      const delta = touchLastY - y
+      touchLastY = y
+      applyDelta(delta)
+    }
+
+    function onTouchEnd() {
+      touchLastY = null
     }
 
     document.addEventListener('scroll', onScroll, true)
     window.addEventListener('scroll', onScroll, { passive: true })
+    document.addEventListener('touchstart', onTouchStart, { passive: true })
+    document.addEventListener('touchmove', onTouchMove, { passive: true })
+    document.addEventListener('touchend', onTouchEnd, { passive: true })
+    document.addEventListener('touchcancel', onTouchEnd, { passive: true })
     return () => {
       document.removeEventListener('scroll', onScroll, true)
       window.removeEventListener('scroll', onScroll)
+      document.removeEventListener('touchstart', onTouchStart)
+      document.removeEventListener('touchmove', onTouchMove)
+      document.removeEventListener('touchend', onTouchEnd)
+      document.removeEventListener('touchcancel', onTouchEnd)
     }
-  }, [maxScrollPx, topAt, minOverflowPx])
+  }, [topAt, downThreshold, upThreshold])
 
   return progress
 }
 
 /**
  * Back-compat shim — the old direction-only consumers can keep
- * calling this name and get `'up' | 'down'` derived from progress.
- * New code should use useHideProgress directly.
+ * calling this name. New code should use useHideProgress directly.
  */
 export function useScrollDirection(): 'up' | 'down' {
   const p = useHideProgress()

@@ -106,7 +106,9 @@ export function BottomNav({ notificationUnread, onOpenTools, toolsActive }: Prop
       aria-label="Primary"
       aria-hidden={progress > 0.5}
       className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 bg-[#1a1a1a] pb-[max(2.75rem,env(safe-area-inset-bottom))] pt-5 sm:hidden"
-      style={{ transform: `translateY(${slidePx}px)` }}
+      // Same 180ms ease-out as AutoHideHeader — keeps the top and
+      // bottom chrome moving in sync visually.
+      style={{ transform: `translateY(${slidePx}px)`, transition: 'transform 180ms ease-out' }}
     >
       {items.map((item) => {
         const color = item.active ? 'text-[#22a7d3]' : 'text-gray-400'
