@@ -577,7 +577,19 @@ export default async function PanelStudioPage({
       }>
     | undefined
 
-  const isBrowseEntry = from === 'my-equipment'
+  // User-only sessions ALWAYS get the project dropdown header — they
+  // have no other entry point to the panel-studio (no /projects list,
+  // no /tasks, no dashboard). Notifications that link to
+  // /projects/X/panel/Y don't carry the `?from=my-equipment` param,
+  // so we'd previously fall through to the back-button header that
+  // routes them to /projects/{id} — a route their proxy whitelist
+  // blocks, kicking them back to /my-equipment. Treating user-only
+  // as an implicit browse-entry keeps the project dropdown wired
+  // up no matter how they got here.
+  const isUserOnlySession =
+    session.memberships.length > 0 &&
+    session.memberships.every((m) => m.role === 'user')
+  const isBrowseEntry = from === 'my-equipment' || isUserOnlySession
   const isManagerOrAdminGlobal = session.memberships.some(
     (m) => m.role === 'admin' || m.role === 'manager',
   )

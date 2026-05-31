@@ -105,7 +105,10 @@ export function BottomNav({ notificationUnread, onOpenTools, toolsActive, isUser
       Icon: BellIcon,
       ActiveIcon: BellIconSolid,
       active: isNotifications,
-      dot: notificationUnread > 0,
+      // Numeric badge (capped at 99+ in the render) — replaces the
+      // previous bare red dot so users can see the actual unread count
+      // without opening the notifications page.
+      badge: notificationUnread,
     },
     {
       key: 'profile',
@@ -138,11 +141,13 @@ export function BottomNav({ notificationUnread, onOpenTools, toolsActive, isUser
         const RenderIcon = item.active ? item.ActiveIcon : item.Icon
         const inner = (
           <>
-            {'dot' in item && item.dot && (
+            {'badge' in item && typeof item.badge === 'number' && item.badge > 0 && (
               <span
                 aria-hidden
-                className="absolute right-[calc(50%-14px)] top-1 size-2 rounded-full bg-red-500"
-              />
+                className="absolute right-[calc(50%-18px)] top-0 inline-flex min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
+              >
+                {item.badge > 99 ? '99+' : item.badge}
+              </span>
             )}
             <RenderIcon className="size-7" aria-hidden />
           </>
