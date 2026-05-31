@@ -64,10 +64,14 @@ export function AutoHideHeader({
   }, [])
 
   const hidePx = isMobile ? progress * height : 0
-  // Short transition smooths the motion — without it the chrome
-  // tracks scroll frame-perfectly which reads as jittery. ~180ms
-  // ease-out is the sweet spot: fast enough to feel responsive,
-  // slow enough to read as a gentle slide.
+  // 180ms ease-out smooths both the translate (visual slide) and the
+  // margin-bottom (layout collapse). Without the margin-bottom claw-
+  // back, hiding the chrome would just hide it visually — the parent
+  // flex column would still reserve the layout slot, and a flex-1
+  // sibling (the panel-studio chassis-scroller) wouldn't actually
+  // get any more room. With it, the chassis-scroller grows into the
+  // freed space and an overflowing chassis can actually fit without
+  // scrolling once the chrome is out of the way.
   const style: React.CSSProperties = {
     transform: `translateY(${-hidePx}px)`,
     marginBottom: hidePx > 0 ? `${-hidePx}px` : undefined,

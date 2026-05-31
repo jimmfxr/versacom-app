@@ -41,13 +41,18 @@ export default async function PanelStudioPage({
 
   if (!equipment || !PANEL_CATEGORIES.includes(equipment.category)) notFound()
 
-  // Get the assigned ProjectMember
+  // Get the assigned ProjectMember. Pull the per-show position +
+  // department + location, AND the user's profile-level defaults — if
+  // the per-show value is null we fall back to the User-level field
+  // so the identity strip reads correctly even on projects where the
+  // operator hasn't customised the per-show role.
   let member: {
     id: number
     userId: number
     firstName: string
     lastName: string
     position: string | null
+    department: string | null
     location: string | null
   } | null = null
 
@@ -58,8 +63,16 @@ export default async function PanelStudioPage({
         id: true,
         userId: true,
         position: true,
+        department: true,
         location: true,
-        user: { select: { firstName: true, lastName: true } },
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            position: true,
+            department: true,
+          },
+        },
       },
     })
     if (pm) {
@@ -68,7 +81,9 @@ export default async function PanelStudioPage({
         userId: pm.userId,
         firstName: pm.user.firstName,
         lastName: pm.user.lastName,
-        position: pm.position,
+        // Per-show value wins; otherwise fall back to user profile.
+        position: pm.position ?? pm.user.position ?? null,
+        department: pm.department ?? pm.user.department ?? null,
         location: pm.location,
       }
     }

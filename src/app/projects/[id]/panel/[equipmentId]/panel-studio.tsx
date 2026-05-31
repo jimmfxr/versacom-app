@@ -86,6 +86,7 @@ interface PanelStudioProps {
     firstName: string
     lastName: string
     position: string | null
+    department: string | null
     location: string | null
   } | null
   project: {
@@ -776,6 +777,20 @@ export function PanelStudio({
   // the footer slides off the bottom of the screen — same pattern
   // as BottomNav and the mobile expansion-row wrapper above.
   const footerHideProgress = useHideProgress()
+  // Mobile vs desktop — drives the chassis-scroller's dynamic
+  // padding-bottom (we only shrink the 15rem footer-overlay buffer
+  // on mobile, where the fixed footer + bottom nav actually overlap
+  // the chassis; on desktop the chrome lives in flex flow and the
+  // buffer was already small).
+  const [isMobileViewport, setIsMobileViewport] = useState(false)
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') return
+    const mq = window.matchMedia('(max-width: 639px)')
+    const update = () => setIsMobileViewport(mq.matches)
+    update()
+    mq.addEventListener('change', update)
+    return () => mq.removeEventListener('change', update)
+  }, [])
   const footerRef = useRef<HTMLDivElement>(null)
   const [footerHeight, setFooterHeight] = useState(0)
   useEffect(() => {
@@ -2060,7 +2075,170 @@ export function PanelStudio({
      ═══════════════════════════════════════════════════════════════ */
 
   const memberName = member ? `${member.firstName} ${member.lastName}` : 'Unassigned'
-  const memberMeta = [member?.position, member?.location].filter(Boolean).join(' \u00B7 ')
+  // Identity strip meta \u2014 department first (broad context like AUDIO,
+  // VIDEO, RF), then position (specific role like A1, FOH MIX), then
+  // location (FOH, MON, STAGE). Each value is per-show if set, else
+  // the user's profile-level default (resolved upstream in page.tsx).
+  // filter(Boolean) skips empty fields so the dot separators stay
+  // clean.
+  const memberMeta = [member?.department, member?.position, member?.location]
+    .filter(Boolean)
+    .join(' \u00B7 ')
+
+  // Studio header (identity strip + expansion / Copy / Save controls).
+  // Extracted as a JSX value so it can be rendered INSIDE the chassis-
+  // scroller, right above the chassis card, instead of high up at the
+  // page-header level. That way it visually anchors to the panel and
+  // moves with it when the chassis is short enough to be vertically
+  // centered. See the chassis-scroller jsx below for placement.
+  const studioHeader = (
+    <div className="w-full pb-2 lg:pt-3 lg:pb-3">
+      <div className={`mx-auto flex w-full max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8 ${stackHeader ? 'flex-col sm:max-lg:flex-row sm:max-lg:flex-nowrap sm:max-lg:justify-between' : 'flex-nowrap justify-between'}`}>
+        <div className={`flex min-w-0 flex-col gap-y-0.5 overflow-hidden ${stackHeader ? 'items-center sm:max-lg:flex-1 sm:max-lg:items-start' : 'flex-1 items-center sm:items-start'}`}>
+          {presenceViewers.length > 0 && (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px]">
+              {presenceViewers.map((v, i) => (
+                <span key={v.userId} className="inline-flex items-center">
+                  {i > 0 && <span className="mr-2 text-[#3a3a3a]">&middot;</span>}
+                  <span className="text-white">{v.firstName} {v.lastName}</span>
+                  {v.state === 'editing' ? (
+                    <PencilIcon aria-label="editing" className="ml-1.5 size-3 text-[#22a7d3]" />
+                  ) : (
+                    <EyeIcon aria-label="viewing" className="ml-1.5 size-3 text-[#22a7d3]" />
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
+          <div className={`flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 justify-center ${stackHeader ? 'sm:max-lg:justify-start' : 'sm:justify-start'}`}>
+            {equipment.name && (
+              <span className="text-[18px] font-bold text-[#22a7d3] font-mono lg:text-[22px]">{equipment.name}</span>
+            )}
+            {equipment.name && <span className="text-xs text-[#3a3a3a]">&middot;</span>}
+            <span className="text-[18px] font-bold text-white truncate lg:text-[22px]">{memberName}</span>
+            {memberMeta && (
+              <>
+                <span className="text-xs text-[#3a3a3a]">&middot;</span>
+                <span className="text-[13px] text-gray-400">{memberMeta}</span>
+              </>
+            )}
+            {isReviewMode && (
+              <span className="ml-2 inline-flex items-center gap-2 rounded-lg border border-[#f59e0b]/30 bg-[#f59e0b]/10 px-3 py-1">
+                <svg className="size-3.5 text-[#f59e0b]" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                </svg>
+                <span className="text-[11px] font-semibold text-[#f59e0b]">Reviewing change request</span>
+              </span>
+            )}
+          </div>
+          <div className={`flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 justify-center ${stackHeader ? 'sm:max-lg:justify-start' : 'sm:justify-start'}`}>
+            {showIpAddress && equipment.ipAddress && (
+              <>
+                <a
+                  href={`http://${equipment.ipAddress}${equipment.category === 'panels' ? '/remote-control/' : ''}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[13px] text-[#22a7d3] hover:text-[#019bc7]"
+                >
+                  {equipment.ipAddress}
+                </a>
+                <span className="text-xs text-[#3a3a3a]">&middot;</span>
+              </>
+            )}
+            <span className="text-xs text-gray-500">{project.name}</span>
+          </div>
+        </div>
+        <div className={`flex flex-shrink-0 flex-wrap items-center gap-3 ${stackHeader ? 'justify-center sm:max-lg:justify-end' : ''}`}>
+          <div className="hidden flex-wrap items-center gap-x-2 gap-y-1 sm:flex">
+            {isRequestMode && (
+              <>
+                <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                  <span className="w-[9px] h-[9px] rounded-sm bg-[#f59e0b] shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
+                  Changed (draft)
+                </div>
+                <span className="text-xs text-[#3a3a3a]">&middot;</span>
+                <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                  <span className="w-[9px] h-[9px] rounded-sm bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.4)] border border-[#10b981]" />
+                  Submitted
+                </div>
+              </>
+            )}
+            {canManageExpansions && isExpandable && (
+              <div className="inline-flex items-center gap-2 text-xs text-gray-300">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Expansions</span>
+                <span className="font-semibold text-white">{expansionCount}</span>
+                <div className="inline-flex gap-1.5">
+                  {expansionCount > 0 && (
+                    <button
+                      onClick={handleRemoveExpansion}
+                      disabled={saving}
+                      className="shrink-0 rounded-md border border-white/10 px-4 py-2 text-sm font-semibold text-red-500 transition-colors hover:border-red-500/40 hover:bg-red-500/[0.08] disabled:opacity-50"
+                    >
+                      &minus;
+                    </button>
+                  )}
+                  {expansionCount < 6 && (
+                    <button
+                      onClick={handleAddExpansion}
+                      disabled={saving}
+                      className="shrink-0 rounded-md border border-white/10 px-4 py-2 text-sm font-semibold text-[#22a7d3] transition-colors hover:border-[#22a7d3]/40 hover:bg-[#22a7d3]/[0.08] disabled:opacity-50"
+                    >
+                      +
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          {canEditKeys && !isReviewMode && (
+            <div className={`hidden items-center gap-2 sm:flex ${stackHeader ? 'lg:hidden' : ''}`}>
+              {(_currentUserRole === 'admin' || _currentUserRole === 'manager' || isAdminGlobal) && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleCopyPanel}
+                    className="shrink-0 rounded-md border border-white/10 px-4 py-2 text-sm font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+                  >
+                    Copy
+                  </button>
+                  {panelClipboard && panelClipboard.entries.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handlePasteClick}
+                      onPointerDown={startLongPress}
+                      onPointerUp={cancelLongPress}
+                      onPointerLeave={cancelLongPress}
+                      onPointerCancel={cancelLongPress}
+                      title={`Paste from ${panelClipboard.sourceLabel} (hold to preview)`}
+                      onContextMenu={(e) => e.preventDefault()}
+                      style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
+                      className={`shrink-0 select-none rounded-md border px-4 py-2 text-sm font-semibold transition-colors ${
+                        pastePreviewOpen
+                          ? 'border-[#10b981] text-[#10b981] hover:bg-[#10b981]/10'
+                          : 'border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
+                      }`}
+                    >
+                      Paste
+                    </button>
+                  )}
+                </>
+              )}
+              {!isRequestMode && (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="shrink-0 rounded-md bg-[#0178a3] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : 'Save'}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 
   return (
     <>
@@ -2448,233 +2626,6 @@ export function PanelStudio({
                 </div>
               )}
 
-              {/* ─── Header (pinned) ───
-                  Single layout for all viewports: identity info pushed
-                  far-left, legend + expansion controls pushed far-right
-                  via `justify-between`. Constrained to max-w-7xl
-                  regardless of chassis size — tiny panels (2-key,
-                  4-key) used to make the header track chassisWidth and
-                  squeeze identity text into a stack of lines, while
-                  the picker card stayed wide. Now header + picker share
-                  the same comfortable container width so things stay
-                  visually aligned no matter how small the chassis. */}
-              <div className="w-full flex-shrink-0 pt-4 pb-2 lg:pt-3 lg:pb-3">
-                {/* Single max-w-7xl container with px-4 sm:px-6 lg:px-8
-                    so the inner edges land at the SAME 32px desktop
-                    gutter as the picker card and every other page
-                    section — important so identity / Copy / Save /
-                    expansion controls all line up vertically with the
-                    picker card edges below them. */}
-                <div className={`mx-auto flex w-full max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8 ${stackHeader ? 'flex-col sm:max-lg:flex-row sm:max-lg:flex-nowrap sm:max-lg:justify-between' : 'flex-nowrap justify-between'}`}>
-                {/* Left: ID · name · meta · ip · project · hardware · key count
-                    All separated by middle dots. Wraps via flex-wrap so
-                    a long identity line doesn't push the right group
-                    off-screen on narrow viewports — but the parent is
-                    flex-nowrap so the two GROUPS stay on one row. */}
-                <div className={`flex min-w-0 flex-col gap-y-0.5 overflow-hidden ${stackHeader ? 'items-center sm:max-lg:flex-1 sm:max-lg:items-start' : 'flex-1 items-center sm:items-start'}`}>
-                  {/* Row 0: soft presence — other people currently
-                      looking at this same panel. Names in white;
-                      state shown as a cyan icon (eye = viewing,
-                      pencil = editing) instead of a word. Hidden
-                      when no one else is here. */}
-                  {presenceViewers.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px]">
-                      {presenceViewers.map((v, i) => (
-                        <span key={v.userId} className="inline-flex items-center">
-                          {i > 0 && (
-                            <span className="mr-2 text-[#3a3a3a]">&middot;</span>
-                          )}
-                          <span className="text-white">
-                            {v.firstName} {v.lastName}
-                          </span>
-                          {v.state === 'editing' ? (
-                            <PencilIcon
-                              aria-label="editing"
-                              className="ml-1.5 size-3 text-[#22a7d3]"
-                            />
-                          ) : (
-                            <EyeIcon
-                              aria-label="viewing"
-                              className="ml-1.5 size-3 text-[#22a7d3]"
-                            />
-                          )}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {/* Row 1: ID · firstName lastName · position · location */}
-                  <div className={`flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 justify-center ${stackHeader ? 'sm:max-lg:justify-start' : 'sm:justify-start'}`}>
-                    {equipment.name && (
-                      <span className="text-[18px] font-bold text-[#22a7d3] font-mono lg:text-[22px]">{equipment.name}</span>
-                    )}
-                    {equipment.name && (
-                      <span className="text-xs text-[#3a3a3a]">&middot;</span>
-                    )}
-                    <span className="text-[18px] font-bold text-white truncate lg:text-[22px]">{memberName}</span>
-                    {memberMeta && (
-                      <>
-                        <span className="text-xs text-[#3a3a3a]">&middot;</span>
-                        <span className="text-[13px] text-gray-400">{memberMeta}</span>
-                      </>
-                    )}
-                    {isReviewMode && (
-                      <span className="ml-2 inline-flex items-center gap-2 rounded-lg border border-[#f59e0b]/30 bg-[#f59e0b]/10 px-3 py-1">
-                        <svg className="size-3.5 text-[#f59e0b]" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-                        </svg>
-                        <span className="text-[11px] font-semibold text-[#f59e0b]">Reviewing change request</span>
-                      </span>
-                    )}
-                  </div>
-                  {/* Row 2: IP · project (show) name. Sits directly
-                      below the identity row so the bigger name + role
-                      strip stays clean and the secondary metadata
-                      (link to panel UI, which show this is on) lives
-                      on its own line. */}
-                  <div className={`flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 justify-center ${stackHeader ? 'sm:max-lg:justify-start' : 'sm:justify-start'}`}>
-                    {showIpAddress && equipment.ipAddress && (
-                      <>
-                        <a
-                          // Panels carry the Riedel web UI under
-                          // /remote-control/, so the link drops the
-                          // user straight into that. Other categories
-                          // (switches, antennas) just open the bare IP.
-                          href={`http://${equipment.ipAddress}${equipment.category === 'panels' ? '/remote-control/' : ''}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          // Match the surrounding identity strip's font
-                          // (no font-mono, no underline) — just stays
-                          // cyan with a slightly brighter cyan on hover
-                          // so it still reads as a clickable link.
-                          className="text-[13px] text-[#22a7d3] hover:text-[#019bc7]"
-                        >
-                          {equipment.ipAddress}
-                        </a>
-                        <span className="text-xs text-[#3a3a3a]">&middot;</span>
-                      </>
-                    )}
-                    <span className="text-xs text-gray-500">{project.name}</span>
-                  </div>
-                </div>
-
-                {/* Right: on desktop = legend chips + expansion +/- +
-                    Copy/Save. On mobile = Copy/Save only (the legend
-                    and expansion controls move to the footer next to
-                    the Main/Shift toggle so the header stays compact
-                    on small screens). */}
-                <div className={`flex flex-shrink-0 flex-wrap items-center gap-3 ${stackHeader ? 'justify-center sm:max-lg:justify-end' : ''}`}>
-                  {/* Expansion controls — visible from sm+ (so they
-                      sit to the right of the identity strip in
-                      landscape phone too, not just desktop). The
-                      color-swatch legend was removed per operator
-                      feedback — the chassis itself is self-explanatory
-                      after a few seconds, the legend was just noise.
-                      Changed/Submitted draft indicators below are kept
-                      ONLY when isRequestMode is active because there's
-                      no other on-screen affordance for those states. */}
-                  <div className="hidden flex-wrap items-center gap-x-2 gap-y-1 sm:flex">
-                    {isRequestMode && (
-                      <>
-                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                          <span className="w-[9px] h-[9px] rounded-sm bg-[#f59e0b] shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
-                          Changed (draft)
-                        </div>
-                        <span className="text-xs text-[#3a3a3a]">&middot;</span>
-                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                          <span className="w-[9px] h-[9px] rounded-sm bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.4)] border border-[#10b981]" />
-                          Submitted
-                        </div>
-                      </>
-                    )}
-                    {canManageExpansions && isExpandable && (
-                      <div className="inline-flex items-center gap-2 text-xs text-gray-300">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Expansions</span>
-                        <span className="font-semibold text-white">{expansionCount}</span>
-                        <div className="inline-flex gap-1.5">
-                          {expansionCount > 0 && (
-                            <button
-                              onClick={handleRemoveExpansion}
-                              disabled={saving}
-                              className="shrink-0 rounded-md border border-white/10 px-4 py-2 text-sm font-semibold text-red-500 transition-colors hover:border-red-500/40 hover:bg-red-500/[0.08] disabled:opacity-50"
-                            >
-                              &minus;
-                            </button>
-                          )}
-                          {expansionCount < 6 && (
-                            <button
-                              onClick={handleAddExpansion}
-                              disabled={saving}
-                              className="shrink-0 rounded-md border border-white/10 px-4 py-2 text-sm font-semibold text-[#22a7d3] transition-colors hover:border-[#22a7d3]/40 hover:bg-[#22a7d3]/[0.08] disabled:opacity-50"
-                            >
-                              +
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Copy / Paste / Save — visible at sm+ so they
-                      sit right of the expansion controls on landscape
-                      phone too. Hidden in mobile portrait (Main/Shift
-                      footer carries them there) and at lg+ when
-                      stackHeader is true (small chassis on desktop —
-                      the layout collapses to mobile-style and these
-                      buttons move down to the footer below the
-                      chassis). Hidden in review mode entirely. */}
-                  {canEditKeys && !isReviewMode && (
-                    <div className={`hidden items-center gap-2 sm:flex ${stackHeader ? 'lg:hidden' : ''}`}>
-                      {(_currentUserRole === 'admin' || _currentUserRole === 'manager' || isAdminGlobal) && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={handleCopyPanel}
-                            className="shrink-0 rounded-md border border-white/10 px-4 py-2 text-sm font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
-                          >
-                            Copy
-                          </button>
-                          {panelClipboard && panelClipboard.entries.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={handlePasteClick}
-                              onPointerDown={startLongPress}
-                              onPointerUp={cancelLongPress}
-                              onPointerLeave={cancelLongPress}
-                              onPointerCancel={cancelLongPress}
-                              title={`Paste from ${panelClipboard.sourceLabel} (hold to preview)`}
-                              // Suppress iOS Safari's long-press
-                              // callout (Copy / Look up / Translate)
-                              // + Android Chrome's context menu so
-                              // the hold-to-preview gesture fires
-                              // cleanly instead of hijacking the press.
-                              onContextMenu={(e) => e.preventDefault()}
-                              style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
-                              className={`shrink-0 select-none rounded-md border px-4 py-2 text-sm font-semibold transition-colors ${
-                                pastePreviewOpen
-                                  ? 'border-[#10b981] text-[#10b981] hover:bg-[#10b981]/10'
-                                  : 'border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
-                              }`}
-                            >
-                              Paste
-                            </button>
-                          )}
-                        </>
-                      )}
-                      {!isRequestMode && (
-                        <button
-                          type="button"
-                          onClick={handleSave}
-                          disabled={saving}
-                          className="shrink-0 rounded-md bg-[#0178a3] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {saving ? 'Saving...' : 'Save'}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-                </div>
-              </div>
 
               {/* ─── Mobile-only expansion row ───
                   Sits BELOW the user-name strip on mobile so the
@@ -2687,7 +2638,7 @@ export function PanelStudio({
                   group. */}
               {(isRequestMode || (canManageExpansions && isExpandable)) && (
                 <AutoHideHeader className="sm:hidden">
-                <div className="flex w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 pb-2">
+                <div className="flex w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 pt-4">
                   {isRequestMode && (
                     <>
                       <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
@@ -2739,11 +2690,58 @@ export function PanelStudio({
                 // footer auto-hide as the operator scrolls the
                 // chassis on mobile.
                 data-scroll-container
-                className={`flex-1 min-h-0 w-full overflow-auto p-4 pb-[15rem] sm:px-6 sm:pb-4 lg:p-5 lg:px-8 flex transition-[padding-right] duration-300 ${inspectorOpen && !(pickerMode && canEditKeys) ? 'xl:pr-[420px] 2xl:pr-10' : ''}`}
+                // Mobile-only padding-bottom shrinks when chrome hides.
+                // pb-[15rem] (240px) is reserved for the fixed footer
+                // + bottom nav overlay so chassis content can scroll
+                // PAST them while they're visible. Once they slide off
+                // (footerHideProgress === 1) that buffer is dead weight
+                // — eating ~240px of vertical room the chassis could
+                // otherwise use without scrolling. We interpolate down
+                // to 16px (matches the chassis-scroller's own p-4 top)
+                // when the chrome is fully hidden, with the same 180ms
+                // ease-out as the chrome itself so the chassis settles
+                // into the new available area smoothly.
+                style={
+                  isMobileViewport
+                    ? {
+                        // 240px (15rem, original buffer) → 16px when chrome
+                        // is fully hidden. Matches the 180ms ease-out used
+                        // by AutoHideHeader / footer / BottomNav so the
+                        // padding settles in sync with the chrome slide.
+                        paddingBottom: `${240 - footerHideProgress * 224}px`,
+                        transition: 'padding-bottom 180ms ease-out',
+                      }
+                    : undefined
+                }
+                className={`flex-1 min-h-0 w-full overflow-auto p-4 sm:px-6 sm:pb-4 lg:p-5 lg:px-8 flex transition-[padding-right] duration-300 ${inspectorOpen && !(pickerMode && canEditKeys) ? 'xl:pr-[420px] 2xl:pr-10' : ''}`}
               >
-                <div className="min-w-min mx-auto" ref={chassisRef}>
-                  {/* Single chassis card containing expansions + main panel */}
-                  <div className="relative bg-[#2a2a2a] border border-white/[0.06] rounded-[14px] p-8 gap-4 flex flex-col items-center">
+                {/* m-auto: centers the chassis BOTH horizontally and
+                    vertically inside the scroll-container. When the
+                    chassis is shorter than the scroller (e.g. base
+                    panel with 1–2 expansions on mobile), the empty
+                    space splits evenly above and below. When the
+                    chassis overflows the scroller (5–6 expansions),
+                    the auto margins compute to 0 and the chassis
+                    anchors to the top — top rows remain reachable
+                    via scroll. Same fallback as `align-items: safe
+                    center` but works without that newer keyword. */}
+                <div className="m-auto w-full max-w-7xl flex flex-col gap-2" ref={chassisRef}>
+                  {/* Studio header (identity strip + expansion + Copy /
+                      Save controls). Lives inside the scroller so it
+                      visually anchors to the chassis and centers
+                      vertically with it via the wrapper's m-auto.
+                      The wrapper is w-full + max-w-7xl so the studio
+                      header gets its full normal width (identity LEFT,
+                      controls RIGHT via justify-between) instead of
+                      shrinking to chassis-card width. */}
+                  {studioHeader}
+                  {/* Single chassis card containing expansions + main panel.
+                      `mx-auto` centers it when it fits within the
+                      max-w-7xl wrapper; when it's wider (lots of expansions
+                      or a wide hardware type) it overflows naturally to
+                      the right, leaving the chassis-scroller's horizontal
+                      scroll usable. */}
+                  <div className="relative mx-auto bg-[#2a2a2a] border border-white/[0.06] rounded-[14px] p-8 gap-4 flex flex-col items-center">
                     {/* Hardware type label, top-right corner of the
                         chassis card. Plain cyan label — no engraved
                         silkscreen shadow. Key count dropped from the
