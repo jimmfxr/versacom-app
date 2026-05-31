@@ -47,8 +47,15 @@ export function PageLayout({ title, action, children, titleClassName, inlineActi
     // popover portals to document.body so the overflow-hidden inside
     // AutoHideHeader doesn't clip the open dropdown.
     return (
-      <div className="flex min-h-0 flex-1 flex-col pt-5">
-        <AutoHideHeader className="pb-2">{headerBlock}</AutoHideHeader>
+      // pt-5 + pb-2 live INSIDE the AutoHideHeader so they
+      // collapse along with the header on scroll-down. When the
+      // header is visible the page has the original 20px top
+      // breathing room; when hidden, the row truly goes to 0 — no
+      // leftover whitespace where the chrome used to be.
+      <div className="flex min-h-0 flex-1 flex-col">
+        <AutoHideHeader>
+          <div className="pt-5 pb-2">{headerBlock}</div>
+        </AutoHideHeader>
         <main className="flex min-h-0 flex-1 flex-col">
           <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col px-4 sm:px-6 lg:px-8">
             {children}

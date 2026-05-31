@@ -106,6 +106,7 @@ export function NotificationsList({
       titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
       bottomBorder
       inlineAction
+      stickyHeader
       action={
         // Mobile: only the action buttons sit on the title row (far
         // right). The ProjectSwitcher renders as a full-width chip
@@ -141,47 +142,53 @@ export function NotificationsList({
         </div>
       }
     >
-      {/* Mobile-only project switcher — sits as its own row below the
-          title bar so the buttons up top stay legible. Desktop renders
-          the same switcher inline with the action buttons (above). */}
-      {switcher && <div className="mb-3 sm:hidden">{switcher}</div>}
-      <NotificationSettings prefs={prefs} isAdminAnywhere={isAdminAnywhere} />
-      {notifications.length === 0 ? (
-        <EmptyState
-          icon={
-            <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
-            </svg>
-          }
-          title="No notifications yet"
-          message="Activity from your projects (deploys, returns, change requests) will show up here."
-        />
-      ) : (
-        <div className="divide-y divide-white/[0.06]">
-          {notifications.map((n) => (
-            <RowCard key={n.id} onClick={() => handleRowClick(n)}>
-              {/* Unread indicator — small cyan dot on the left. Reserves
-                  space even on read rows so the title aligns vertically
-                  across the list (no jumping when state changes). */}
-              <span
-                className={`size-2 shrink-0 rounded-full ${n.read ? 'bg-transparent' : 'bg-[#22a7d3]'}`}
-                aria-label={n.read ? undefined : 'Unread'}
-              />
-              <div className="min-w-0 flex-1">
-                <div className={`text-sm font-semibold ${n.read ? 'text-gray-400' : 'text-white'}`}>
-                  {n.title}
+      {/* Scrollable content region for the kiosk-style stickyHeader
+          layout. data-scroll-container opts this region into the
+          AutoHideHeader's scroll-direction hook + the ScrollToTop
+          button. */}
+      <div data-scroll-container className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-none">
+        {/* Mobile-only project switcher — sits as its own row below the
+            title bar so the buttons up top stay legible. Desktop renders
+            the same switcher inline with the action buttons (above). */}
+        {switcher && <div className="mb-3 sm:hidden">{switcher}</div>}
+        <NotificationSettings prefs={prefs} isAdminAnywhere={isAdminAnywhere} />
+        {notifications.length === 0 ? (
+          <EmptyState
+            icon={
+              <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+              </svg>
+            }
+            title="No notifications yet"
+            message="Activity from your projects (deploys, returns, change requests) will show up here."
+          />
+        ) : (
+          <div className="divide-y divide-white/[0.06]">
+            {notifications.map((n) => (
+              <RowCard key={n.id} onClick={() => handleRowClick(n)}>
+                {/* Unread indicator — small cyan dot on the left. Reserves
+                    space even on read rows so the title aligns vertically
+                    across the list (no jumping when state changes). */}
+                <span
+                  className={`size-2 shrink-0 rounded-full ${n.read ? 'bg-transparent' : 'bg-[#22a7d3]'}`}
+                  aria-label={n.read ? undefined : 'Unread'}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className={`text-sm font-semibold ${n.read ? 'text-gray-400' : 'text-white'}`}>
+                    {n.title}
+                  </div>
+                  {n.body && (
+                    <div className="mt-0.5 truncate text-xs text-gray-500">{n.body}</div>
+                  )}
                 </div>
-                {n.body && (
-                  <div className="mt-0.5 truncate text-xs text-gray-500">{n.body}</div>
-                )}
-              </div>
-              <div className="shrink-0 text-[11px] text-gray-500">
-                {relativeTime(n.createdAt)}
-              </div>
-            </RowCard>
-          ))}
-        </div>
-      )}
+                <div className="shrink-0 text-[11px] text-gray-500">
+                  {relativeTime(n.createdAt)}
+                </div>
+              </RowCard>
+            ))}
+          </div>
+        )}
+      </div>
     </PageLayout>
   )
 }
