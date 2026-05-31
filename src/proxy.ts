@@ -50,9 +50,20 @@ export function proxy(request: NextRequest) {
     // its own ownership check, so this just unlocks the URL.
     // /profile is also allowed so the navbar avatar / mobile user row
     // can reach the profile page (account info + sign-out).
+    // /notifications is allowed because user-role accounts get five of
+    // the `scope: 'all'` notification kinds (gear assigned, deploy
+    // status, change-request reviewed, return phase, project archived)
+    // — they need a surface to view them. The list query already scopes
+    // by userId so they only see their own.
     const isPanelStudio = /^\/projects\/\d+\/panel\/\d+\/?$/.test(pathname)
     const isProfile = pathname === '/profile' || pathname.startsWith('/profile/')
-    if (!pathname.startsWith('/my-equipment') && !isPanelStudio && !isProfile) {
+    const isNotifications = pathname === '/notifications' || pathname.startsWith('/notifications/')
+    if (
+      !pathname.startsWith('/my-equipment') &&
+      !isPanelStudio &&
+      !isProfile &&
+      !isNotifications
+    ) {
       return NextResponse.redirect(new URL('/my-equipment', request.url))
     }
   }
