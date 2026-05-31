@@ -71,7 +71,7 @@ export function BottomNav({ notificationUnread, onOpenTools, toolsActive }: Prop
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-white/[0.08] bg-[#1a1a1a] pb-[max(2.75rem,env(safe-area-inset-bottom))] pt-5 sm:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-white/[0.08] bg-[#1a1a1a] pb-[max(2rem,env(safe-area-inset-bottom))] pt-5 sm:hidden"
     >
       {items.map((item) => {
         const color = item.active ? 'text-[#22a7d3]' : 'text-gray-400'
