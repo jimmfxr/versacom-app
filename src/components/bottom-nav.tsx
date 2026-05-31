@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import {
   HomeIcon,
@@ -7,7 +8,7 @@ import {
   BellIcon,
   UserCircleIcon,
 } from '@heroicons/react/24/outline'
-import { useScrollDirection } from '@/lib/use-scroll-direction'
+import { useHideProgress } from '@/lib/use-scroll-direction'
 
 /**
  * Mobile-only bottom tab bar. Four icon buttons fixed to the
@@ -36,13 +37,22 @@ export function BottomNav({ notificationUnread, onOpenTools, toolsActive }: Prop
   const isHome = pathname === '/'
   const isNotifications = pathname.startsWith('/notifications')
   const isProfile = pathname.startsWith('/profile')
-  // Hide on scroll-down, show on scroll-up — same pattern as the
-  // Instagram / Facebook top bars. Always visible at the top of any
-  // list (the hook resolves to 'up' when scroll position is near
-  // zero) so reaching the top of a screen never leaves the operator
-  // without nav chrome.
-  const scrollDirection = useScrollDirection()
-  const hidden = scrollDirection === 'down'
+  // Scroll-linked hide: progress 0..1 tracks the user's gesture
+  // pixel-for-pixel rather than snapping when a direction threshold
+  // is crossed. translateY = progress * navHeight slides the bar
+  // out of view as they scroll down and back into view as they
+  // scroll up, in step with the finger.
+  const progress = useHideProgress()
+  const navRef = useRef<HTMLElement>(null)
+  const [navHeight, setNavHeight] = useState(0)
+  useEffect(() => {
+    const el = navRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => setNavHeight(el.offsetHeight))
+    ro.observe(el)
+    setNavHeight(el.offsetHeight)
+    return () => ro.disconnect()
+  }, [])
 
   const items = [
     {
@@ -76,16 +86,14 @@ export function BottomNav({ notificationUnread, onOpenTools, toolsActive }: Prop
     },
   ] as const
 
+  const slidePx = progress * navHeight
   return (
     <nav
+      ref={navRef}
       aria-label="Primary"
-      aria-hidden={hidden}
-      className={`fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-white/[0.08] bg-[#1a1a1a] pb-[max(2.75rem,env(safe-area-inset-bottom))] pt-5 transition-transform duration-300 sm:hidden ${
-        hidden ? 'translate-y-full' : 'translate-y-0'
-      }`}
-      // Material-style "standard" easing — smoother than tailwind's
-      // ease-out (matches the curve Google's bottom nav uses).
-      style={{ transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)' }}
+      aria-hidden={progress > 0.5}
+      className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-white/[0.08] bg-[#1a1a1a] pb-[max(2.75rem,env(safe-area-inset-bottom))] pt-5 sm:hidden"
+      style={{ transform: `translateY(${slidePx}px)` }}
     >
       {items.map((item) => {
         const color = item.active ? 'text-[#22a7d3]' : 'text-gray-400'
