@@ -2876,20 +2876,26 @@ export function PanelStudio({
                         re-shown at lg+ when stackHeader is true
                         (small chassis on desktop, mobile-style
                         layout) so the buttons live below the chassis
-                        like mobile rather than crowding the header. */}
+                        like mobile rather than crowding the header.
+                        When the clipboard has entries, Copy + Paste
+                        share a single row (each 50%) so the operator
+                        doesn't lose a whole row to a button that's
+                        only meaningful when there's something to
+                        paste. */}
                     {canEditKeys && (
-                      // Mobile: each button on its own full-width row
-                      // (parent footer is flex-col so flex-col here
-                      // keeps the buttons stacked). lg+ with stackHeader
-                      // (small chassis on desktop, mobile-style layout)
-                      // restores the inline row.
                       <div className={`flex w-full flex-col gap-2 sm:hidden ${stackHeader ? 'lg:flex lg:w-auto lg:flex-row lg:items-center' : ''}`}>
                         {(_currentUserRole === 'admin' || _currentUserRole === 'manager' || isAdminGlobal) && (
-                          <>
+                          // Inner row: Copy alone (full width) when
+                          // the clipboard is empty; Copy + Paste split
+                          // 50/50 when the clipboard has entries.
+                          // flex-1 collapses to w-full when there's
+                          // only one child, so no separate "no
+                          // clipboard" branch is needed.
+                          <div className="flex w-full gap-2">
                             <button
                               type="button"
                               onClick={handleCopyPanel}
-                              className="w-full rounded-md border border-white/10 px-4 py-2 text-sm font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white lg:w-auto lg:shrink-0"
+                              className="flex-1 rounded-md border border-white/10 px-4 py-2 text-sm font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white lg:flex-none lg:shrink-0"
                             >
                               Copy
                             </button>
@@ -2913,7 +2919,7 @@ export function PanelStudio({
                                 // menu on Android Chrome too.
                                 onContextMenu={(e) => e.preventDefault()}
                                 style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
-                                className={`w-full select-none rounded-md border px-4 py-2 text-sm font-semibold transition-colors lg:w-auto lg:shrink-0 ${
+                                className={`flex-1 select-none rounded-md border px-4 py-2 text-sm font-semibold transition-colors lg:flex-none lg:shrink-0 ${
                                   pastePreviewOpen
                                     ? 'border-[#10b981] text-[#10b981] hover:bg-[#10b981]/10'
                                     : 'border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
@@ -2922,7 +2928,7 @@ export function PanelStudio({
                                 Paste
                               </button>
                             )}
-                          </>
+                          </div>
                         )}
                         {!isRequestMode && (
                           <button
