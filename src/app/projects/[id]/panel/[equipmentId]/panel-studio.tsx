@@ -2702,17 +2702,16 @@ export function PanelStudio({
               {/* ─── Scrollable panel content ─── */}
               <div
                 ref={chassisScrollerRef}
-                className={`flex-[0_1_auto] min-h-0 w-full overflow-auto p-4 sm:px-6 lg:p-5 lg:px-8 flex transition-[padding-right] duration-300 ${inspectorOpen && !(pickerMode && canEditKeys) ? 'xl:pr-[420px] 2xl:pr-10' : ''}`}
+                className={`flex-[0_1_auto] min-h-0 w-full overflow-auto p-2 sm:p-4 sm:px-6 lg:p-5 lg:px-8 flex transition-[padding-right] duration-300 ${inspectorOpen && !(pickerMode && canEditKeys) ? 'xl:pr-[420px] 2xl:pr-10' : ''}`}
               >
                 <div className="min-w-min mx-auto" ref={chassisRef}>
                   {/* Single chassis card containing expansions + main panel */}
-                  <div className="relative bg-[#2a2a2a] border border-white/[0.06] rounded-[14px] p-8 flex flex-col gap-4 items-center">
-                    {/* Hardware type + key count, top-right corner of
-                        the chassis card. Plain cyan label — no
-                        engraved silkscreen shadow. */}
-                    <div className="pointer-events-none absolute right-4 top-3 text-sm font-bold uppercase tracking-[0.18em] tabular-nums leading-none text-[#22a7d3]">
-                      {(equipment.hardwareType || 'Unknown')} · {keyCount}-Key
-                    </div>
+                  <div className="relative bg-[#2a2a2a] border border-white/[0.06] rounded-[14px] p-4 gap-2 sm:p-8 sm:gap-4 flex flex-col items-center">
+                    {/* Hardware type + key count label removed — it
+                        sat absolute top-right and looked misaligned
+                        after the mobile padding tightening, and the
+                        info is already visible elsewhere (header
+                        title + chassis itself). */}
                     {/* Expansion rows (rendered on top, reversed so newest is at top).
                         Number sits to the LEFT of the keys, vertically centered
                         against the panel block, with an engraved silkscreen-style
