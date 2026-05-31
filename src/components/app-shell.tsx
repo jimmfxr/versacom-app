@@ -3,9 +3,12 @@
 import { useState, useEffect } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { Navbar, type NavItem, type NavUser } from '@/components/navbar'
+import { BottomNav } from '@/components/bottom-nav'
+import { ToolsSheet } from '@/components/tools-sheet'
 import { ToastContainer } from '@/components/toast'
 import { ScrollToTop } from '@/components/scroll-to-top'
 import { SwUpdateBanner } from '@/components/sw-update-banner'
+import { NEW_BOTTOM_NAV } from '@/lib/feature-flags'
 
 function getNavigation(
   pathname: string,
@@ -278,6 +281,41 @@ export function AppShell({
     return () => document.removeEventListener('pointerdown', onPointerDown)
   }, [])
 
+  // Centralized nav array so AppShell can hand the same list to both
+  // the desktop Navbar and the mobile ToolsSheet without duplicating
+  // the role/route filtering.
+  const navigation = getNavigation(
+    pathname,
+    isAdmin,
+    isUserOnly,
+    showMyEquipment,
+    canManageRadios,
+    lastProjectId,
+    lastProjectName,
+    taskCount,
+    inMyEquipmentBrowse,
+  )
+  // BottomNav visibility — gated by the feature flag, hidden on
+  // chrome-free pages (kiosk / public zones) like the legacy navbar.
+  const showBottomNav =
+    NEW_BOTTOM_NAV &&
+    !pathname.includes('/kiosk') &&
+    !pathname.startsWith('/zones/')
+  // The toolbox tab "owns" any route that lives inside the sheet —
+  // i.e. any nav item that isn't one of the four bottom-tab slots.
+  // Highlights cyan on those routes so the operator knows their
+  // current page is inside the Tools menu.
+  const HIDDEN_TAB_HREFS = new Set(['/', '/notifications', '/profile'])
+  const toolsActive = navigation.some(
+    (n) => n.current && !HIDDEN_TAB_HREFS.has(n.href),
+  )
+  const [toolsOpen, setToolsOpen] = useState(false)
+  // Auto-close the sheet on any route change so back/forward
+  // gestures don't leave it floating open over a different page.
+  useEffect(() => {
+    setToolsOpen(false)
+  }, [pathname])
+
   return (
     // Viewport-locked flex column on all screen sizes so pages can
     // implement kiosk-style inner scroll regions (header / tabs / chips
@@ -306,14 +344,21 @@ export function AppShell({
           layout's AppShell. */}
       {!pathname.includes('/kiosk') && !pathname.startsWith('/zones/') && (
         <>
-          <Navbar
-            navigation={getNavigation(pathname, isAdmin, isUserOnly, showMyEquipment, canManageRadios, lastProjectId, lastProjectName, taskCount, inMyEquipmentBrowse)}
-            user={navUser}
-            onSignOut={handleSignOut}
-            notificationUnread={notificationUnread}
-            currentProjectId={lastProjectId}
-            currentProjectName={lastProjectName}
-          />
+          {/* When NEW_BOTTOM_NAV is on, the legacy Navbar is hidden
+              on mobile (the BottomNav + ToolsSheet below replace it)
+              but kept on desktop where the top-bar tab strip still
+              wins. When the flag is off, render the Navbar full-time
+              the way it always did. */}
+          <div className={NEW_BOTTOM_NAV ? 'hidden sm:block' : undefined}>
+            <Navbar
+              navigation={navigation}
+              user={navUser}
+              onSignOut={handleSignOut}
+              notificationUnread={notificationUnread}
+              currentProjectId={lastProjectId}
+              currentProjectName={lastProjectName}
+            />
+          </div>
           {/* "New version available" banner — appears when the
               service worker has a fresher build waiting. Tap
               Refresh to skipWaiting + reload. Hidden on kiosk
@@ -328,8 +373,33 @@ export function AppShell({
           locked here as well as on AppShell outer because iOS
           Safari's rubber-band can let a horizontal swipe in a
           nested scroller (e.g. SwipeCarousel) propagate up and
-          rubber-band the whole page sideways. */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden">{children}</div>
+          rubber-band the whole page sideways.
+          pb-16 on mobile reserves space for the BottomNav so the
+          last item on any page doesn't sit under the bar. Desktop
+          is unaffected. */}
+      <div
+        className={`flex min-h-0 flex-1 flex-col overflow-x-hidden ${
+          NEW_BOTTOM_NAV && showBottomNav ? 'pb-24 sm:pb-0' : ''
+        }`}
+      >
+        {children}
+      </div>
+      {showBottomNav && (
+        <>
+          <BottomNav
+            notificationUnread={notificationUnread}
+            onOpenTools={() => setToolsOpen(true)}
+            toolsActive={toolsActive}
+          />
+          <ToolsSheet
+            open={toolsOpen}
+            onClose={() => setToolsOpen(false)}
+            navigation={navigation}
+            currentProjectId={lastProjectId}
+            currentProjectName={lastProjectName}
+          />
+        </>
+      )}
       <ToastContainer />
       <ScrollToTop />
     </div>
