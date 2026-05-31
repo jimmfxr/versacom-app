@@ -79,13 +79,17 @@ export function ScrollToTop() {
           t.scrollTo({ top: 0, behavior: 'smooth' })
         }
       }}
-      // Mobile: standard 24px gutter (default right-6).
-      // Desktop: align with the page gutter inside max-w-7xl so the
-      // button lines up with the row-card edit buttons instead of
-      // overlapping them at the viewport edge. Offset adds 2rem (= the
-      // lg:px-8 page gutter) so the button sits at the inner padding
-      // of the content area.
-      className="fixed bottom-6 right-6 sm:right-[max(2rem,calc((100vw-80rem)/2+2rem))] z-50 flex size-11 items-center justify-center rounded-full bg-[#0178a3] text-white shadow-lg transition-opacity hover:bg-[#019bc7] active:scale-95"
+      // Mobile: raised above the BottomNav so the chevron sits on
+      // the page cards, not over the tab bar. bottom-28 (= 7rem)
+      // clears the bottom nav's own padding (max 2.75rem + safe-area
+      // + icon) on every viewport we ship to.
+      // Desktop (sm:): no bottom nav, so drop back to the standard
+      // 24px gutter and align horizontally with the page gutter
+      // inside max-w-7xl so the button lines up with the row-card
+      // edit buttons instead of overlapping them at the viewport
+      // edge. Offset adds 2rem (= the lg:px-8 page gutter) so the
+      // button sits at the inner padding of the content area.
+      className="fixed bottom-28 right-6 z-50 flex size-11 items-center justify-center rounded-full bg-[#0178a3] text-white shadow-lg transition-opacity hover:bg-[#019bc7] active:scale-95 sm:bottom-6 sm:right-[max(2rem,calc((100vw-80rem)/2+2rem))]"
       aria-label="Scroll to top"
     >
       <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
