@@ -374,14 +374,14 @@ export function AppShell({
           Safari's rubber-band can let a horizontal swipe in a
           nested scroller (e.g. SwipeCarousel) propagate up and
           rubber-band the whole page sideways.
-          pb-16 on mobile reserves space for the BottomNav so the
-          last item on any page doesn't sit under the bar. Desktop
-          is unaffected. */}
-      <div
-        className={`flex min-h-0 flex-1 flex-col overflow-x-hidden ${
-          NEW_BOTTOM_NAV && showBottomNav ? 'pb-24 sm:pb-0' : ''
-        }`}
-      >
+          No bottom padding for the BottomNav — content scrolls UNDER
+          the fixed nav (Instagram / Facebook pattern) so when the
+          nav auto-hides on scroll-down the page fills the whole
+          screen with no empty gap. The last item in a list briefly
+          sits behind the nav when scrolled fully to the bottom;
+          scrolling up by a few px both reveals the item AND brings
+          the nav back. */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden">
         {children}
       </div>
       {showBottomNav && (
