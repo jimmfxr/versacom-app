@@ -134,7 +134,7 @@ export function SwUpdateBanner() {
           type="button"
           onClick={handleRefresh}
           disabled={reloading}
-          className="rounded-md bg-[#0178a3] px-3 py-1 text-xs font-semibold text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {reloading ? 'Refreshing…' : 'Refresh'}
         </button>
