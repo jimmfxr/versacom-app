@@ -2068,7 +2068,14 @@ export function PanelStudio({
         onDragEnd={handleDndEnd}
         onDragCancel={handleDndCancel}
       >
-      <div className="flex flex-col" style={{ height: 'calc(100dvh - 56px)' }}>
+      {/* pb-20 (mobile only) reserves enough space for the Save
+          button to clear the BottomNav without burning so much of
+          the chassis area that a 32-key + 1 expansion (or 12/16-key
+          + 2 expansions) needlessly starts scrolling. The Save
+          button's bottom edge ends up tucked under the BottomNav's
+          empty-padding strip; the icon row stays fully visible.
+          Desktop has no BottomNav so no padding there. */}
+      <div className="flex flex-col pb-20 sm:pb-0" style={{ height: 'calc(100dvh - 56px)' }}>
         <div className="flex flex-1 overflow-hidden relative min-h-0">
 
           {/* ─── Editor workspace ─── */}
@@ -2421,7 +2428,7 @@ export function PanelStudio({
                   the picker card stayed wide. Now header + picker share
                   the same comfortable container width so things stay
                   visually aligned no matter how small the chassis. */}
-              <div className="w-full flex-shrink-0 pt-2 pb-2 lg:pt-3 lg:pb-3">
+              <div className="w-full flex-shrink-0 pt-4 pb-2 lg:pt-3 lg:pb-3">
                 {/* Single max-w-7xl container with px-4 sm:px-6 lg:px-8
                     so the inner edges land at the SAME 32px desktop
                     gutter as the picker card and every other page
@@ -2526,17 +2533,18 @@ export function PanelStudio({
                     the Main/Shift toggle so the header stays compact
                     on small screens). */}
                 <div className={`flex flex-shrink-0 flex-wrap items-center gap-3 ${stackHeader ? 'justify-center sm:max-lg:justify-end' : ''}`}>
-                  {/* Legend + expansion — visible from sm+ (so it
-                      sits to the right of the identity strip in
-                      landscape phone too, not just desktop). */}
+                  {/* Expansion controls — visible from sm+ (so they
+                      sit to the right of the identity strip in
+                      landscape phone too, not just desktop). The
+                      color-swatch legend was removed per operator
+                      feedback — the chassis itself is self-explanatory
+                      after a few seconds, the legend was just noise.
+                      Changed/Submitted draft indicators below are kept
+                      ONLY when isRequestMode is active because there's
+                      no other on-screen affordance for those states. */}
                   <div className="hidden flex-wrap items-center gap-x-2 gap-y-1 sm:flex">
-                    <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                      <span className="w-[9px] h-[9px] rounded-sm bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
-                      Assigned
-                    </div>
                     {isRequestMode && (
                       <>
-                        <span className="text-xs text-[#3a3a3a]">&middot;</span>
                         <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
                           <span className="w-[9px] h-[9px] rounded-sm bg-[#f59e0b] shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
                           Changed (draft)
@@ -2548,39 +2556,31 @@ export function PanelStudio({
                         </div>
                       </>
                     )}
-                    <span className="text-xs text-[#3a3a3a]">&middot;</span>
-                    <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                      <span className="w-[9px] h-[9px] rounded-sm border border-dashed border-gray-600 bg-transparent" />
-                      Unassigned
-                    </div>
                     {canManageExpansions && isExpandable && (
-                      <>
-                        <span className="text-xs text-[#3a3a3a]">&middot;</span>
-                        <div className="inline-flex items-center gap-2 text-xs text-gray-300">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Expansions</span>
-                          <span className="font-semibold text-white">{expansionCount}</span>
-                          <div className="inline-flex gap-1.5">
-                            {expansionCount > 0 && (
-                              <button
-                                onClick={handleRemoveExpansion}
-                                disabled={saving}
-                                className="shrink-0 rounded-md border border-white/10 px-4 py-2 text-sm font-semibold text-red-500 transition-colors hover:border-red-500/40 hover:bg-red-500/[0.08] disabled:opacity-50"
-                              >
-                                &minus;
-                              </button>
-                            )}
-                            {expansionCount < 6 && (
-                              <button
-                                onClick={handleAddExpansion}
-                                disabled={saving}
-                                className="shrink-0 rounded-md border border-white/10 px-4 py-2 text-sm font-semibold text-[#22a7d3] transition-colors hover:border-[#22a7d3]/40 hover:bg-[#22a7d3]/[0.08] disabled:opacity-50"
-                              >
-                                +
-                              </button>
-                            )}
-                          </div>
+                      <div className="inline-flex items-center gap-2 text-xs text-gray-300">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Expansions</span>
+                        <span className="font-semibold text-white">{expansionCount}</span>
+                        <div className="inline-flex gap-1.5">
+                          {expansionCount > 0 && (
+                            <button
+                              onClick={handleRemoveExpansion}
+                              disabled={saving}
+                              className="shrink-0 rounded-md border border-white/10 px-4 py-2 text-sm font-semibold text-red-500 transition-colors hover:border-red-500/40 hover:bg-red-500/[0.08] disabled:opacity-50"
+                            >
+                              &minus;
+                            </button>
+                          )}
+                          {expansionCount < 6 && (
+                            <button
+                              onClick={handleAddExpansion}
+                              disabled={saving}
+                              className="shrink-0 rounded-md border border-white/10 px-4 py-2 text-sm font-semibold text-[#22a7d3] transition-colors hover:border-[#22a7d3]/40 hover:bg-[#22a7d3]/[0.08] disabled:opacity-50"
+                            >
+                              +
+                            </button>
+                          )}
                         </div>
-                      </>
+                      </div>
                     )}
                   </div>
 
@@ -2646,40 +2646,31 @@ export function PanelStudio({
                 </div>
               </div>
 
-              {/* ─── Mobile-only legend + expansion row ───
-                  Sits BELOW the user-name strip (between identity and
-                  the chassis) on mobile so the deploy-status legend
-                  and expansion controls are quick to scan without
-                  pushing the bigger identity text down. Hidden on
-                  desktop (lg+) — same content already lives in the
-                  studio header's right group there. */}
-              <div className="flex w-full flex-shrink-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 pb-2 sm:hidden">
-                <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                  <span className="w-[9px] h-[9px] rounded-sm bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
-                  Assigned
-                </div>
-                {isRequestMode && (
-                  <>
-                    <span className="text-xs text-[#3a3a3a]">&middot;</span>
-                    <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                      <span className="w-[9px] h-[9px] rounded-sm bg-[#f59e0b] shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
-                      Changed (draft)
-                    </div>
-                    <span className="text-xs text-[#3a3a3a]">&middot;</span>
-                    <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                      <span className="w-[9px] h-[9px] rounded-sm bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.4)] border border-[#10b981]" />
-                      Submitted
-                    </div>
-                  </>
-                )}
-                <span className="text-xs text-[#3a3a3a]">&middot;</span>
-                <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                  <span className="w-[9px] h-[9px] rounded-sm border border-dashed border-gray-600 bg-transparent" />
-                  Unassigned
-                </div>
-                {canManageExpansions && isExpandable && (
-                  <>
-                    <span className="text-xs text-[#3a3a3a]">&middot;</span>
+              {/* ─── Mobile-only expansion row ───
+                  Sits BELOW the user-name strip on mobile so the
+                  expansion controls (and the request-mode Changed /
+                  Submitted draft indicators) sit close to the
+                  chassis. The Assigned / Unassigned color legend was
+                  removed per operator feedback — the chassis itself
+                  reads clearly enough. Hidden on desktop (lg+) where
+                  the same controls live in the studio header's right
+                  group. */}
+              {(isRequestMode || (canManageExpansions && isExpandable)) && (
+                <div className="flex w-full flex-shrink-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 pb-2 sm:hidden">
+                  {isRequestMode && (
+                    <>
+                      <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                        <span className="w-[9px] h-[9px] rounded-sm bg-[#f59e0b] shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
+                        Changed (draft)
+                      </div>
+                      <span className="text-xs text-[#3a3a3a]">&middot;</span>
+                      <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                        <span className="w-[9px] h-[9px] rounded-sm bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.4)] border border-[#10b981]" />
+                        Submitted
+                      </div>
+                    </>
+                  )}
+                  {canManageExpansions && isExpandable && (
                     <div className="inline-flex items-center gap-2 text-xs text-gray-300">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Expansions</span>
                       <span className="font-semibold text-white">{expansionCount}</span>
@@ -2704,9 +2695,9 @@ export function PanelStudio({
                         )}
                       </div>
                     </div>
-                  </>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
 
               {/* ─── Scrollable panel content ─── */}
               <div
