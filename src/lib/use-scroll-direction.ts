@@ -54,8 +54,10 @@ export function useHideProgress(
     // collapses layout, which fires a scroll event whose delta would
     // otherwise be read as "scroll-up" and immediately flip the state
     // back — causing rapid open/close loops on real touch devices.
-    // 220ms ≈ the CSS transition (180ms) plus a small buffer so any
-    // layout-driven scroll events have settled before we re-listen.
+    // 600ms is generous: covers the 180ms CSS transition plus all the
+    // iOS scroll-settling and momentum events that fire after reflow,
+    // with margin to spare. Deliberate user gestures take well over
+    // 600ms so this doesn't hurt responsiveness.
     let commitCooldownUntil = 0
 
     function readScroll(): number {
@@ -71,7 +73,7 @@ export function useHideProgress(
       hidden = next
       setProgress(next ? 1 : 0)
       dirAccum = 0
-      commitCooldownUntil = performance.now() + 220
+      commitCooldownUntil = performance.now() + 600
     }
 
     /** Apply a movement delta (positive = "wants to scroll down" =
