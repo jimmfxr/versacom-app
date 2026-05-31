@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/button'
 import { showToast } from '@/components/toast'
 import { PageLayout } from '@/components/page-layout'
+import { AutoHideHeader } from '@/components/auto-hide-header'
 import { Card } from '@/components/card'
 import { RowCard } from '@/components/row-card'
 import { EmptyState } from '@/components/empty-state'
@@ -355,20 +356,23 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
           </Card>
         )}
 
-        {/* Mobile-only search bar — sits as a flex-shrink-0 sibling
-            above the scroll region so it stays in view alongside the
-            page header and + button while the list scrolls. Hidden on
-            desktop where the search lives inline in the page header. */}
+        {/* Mobile-only search bar — wrapped in AutoHideHeader so it
+            collapses on scroll-down + restores on scroll-up, matching
+            the chrome behavior on Comms / Radios / Tasks /
+            Notifications. Hidden on desktop where search lives in the
+            page header. */}
         {projects.length > 0 && (
-          <div className="flex-shrink-0 pb-3 sm:hidden">
-            <input
-              type="text"
-              placeholder="Search projects..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg border-2 border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white focus:border-[#0178a3]"
-            />
-          </div>
+          <AutoHideHeader className="sm:hidden">
+            <div className="pb-3">
+              <input
+                type="text"
+                placeholder="Search projects..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full rounded-lg border-2 border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white focus:border-[#0178a3]"
+              />
+            </div>
+          </AutoHideHeader>
         )}
 
         {/* Project list */}
