@@ -25,6 +25,21 @@ export function SwUpdateBanner() {
     if (typeof window === 'undefined') return
     if (!('serviceWorker' in navigator)) return
 
+    // PWA-only: skip in regular browser tabs where Cmd/Ctrl+R already
+    // gets a fresh bundle. The "new version available" banner is
+    // really only useful when the user installed the home-screen
+    // PWA (which holds a cached SW and would otherwise serve stale
+    // JS until they explicitly trigger an update).
+    //  - display-mode: standalone → installed PWA (Chrome / Android
+    //    / iOS 16.4+)
+    //  - navigator.standalone === true → legacy iOS Safari PWA
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      // Legacy iOS Safari property — typed via the cast to avoid the
+      // missing-property error on the standard Navigator interface.
+      (navigator as Navigator & { standalone?: boolean }).standalone === true
+    if (!isStandalone) return
+
     // Suppressed for this tab session?
     if (sessionStorage.getItem(DISMISS_KEY) === '1') return
 
