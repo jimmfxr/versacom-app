@@ -92,7 +92,7 @@ export function BottomNav({ notificationUnread, onOpenTools, toolsActive }: Prop
       ref={navRef}
       aria-label="Primary"
       aria-hidden={progress > 0.5}
-      className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-white/[0.08] bg-[#1a1a1a] pb-[max(2.75rem,env(safe-area-inset-bottom))] pt-5 sm:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 bg-[#1a1a1a] pb-[max(2.75rem,env(safe-area-inset-bottom))] pt-5 sm:hidden"
       style={{ transform: `translateY(${slidePx}px)` }}
     >
       {items.map((item) => {
