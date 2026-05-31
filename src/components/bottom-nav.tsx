@@ -8,6 +8,15 @@ import {
   BellIcon,
   UserCircleIcon,
 } from '@heroicons/react/24/outline'
+// Solid variants — swapped in for the active tab so the chosen
+// slot reads as "selected", matching Google / iOS bottom nav
+// conventions (outline = inactive, solid = active).
+import {
+  HomeIcon as HomeIconSolid,
+  BriefcaseIcon as BriefcaseIconSolid,
+  BellIcon as BellIconSolid,
+  UserCircleIcon as UserCircleIconSolid,
+} from '@heroicons/react/24/solid'
 import { useHideProgress } from '@/lib/use-scroll-direction'
 
 /**
@@ -60,6 +69,7 @@ export function BottomNav({ notificationUnread, onOpenTools, toolsActive }: Prop
       label: 'Dashboard',
       href: '/',
       Icon: HomeIcon,
+      ActiveIcon: HomeIconSolid,
       active: isHome,
     },
     {
@@ -67,6 +77,7 @@ export function BottomNav({ notificationUnread, onOpenTools, toolsActive }: Prop
       label: 'Tools',
       onClick: onOpenTools,
       Icon: BriefcaseIcon,
+      ActiveIcon: BriefcaseIconSolid,
       active: toolsActive && !isHome && !isNotifications && !isProfile,
     },
     {
@@ -74,6 +85,7 @@ export function BottomNav({ notificationUnread, onOpenTools, toolsActive }: Prop
       label: 'Notifications',
       href: '/notifications',
       Icon: BellIcon,
+      ActiveIcon: BellIconSolid,
       active: isNotifications,
       dot: notificationUnread > 0,
     },
@@ -82,6 +94,7 @@ export function BottomNav({ notificationUnread, onOpenTools, toolsActive }: Prop
       label: 'Profile',
       href: '/profile',
       Icon: UserCircleIcon,
+      ActiveIcon: UserCircleIconSolid,
       active: isProfile,
     },
   ] as const
@@ -97,6 +110,9 @@ export function BottomNav({ notificationUnread, onOpenTools, toolsActive }: Prop
     >
       {items.map((item) => {
         const color = item.active ? 'text-[#22a7d3]' : 'text-gray-400'
+        // Solid icon when the tab is active (Google / Material You
+        // pattern); outline icon when inactive.
+        const RenderIcon = item.active ? item.ActiveIcon : item.Icon
         const inner = (
           <>
             {'dot' in item && item.dot && (
@@ -105,10 +121,13 @@ export function BottomNav({ notificationUnread, onOpenTools, toolsActive }: Prop
                 className="absolute right-[calc(50%-14px)] top-1 size-2 rounded-full bg-red-500"
               />
             )}
-            <item.Icon className="size-7" aria-hidden />
+            <RenderIcon className="size-7" aria-hidden />
           </>
         )
-        const base = `relative flex items-center justify-center bg-transparent transition-colors ${color}`
+        // Press feedback — quick scale-down + faint bg flash so the
+        // tap registers visually even before navigation. transition
+        // covers both color (active swap) and transform (press).
+        const base = `relative flex items-center justify-center transition-[colors,transform] duration-150 ease-out active:scale-90 active:bg-white/[0.05] ${color}`
         return 'href' in item ? (
           <a
             key={item.key}
