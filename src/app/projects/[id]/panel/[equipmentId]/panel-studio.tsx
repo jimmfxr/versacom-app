@@ -2707,39 +2707,22 @@ export function PanelStudio({
                 <div className="min-w-min mx-auto" ref={chassisRef}>
                   {/* Single chassis card containing expansions + main panel */}
                   <div className="relative bg-[#2a2a2a] border border-white/[0.06] rounded-[14px] p-4 gap-2 sm:p-8 sm:gap-4 flex flex-col items-center">
-                    {/* Hardware type + key count label removed — it
-                        sat absolute top-right and looked misaligned
-                        after the mobile padding tightening, and the
-                        info is already visible elsewhere (header
-                        title + chassis itself). */}
-                    {/* Expansion rows (rendered on top, reversed so newest is at top).
-                        Number sits to the LEFT of the keys, vertically centered
-                        against the panel block, with an engraved silkscreen-style
-                        look — dark text on the dark chassis surface plus a hairline
-                        highlight at the bottom edge to suggest the label is carved
-                        into the chassis itself. */}
+                    {/* Hardware type + key count, top-right corner of
+                        the chassis card. Plain cyan label — no
+                        engraved silkscreen shadow. */}
+                    <div className="pointer-events-none absolute right-4 top-3 text-sm font-bold uppercase tracking-[0.18em] tabular-nums leading-none text-[#22a7d3]">
+                      {(equipment.hardwareType || 'Unknown')} · {keyCount}-Key
+                    </div>
+                    {/* Expansion rows (rendered on top, reversed so
+                        newest is at top). The cyan expansion-number
+                        marker that floated to the right of each row
+                        was scrapped — it looked off-balance after the
+                        mobile padding tightening and the order is
+                        already obvious visually (each row is the next
+                        expansion module up from the main panel). */}
                     {Array.from({ length: expansionCount }, (_, i) => expansionCount - i).map((exp) => (
                       <div key={`exp-${exp}`} className="relative flex items-center">
                         {renderPanel(exp)}
-                        {/* Number floats out to the right of the panel
-                            block via absolute positioning so it doesn't
-                            take flex space — that keeps the panel
-                            centred under the chassis the same way as
-                            the main panel below (which has no number),
-                            so all rows of keys line up vertically.
-                            The chassis card's right padding is 32px
-                            (p-8), so we anchor the number's centre at
-                            16px past the panel edge to land it exactly
-                            in the middle of that gutter strip:
-                            left-full + ml-4 (16px) puts the number's
-                            LEFT at gutter centre, then -translate-x-1/2
-                            shifts it back by half its own width — net
-                            result, the number's centre sits at gutter
-                            centre regardless of how wide the digit
-                            renders. */}
-                        <div className="pointer-events-none absolute left-full top-1/2 ml-4 -translate-x-1/2 -translate-y-1/2 text-[18px] font-extrabold tabular-nums leading-none text-[#22a7d3]">
-                          {exp}
-                        </div>
                       </div>
                     ))}
 
