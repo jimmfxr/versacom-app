@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { ChevronLeftIcon } from '@heroicons/react/24/outline'
 import { EyeIcon, PencilIcon } from '@heroicons/react/16/solid'
 import { PageHeader } from '@/components/page-header'
+import { AutoHideHeader } from '@/components/auto-hide-header'
+import { useHideProgress } from '@/lib/use-scroll-direction'
 import {
   DndContext,
   DragOverlay,
@@ -768,6 +770,22 @@ export function PanelStudio({
   // existing `chassisRef` points at the inner content div, which
   // doesn't carry the overflow.
   const chassisScrollerRef = useRef<HTMLDivElement>(null)
+
+  // Scroll-linked hide for the mobile fixed footer (Main/Shift +
+  // Copy / Paste / Save). As the operator scrolls the chassis down,
+  // the footer slides off the bottom of the screen — same pattern
+  // as BottomNav and the mobile expansion-row wrapper above.
+  const footerHideProgress = useHideProgress()
+  const footerRef = useRef<HTMLDivElement>(null)
+  const [footerHeight, setFooterHeight] = useState(0)
+  useEffect(() => {
+    const el = footerRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => setFooterHeight(el.offsetHeight))
+    ro.observe(el)
+    setFooterHeight(el.offsetHeight)
+    return () => ro.disconnect()
+  }, [])
 
   // Measures the chassis width so the header layout can switch:
   // wide chassis → identity left / legend+buttons right on a single
@@ -2068,14 +2086,13 @@ export function PanelStudio({
         onDragEnd={handleDndEnd}
         onDragCancel={handleDndCancel}
       >
-      {/* pb-20 (mobile only) reserves enough space for the Save
-          button to clear the BottomNav without burning so much of
-          the chassis area that a 32-key + 1 expansion (or 12/16-key
-          + 2 expansions) needlessly starts scrolling. The Save
-          button's bottom edge ends up tucked under the BottomNav's
-          empty-padding strip; the icon row stays fully visible.
-          Desktop has no BottomNav so no padding there. */}
-      <div className="flex flex-col pb-20 sm:pb-0" style={{ height: 'calc(100dvh - 56px)' }}>
+      {/* No pb on mobile — the studio footer (Main/Shift + Copy /
+          Paste / Save) is position:fixed right above the BottomNav,
+          so it doesn't take flex-column space. The chassis-scroller
+          inside gets pb to keep its content above the fixed footer.
+          Desktop has no BottomNav and the footer is in normal flex
+          flow, so no padding needed there either. */}
+      <div className="flex flex-col" style={{ height: 'calc(100dvh - 56px)' }}>
         <div className="flex flex-1 overflow-hidden relative min-h-0">
 
           {/* ─── Editor workspace ─── */}
@@ -2096,7 +2113,11 @@ export function PanelStudio({
               // title's line-box; on mobile it extends ~2px past the
               // line-box, which still leaves a clear ~10px gap above
               // the divider so there's no overlap.
-              <div className="relative flex-shrink-0 pt-5">
+              // Wrapped in AutoHideHeader (mobile only) so the title
+              // + Back button slide up out of view as the chassis is
+              // scrolled, freeing the screen for the panel.
+              <AutoHideHeader>
+              <div className="relative pt-5">
                 <PageHeader
                   title="My Equipment"
                   titleClassName="text-2xl font-bold tracking-tight text-white sm:text-3xl"
@@ -2123,13 +2144,17 @@ export function PanelStudio({
                   </div>
                 </div>
               </div>
+              </AutoHideHeader>
             )}
 
             {/* Crew / user header bar — title left, project dropdown
                 right (no member switcher). Replaces the Back button when
-                arriving via /my-equipment. */}
+                arriving via /my-equipment. Wrapped in AutoHideHeader
+                so it auto-hides on scroll-down like the other header
+                variants. */}
             {hasProjectOnlySwitcher && browseProjects && (
-              <div className="flex-shrink-0 mx-auto w-full max-w-7xl px-4 pt-5 sm:px-6 lg:px-8">
+              <AutoHideHeader>
+              <div className="mx-auto w-full max-w-7xl px-4 pt-5 sm:px-6 lg:px-8">
                 {/* Mobile: title left, project dropdown right (half row),
                     then the under-title divider. Desktop: same row, but
                     project dropdown content-sized via sm:min-w. */}
@@ -2143,15 +2168,19 @@ export function PanelStudio({
                 </div>
                 <div className="mt-2 w-full border-b border-white/20 sm:hidden" />
               </div>
+              </AutoHideHeader>
             )}
 
             {/* Browse-mode header bar.
                 Mobile: title row, then project full-width, then user
                 full-width — three stacked rows.
                 Desktop: 3-column grid — title left, user dropdown centered,
-                project dropdown far right. */}
+                project dropdown far right.
+                Wrapped in AutoHideHeader so the whole block auto-hides
+                on scroll-down. */}
             {isBrowseMode && browseProjects && browseMembers && (
-              <div className="flex-shrink-0 mx-auto w-full max-w-7xl px-4 pt-5 sm:px-6 lg:px-8">
+              <AutoHideHeader>
+              <div className="mx-auto w-full max-w-7xl px-4 pt-5 sm:px-6 lg:px-8">
                 {/* Mobile — title + project dropdown share row 1
                     (dropdown half-row), divider under the title,
                     member switcher gets its own row 2 below.
@@ -2181,6 +2210,7 @@ export function PanelStudio({
                   </div>
                 </div>
               </div>
+              </AutoHideHeader>
             )}
 
             {/* Divider underneath the back-link / browse dropdowns.
@@ -2656,7 +2686,8 @@ export function PanelStudio({
                   the same controls live in the studio header's right
                   group. */}
               {(isRequestMode || (canManageExpansions && isExpandable)) && (
-                <div className="flex w-full flex-shrink-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 pb-2 sm:hidden">
+                <AutoHideHeader className="sm:hidden">
+                <div className="flex w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 pb-2">
                   {isRequestMode && (
                     <>
                       <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
@@ -2697,21 +2728,29 @@ export function PanelStudio({
                     </div>
                   )}
                 </div>
+                </AutoHideHeader>
               )}
 
               {/* ─── Scrollable panel content ─── */}
               <div
                 ref={chassisScrollerRef}
-                className={`flex-[0_1_auto] min-h-0 w-full overflow-auto p-2 sm:p-4 sm:px-6 lg:p-5 lg:px-8 flex transition-[padding-right] duration-300 ${inspectorOpen && !(pickerMode && canEditKeys) ? 'xl:pr-[420px] 2xl:pr-10' : ''}`}
+                // data-scroll-container opts this scroll region into
+                // useHideProgress so the expansion controls + fixed
+                // footer auto-hide as the operator scrolls the
+                // chassis on mobile.
+                data-scroll-container
+                className={`flex-1 min-h-0 w-full overflow-auto p-4 pb-[15rem] sm:px-6 sm:pb-4 lg:p-5 lg:px-8 flex transition-[padding-right] duration-300 ${inspectorOpen && !(pickerMode && canEditKeys) ? 'xl:pr-[420px] 2xl:pr-10' : ''}`}
               >
                 <div className="min-w-min mx-auto" ref={chassisRef}>
                   {/* Single chassis card containing expansions + main panel */}
-                  <div className="relative bg-[#2a2a2a] border border-white/[0.06] rounded-[14px] p-4 gap-2 sm:p-8 sm:gap-4 flex flex-col items-center">
-                    {/* Hardware type + key count, top-right corner of
-                        the chassis card. Plain cyan label — no
-                        engraved silkscreen shadow. */}
+                  <div className="relative bg-[#2a2a2a] border border-white/[0.06] rounded-[14px] p-8 gap-4 flex flex-col items-center">
+                    {/* Hardware type label, top-right corner of the
+                        chassis card. Plain cyan label — no engraved
+                        silkscreen shadow. Key count dropped from the
+                        label since the chassis itself shows the keys
+                        and the count is rarely needed at a glance. */}
                     <div className="pointer-events-none absolute right-4 top-3 text-sm font-bold uppercase tracking-[0.18em] tabular-nums leading-none text-[#22a7d3]">
-                      {(equipment.hardwareType || 'Unknown')} · {keyCount}-Key
+                      {equipment.hardwareType || 'Unknown'}
                     </div>
                     {/* Expansion rows (rendered on top, reversed so
                         newest is at top). The cyan expansion-number
@@ -2726,10 +2765,11 @@ export function PanelStudio({
                       </div>
                     ))}
 
-                    {/* Divider between expansions and main panel */}
-                    {expansionCount > 0 && (
-                      <div className="w-full border-t border-white/[0.06] my-1" />
-                    )}
+                    {/* Divider between expansions and main panel
+                        removed — the chassis card's flex gap already
+                        provides enough breathing room, the divider
+                        was adding visible dead space below the
+                        expansion keys without earning its place. */}
 
                     {/* Main panel rows */}
                     {renderPanel(0)}
@@ -2739,14 +2779,29 @@ export function PanelStudio({
 
 
               {/* ─── Footer (pinned) ───
-                  Mobile: Main/Shift toggle (centered) followed by
-                  Copy / Paste / Save in their own row underneath.
-                  Desktop: just the Main/Shift toggle, centered —
-                  legend, expansion, and Copy/Save all live in the
-                  studio header's right group on big screens.
-                  Legend + expansion now live ABOVE the user-name
-                  strip on mobile, not down here. */}
-              <div className="flex-shrink-0 w-full px-4 pb-3 pt-2 lg:px-5 lg:pb-5 lg:pt-3 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-center sm:gap-3">
+                  Mobile: position:fixed right above the BottomNav so
+                  the Main/Shift toggle + Copy/Paste/Save row stays
+                  thumb-accessible regardless of chassis size. The
+                  chassis-scroller gets pb to keep its content from
+                  being permanently obscured by the fixed footer.
+                  Desktop (sm+): static positioning, lives in normal
+                  flex flow under the chassis. */}
+              <div
+                ref={footerRef}
+                // On mobile the footer is fixed above the BottomNav
+                // AND slides down off-screen as the chassis is
+                // scrolled, freeing every pixel for the panel. The
+                // BottomNav is hiding in step via its own
+                // useHideProgress, so they disappear together. The
+                // (BottomNavHeight + footerHeight) translate ensures
+                // the footer clears the BottomNav's resting position
+                // when fully hidden. Desktop is unaffected (static
+                // positioning).
+                style={{
+                  transform: `translateY(${footerHideProgress * (footerHeight + 92)}px)`,
+                }}
+                className="fixed bottom-[5.75rem] left-0 right-0 z-30 bg-[#202020] flex flex-col items-stretch gap-2 px-4 pb-3 pt-2 sm:static sm:translate-y-0 sm:bg-transparent sm:flex-shrink-0 sm:flex-row sm:items-center sm:justify-center sm:gap-3 lg:px-5 lg:pb-5 lg:pt-3"
+              >
                 {isReviewMode ? (
                   <>
                     {/* Review mode summary */}

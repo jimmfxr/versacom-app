@@ -25,8 +25,15 @@ import { useEffect, useState } from 'react'
  *   thumb-flicks on mobile.
  * @param topAt Pixels from the top where progress is forced to 0 so
  *   the chrome always re-anchors at the page top.
+ *
+ * Overflow guard: if the active scroll container's content barely
+ * exceeds its viewport (overflow < `minOverflowPx`, default 200) the
+ * progress is forced to 0. Without this, pages that just barely
+ * overflow (e.g. a small panel chassis) flicker — every tiny rubber-
+ * band scroll jumps the chrome in and out. The guard means "don't
+ * bother hiding the chrome when there's nothing to scroll for".
  */
-export function useHideProgress(maxScrollPx = 120, topAt = 4): number {
+export function useHideProgress(maxScrollPx = 120, topAt = 4, minOverflowPx = 200): number {
   const [progress, setProgress] = useState(0)
 
   useEffect(() => {
@@ -34,6 +41,20 @@ export function useHideProgress(maxScrollPx = 120, topAt = 4): number {
     let offset = 0
     let lastY = readScroll()
     let ticking = false
+
+    /** The element whose scrollTop is currently driving the hook —
+     *  either a `[data-scroll-container]` or, by fallback, the
+     *  document. Used to check overflow against minOverflowPx. */
+    function activeOverflow(): number {
+      const containers = document.querySelectorAll<HTMLElement>('[data-scroll-container]')
+      for (const c of containers) {
+        if (c.scrollTop > 0 || c.scrollHeight > c.clientHeight) {
+          return c.scrollHeight - c.clientHeight
+        }
+      }
+      const doc = document.documentElement
+      return doc.scrollHeight - doc.clientHeight
+    }
 
     function readScroll(): number {
       const containers = document.querySelectorAll<HTMLElement>('[data-scroll-container]')
@@ -46,6 +67,7 @@ export function useHideProgress(maxScrollPx = 120, topAt = 4): number {
     function update() {
       ticking = false
       const y = readScroll()
+      const max = activeOverflow()
       if (y <= topAt) {
         if (offset !== 0) {
           offset = 0
@@ -54,8 +76,24 @@ export function useHideProgress(maxScrollPx = 120, topAt = 4): number {
         lastY = y
         return
       }
+      // Clamp-induced-delta suppression. When chrome hides, the
+      // scroll-container's clientHeight grows, so its max scrollTop
+      // shrinks. If the user was scrolled past the new max, the engine
+      // clamps scrollTop down — and fires a scroll event whose delta
+      // would otherwise read as a "scroll-up" and unwind the hide. We
+      // collapse `lastY` to the new max BEFORE computing delta so that
+      // engine clamping registers as zero movement, not phantom user
+      // input. Real user scroll-up (lastY <= max) is unaffected.
+      if (lastY > max) lastY = max
       const delta = y - lastY
       lastY = y
+      // If the page barely overflows, don't START hiding — small
+      // rubber-band scrolls would otherwise flicker the chrome in and
+      // out. Only veto increasing the hide (positive delta); reversing
+      // is always allowed so a user can rewind a stuck-hidden state.
+      if (delta > 0 && offset === 0 && max < minOverflowPx) {
+        return
+      }
       const next = Math.max(0, Math.min(maxScrollPx, offset + delta))
       if (next === offset) return
       offset = next
@@ -74,7 +112,7 @@ export function useHideProgress(maxScrollPx = 120, topAt = 4): number {
       document.removeEventListener('scroll', onScroll, true)
       window.removeEventListener('scroll', onScroll)
     }
-  }, [maxScrollPx, topAt])
+  }, [maxScrollPx, topAt, minOverflowPx])
 
   return progress
 }
