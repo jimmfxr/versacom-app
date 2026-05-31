@@ -95,11 +95,18 @@ export function useHideProgress(
     function updateFromScroll() {
       ticking = false
       const y = readScroll()
-      // Top-anchor reset is ALSO gated by cooldown. Otherwise a
-      // layout-driven scrollTop=0 (the engine clamping after chrome
-      // hide collapsed the page) reads as "user is at the top" and
-      // immediately reveals the chrome.
-      if (y <= topAt && performance.now() >= commitCooldownUntil) {
+      // Top-anchor reset: only fire on a real TRANSITION from above
+      // the top zone to within it. Requiring `lastY > topAt` means a
+      // layout-driven scrollTop=0 (chassis grew enough to eliminate
+      // overflow, the engine clamps scrollTop down) doesn't read as
+      // "user scrolled to the top" — once lastY is also 0, subsequent
+      // y=0 reads are no-ops. The chrome stays hidden until the user
+      // explicitly swipes down to reveal it.
+      if (
+        y <= topAt &&
+        lastY > topAt &&
+        performance.now() >= commitCooldownUntil
+      ) {
         commit(false)
         lastY = y
         return
