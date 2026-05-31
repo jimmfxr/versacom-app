@@ -197,6 +197,21 @@ export function ProjectSwitcher({
     return () => document.removeEventListener('mousedown', onMouseDown)
   }, [open])
 
+  // Auto-sync the lastProject cookie whenever this switcher renders
+  // with a non-null projectId. Without this, a user who lands on a
+  // page that PASSES a project (e.g. dashboard auto-defaulting to
+  // their only show) sees "2026 WWE" in the trigger but the navbar
+  // chrome (Scanner / QR / Kiosk) stays hidden because no cookie
+  // was ever written — the click handler short-circuits when the
+  // already-active project is "selected" again. Writing on mount
+  // makes the navbar pick up project context on the first render
+  // after navigation.
+  useEffect(() => {
+    if (projectId == null || typeof document === 'undefined') return
+    document.cookie = `lastProject=${projectId};path=/;max-age=${60 * 60 * 24 * 365}`
+    document.cookie = `lastProjectName=${encodeURIComponent(projectName)};path=/;max-age=${60 * 60 * 24 * 365}`
+  }, [projectId, projectName])
+
   return (
     <div ref={ref} className="relative w-full sm:inline-block sm:w-auto">
       <button
