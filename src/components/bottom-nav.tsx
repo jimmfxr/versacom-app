@@ -80,9 +80,12 @@ export function BottomNav({ notificationUnread, onOpenTools, toolsActive }: Prop
     <nav
       aria-label="Primary"
       aria-hidden={hidden}
-      className={`fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-white/[0.08] bg-[#1a1a1a] pb-[max(2.75rem,env(safe-area-inset-bottom))] pt-5 transition-transform duration-200 ease-out sm:hidden ${
+      className={`fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-white/[0.08] bg-[#1a1a1a] pb-[max(2.75rem,env(safe-area-inset-bottom))] pt-5 transition-transform duration-300 sm:hidden ${
         hidden ? 'translate-y-full' : 'translate-y-0'
       }`}
+      // Material-style "standard" easing — smoother than tailwind's
+      // ease-out (matches the curve Google's bottom nav uses).
+      style={{ transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)' }}
     >
       {items.map((item) => {
         const color = item.active ? 'text-[#22a7d3]' : 'text-gray-400'

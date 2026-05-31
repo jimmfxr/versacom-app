@@ -35,9 +35,13 @@ export function AutoHideHeader({
   const hidden = direction === 'down'
   return (
     <div
-      className={`grid flex-shrink-0 transition-[grid-template-rows,opacity] duration-200 ease-out sm:grid-rows-[1fr] sm:opacity-100 ${
+      className={`grid flex-shrink-0 transition-[grid-template-rows,opacity] duration-300 sm:grid-rows-[1fr] sm:opacity-100 ${
         hidden ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'
       } ${className}`}
+      // Material-style "standard" easing — smoother than tailwind's
+      // ease-out for hide-on-scroll chrome (matches the curve Google's
+      // mobile search bar uses).
+      style={{ transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)' }}
     >
       <div className="overflow-hidden">{children}</div>
     </div>

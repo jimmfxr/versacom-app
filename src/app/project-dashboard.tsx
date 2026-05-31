@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { useBackgroundRefresh } from '@/hooks/use-background-refresh'
 import { SwipeCarousel } from '@/components/swipe-carousel'
@@ -188,10 +189,19 @@ export function ProjectSwitcher({
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  // Popover lives in a portal so it can escape AutoHideHeader's
+  // overflow-hidden. The click-outside check needs to know about
+  // BOTH the trigger wrapper and the portaled popover — clicking
+  // an option inside the portal would otherwise read as "outside"
+  // and close the menu before the option's onClick fires.
+  const popoverRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      const t = e.target as Node
+      if (ref.current?.contains(t)) return
+      if (popoverRef.current?.contains(t)) return
+      setOpen(false)
     }
     if (open) document.addEventListener('mousedown', onMouseDown)
     return () => document.removeEventListener('mousedown', onMouseDown)
@@ -212,9 +222,43 @@ export function ProjectSwitcher({
     document.cookie = `lastProjectName=${encodeURIComponent(projectName)};path=/;max-age=${60 * 60 * 24 * 365}`
   }, [projectId, projectName])
 
+  // Popover positioning — measured against the trigger via
+  // getBoundingClientRect, then rendered with position:fixed via a
+  // React portal at document.body. This keeps the open menu visible
+  // when the trigger lives inside an overflow:hidden ancestor (e.g.
+  // the AutoHideHeader that collapses the page header on scroll).
+  // Re-measures on resize so a viewport rotation doesn't strand the
+  // panel; closes on scroll so a drag away from the trigger doesn't
+  // leave the menu floating mid-page.
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number; width: number } | null>(null)
+  useEffect(() => {
+    if (!open) {
+      setPopoverPos(null)
+      return
+    }
+    function measure() {
+      const el = triggerRef.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      setPopoverPos({ top: r.bottom + 4, left: r.left, width: r.width })
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    // Re-measure on scroll so the popover follows its trigger when
+    // the page (or an inner scroll container) shifts under it.
+    // capture: true catches scroll on descendant scroll regions too.
+    window.addEventListener('scroll', measure, true)
+    return () => {
+      window.removeEventListener('resize', measure)
+      window.removeEventListener('scroll', measure, true)
+    }
+  }, [open])
+
   return (
     <div ref={ref} className="relative w-full sm:inline-block sm:w-auto">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={`flex w-full items-center justify-between gap-2.5 rounded-lg border-2 bg-[#202020] px-3.5 py-2 text-sm font-medium text-white transition-colors sm:min-w-[280px] ${
@@ -225,8 +269,12 @@ export function ProjectSwitcher({
         <ChevronIcon open={open} />
       </button>
 
-      {open && (
-        <div className="absolute left-0 right-0 top-full z-30 mt-1 rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl sm:min-w-[280px]">
+      {open && popoverPos && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={popoverRef}
+          className="fixed z-50 rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl sm:min-w-[280px]"
+          style={{ top: popoverPos.top, left: popoverPos.left, width: popoverPos.width }}
+        >
           {showAllOption && (() => {
             const isActive = projectId == null
             return (
@@ -293,7 +341,8 @@ export function ProjectSwitcher({
           >
             All projects →
           </button>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

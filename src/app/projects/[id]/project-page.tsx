@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useTransition, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { PencilIcon, XMarkIcon, ChevronLeftIcon } from '@heroicons/react/24/outline'
@@ -488,13 +489,43 @@ function TabsMobileDropdown({
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  // Popover lives in a portal so it can escape AutoHideHeader's
+  // overflow-hidden when the page chrome auto-hides on scroll.
+  const popoverRef = useRef<HTMLDivElement>(null)
+  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number; width: number } | null>(null)
 
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      const t = e.target as Node
+      if (ref.current?.contains(t)) return
+      if (popoverRef.current?.contains(t)) return
+      setOpen(false)
     }
     if (open) document.addEventListener('mousedown', onMouseDown)
     return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [open])
+
+  useEffect(() => {
+    if (!open) {
+      setPopoverPos(null)
+      return
+    }
+    function measure() {
+      const el = triggerRef.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      setPopoverPos({ top: r.bottom + 4, left: r.left, width: r.width })
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    // Follow the trigger as the page scrolls (don't snap-close the
+    // popover) — capture: true catches descendant scroll regions.
+    window.addEventListener('scroll', measure, true)
+    return () => {
+      window.removeEventListener('resize', measure)
+      window.removeEventListener('scroll', measure, true)
+    }
   }, [open])
 
   const active = tabs.find((t) => t.key === activeTab) ?? tabs[0]
@@ -506,6 +537,7 @@ function TabsMobileDropdown({
     // project dropdowns on Dashboard / Tasks / My Equipment.
     <div ref={ref} className={`relative w-full ${compact ? 'sm:inline-block sm:w-auto' : ''}`}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={`flex w-full items-center justify-between gap-2.5 rounded-lg border-2 bg-[#202020] px-3.5 py-2 text-sm font-medium text-white transition-colors ${
@@ -522,8 +554,12 @@ function TabsMobileDropdown({
           <polyline points="5 8 10 13 15 8" />
         </svg>
       </button>
-      {open && (
-        <div className="absolute left-0 right-0 top-full z-30 mt-1 rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl">
+      {open && popoverPos && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={popoverRef}
+          className="fixed z-50 rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl"
+          style={{ top: popoverPos.top, left: popoverPos.left, width: popoverPos.width }}
+        >
           {tabs.map((t) => {
             const isActive = t.key === activeTab
             return (
@@ -543,7 +579,8 @@ function TabsMobileDropdown({
               </button>
             )
           })}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )
@@ -1753,13 +1790,12 @@ export function ProjectPage({
           {/* Desktop tab dropdown moved into each tab's search row
               (below). Mobile keeps the toolbar here with the dropdown
               on the left + search toggle + per-tab Add on the right.
-              NOT wrapped in AutoHideHeader: the dropdown popover
-              extends below this row and AutoHideHeader's required
-              overflow-hidden (for the collapse animation) would clip
-              the popover open menu. The per-tab toolbar inside each
-              tab's render IS wrapped so the bulk of the chrome still
-              auto-hides on scroll-down. */}
-          <div className="flex-shrink-0">
+              Wrapped in AutoHideHeader so it auto-hides on scroll-
+              down (Instagram pattern). The TabsMobileDropdown popover
+              portals to document.body so the overflow-hidden inside
+              AutoHideHeader doesn't clip it when open. */}
+          <AutoHideHeader>
+          <div>
           <div>
               <>
                 {/* Mobile toolbar: tab dropdown + search icon + per-tab
@@ -1838,6 +1874,7 @@ export function ProjectPage({
               </>
           </div>{/* /tab strip wrapper */}
           </div>{/* /tab + toolbar row */}
+          </AutoHideHeader>
 
           {/* Removed: desktop divider that used to sit below the
               tab + toolbar row. The page header's bottomBorder is

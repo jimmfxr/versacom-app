@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { PageLayout } from '@/components/page-layout'
 import { AutoHideHeader } from '@/components/auto-hide-header'
@@ -648,13 +649,41 @@ function TabDropdown({
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  // Popover lives in a portal so it can escape AutoHideHeader's
+  // overflow-hidden when the page chrome auto-hides on scroll.
+  const popoverRef = useRef<HTMLDivElement>(null)
+  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number; width: number } | null>(null)
 
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      const t = e.target as Node
+      if (ref.current?.contains(t)) return
+      if (popoverRef.current?.contains(t)) return
+      setOpen(false)
     }
     if (open) document.addEventListener('mousedown', onMouseDown)
     return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [open])
+
+  useEffect(() => {
+    if (!open) {
+      setPopoverPos(null)
+      return
+    }
+    function measure() {
+      const el = triggerRef.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      setPopoverPos({ top: r.bottom + 4, left: r.left, width: r.width })
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    window.addEventListener('scroll', measure, true)
+    return () => {
+      window.removeEventListener('resize', measure)
+      window.removeEventListener('scroll', measure, true)
+    }
   }, [open])
 
   const active = RADIO_TABS.find((t) => t.key === value) ?? RADIO_TABS[0]
@@ -662,6 +691,7 @@ function TabDropdown({
   return (
     <div ref={ref} className="relative w-full">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={`flex w-full items-center justify-between gap-2.5 rounded-lg border-2 bg-[#202020] px-3.5 py-2 text-sm font-medium text-white transition-colors ${
@@ -681,8 +711,12 @@ function TabDropdown({
           <polyline points="5 8 10 13 15 8" />
         </svg>
       </button>
-      {open && (
-        <div className="absolute left-0 right-0 top-full z-30 mt-1 rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl">
+      {open && popoverPos && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={popoverRef}
+          className="fixed z-50 rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl"
+          style={{ top: popoverPos.top, left: popoverPos.left, width: popoverPos.width }}
+        >
           {RADIO_TABS.map((t) => {
             const isActive = t.key === value
             return (
@@ -703,7 +737,8 @@ function TabDropdown({
               </button>
             )
           })}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

@@ -1,4 +1,5 @@
 import { PageHeader } from '@/components/page-header'
+import { AutoHideHeader } from '@/components/auto-hide-header'
 
 type PageLayoutProps = {
   title: string
@@ -40,14 +41,14 @@ export function PageLayout({ title, action, children, titleClassName, inlineActi
     // flex-shrink-0 too and put the actual scrolling list as a flex-1 +
     // overflow-y-auto child — pinned elements never move.
     //
-    // NB: tried wrapping the header in AutoHideHeader for auto-hide
-    // on scroll-down, but the project-switcher dropdown popover
-    // (inside the action slot) got clipped by AutoHideHeader's
-    // required overflow-hidden. The per-tab toolbars inside each
-    // page's children carry the auto-hide instead.
+    // The header sits inside AutoHideHeader so on mobile it collapses
+    // on scroll-down with the rest of the page chrome (Instagram /
+    // Facebook pattern). Desktop renders it static. ProjectSwitcher's
+    // popover portals to document.body so the overflow-hidden inside
+    // AutoHideHeader doesn't clip the open dropdown.
     return (
       <div className="flex min-h-0 flex-1 flex-col pt-5">
-        <div className="flex-shrink-0 pb-2">{headerBlock}</div>
+        <AutoHideHeader className="pb-2">{headerBlock}</AutoHideHeader>
         <main className="flex min-h-0 flex-1 flex-col">
           <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col px-4 sm:px-6 lg:px-8">
             {children}
