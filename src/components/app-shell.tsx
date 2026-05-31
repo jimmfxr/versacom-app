@@ -390,6 +390,7 @@ export function AppShell({
             notificationUnread={notificationUnread}
             onOpenTools={() => setToolsOpen(true)}
             toolsActive={toolsActive}
+            isUserOnly={isUserOnly}
           />
           <ToolsSheet
             open={toolsOpen}

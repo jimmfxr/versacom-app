@@ -29,6 +29,13 @@ import { useHideProgress } from '@/lib/use-scroll-direction'
  * the sheet (Projects / Tasks / Radios / etc.) so the operator
  * always knows which slot covers their current page.
  *
+ * User-only crew (isUserOnly): the toolbox is dropped entirely —
+ * scanner / QR / kiosk / radios / etc. all live in the toolbox and
+ * user-role accounts can't access any of them (proxy.ts blocks the
+ * routes server-side too). With nothing for the toolbox to open,
+ * the tab bar collapses to three slots: Home (→ /my-equipment, the
+ * user's only landing page), Notifications, Profile.
+ *
  * Rendered by AppShell when NEW_BOTTOM_NAV is on. Hidden on
  * /kiosk/* and /zones/* via the parent guard.
  */
@@ -39,11 +46,18 @@ type Props = {
   /** True when the active route is one of the items inside the
    *  Tools sheet — drives the cyan highlight on the toolbox icon. */
   toolsActive: boolean
+  /** True for crew with `role=user`. Hides the toolbox tab (they
+   *  can't access scanner/QR/kiosk anyway) and reroutes Home to
+   *  /my-equipment instead of the Dashboard. */
+  isUserOnly?: boolean
 }
 
-export function BottomNav({ notificationUnread, onOpenTools, toolsActive }: Props) {
+export function BottomNav({ notificationUnread, onOpenTools, toolsActive, isUserOnly = false }: Props) {
   const pathname = usePathname() ?? ''
-  const isHome = pathname === '/'
+  // Home destination depends on role. User-only sessions don't have
+  // a dashboard surface — their "home" is the My Equipment list.
+  const homeHref = isUserOnly ? '/my-equipment' : '/'
+  const isHome = isUserOnly ? pathname.startsWith('/my-equipment') : pathname === '/'
   const isNotifications = pathname.startsWith('/notifications')
   const isProfile = pathname.startsWith('/profile')
   // Scroll-linked hide: progress 0..1 tracks the user's gesture
@@ -66,20 +80,24 @@ export function BottomNav({ notificationUnread, onOpenTools, toolsActive }: Prop
   const items = [
     {
       key: 'home',
-      label: 'Dashboard',
-      href: '/',
+      label: isUserOnly ? 'My Equipment' : 'Dashboard',
+      href: homeHref,
       Icon: HomeIcon,
       ActiveIcon: HomeIconSolid,
       active: isHome,
     },
-    {
-      key: 'tools',
-      label: 'Tools',
-      onClick: onOpenTools,
-      Icon: BriefcaseIcon,
-      ActiveIcon: BriefcaseIconSolid,
-      active: toolsActive && !isHome && !isNotifications && !isProfile,
-    },
+    // Toolbox is dropped entirely for user-only sessions — see top-
+    // of-file comment for why.
+    ...(isUserOnly
+      ? []
+      : [{
+          key: 'tools' as const,
+          label: 'Tools',
+          onClick: onOpenTools,
+          Icon: BriefcaseIcon,
+          ActiveIcon: BriefcaseIconSolid,
+          active: toolsActive && !isHome && !isNotifications && !isProfile,
+        }]),
     {
       key: 'bell',
       label: 'Notifications',
@@ -100,12 +118,15 @@ export function BottomNav({ notificationUnread, onOpenTools, toolsActive }: Prop
   ] as const
 
   const slidePx = progress * navHeight
+  // Grid columns adapt to how many tabs we ended up rendering — 3 for
+  // user-only (no toolbox), 4 for everyone else.
+  const gridCols = isUserOnly ? 'grid-cols-3' : 'grid-cols-4'
   return (
     <nav
       ref={navRef}
       aria-label="Primary"
       aria-hidden={progress > 0.5}
-      className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 bg-[#1a1a1a] pb-[max(2.75rem,env(safe-area-inset-bottom))] pt-5 sm:hidden"
+      className={`fixed inset-x-0 bottom-0 z-40 grid ${gridCols} bg-[#1a1a1a] pb-[max(2.75rem,env(safe-area-inset-bottom))] pt-5 sm:hidden`}
       // Same 180ms ease-out as AutoHideHeader — keeps the top and
       // bottom chrome moving in sync visually.
       style={{ transform: `translateY(${slidePx}px)`, transition: 'transform 180ms ease-out' }}
