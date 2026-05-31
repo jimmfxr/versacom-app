@@ -50,6 +50,13 @@ export function useHideProgress(
     // Touch tracking — separate from scroll because touch on a non-
     // overflowing element never produces scroll events.
     let touchLastY: number | null = null
+    // Cooldown after each commit. When chrome hides the AutoHideHeader
+    // collapses layout, which fires a scroll event whose delta would
+    // otherwise be read as "scroll-up" and immediately flip the state
+    // back — causing rapid open/close loops on real touch devices.
+    // 220ms ≈ the CSS transition (180ms) plus a small buffer so any
+    // layout-driven scroll events have settled before we re-listen.
+    let commitCooldownUntil = 0
 
     function readScroll(): number {
       const containers = document.querySelectorAll<HTMLElement>('[data-scroll-container]')
@@ -64,6 +71,7 @@ export function useHideProgress(
       hidden = next
       setProgress(next ? 1 : 0)
       dirAccum = 0
+      commitCooldownUntil = performance.now() + 220
     }
 
     /** Apply a movement delta (positive = "wants to scroll down" =
@@ -71,6 +79,9 @@ export function useHideProgress(
      *  down) toward the hide state. */
     function applyDelta(delta: number) {
       if (delta === 0) return
+      // During cooldown, ignore further input — prevents the layout-
+      // settling scroll events from immediately flipping state back.
+      if (performance.now() < commitCooldownUntil) return
       // Direction-change resets the accumulator so a small reversal
       // doesn't immediately flip state.
       if ((delta > 0) !== (dirAccum > 0)) dirAccum = 0
@@ -82,7 +93,11 @@ export function useHideProgress(
     function updateFromScroll() {
       ticking = false
       const y = readScroll()
-      if (y <= topAt) {
+      // Top-anchor reset is ALSO gated by cooldown. Otherwise a
+      // layout-driven scrollTop=0 (the engine clamping after chrome
+      // hide collapsed the page) reads as "user is at the top" and
+      // immediately reveals the chrome.
+      if (y <= topAt && performance.now() >= commitCooldownUntil) {
         commit(false)
         lastY = y
         return
