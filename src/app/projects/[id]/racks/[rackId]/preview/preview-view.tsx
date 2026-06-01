@@ -87,8 +87,9 @@ export function RackPreviewView({
 
       {/* Chassis (read-only): same RU_PX math + slot card chrome
           as the editable studio, just no Edit / drag handlers. */}
+      <div className="mx-auto max-w-md">
       <div
-        className="relative mx-auto max-w-md rounded-lg border border-white/10"
+        className="relative rounded-lg border border-white/10"
         style={{ height: `${containerHeight}px` }}
       >
         {Array.from({ length: rack.totalRU }, (_, i) => {
@@ -135,6 +136,22 @@ export function RackPreviewView({
             <span className="min-w-0 flex-1 truncate text-center">{s.label}</span>
           </div>
         ))}
+      </div>
+      {/* Caster wheels under the chassis — two small dark circles
+          spaced toward the outer edges, so the framed rack reads
+          as a real wheeled rack on the road. Connected to the
+          chassis via thin 'mounting brackets' (tiny stems) for a
+          touch of physicality. */}
+      <div className="flex items-start justify-between px-6">
+        <div className="flex flex-col items-center">
+          <div className="h-1 w-2 bg-white/10" />
+          <div className="size-6 rounded-full bg-[#0a0a0a] border border-white/10 shadow-[0_2px_4px_rgba(0,0,0,0.4)]" />
+        </div>
+        <div className="flex flex-col items-center">
+          <div className="h-1 w-2 bg-white/10" />
+          <div className="size-6 rounded-full bg-[#0a0a0a] border border-white/10 shadow-[0_2px_4px_rgba(0,0,0,0.4)]" />
+        </div>
+      </div>
       </div>
     </>
   )
