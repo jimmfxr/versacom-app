@@ -526,10 +526,6 @@
            are tagged to this rack but don't occupy an RU. No border /
            background — reads as a quiet meta strip. -->
       <div id="looseTray" class="mb-3 flex-shrink-0">
-        <div class="flex items-center gap-2 mb-1.5">
-          <div class="text-[10px] uppercase tracking-wider text-gray-500">Loose gear · no RU</div>
-          <div class="text-[10px] text-gray-600">velcro / drawer</div>
-        </div>
         <div id="looseTrayList" class="flex flex-wrap gap-2"></div>
       </div>
 
@@ -907,11 +903,11 @@
   // filter chips to scope the visible items.
   const LIBRARY_SECTIONS = [
     { key: 'devices',  label: 'Devices',                         short: 'Devices',  items: ['Artist-128 Frame', 'Artist-64 Frame', 'Artist-32 Frame', 'Artist-1024 Frame', 'RTS-ODIN', 'RTS-OMS', 'IMF 102', 'ST Model 46', 'ST Model 47', 'Brainstorm', 'Meinberg PTP'] },
-    { key: 'switches', label: 'Switches · 1U each',              short: 'Switches', items: ['Switch · 26P+4F', 'Switch · 40P+4F', 'Switch · 24X8F8V', 'Switch · 16F', 'Switch · 9P+1F', 'Pliant Copper Hub', 'Pliant Fiber Hub', 'Media Switch'] },
+    { key: 'switches', label: 'Switches',                         short: 'Switches', items: ['Switch · 26P+4F', 'Switch · 40P+4F', 'Switch · 24X8F8V', 'Switch · 16F', 'Switch · 9P+1F', 'Pliant Copper Hub', 'Pliant Fiber Hub', 'Media Switch'] },
     { key: 'audio',    label: 'Audio',                           short: 'Audio',    items: ['Dark88', 'A16R'] },
     { key: 'drawers',  label: 'Drawers',                         short: 'Drawers',  items: ['Drawer · 1U', 'Drawer · 2U', 'Drawer · 3U', 'Drawer · 4U'] },
     { key: 'power',    label: 'Power + filler',                  short: 'Power',    items: ['UPS', 'Power Conditioner', 'Patchbay', 'Blank panel'] },
-    { key: 'loose',    label: 'Loose gear · velcro / drawer',    short: 'Loose',    items: ['Antaira', 'Intellanet (Old)', 'Intellanet (New)', 'TP Link', 'Netgate', 'Bolero Antenna Master'] },
+    { key: 'loose',    label: 'Loose gear',                       short: 'Loose',    items: ['Antaira', 'Intellanet (Old)', 'Intellanet (New)', 'TP Link', 'Netgate', 'Bolero Antenna Master'] },
   ]
 
   let activeFilter = 'all'
