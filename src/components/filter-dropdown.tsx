@@ -62,7 +62,7 @@ export function FilterDropdown({
           // --button-width CSS variable so the popover lines up
           // exactly under the trigger. Dark chrome + border + shadow
           // matches ProjectSwitcher / status selects.
-          className="z-50 w-[var(--button-width)] rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl outline-none transition data-closed:scale-95 data-closed:opacity-0 data-enter:duration-150 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
+          className="z-[300] w-[var(--button-width)] rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl outline-none transition data-closed:scale-95 data-closed:opacity-0 data-enter:duration-150 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
         >
           {options.map((o) => (
             <ListboxOption
