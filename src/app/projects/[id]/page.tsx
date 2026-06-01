@@ -17,7 +17,7 @@ export default async function ProjectDetailPage({
   const session = await getSession()
   const userId = session?.user.id ?? null
 
-  const [project, equipment, memberRows, pickListItems, panelKeyUsage, expansionRows, allUsers, distinctPositions, distinctDepartments, headsetInventory, plots, userProjectMemberships] = await Promise.all([
+  const [project, equipment, memberRows, pickListItems, panelKeyUsage, expansionRows, allUsers, distinctPositions, distinctDepartments, headsetInventory, plots, userProjectMemberships, commsRackRows] = await Promise.all([
     prisma.project.findUnique({
       where: { id: projectId },
       select: {
@@ -193,6 +193,21 @@ export default async function ProjectDetailPage({
           where: { userId, project: { status: 'active' } },
           select: { project: { select: { id: true, name: true } } },
         }),
+    // Racks scoped to this project + dept='comms'. Used to render the
+    // Racks tab body and drive the tab count. `_count.slots` lets us
+    // show how many devices are racked on each row without a second
+    // query.
+    prisma.rackTemplate.findMany({
+      where: { projectId, dept: 'comms' },
+      select: {
+        id: true,
+        name: true,
+        location: true,
+        totalRU: true,
+        _count: { select: { slots: true } },
+      },
+      orderBy: [{ name: 'asc' }],
+    }),
   ])
 
   // Project deleted (or stale lastProject cookie pointing nowhere). Bounce
@@ -363,6 +378,13 @@ export default async function ProjectDetailPage({
         rj45XlrmfBrought: project.rj45XlrmfBrought,
       }}
       plots={plots}
+      commsRacks={commsRackRows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        location: r.location,
+        totalRU: r.totalRU,
+        slotCount: r._count.slots,
+      }))}
     />
   )
 }

@@ -132,7 +132,7 @@ const ROLE_LABELS: Record<string, string> = { admin: 'Admin', manager: 'Manager'
 
 /* ─── Types ─── */
 
-type Tab = 'equipment' | 'team' | 'picklist' | 'my-equipment' | 'stage-plots'
+type Tab = 'equipment' | 'team' | 'picklist' | 'my-equipment' | 'stage-plots' | 'racks'
 
 type Member = {
   id: number
@@ -699,6 +699,7 @@ export function ProjectPage({
     rj45XlrmfBrought: 0,
   },
   plots = [],
+  commsRacks = [],
 }: {
   project: Project
   equipment: EquipmentItem[]
@@ -726,6 +727,16 @@ export function ProjectPage({
   /** Persisted stage plots for this project — label + external URL
    *  (Google Drive share link, typically). Empty on a fresh project. */
   plots?: Array<{ id: number; label: string; url: string }>
+  /** RackTemplate rows for this project scoped to dept='comms'. Used
+   *  to render the Racks tab body and drive the tab count. Empty on a
+   *  fresh project. */
+  commsRacks?: Array<{
+    id: number
+    name: string
+    location: string | null
+    totalRU: number
+    slotCount: number
+  }>
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -897,6 +908,9 @@ export function ProjectPage({
   // Stage plots state (mockup — no API yet)
   const [plotSearch, setPlotSearch] = useState('')
   const [showAddPlot, setShowAddPlot] = useState(false)
+  // Inline "Create rack" form on the Racks tab. When true the tab
+  // body renders the form above the rack list.
+  const [showAddRack, setShowAddRack] = useState(false)
   const [addPlotLabel, setAddPlotLabel] = useState('')
   const [addPlotUrl, setAddPlotUrl] = useState('')
   const [editingPlotId, setEditingPlotId] = useState<number | null>(null)
@@ -1560,6 +1574,12 @@ export function ProjectPage({
           list.push({ key: 'picklist', label: 'Pick List', count: pickListItems.filter((p) => p.type !== 'PTP').length })
         }
         list.push({ key: 'stage-plots', label: 'Plots', count: plots.length })
+        // Racks — admin/manager only (same gating as Team / Pick List).
+        // Always visible (even with 0 racks) so users can click in to
+        // create the first one. Count = racks scoped to this project + dept=comms.
+        if (!isCrew) {
+          list.push({ key: 'racks', label: 'Racks', count: commsRacks.length })
+        }
         return list
       })()
   // Desktop tab dropdown JSX — fixed 280px wide to match the
@@ -1630,6 +1650,14 @@ export function ProjectPage({
                   if (isAdmin && !showAddPlot) {
                     onClick = () => setShowAddPlot(true)
                     ariaLabel = 'Add Plot'
+                  }
+                } else if (activeTab === 'racks') {
+                  // Per-tab + opens the Create-rack inline form. Same
+                  // admin/manager gating as Team / Pick List — the
+                  // Racks tab itself isn't shown to crew/user roles.
+                  if ((isProjectAdmin || isManager) && !showAddRack) {
+                    onClick = () => setShowAddRack(true)
+                    ariaLabel = 'Add Rack'
                   }
                 }
                 if (!onClick) return null
@@ -3530,6 +3558,85 @@ export function ProjectPage({
             </div>
           )}
 
+          {/* ═══════════════════════════════ RACKS TAB ═══════════════════════════════
+              Per-project rack designer. Each RackTemplate row (dept='comms',
+              scoped to this project) is rendered as a card with name +
+              location + RU count + slot count. Clicking a rack drills into
+              the rack designer page (TODO — landing in a follow-up commit).
+              The + (Add Rack) button in the page header opens the inline
+              Create Rack form. */}
+          {activeTab === 'racks' && (
+            <div className="flex min-h-0 flex-1 flex-col">
+              {/* Desktop toolbar — tab dropdown on the right (search not
+                  wired yet; will be in a follow-up). Mirrors the Plots
+                  tab's pattern so the toolbar reads consistently. */}
+              <div className="hidden items-center justify-end gap-2 pb-3 sm:flex">
+                {desktopTabDropdown}
+              </div>
+
+              {/* Inline Create-rack form. Opens when the + button in the
+                  page header is tapped. Minimal fields for now — name,
+                  location, RU height. Server action wires below. */}
+              {showAddRack && (isProjectAdmin || isManager) && (
+                <CreateRackForm
+                  projectId={project.id}
+                  onCancel={() => setShowAddRack(false)}
+                  onCreated={() => {
+                    setShowAddRack(false)
+                    router.refresh()
+                  }}
+                />
+              )}
+
+              {/* Rack list. Empty state when no racks yet. */}
+              {commsRacks.length === 0 && !showAddRack ? (
+                <div className="flex flex-1 flex-col items-center justify-center gap-3 py-12 text-center">
+                  <div className="text-sm text-gray-400">No racks yet on this show.</div>
+                  {(isProjectAdmin || isManager) && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAddRack(true)}
+                      className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+                    >
+                      + Create rack
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div data-scroll-container className="flex min-h-0 flex-1 flex-col divide-y divide-white/[0.06] overflow-y-auto overscroll-none pb-20">
+                  {commsRacks.map((r) => (
+                    <div
+                      key={r.id}
+                      className="flex items-center justify-between gap-4 py-3"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-white truncate">{r.name}</div>
+                        <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-500">
+                          {r.location && <span className="text-gray-300">{r.location}</span>}
+                          {r.location && <span className="text-gray-600">·</span>}
+                          <span>{r.totalRU}RU</span>
+                          <span className="text-gray-600">·</span>
+                          <span>{r.slotCount} {r.slotCount === 1 ? 'slot' : 'slots'}</span>
+                        </div>
+                      </div>
+                      {/* Edit button — wires up the rack-designer view in
+                          a follow-up commit. For now it's a placeholder
+                          that opens an alert so we can verify the data
+                          is flowing through correctly. */}
+                      <button
+                        type="button"
+                        onClick={() => alert(`Open rack designer for ${r.name} (id=${r.id})`)}
+                        className="shrink-0 rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+                      >
+                        Open
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ═══════════════════════════════ MY EQUIPMENT TAB (User role) ═══════════════════════════════ */}
           {activeTab === 'my-equipment' && (() => {
             const myEquipment = equipment.filter((e) => e.assignedMemberId === currentMemberId)
@@ -3637,5 +3744,115 @@ export function ProjectPage({
         Are you sure you want to delete <span className="text-white font-medium">{project.name}</span>? This will remove all members and cannot be undone.
       </Modal>
     </>
+  )
+}
+
+/**
+ * Inline form on the Racks tab — opens when the per-tab + (Add) button
+ * is tapped. Fields: name, location (optional), total RU. POSTs to the
+ * /api/racks endpoint to create a `RackTemplate` row scoped to this
+ * project + dept='comms'.
+ */
+function CreateRackForm({
+  projectId,
+  onCancel,
+  onCreated,
+}: {
+  projectId: number
+  onCancel: () => void
+  onCreated: () => void
+}) {
+  const [name, setName] = useState('')
+  const [location, setLocation] = useState('')
+  const [totalRU, setTotalRU] = useState('17')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    const trimmedName = name.trim()
+    if (!trimmedName) { setError('Name is required'); return }
+    const ruNum = parseInt(totalRU, 10)
+    if (!Number.isFinite(ruNum) || ruNum < 1) { setError('RU height must be a positive integer'); return }
+    setSaving(true); setError(null)
+    try {
+      const res = await fetch('/api/racks', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          projectId,
+          name: trimmedName,
+          location: location.trim() || null,
+          totalRU: ruNum,
+          dept: 'comms',
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        setError((data as { error?: string } | null)?.error ?? 'Failed to create rack')
+        setSaving(false)
+        return
+      }
+      onCreated()
+    } catch {
+      setError('Network error')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="mb-3 rounded-lg border border-white/10 bg-[#1a1a1a] p-4">
+      <div className="text-sm font-semibold text-white mb-3">Create rack</div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_120px]">
+        <div>
+          <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Name</div>
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="FOH Rack"
+            className="w-full rounded-lg border border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+          />
+        </div>
+        <div>
+          <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Location <span className="normal-case text-gray-600">(optional)</span></div>
+          <input
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="FOH, MON, STAGE…"
+            className="w-full rounded-lg border border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+          />
+        </div>
+        <div>
+          <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">RU height</div>
+          <input
+            type="number"
+            min={1}
+            max={50}
+            value={totalRU}
+            onChange={(e) => setTotalRU(e.target.value)}
+            className="w-full rounded-lg border border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+          />
+        </div>
+      </div>
+      {error && <div className="mt-2 text-xs text-red-400">{error}</div>}
+      <div className="mt-3 flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={saving}
+          className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] disabled:opacity-50"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={saving}
+          className="rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {saving ? 'Creating…' : 'Create'}
+        </button>
+      </div>
+    </form>
   )
 }
