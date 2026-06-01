@@ -297,10 +297,16 @@ export function AppShell({
   )
   // BottomNav visibility — gated by the feature flag, hidden on
   // chrome-free pages (kiosk / public zones) like the legacy navbar.
+  // Rack-preview path (/projects/<id>/racks/<rackId>/preview) is a
+  // chrome-free single-rack viewer — eye icon on the editable
+  // studio jumps to it. Treat it the same as kiosk for nav-hide
+  // purposes.
+  const isRackPreview = /\/projects\/\d+\/racks\/\d+\/preview\/?$/.test(pathname)
   const showBottomNav =
     NEW_BOTTOM_NAV &&
     !pathname.includes('/kiosk') &&
-    !pathname.startsWith('/zones/')
+    !pathname.startsWith('/zones/') &&
+    !isRackPreview
   // The toolbox tab "owns" any route that lives inside the sheet —
   // i.e. any nav item that isn't one of the four bottom-tab slots.
   // Highlights cyan on those routes so the operator knows their
@@ -342,7 +348,7 @@ export function AppShell({
           admin viewing it shouldn't see the authed navbar). The
           navbar is rendered for every other route by the root
           layout's AppShell. */}
-      {!pathname.includes('/kiosk') && !pathname.startsWith('/zones/') && (
+      {!pathname.includes('/kiosk') && !pathname.startsWith('/zones/') && !isRackPreview && (
         <>
           {/* When NEW_BOTTOM_NAV is on, the legacy Navbar is hidden
               on mobile (the BottomNav + ToolsSheet below replace it)
