@@ -639,10 +639,10 @@ export function RackStudio({
                             type="button"
                             onClick={() => handleEmptyRowClick(ru)}
                             disabled={!canEdit}
-                            className={`flex h-[46px] w-full items-center justify-center text-xs rounded-lg border transition-colors disabled:cursor-default ${
+                            className={`flex h-[46px] w-full items-center justify-center text-xs transition-colors disabled:cursor-default ${
                               isPending
-                                ? 'bg-[#0178a3]/15 border-[#0178a3]/60 text-[#22a7d3]'
-                                : 'text-gray-600 border-white/[0.08] hover:border-[#0178a3]/40 hover:text-[#22a7d3] hover:bg-[#0178a3]/[0.04]'
+                                ? 'rounded-lg border border-[#0178a3]/60 bg-[#0178a3]/15 text-[#22a7d3]'
+                                : 'border-b border-white/[0.06] text-gray-600 hover:border-b-[#0178a3]/40 hover:text-[#22a7d3] hover:bg-[#0178a3]/[0.04]'
                             } ${canEdit ? 'cursor-pointer' : ''}`}
                           >
                             {isPending ? 'pick a device →' : '+ Drop Here'}
