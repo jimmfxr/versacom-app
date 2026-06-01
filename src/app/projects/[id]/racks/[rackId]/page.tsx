@@ -71,7 +71,7 @@ export default async function RackStudioPage({
   // current user's active projects so ProjectSwitcher can offer
   // jumping to any of them. Plus the project's custom rack devices
   // so the device library merges them with the hard-coded presets.
-  const [project, userProjectMemberships, customDevices] = await Promise.all([
+  const [project, userProjectMemberships, customDevices, rackEligibleEquipment, allRackedSlots] = await Promise.all([
     prisma.project.findUnique({
       where: { id: projectId },
       select: { id: true, name: true },
@@ -84,6 +84,30 @@ export default async function RackStudioPage({
       where: { projectId, dept: rack.dept },
       select: { id: true, name: true, ruSize: true, category: true },
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
+    }),
+    // Rack-eligible Equipment for the slot-edit form's link picker.
+    // Filtered to categories that physically live in a rack.
+    prisma.equipment.findMany({
+      where: { projectId, category: { in: ['panels', 'switches', 'audio'] } },
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        hardwareType: true,
+        location: true,
+        ipAddress: true,
+        deployStatus: true,
+      },
+      orderBy: [{ category: 'asc' }, { id: 'asc' }],
+    }),
+    // Every slot on this project that already has equipmentId set,
+    // so the picker can dim already-claimed units.
+    prisma.rackSlot.findMany({
+      where: {
+        rackTemplate: { projectId },
+        equipmentId: { not: null },
+      },
+      select: { equipmentId: true },
     }),
   ])
   if (!project) notFound()
@@ -116,6 +140,12 @@ export default async function RackStudioPage({
       slots={rack.slots}
       looseItems={rack.looseItems}
       customDevices={customDevices}
+      rackEquipment={rackEligibleEquipment}
+      rackedEquipmentIds={Array.from(new Set(
+        allRackedSlots
+          .map((s) => s.equipmentId)
+          .filter((id): id is number => id != null),
+      ))}
       canEdit={canEdit}
     />
   )

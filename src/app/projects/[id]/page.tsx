@@ -418,6 +418,31 @@ export default async function ProjectDetailPage({
         looseItems: r.looseItems,
       }))}
       commsCustomDevices={commsCustomDevices}
+      rackEquipment={equipment
+        // Rack-eligible categories — extend this list when the
+        // operator tells us another category should be rack-able.
+        .filter((e) => ['panels', 'switches', 'audio'].includes(e.category))
+        .map((e) => ({
+          id: e.id,
+          name: e.name,
+          category: e.category,
+          hardwareType: e.hardwareType,
+          location: e.location,
+          ipAddress: e.ipAddress,
+          deployStatus: e.deployStatus,
+        }))}
+      rackedEquipmentIds={
+        // Already-claimed equipment ids, gathered from every comms
+        // rack's slots. Picker dims these so the operator can't
+        // accidentally double-rack a unit.
+        Array.from(new Set(
+          commsRackRows.flatMap((r) =>
+            r.slots
+              .map((s) => s.equipmentId)
+              .filter((id): id is number => id != null),
+          ),
+        ))
+      }
     />
   )
 }

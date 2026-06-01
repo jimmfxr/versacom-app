@@ -61,6 +61,19 @@ type LooseItem = {
  *  + an isCustom flag so the chip can offer a × delete affordance. */
 type LibraryItem = RackDevicePreset & { id?: number; isCustom?: boolean }
 
+/** Pared-down Equipment shape for the slot edit form's link picker.
+ *  Only the fields needed to show the picker option + auto-fill
+ *  the slot's deviceType / label when an equipment is selected. */
+type RackEquipment = {
+  id: number
+  name: string
+  category: string
+  hardwareType: string | null
+  location: string | null
+  ipAddress: string | null
+  deployStatus: string
+}
+
 const RU_PX = 48
 
 export function RackStudio({
@@ -70,6 +83,8 @@ export function RackStudio({
   slots,
   looseItems,
   customDevices = [],
+  rackEquipment = [],
+  rackedEquipmentIds = [],
   canEdit,
   embedded = false,
   onCloseEmbedded,
@@ -96,6 +111,12 @@ export function RackStudio({
    *  category section. Empty by default for projects that haven't
    *  added any. */
   customDevices?: Array<{ id: number; name: string; ruSize: number; category: string }>
+  /** Rack-eligible Equipment rows for the slot edit form's link
+   *  picker. Filtered upstream (panels / switches / audio for now). */
+  rackEquipment?: RackEquipment[]
+  /** Equipment ids already linked to ANY slot on this project. The
+   *  picker dims these so an operator can't double-claim a unit. */
+  rackedEquipmentIds?: number[]
   canEdit: boolean
   /** Embedded mode: this component is rendered inside the Comms Racks
    *  tab as an inline expansion of a rack row. Skips the page header
@@ -1268,6 +1289,8 @@ export function RackStudio({
                       onConfirmDelete={confirmDelete}
                       onStartDrag={startSlotDrag}
                       isDragging={dragSlotId === s.id}
+                      rackEquipment={rackEquipment}
+                      rackedEquipmentIds={rackedEquipmentIds}
                       refreshAfter={() => { setEditingSlotId(null); router.refresh() }}
                     />
                   )
@@ -1878,6 +1901,8 @@ function SlotRow({
   onConfirmDelete,
   onStartDrag,
   isDragging,
+  rackEquipment,
+  rackedEquipmentIds,
   refreshAfter,
 }: {
   slot: Slot
@@ -1915,6 +1940,15 @@ function SlotRow({
    *  rejected and 'left behind' if the drop landed elsewhere
    *  (the router.refresh then re-renders the slot at its new RU). */
   isDragging?: boolean
+  /** Rack-eligible equipment for the link picker inside the edit
+   *  form. Empty when no project context (deep-link page without
+   *  equipment fetch). */
+  rackEquipment?: RackEquipment[]
+  /** Equipment ids already linked to another slot. Picker dims
+   *  these so the operator can't accidentally double-claim — the
+   *  current slot's own equipmentId is exempted at render time so
+   *  the active link doesn't dim itself. */
+  rackedEquipmentIds?: number[]
   refreshAfter: () => void
 }) {
   // Local form state — only relevant while editing. Initialized from
@@ -1924,6 +1958,10 @@ function SlotRow({
   const [label, setLabel] = useState(slot.label)
   const [ruPosition, setRuPosition] = useState(String(slot.ruPosition))
   const [ruSize, setRuSize] = useState(String(slot.ruSize))
+  // Equipment link — '' means "no link", otherwise an Equipment row id.
+  const [equipmentId, setEquipmentId] = useState<string>(
+    slot.equipmentId != null ? String(slot.equipmentId) : ''
+  )
 
   async function handleSave() {
     setError(null)
@@ -1942,6 +1980,9 @@ function SlotRow({
           label: label.trim() || deviceType,
           ruPosition: ruP,
           ruSize: ruS,
+          // Empty string from the picker means 'no link' → null.
+          // Otherwise parse the equipment row id.
+          equipmentId: equipmentId === '' ? null : parseInt(equipmentId, 10),
         }),
       })
       if (!res.ok) {
@@ -2069,6 +2110,53 @@ function SlotRow({
                 />
               </div>
             </div>
+            {/* Equipment link picker — when populated, the slot
+                points at a real Equipment row on this project. The
+                slot card will surface that equipment's IP / location
+                / deploy status as context. Items already linked to
+                ANOTHER slot are dimmed + disabled so the operator
+                can't accidentally double-claim a unit; this slot's
+                own current link is exempted so it doesn't dim
+                itself. Picker only renders when canEdit + at least
+                one rack-eligible Equipment row exists. */}
+            {rackEquipment && rackEquipment.length > 0 && (
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Linked equipment <span className="normal-case text-gray-600">(optional)</span></div>
+                <select
+                  value={equipmentId}
+                  onChange={(e) => {
+                    const next = e.target.value
+                    setEquipmentId(next)
+                    // Auto-fill label + deviceType from the picked
+                    // equipment IF the operator hasn't customized
+                    // those fields. Lets a clean pick of a panel
+                    // populate the slot in one tap without typing.
+                    if (next) {
+                      const picked = rackEquipment.find((eq) => String(eq.id) === next)
+                      if (picked) {
+                        if (!label.trim() || label === slot.label) setLabel(picked.name)
+                        if (picked.hardwareType && (!deviceType.trim() || deviceType === slot.deviceType)) {
+                          setDeviceType(picked.hardwareType)
+                        }
+                      }
+                    }
+                  }}
+                  disabled={editSaving}
+                  className="w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+                >
+                  <option value="">— No link —</option>
+                  {rackEquipment.map((eq) => {
+                    const taken = (rackedEquipmentIds ?? []).includes(eq.id) && eq.id !== slot.equipmentId
+                    const labelStr = `${eq.name}${eq.location ? ` · ${eq.location}` : ''}${eq.ipAddress ? ` · ${eq.ipAddress}` : ''}${taken ? ' (racked)' : ''}`
+                    return (
+                      <option key={eq.id} value={eq.id} disabled={taken}>
+                        {labelStr}
+                      </option>
+                    )
+                  })}
+                </select>
+              </div>
+            )}
             {/* Action row */}
             <div className="flex items-center justify-between pt-1">
               <button

@@ -702,6 +702,8 @@ export function ProjectPage({
   plots = [],
   commsRacks = [],
   commsCustomDevices = [],
+  rackEquipment = [],
+  rackedEquipmentIds = [],
 }: {
   project: Project
   equipment: EquipmentItem[]
@@ -770,6 +772,23 @@ export function ProjectPage({
     ruSize: number
     category: string
   }>
+  /** Rack-eligible Equipment rows (panels / switches / audio) for
+   *  the slot edit form's equipment picker. Slim shape — just the
+   *  fields needed to show the picker option + auto-fill device
+   *  metadata when one is selected. */
+  rackEquipment?: Array<{
+    id: number
+    name: string
+    category: string
+    hardwareType: string | null
+    location: string | null
+    ipAddress: string | null
+    deployStatus: string
+  }>
+  /** Equipment ids that are ALREADY linked to a rack slot somewhere
+   *  on this project. Picker dims these so the operator can't
+   *  accidentally double-rack a unit. */
+  rackedEquipmentIds?: number[]
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -3959,6 +3978,8 @@ export function ProjectPage({
                             slots={r.slots}
                             looseItems={r.looseItems}
                             customDevices={commsCustomDevices}
+                            rackEquipment={rackEquipment}
+                            rackedEquipmentIds={rackedEquipmentIds}
                             canEdit={isProjectAdmin || isManager}
                             side={expandedRackSide}
                             onSideChange={setExpandedRackSide}
