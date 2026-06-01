@@ -176,6 +176,12 @@ export function RackStudio({
    *  release. Click-to-add still works as a fallback for users who
    *  prefer the original two-tap flow. */
   const [dragPreset, setDragPreset] = useState<RackDevicePreset | null>(null)
+  // When set, the drag originated from an EXISTING slot (move/reposition)
+  // rather than a library tile (create). On drop we PATCH the slot's
+  // ruPosition instead of POSTing a new slot. The slot's own RUs are
+  // excluded from the collision check so it can land on top of itself
+  // / a strict subset of its current footprint.
+  const [dragSlotId, setDragSlotId] = useState<number | null>(null)
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null)
   const [dragHoverRu, setDragHoverRu] = useState<number | null>(null)
   // Ref so the pointer handlers see the latest preset / hover without
@@ -424,26 +430,26 @@ export function RackStudio({
     }
     function handleUp() {
       const { preset, hoverRu } = dragStateRef.current
+      const slotId = dragSlotId
       const restoreSheet = sheetWasOpenBeforeDragRef.current
       setDragPreset(null)
+      setDragSlotId(null)
       setDragPos(null)
       setDragHoverRu(null)
       dragStateRef.current = { preset: null, hoverRu: null }
       sheetWasOpenBeforeDragRef.current = false
-      // Restore the mobile library sheet so the operator can grab
-      // another device without re-opening it manually. Matches
-      // PanelStudio's pickerSnap restore behavior.
+      // Restore the mobile library sheet (library drags only; slot
+      // drags don't open the sheet so the restore is a no-op there).
       if (restoreSheet) setSheetOpen(true)
       if (!preset || hoverRu == null) return
-      // Stage the pending target as the drop RU, then hand off to
-      // the existing handleDevicePick — same validation, same POST,
-      // same router.refresh, same error surface.
+      // Two release paths:
+      //  - slotId set → PATCH the existing slot's ruPosition.
+      //  - slotId null → POST a new slot from the library preset.
+      if (slotId != null) {
+        void handleSlotMoveToRu(slotId, hoverRu)
+        return
+      }
       setPendingRu(hoverRu)
-      // setPendingRu schedules a state update; handleDevicePick reads
-      // pendingRu inside its body. We can't rely on the new state
-      // being visible yet — pass the RU explicitly via a synthetic
-      // pick that bypasses the pendingRu check by setting it just
-      // before. Workaround: capture local + use directly.
       void handleDevicePickAtRu(preset, hoverRu)
     }
     document.addEventListener('pointermove', handleMove)
@@ -455,6 +461,71 @@ export function RackStudio({
       document.removeEventListener('pointercancel', handleUp)
     }
   }, [dragPreset]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Initiates a drag from an EXISTING slot card (reposition).
+   *  Synthesizes a RackDevicePreset from the slot so the drag UI
+   *  (ghost, overlay, hover detection) reuses the library-drag
+   *  pipeline; dragSlotId tracks the source so handleUp PATCHes
+   *  the moved slot instead of POSTing a new one. */
+  function startSlotDrag(slot: Slot, e: React.PointerEvent) {
+    if (!canEdit) return
+    const preset: RackDevicePreset = {
+      name: slot.label,
+      ruSize: slot.ruSize,
+      category: 'devices',
+    }
+    setDragPreset(preset)
+    setDragSlotId(slot.id)
+    setDragPos({ x: e.clientX, y: e.clientY })
+    setDragHoverRu(null)
+    dragStateRef.current = { preset, hoverRu: null }
+    // Slot drags don't open the mobile library sheet; the operator
+    // is moving an existing slot, not picking a new device.
+    sheetWasOpenBeforeDragRef.current = sheetOpen
+    if (sheetOpen) setSheetOpen(false)
+  }
+
+  /** PATCH a slot's ruPosition. Called from handleUp's drag-end
+   *  path when the source was a slot card (dragSlotId set). */
+  async function handleSlotMoveToRu(slotId: number, ru: number) {
+    if (!canEdit) return
+    const slot = slots.find((s) => s.id === slotId)
+    if (!slot) return
+    if (ru === slot.ruPosition) return  // No-op move
+    if (ru + slot.ruSize - 1 > rack.totalRU) {
+      setError(`${slot.label} (${slot.ruSize}U) doesn't fit at RU ${ru}.`)
+      return
+    }
+    // Collision check — exclude the slot's OWN RUs from occupied
+    // so it can land partially on top of where it currently sits.
+    const occupiedExcl = new Set<number>()
+    for (const s of sideSlots) {
+      if (s.id === slotId) continue
+      for (let i = 0; i < s.ruSize; i++) occupiedExcl.add(s.ruPosition + i)
+    }
+    for (let i = 0; i < slot.ruSize; i++) {
+      if (occupiedExcl.has(ru + i)) {
+        setError(`RU ${ru + i} is already taken — pick another row.`)
+        return
+      }
+    }
+    setError(null)
+    try {
+      const res = await fetch(`/api/racks/${rack.id}/slots/${slotId}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ruPosition: ru }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        setError((data as { error?: string } | null)?.error ?? 'Failed to move slot')
+        return
+      }
+      router.refresh()
+    } catch {
+      setError('Network error')
+    }
+  }
 
   /** Click-bypass variant of handleDevicePick that uses an explicit
    *  RU instead of pendingRu state. Used by the drag-drop release
@@ -1033,8 +1104,17 @@ export function RackStudio({
                 {dragPreset && dragHoverRu != null && (() => {
                   const start = dragHoverRu
                   const end = start + dragPreset.ruSize - 1
+                  // Slot-move: exclude the slot's OWN RUs from
+                  // the occupied set so it can drop partially on
+                  // top of where it currently sits without
+                  // flagging itself as a collision.
+                  const occupiedForDrop = new Set<number>()
+                  for (const s of sideSlots) {
+                    if (dragSlotId != null && s.id === dragSlotId) continue
+                    for (let i = 0; i < s.ruSize; i++) occupiedForDrop.add(s.ruPosition + i)
+                  }
                   const fits = end <= rack.totalRU
-                    && !Array.from({ length: dragPreset.ruSize }, (_, j) => occupied.has(start + j)).includes(true)
+                    && !Array.from({ length: dragPreset.ruSize }, (_, j) => occupiedForDrop.has(start + j)).includes(true)
                   return (
                     <div
                       // Match the slot card geometry exactly so the
@@ -1096,6 +1176,7 @@ export function RackStudio({
                       setEditSaving={setEditSaving}
                       setError={setError}
                       onConfirmDelete={confirmDelete}
+                      onStartDrag={startSlotDrag}
                       refreshAfter={() => { setEditingSlotId(null); router.refresh() }}
                     />
                   )
@@ -1695,6 +1776,7 @@ function SlotRow({
   setEditSaving,
   setError,
   onConfirmDelete,
+  onStartDrag,
   refreshAfter,
 }: {
   slot: Slot
@@ -1719,6 +1801,10 @@ function SlotRow({
     confirmLabel?: string
     onConfirm: () => void | Promise<void>
   }) => void
+  /** Pointer-down on the slot card starts a slot-move drag (RackStudio
+   *  handles ghost rendering, hover detection, and the PATCH on
+   *  release). Only fires when canEdit. */
+  onStartDrag?: (slot: Slot, e: React.PointerEvent) => void
   refreshAfter: () => void
 }) {
   // Local form state — only relevant while editing. Initialized from
@@ -1910,16 +1996,27 @@ function SlotRow({
           </div>
         </div>
       ) : (
-        // Each slot is its own bordered card now spanning the full
-        // chassis width — the RU number sits inside the card on
-        // the left (centered in a w-9 column), then the label,
-        // then the Edit button on the right.
-        <div className="flex h-full w-full items-center gap-2 rounded-lg bg-[#2a2a2a] pr-4 text-sm font-medium text-white">
+        // Each slot is its own bordered card spanning the full
+        // chassis width. The RU number sits inside on the left,
+        // then the label, then the Edit button on the right.
+        // Pointer-down on the card (excluding the Edit button)
+        // starts a slot-move drag — RackStudio's drag pipeline
+        // handles the ghost / hover / drop-zone overlay, then
+        // PATCHes ruPosition on release.
+        <div
+          onPointerDown={canEdit && onStartDrag ? (e) => onStartDrag(slot, e) : undefined}
+          style={canEdit && onStartDrag ? { touchAction: 'none', cursor: 'grab' } : undefined}
+          className="flex h-full w-full items-center gap-2 rounded-lg bg-[#2a2a2a] pr-4 text-sm font-medium text-white"
+        >
           <span className="w-9 shrink-0 text-center text-sm font-mono tabular-nums text-[#22a7d3]">{slot.ruPosition}</span>
           <span className="truncate">{slot.label}</span>
           {canEdit && (
             <button
               type="button"
+              // Stop the pointerdown from bubbling to the card so
+              // tapping Edit doesn't kick off a drag instead of
+              // opening the edit form.
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={onOpenEdit}
               className="ml-auto shrink-0 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
             >
