@@ -241,22 +241,33 @@ export function RackStudio({
   // off-screen and the operator wouldn't see it.
   useEffect(() => {
     if (editingSlotId == null) return
-    // Defer one frame so the absolute-positioned card has rendered
-    // at its expanded height (slot ruSize + EDIT_EXTRA_PX = 320px)
-    // before we measure / scroll. block:'start' aligns the card's
-    // top with the scroll container's top — for a slot near the
-    // BOTTOM of the rack, block:'center' would try to center a
-    // 360px+ tall form in the viewport and the bottom of the form
-    // (the action buttons) ended up below the fold. Starting from
-    // the top guarantees the form expands DOWNWARD into visible
-    // space, including the Save / Delete row.
-    const id = window.requestAnimationFrame(() => {
+    // Wait past the slot card's 180ms height transition before
+    // measuring + scrolling — scrollIntoView during the
+    // transition uses the in-flight height (still small), so
+    // bottom-row slots ended up only partially scrolled into
+    // view. 220ms gives the transition time to settle.
+    const t = window.setTimeout(() => {
       const card = document.querySelector<HTMLElement>(`[data-rack-slot-card="${editingSlotId}"]`)
       if (!card) return
-      card.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      // Manual scroll on the explicit chassis scroll container
+      // (data-rack-scroll-container). scrollIntoView's auto-
+      // ancestor detection was picking the wrong scroller for
+      // bottom-row slots on some viewports. Computing the offset
+      // directly is deterministic.
+      const container = card.closest<HTMLElement>('[data-rack-scroll-container]')
+      if (container) {
+        const cardRect = card.getBoundingClientRect()
+        const containerRect = container.getBoundingClientRect()
+        const offset = cardRect.top - containerRect.top + container.scrollTop
+        container.scrollTo({ top: Math.max(0, offset - 12), behavior: 'smooth' })
+      } else {
+        // Fallback (mobile, no chassis scroll context — page
+        // owns the scroll) — let the browser figure it out.
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
       card.querySelector<HTMLElement>('input:not([type="hidden"])')?.focus({ preventScroll: true })
-    })
-    return () => window.cancelAnimationFrame(id)
+    }, 220)
+    return () => window.clearTimeout(t)
   }, [editingSlotId])
   /** Tracks whether a save / delete is in flight so the buttons can
    *  show a pending state and we don't fire concurrent requests. */
@@ -1079,7 +1090,7 @@ export function RackStudio({
           const offsetFor = (ru: number) => editingSlot && ru > editingEndRu ? EDIT_EXTRA_PX : 0
           const containerHeight = rack.totalRU * RU_PX + 8 + (editingSlot ? EDIT_EXTRA_PX : 0)
           return (
-            <div className={`relative lg:order-2 ${
+            <div data-rack-scroll-container className={`relative lg:order-2 ${
               embedded
                 // Embedded mobile: no max-h at all — the chassis
                 // grows to its natural height (totalRU * 48 +
