@@ -87,7 +87,10 @@ export function RackPreviewView({
 
       {/* Chassis (read-only): same RU_PX math + slot card chrome
           as the editable studio, just no Edit / drag handlers. */}
-      <div className="relative mx-auto max-w-md" style={{ height: `${containerHeight}px` }}>
+      <div
+        className="relative mx-auto max-w-md rounded-lg border border-white/10"
+        style={{ height: `${containerHeight}px` }}
+      >
         {Array.from({ length: rack.totalRU }, (_, i) => {
           const ru = i + 1
           const isEmpty = !occupied.has(ru)
