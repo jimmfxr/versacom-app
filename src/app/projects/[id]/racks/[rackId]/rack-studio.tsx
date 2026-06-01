@@ -1177,6 +1177,7 @@ export function RackStudio({
                       setError={setError}
                       onConfirmDelete={confirmDelete}
                       onStartDrag={startSlotDrag}
+                      isDragging={dragSlotId === s.id}
                       refreshAfter={() => { setEditingSlotId(null); router.refresh() }}
                     />
                   )
@@ -1777,6 +1778,7 @@ function SlotRow({
   setError,
   onConfirmDelete,
   onStartDrag,
+  isDragging,
   refreshAfter,
 }: {
   slot: Slot
@@ -1805,6 +1807,15 @@ function SlotRow({
    *  handles ghost rendering, hover detection, and the PATCH on
    *  release). Only fires when canEdit. */
   onStartDrag?: (slot: Slot, e: React.PointerEvent) => void
+  /** True when THIS slot is the source of an in-flight drag. Dims
+   *  the card at its origin so the operator sees 'this is what's
+   *  moving' while the ghost tracks the cursor. On release (whether
+   *  the drop succeeds or gets rejected) RackStudio clears
+   *  dragSlotId, isDragging flips false, the card returns to full
+   *  opacity — which reads as 'snapped back' if the drop was
+   *  rejected and 'left behind' if the drop landed elsewhere
+   *  (the router.refresh then re-renders the slot at its new RU). */
+  isDragging?: boolean
   refreshAfter: () => void
 }) {
   // Local form state — only relevant while editing. Initialized from
@@ -2006,7 +2017,16 @@ function SlotRow({
         <div
           onPointerDown={canEdit && onStartDrag ? (e) => onStartDrag(slot, e) : undefined}
           style={canEdit && onStartDrag ? { touchAction: 'none', cursor: 'grab' } : undefined}
-          className="flex h-full w-full items-center gap-2 rounded-lg bg-[#2a2a2a] pr-4 text-sm font-medium text-white"
+          // Dim + dashed border while the card is the drag source.
+          // On release, isDragging flips false; if the drop was
+          // rejected (collision / out-of-bounds) the card snaps
+          // back to full opacity in place. If the drop succeeded,
+          // router.refresh re-renders it at the new RU.
+          className={`flex h-full w-full items-center gap-2 rounded-lg pr-4 text-sm font-medium text-white transition-opacity ${
+            isDragging
+              ? 'bg-[#2a2a2a] opacity-40 outline-dashed outline-2 outline-white/20'
+              : 'bg-[#2a2a2a]'
+          }`}
         >
           <span className="w-9 shrink-0 text-center text-sm font-mono tabular-nums text-[#22a7d3]">{slot.ruPosition}</span>
           <span className="truncate">{slot.label}</span>
