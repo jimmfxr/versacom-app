@@ -241,12 +241,19 @@ export function RackStudio({
   // off-screen and the operator wouldn't see it.
   useEffect(() => {
     if (editingSlotId == null) return
-    // Defer one frame so the absolute-positioned card has a chance
-    // to render at its expanded height before we measure / scroll.
+    // Defer one frame so the absolute-positioned card has rendered
+    // at its expanded height (slot ruSize + EDIT_EXTRA_PX = 320px)
+    // before we measure / scroll. block:'start' aligns the card's
+    // top with the scroll container's top — for a slot near the
+    // BOTTOM of the rack, block:'center' would try to center a
+    // 360px+ tall form in the viewport and the bottom of the form
+    // (the action buttons) ended up below the fold. Starting from
+    // the top guarantees the form expands DOWNWARD into visible
+    // space, including the Save / Delete row.
     const id = window.requestAnimationFrame(() => {
       const card = document.querySelector<HTMLElement>(`[data-rack-slot-card="${editingSlotId}"]`)
       if (!card) return
-      card.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' })
       card.querySelector<HTMLElement>('input:not([type="hidden"])')?.focus({ preventScroll: true })
     })
     return () => window.cancelAnimationFrame(id)
