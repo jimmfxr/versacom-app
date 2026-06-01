@@ -919,7 +919,6 @@ export function RackStudio({
                   return (
                     <div
                       key={`ru-${ru}`}
-                      className="group flex items-center"
                       style={{
                         position: 'absolute',
                         top: `${i * RU_PX + 4 + offsetFor(ru)}px`,
@@ -929,55 +928,41 @@ export function RackStudio({
                         transition: 'top 180ms ease-out',
                       }}
                     >
-                      <div className={`w-9 text-center text-sm font-mono tabular-nums transition-colors ${
-                        // Pending target → cyan. Hovering the row →
-                        // cyan via group-hover/row so the RU number
-                        // lights up with the empty-row body, not a
-                        // beat after. Default empty rows → gray-400.
-                        // Drag overlays hide the label entirely.
-                        // Gated on canEdit + isEmpty so read-only
-                        // viewers and occupied rows don't get a
-                        // misleading hover affordance.
-                        isPending
-                          ? 'text-[#22a7d3]'
-                          : `text-gray-400${canEdit && isEmpty ? ' group-hover:text-[#22a7d3]' : ''}`
-                      }`}>
-                        {/* RU label hides during a library drag so it
-                            doesn't bleed through the semi-transparent
-                            preview overlay above. The overlay shows
-                            its own start-RU instead. */}
-                        {dragPreset ? '' : ru}
-                      </div>
-                      <div className="flex-1">
-                        {isEmpty && (
-                          <button
-                            type="button"
-                            data-rack-ru={ru}
-                            onClick={() => handleEmptyRowClick(ru)}
-                            disabled={!canEdit}
-                            className={`flex h-[46px] w-full items-center justify-center text-xs transition-colors disabled:cursor-default ${
-                              // While dragging from the library, suppress
-                              // the empty-row chrome (text + bottom divider)
-                              // so it doesn't bleed through the semi-
-                              // transparent preview overlay above. The row
-                              // is still a drop target (data-rack-ru +
-                              // pointermove still see it), just invisible.
-                              dragPreset
-                                ? ''
-                                : isPending
-                                  ? 'rounded-lg border border-[#0178a3]/60 bg-[#0178a3]/15 text-[#22a7d3]'
-                                  // Hover styles use group-hover/row so
-                                  // pointing at the RU column on the left
-                                  // ALSO lights up the row body — and vice
-                                  // versa — instead of the two halves
-                                  // toggling independently.
-                                  : `border-b border-white/[0.06] text-gray-600 ${canEdit ? 'group-hover:border-b-[#0178a3]/40 group-hover:text-[#22a7d3] group-hover:bg-[#0178a3]/[0.04]' : ''}`
-                            } ${canEdit ? 'cursor-pointer' : ''}`}
-                          >
+                      {isEmpty ? (
+                        // The RU number now lives INSIDE the button —
+                        // same structure as the occupied slot cards.
+                        // Button hover/pending styles cascade through
+                        // both spans (RU + label) via inherited text
+                        // color, so the two halves light up as one
+                        // unit. data-rack-ru stays on the button so
+                        // the drag-drop hit-detection still finds it.
+                        <button
+                          type="button"
+                          data-rack-ru={ru}
+                          onClick={() => handleEmptyRowClick(ru)}
+                          disabled={!canEdit}
+                          className={`flex h-[46px] w-full items-center text-xs transition-colors disabled:cursor-default ${
+                            dragPreset
+                              ? ''
+                              : isPending
+                                ? 'rounded-lg border border-[#0178a3]/60 bg-[#0178a3]/15 text-[#22a7d3]'
+                                : `border-b border-white/[0.06] text-gray-600 ${canEdit ? 'hover:border-b-[#0178a3]/40 hover:text-[#22a7d3] hover:bg-[#0178a3]/[0.04]' : ''}`
+                          } ${canEdit ? 'cursor-pointer' : ''}`}
+                        >
+                          <span className="w-9 shrink-0 text-center text-sm font-mono tabular-nums">
+                            {dragPreset ? '' : ru}
+                          </span>
+                          <span className="flex-1 text-center">
                             {dragPreset ? '' : (isPending ? '← pick a device' : '+ Drop Here')}
-                          </button>
-                        )}
-                      </div>
+                          </span>
+                        </button>
+                      ) : (
+                        // Occupied row — the slot card overlay covers
+                        // this space. Render just an empty placeholder
+                        // so the chassis grid math (containerHeight)
+                        // stays correct.
+                        <div className="h-[46px]" />
+                      )}
                     </div>
                   )
                 })}
