@@ -774,17 +774,30 @@ export function ProjectPage({
   const canSeeSettings = isProjectAdmin || isManager
 
   // Tab state — user role only sees "My Equipment".
-  // Initial value reads ?tab=X from the URL so deep links land on the
-  // right tab. Used by the rack-designer "Back" button to return to
-  // /projects/[id]?tab=racks. Falls back to 'my-equipment' for the
-  // user role and 'equipment' for everyone else.
+  // The activeTab is mirrored from the URL's ?tab= param so deep
+  // links land on the right tab. Used by the rack-designer "Back"
+  // button to return to /projects/[id]?tab=racks. We sync both at
+  // useState init AND in a useEffect so an in-page route change
+  // (back / forward / a refreshed query) keeps things in sync.
   const searchParams = useSearchParams()
-  const tabFromUrl = searchParams?.get('tab') as Tab | null
   const validTabs = new Set<Tab>(['equipment', 'team', 'picklist', 'my-equipment', 'stage-plots', 'racks'])
+  const tabFromUrl = searchParams?.get('tab') as Tab | null
   const initialTab: Tab = isUser
     ? 'my-equipment'
     : tabFromUrl && validTabs.has(tabFromUrl) ? tabFromUrl : 'equipment'
   const [activeTab, setActiveTab] = useState<Tab>(initialTab)
+  // Keep activeTab in sync if the URL changes after mount — e.g. the
+  // rack-designer Back button routes to ?tab=racks while this page
+  // is already mounted somewhere in the React tree.
+  useEffect(() => {
+    if (isUser) return
+    const t = searchParams?.get('tab') as Tab | null
+    if (t && validTabs.has(t) && t !== activeTab) {
+      setActiveTab(t)
+    }
+  // activeTab in deps would loop — we only react to URL changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, isUser])
 
   // Settings panel
   const [showSettings, setShowSettings] = useState(false)

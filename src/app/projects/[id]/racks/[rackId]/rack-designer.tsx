@@ -253,7 +253,7 @@ export function RackDesigner({
         />
         <div className="flex-1" />
         {!searchOpen && (
-          <div className="w-[180px]">
+          <div className="w-[280px]">
             <FilterDropdown
               ariaLabel="Project tab"
               value="racks"
