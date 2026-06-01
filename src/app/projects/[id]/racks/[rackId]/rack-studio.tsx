@@ -1268,6 +1268,19 @@ export function RackStudio({
                               ? `+ Drop ${pendingDevice.name} here`
                               : 'Empty'}
                           </span>
+                          {/* Invisible Edit-button-shaped placeholder
+                              + matching pr-4 — keeps the label
+                              centered at the same X as filled slot
+                              cards (which have a real Edit button
+                              on the right). Without it the empty
+                              label drifted to the right relative to
+                              labels in placed slots. */}
+                          <span
+                            aria-hidden
+                            className="invisible shrink-0 rounded-lg border border-transparent px-3 py-1.5 text-xs font-medium mr-2"
+                          >
+                            Edit
+                          </span>
                         </button>
                       ) : (
                         // Occupied row — the slot card overlay covers
