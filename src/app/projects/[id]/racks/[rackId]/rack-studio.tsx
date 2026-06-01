@@ -648,7 +648,20 @@ export function RackStudio({
           const offsetFor = (ru: number) => editingSlot && ru > editingEndRu ? EDIT_EXTRA_PX : 0
           const containerHeight = rack.totalRU * RU_PX + 8 + (editingSlot ? EDIT_EXTRA_PX : 0)
           return (
-            <div className={`relative p-2 rounded-lg bg-[#2a2a2a] border border-white/[0.06] overflow-y-auto ${embedded ? 'max-h-[70vh]' : 'max-h-[calc(100vh-320px)]'}`}>
+            <div className={`relative p-2 rounded-lg bg-[#2a2a2a] border border-white/[0.06] overflow-y-auto ${
+              embedded
+                // Embedded: cap at 70vh on mobile (where the tab scroll
+                // does the heavy lifting), but on desktop fill the
+                // viewport minus the chrome above (app header + Comms
+                // header + tab toolbar + expanded row header ≈ 180px).
+                // Without the lg override the chassis was capped at
+                // 70vh even on tall monitors with hundreds of pixels
+                // to spare — felt fixed-height.
+                ? 'max-h-[70vh] lg:max-h-[calc(100vh-180px)]'
+                // Standalone page: app header + page header + toolbar
+                // adds ≈ 320px of chrome above.
+                : 'max-h-[calc(100vh-320px)]'
+            }`}>
               <div className="relative" style={{ height: `${containerHeight}px`, transition: 'height 180ms ease-out' }}>
                 {/* Empty rows + RU numbers */}
                 {Array.from({ length: rack.totalRU }, (_, i) => {
@@ -719,7 +732,7 @@ export function RackStudio({
         })()}
 
         {/* Device library aside (desktop only) */}
-        <aside className={`hidden lg:flex lg:flex-col ${embedded ? 'lg:max-h-[70vh]' : 'lg:max-h-[calc(100vh-320px)]'}`}>
+        <aside className={`hidden lg:flex lg:flex-col ${embedded ? 'lg:max-h-[calc(100vh-180px)]' : 'lg:max-h-[calc(100vh-320px)]'}`}>
           <DeviceLibrary
             presets={presets}
             filter={filter}
