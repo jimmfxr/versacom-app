@@ -362,16 +362,21 @@ export function RackStudio({
         // equipment's hardwareType. Falls back to 1U for anything
         // not in the preset list (custom hardware types, etc.).
         const matchingPreset = presets.find((p) => p.name === eq.hardwareType)
-        // Map Equipment.category → PresetCategory. panels → devices
-        // since the rack library groups Artist/RTS frames under
-        // 'devices'. switches + audio map straight through.
+        // Map Equipment.category → PresetCategory. switches + audio
+        // map straight through. (Panels are filtered out server-
+        // side; if any other category ever reaches here, default to
+        // 'devices' so it doesn't disappear from the grouped list.)
         const mappedCategory: PresetCategory =
-          eq.category === 'panels' ? 'devices'
-          : eq.category === 'switches' ? 'switches'
+          eq.category === 'switches' ? 'switches'
           : eq.category === 'audio' ? 'audio'
           : 'devices'
+        // Display label: name when set, otherwise fall back to the
+        // location string (especially relevant for switches, which
+        // operators often label by where they live — 'MON', 'FOH' —
+        // rather than a generated 'Switch 1' name).
+        const display = eq.name?.trim() || eq.location?.trim() || `Equipment ${eq.id}`
         return {
-          name: eq.name,
+          name: display,
           ruSize: matchingPreset?.ruSize ?? 1,
           category: mappedCategory,
           equipmentId: eq.id,
@@ -1774,17 +1779,11 @@ function DeviceTile({
                 : 'border-white/[0.08] text-gray-300 hover:border-[rgba(34,167,211,0.5)] hover:bg-white/[0.03]'
         }`}
       >
-        <span className="truncate">{preset.name}</span>
-        {/* Equipment-backed tile gets a small cyan dot prefix so
-            the operator can tell "this is the real FOH 1 panel"
-            apart from "this is the generic Artist-128 template". */}
-        {preset.isEquipment && (
-          <span
-            aria-label="Real unit"
-            title="Linked to a project Equipment row"
-            className="size-1.5 shrink-0 rounded-full bg-[#22a7d3]"
-          />
-        )}
+        {/* Equipment-backed tile renders its name (or location
+            fallback for un-named switches) in cyan so it's
+            immediately distinguishable from generic presets.
+            Presets stay in their default text color. */}
+        <span className={`truncate ${preset.isEquipment ? 'text-[#22a7d3]' : ''}`}>{preset.name}</span>
         <span className={`ml-auto shrink-0 text-xs font-mono tabular-nums ${isDragging ? 'text-white' : 'text-[#22a7d3]'} ${onDelete ? 'mr-6' : ''}`}>
           {isLoose ? '—' : `${preset.ruSize}U`}
         </span>
