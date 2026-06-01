@@ -419,9 +419,10 @@ export default async function ProjectDetailPage({
       }))}
       commsCustomDevices={commsCustomDevices}
       rackEquipment={equipment
-        // Rack-eligible categories — extend this list when the
-        // operator tells us another category should be rack-able.
-        .filter((e) => ['panels', 'switches', 'audio'].includes(e.category))
+        // Rack-eligible categories. Panels sit on desks, not in
+        // racks, so they're excluded. Add categories here when a
+        // new kind of gear becomes rack-mountable.
+        .filter((e) => ['switches', 'audio'].includes(e.category))
         .map((e) => ({
           id: e.id,
           name: e.name,

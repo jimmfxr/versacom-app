@@ -88,7 +88,7 @@ export default async function RackStudioPage({
     // Rack-eligible Equipment for the slot-edit form's link picker.
     // Filtered to categories that physically live in a rack.
     prisma.equipment.findMany({
-      where: { projectId, category: { in: ['panels', 'switches', 'audio'] } },
+      where: { projectId, category: { in: ['switches', 'audio'] } },
       select: {
         id: true,
         name: true,
