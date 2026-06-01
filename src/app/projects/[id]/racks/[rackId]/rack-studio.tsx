@@ -234,6 +234,23 @@ export function RackStudio({
    *  in the rack shifts down by EDIT_EXTRA_PX. Closes on save /
    *  cancel / delete. */
   const [editingSlotId, setEditingSlotId] = useState<number | null>(null)
+  // When a slot enters edit mode, scroll its card into view and
+  // focus the first input. Matches the equipment / team / pick-list
+  // edit-form pattern. Without this, tapping Edit on a slot that's
+  // currently scrolled out of view would expand the form somewhere
+  // off-screen and the operator wouldn't see it.
+  useEffect(() => {
+    if (editingSlotId == null) return
+    // Defer one frame so the absolute-positioned card has a chance
+    // to render at its expanded height before we measure / scroll.
+    const id = window.requestAnimationFrame(() => {
+      const card = document.querySelector<HTMLElement>(`[data-rack-slot-card="${editingSlotId}"]`)
+      if (!card) return
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      card.querySelector<HTMLElement>('input:not([type="hidden"])')?.focus({ preventScroll: true })
+    })
+    return () => window.cancelAnimationFrame(id)
+  }, [editingSlotId])
   /** Tracks whether a save / delete is in flight so the buttons can
    *  show a pending state and we don't fire concurrent requests. */
   const [editSaving, setEditSaving] = useState(false)
@@ -1958,6 +1975,7 @@ function SlotRow({
 
   return (
     <div
+      data-rack-slot-card={slot.id}
       style={{
         position: 'absolute',
         top: `${topPx}px`,
