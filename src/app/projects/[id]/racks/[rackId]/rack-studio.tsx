@@ -620,44 +620,32 @@ export function RackStudio({
       )}
 
       {/* ─── Loose gear tray ───
-          Shown whenever the user can edit (so they have somewhere to
-          drop loose presets), OR when there are existing items even
-          if the viewer is read-only. The chips are clickable to
-          remove when canEdit — × icon on the right side of each. */}
-      {(looseItems.length > 0 || canEdit) && (
-        <div className="mb-3">
-          <div className="flex items-center gap-2 mb-1.5">
-            <div className="text-[10px] uppercase tracking-wider text-gray-500">Loose gear · no RU</div>
-            <div className="text-[10px] text-gray-600">velcro / drawer</div>
-          </div>
-          {looseItems.length === 0 ? (
-            <div className="text-[11px] text-gray-600 italic">
-              Tap a loose-gear device in the library to add it here.
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {looseItems.map((g) => (
-                <div
-                  key={g.id}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#2a2a2a] border border-white/10 text-xs text-gray-200"
+          No header / no empty-state copy — the chips speak for
+          themselves. When the tray is empty the row collapses out
+          entirely; when it has items they render as a wrap-flow row
+          above the chassis. × on each chip removes (canEdit only). */}
+      {looseItems.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {looseItems.map((g) => (
+            <div
+              key={g.id}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#2a2a2a] border border-white/10 text-xs text-gray-200"
+            >
+              <span>{g.label || g.deviceType}</span>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => handleLooseDelete(g.id, g.label || g.deviceType)}
+                  aria-label={`Remove ${g.label || g.deviceType}`}
+                  className="-mr-1 flex size-4 items-center justify-center rounded text-gray-500 transition-colors hover:bg-white/[0.06] hover:text-red-400"
                 >
-                  <span>{g.label || g.deviceType}</span>
-                  {canEdit && (
-                    <button
-                      type="button"
-                      onClick={() => handleLooseDelete(g.id, g.label || g.deviceType)}
-                      aria-label={`Remove ${g.label || g.deviceType}`}
-                      className="-mr-1 flex size-4 items-center justify-center rounded text-gray-500 transition-colors hover:bg-white/[0.06] hover:text-red-400"
-                    >
-                      <svg className="size-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              ))}
+                  <svg className="size-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
             </div>
-          )}
+          ))}
         </div>
       )}
 
