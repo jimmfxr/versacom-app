@@ -104,8 +104,9 @@ export function RackPreviewView({
               }}
             >
               {isEmpty && (
-                <div className="flex h-[46px] w-full items-center text-xs text-gray-600">
+                <div className="flex h-[46px] w-full items-center pr-4 text-sm font-medium text-gray-600">
                   <span className="w-9 shrink-0 text-center text-sm font-mono tabular-nums text-gray-400">{ru}</span>
+                  <span className="min-w-0 flex-1 truncate text-center uppercase tracking-wider text-xs">Empty</span>
                 </div>
               )}
             </div>
