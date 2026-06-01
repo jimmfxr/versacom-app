@@ -63,12 +63,14 @@ type LooseItem = {
  *    - Custom (user-added): id + isCustom flag → × delete shown.
  *    - Equipment-backed (a real Equipment row on this project):
  *      equipmentId set + isEquipment flag → dropping this tile
- *      stamps slot.equipmentId at create time. */
+ *      stamps slot.equipmentId at create time. Carries hardwareType
+ *      for the small 'model' subtext on the tile. */
 type LibraryItem = RackDevicePreset & {
   id?: number
   isCustom?: boolean
   equipmentId?: number
   isEquipment?: boolean
+  hardwareType?: string | null
 }
 
 /** Pared-down Equipment shape for the slot edit form's link picker.
@@ -336,6 +338,27 @@ export function RackStudio({
   // optional `id` + `isCustom` flag so the library row can show a ×
   // delete affordance only on the user-added ones.
   const libraryItems: LibraryItem[] = [
+    // Equipment-backed tiles first so they sit at the TOP of their
+    // category section in the rendered library (filter preserves
+    // source order). Real units always read above generic templates.
+    ...rackEquipment
+      .filter((eq) => !rackedEquipmentIds.includes(eq.id))
+      .map((eq) => {
+        const matchingPreset = presets.find((p) => p.name === eq.hardwareType)
+        const mappedCategory: PresetCategory =
+          eq.category === 'switches' ? 'switches'
+          : eq.category === 'audio' ? 'audio'
+          : 'devices'
+        const display = eq.name?.trim() || eq.location?.trim() || `Equipment ${eq.id}`
+        return {
+          name: display,
+          ruSize: matchingPreset?.ruSize ?? 1,
+          category: mappedCategory,
+          equipmentId: eq.id,
+          isEquipment: true as const,
+          hardwareType: eq.hardwareType,
+        }
+      }),
     ...presets.map((p) => ({ ...p })),
     ...customDevices.map((d) => ({
       // PresetCategory string-matches the RackDevice.category column;
@@ -349,40 +372,6 @@ export function RackStudio({
       id: d.id,
       isCustom: true as const,
     })),
-    // Real Equipment rows from THIS project, surfaced as draggable
-    // tiles. Dropping one creates a slot AND auto-links to that
-    // equipmentId in a single gesture. Already-racked items are
-    // filtered out — dragging the same physical unit twice would
-    // double-claim it; if the operator wants to MOVE a racked unit
-    // they drag the existing slot card, not the library tile.
-    ...rackEquipment
-      .filter((eq) => !rackedEquipmentIds.includes(eq.id))
-      .map((eq) => {
-        // Derive ruSize: look up the preset whose name matches the
-        // equipment's hardwareType. Falls back to 1U for anything
-        // not in the preset list (custom hardware types, etc.).
-        const matchingPreset = presets.find((p) => p.name === eq.hardwareType)
-        // Map Equipment.category → PresetCategory. switches + audio
-        // map straight through. (Panels are filtered out server-
-        // side; if any other category ever reaches here, default to
-        // 'devices' so it doesn't disappear from the grouped list.)
-        const mappedCategory: PresetCategory =
-          eq.category === 'switches' ? 'switches'
-          : eq.category === 'audio' ? 'audio'
-          : 'devices'
-        // Display label: name when set, otherwise fall back to the
-        // location string (especially relevant for switches, which
-        // operators often label by where they live — 'MON', 'FOH' —
-        // rather than a generated 'Switch 1' name).
-        const display = eq.name?.trim() || eq.location?.trim() || `Equipment ${eq.id}`
-        return {
-          name: display,
-          ruSize: matchingPreset?.ruSize ?? 1,
-          category: mappedCategory,
-          equipmentId: eq.id,
-          isEquipment: true as const,
-        }
-      }),
   ]
 
   function handleEmptyRowClick(ru: number) {
@@ -1779,11 +1768,20 @@ function DeviceTile({
                 : 'border-white/[0.08] text-gray-300 hover:border-[rgba(34,167,211,0.5)] hover:bg-white/[0.03]'
         }`}
       >
-        {/* Equipment-backed tile renders its name (or location
-            fallback for un-named switches) in cyan so it's
-            immediately distinguishable from generic presets.
-            Presets stay in their default text color. */}
-        <span className={`truncate ${preset.isEquipment ? 'text-[#22a7d3]' : ''}`}>{preset.name}</span>
+        {/* Equipment-backed tile: stacked label — equipment name
+            (or location fallback) in cyan on top, hardwareType
+            (model) in small gray below. Presets just render the
+            single preset name in their default text color. */}
+        {preset.isEquipment ? (
+          <span className="min-w-0 flex flex-col">
+            <span className="truncate text-[#22a7d3]">{preset.name}</span>
+            {preset.hardwareType && (
+              <span className="truncate text-[11px] text-gray-500">{preset.hardwareType}</span>
+            )}
+          </span>
+        ) : (
+          <span className="truncate">{preset.name}</span>
+        )}
         <span className={`ml-auto shrink-0 text-xs font-mono tabular-nums ${isDragging ? 'text-white' : 'text-[#22a7d3]'} ${onDelete ? 'mr-6' : ''}`}>
           {isLoose ? '—' : `${preset.ruSize}U`}
         </span>
