@@ -970,11 +970,15 @@ export function RackStudio({
                           onClick={() => handleEmptyRowClick(ru)}
                           disabled={!canEdit}
                           className={`flex h-[46px] w-full items-center text-xs transition-colors disabled:cursor-default ${
-                            dragPreset
-                              ? ''
-                              : isPending
-                                ? 'rounded-lg border border-[#0178a3]/60 bg-[#0178a3]/15 text-[#22a7d3]'
-                                : `border-b border-white/[0.06] text-gray-600 ${canEdit ? 'hover:border-b-[#0178a3]/40 hover:text-[#22a7d3] hover:bg-[#0178a3]/[0.04]' : ''}`
+                            // Always render the row chrome (border,
+                            // text, hover) regardless of drag state.
+                            // The drag overlay above is opaque and
+                            // covers ONLY the rows in the drop range,
+                            // so the surrounding rows must stay fully
+                            // visible to keep the operator oriented.
+                            isPending
+                              ? 'rounded-lg border border-[#0178a3]/60 bg-[#0178a3]/15 text-[#22a7d3]'
+                              : `border-b border-white/[0.06] text-gray-600 ${canEdit ? 'hover:border-b-[#0178a3]/40 hover:text-[#22a7d3] hover:bg-[#0178a3]/[0.04]' : ''}`
                           } ${canEdit ? 'cursor-pointer' : ''}`}
                         >
                           <span className="w-9 shrink-0 text-center text-sm font-mono tabular-nums">
