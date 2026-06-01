@@ -1248,7 +1248,7 @@ export function RackStudio({
                           data-rack-ru={ru}
                           onClick={() => handleEmptyRowClick(ru)}
                           disabled={!canEdit}
-                          className={`flex h-[46px] w-full items-center text-xs transition-colors disabled:cursor-default ${
+                          className={`flex h-[46px] w-full items-center text-sm font-medium transition-colors disabled:cursor-default ${
                             // Always render the row chrome (border,
                             // text, hover) regardless of drag state.
                             // The drag overlay above is opaque and
