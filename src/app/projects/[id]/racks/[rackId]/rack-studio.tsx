@@ -1216,6 +1216,16 @@ export function RackStudio({
                   return (
                     <div
                       key={`ru-${ru}`}
+                      // data-rack-ru on every row wrapper (not just
+                      // empty buttons) so the drag-drop hover
+                      // detection finds an RU regardless of whether
+                      // the row is currently occupied. The slot
+                      // cards above get pointer-events:none during a
+                      // drag so events pass through to this wrapper.
+                      // Validity (collision / out-of-bounds) is
+                      // checked at drop time in handleUp, where the
+                      // dragSlotId is excluded from 'occupied'.
+                      data-rack-ru={ru}
                       style={{
                         position: 'absolute',
                         top: `${i * RU_PX + 4 + offsetFor(ru)}px`,
@@ -1353,6 +1363,7 @@ export function RackStudio({
                       onConfirmDelete={confirmDelete}
                       onStartDrag={startSlotDrag}
                       isDragging={dragSlotId === s.id}
+                      anyDragActive={dragPreset != null}
                       rackEquipment={rackEquipment}
                       rackedEquipmentIds={rackedEquipmentIds}
                       onMeasureEditFormHeight={isEditing ? setEditFormHeight : undefined}
@@ -1983,6 +1994,7 @@ function SlotRow({
   onConfirmDelete,
   onStartDrag,
   isDragging,
+  anyDragActive,
   rackEquipment,
   rackedEquipmentIds,
   onMeasureEditFormHeight,
@@ -2023,6 +2035,13 @@ function SlotRow({
    *  rejected and 'left behind' if the drop landed elsewhere
    *  (the router.refresh then re-renders the slot at its new RU). */
   isDragging?: boolean
+  /** True when ANY drag is in flight (library tile OR another slot
+   *  card). When set, this slot card disables pointer events so
+   *  hover detection passes through to the underlying row's
+   *  data-rack-ru. Without this, dragging a slot across its own
+   *  footprint (or onto another slot) found no drop target since
+   *  the card itself caught the events. */
+  anyDragActive?: boolean
   /** Rack-eligible equipment for the link picker inside the edit
    *  form. Empty when no project context (deep-link page without
    *  equipment fetch). */
@@ -2140,6 +2159,13 @@ function SlotRow({
         height: `${heightPx}px`,
         zIndex: isEditing ? 10 : 1,
         transition: 'top 180ms ease-out, height 180ms ease-out',
+        // During an active drag (this slot OR another / a library
+        // tile), the card stops catching pointer events so
+        // findHoverRu (elementsFromPoint) sees the row wrapper's
+        // data-rack-ru underneath. Without this you couldn't drop
+        // onto a row your slot already covered, or onto another
+        // slot's footprint to swap.
+        pointerEvents: anyDragActive ? 'none' : undefined,
       }}
     >
       {isEditing ? (
