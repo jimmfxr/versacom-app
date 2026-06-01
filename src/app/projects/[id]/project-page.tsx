@@ -3783,9 +3783,13 @@ export function ProjectPage({
                 />
               )}
 
-              {/* Rack list. Empty states differ between "no racks at all"
-                  and "racks exist but none match the search". */}
-              {commsRacks.length === 0 && !showAddRack ? (
+              {/* Rack list. Hidden entirely while the Create rack
+                  form is open so the operator's focus is on the
+                  single task (naming a new rack) without the
+                  existing list or its empty states competing for
+                  attention. Returns on cancel / submit. */}
+              {!showAddRack && (
+                commsRacks.length === 0 ? (
                 <div className="flex flex-1 flex-col items-center justify-center gap-3 py-12 text-center">
                   <div className="text-sm text-gray-400">No racks yet on this show.</div>
                   {(isProjectAdmin || isManager) && (
@@ -3998,6 +4002,7 @@ export function ProjectPage({
                     )
                   })}
                 </div>
+                )
               )}
             </div>
             )
