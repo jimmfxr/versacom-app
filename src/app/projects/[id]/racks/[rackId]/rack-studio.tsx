@@ -174,10 +174,35 @@ export function RackStudio({
   async function handleDevicePick(preset: RackDevicePreset) {
     if (!canEdit) return
     if (preset.ruSize === 0) {
-      // Loose gear — placeholder for now. The loose-gear tray's add
-      // flow lands in a follow-up commit; for v2 we just no-op so the
-      // operator gets feedback this isn't wired yet.
-      setError('Loose gear drop coming in the next commit.')
+      // Loose gear — no RU position, no collision check, no pending
+      // row required. Just POST to the loose endpoint and refresh.
+      setAdding(true)
+      setError(null)
+      try {
+        const res = await fetch(`/api/racks/${rack.id}/loose`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            deviceType: preset.name,
+            label: preset.name,
+          }),
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => null)
+          setError((data as { error?: string } | null)?.error ?? 'Failed to add loose item')
+          setAdding(false)
+          return
+        }
+        // Loose items don't consume a pending RU — keep pendingRu as
+        // is so the operator can still place a rack-mounted device
+        // afterward without re-tapping the row.
+        setSheetOpen(false)
+        setAdding(false)
+        router.refresh()
+      } catch {
+        setError('Network error')
+        setAdding(false)
+      }
       return
     }
     const ru = pendingRu
@@ -226,6 +251,25 @@ export function RackStudio({
     } catch {
       setError('Network error')
       setAdding(false)
+    }
+  }
+
+  async function handleLooseDelete(looseId: number, label: string) {
+    if (!canEdit) return
+    if (!window.confirm(`Remove "${label}" from the loose-gear tray?`)) return
+    setError(null)
+    try {
+      const res = await fetch(`/api/racks/${rack.id}/loose/${looseId}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        setError((data as { error?: string } | null)?.error ?? 'Failed to remove')
+        return
+      }
+      router.refresh()
+    } catch {
+      setError('Network error')
     }
   }
 
@@ -575,23 +619,45 @@ export function RackStudio({
         </div>
       )}
 
-      {/* ─── Loose gear tray ─── */}
-      {looseItems.length > 0 && (
+      {/* ─── Loose gear tray ───
+          Shown whenever the user can edit (so they have somewhere to
+          drop loose presets), OR when there are existing items even
+          if the viewer is read-only. The chips are clickable to
+          remove when canEdit — × icon on the right side of each. */}
+      {(looseItems.length > 0 || canEdit) && (
         <div className="mb-3">
           <div className="flex items-center gap-2 mb-1.5">
             <div className="text-[10px] uppercase tracking-wider text-gray-500">Loose gear · no RU</div>
             <div className="text-[10px] text-gray-600">velcro / drawer</div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {looseItems.map((g) => (
-              <div
-                key={g.id}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#2a2a2a] border border-white/10 text-xs text-gray-200"
-              >
-                {g.label || g.deviceType}
-              </div>
-            ))}
-          </div>
+          {looseItems.length === 0 ? (
+            <div className="text-[11px] text-gray-600 italic">
+              Tap a loose-gear device in the library to add it here.
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {looseItems.map((g) => (
+                <div
+                  key={g.id}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#2a2a2a] border border-white/10 text-xs text-gray-200"
+                >
+                  <span>{g.label || g.deviceType}</span>
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => handleLooseDelete(g.id, g.label || g.deviceType)}
+                      aria-label={`Remove ${g.label || g.deviceType}`}
+                      className="-mr-1 flex size-4 items-center justify-center rounded text-gray-500 transition-colors hover:bg-white/[0.06] hover:text-red-400"
+                    >
+                      <svg className="size-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -782,7 +848,7 @@ function DeviceLibrary({
                     key={p.name}
                     preset={p}
                     onClick={() => onPick(p)}
-                    disabled={!canEdit || adding || (p.ruSize === 0 && true)}
+                    disabled={!canEdit || adding}
                     highlightTarget={pendingRu != null && p.ruSize > 0}
                   />
                 ))}
