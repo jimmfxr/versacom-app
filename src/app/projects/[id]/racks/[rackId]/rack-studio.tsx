@@ -668,7 +668,7 @@ export function RackStudio({
                         transition: 'top 180ms ease-out',
                       }}
                     >
-                      <div className="w-9 text-center text-[11px] text-gray-500 font-mono tabular-nums tracking-wider">
+                      <div className="w-9 pl-1 text-left text-sm text-gray-400 font-mono tabular-nums">
                         {ru}
                       </div>
                       <div className="flex-1">
