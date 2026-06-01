@@ -1079,11 +1079,20 @@ export function RackStudio({
                 {Array.from({ length: rack.totalRU }, (_, i) => {
                   const ru = i + 1
                   const isEmpty = !occupied.has(ru)
-                  // Row is "pending" ONLY when a device is armed.
-                  // Tapping an empty row by itself doesn't produce
-                  // any visual state — the only "next-tap-drops-here"
-                  // signal comes from arming a device first.
-                  const isPending = pendingDevice != null
+                  // Row is "pending" ONLY when a device is armed AND
+                  // the device would actually fit at this RU (in
+                  // bounds + no occupied overlap). Highlighting rows
+                  // where the drop would fail was misleading — the
+                  // operator would tap and just get an error toast.
+                  const wouldFit = (() => {
+                    if (pendingDevice == null) return false
+                    if (ru + pendingDevice.ruSize - 1 > rack.totalRU) return false
+                    for (let i = 0; i < pendingDevice.ruSize; i++) {
+                      if (occupied.has(ru + i)) return false
+                    }
+                    return true
+                  })()
+                  const isPending = pendingDevice != null && wouldFit
                   return (
                     <div
                       key={`ru-${ru}`}
@@ -1125,7 +1134,9 @@ export function RackStudio({
                             {ru}
                           </span>
                           <span className="flex-1 text-center">
-                            {pendingDevice ? `+ Drop ${pendingDevice.name} here` : '+ Drop Here'}
+                            {isPending && pendingDevice
+                              ? `+ Drop ${pendingDevice.name} here`
+                              : '+ Drop Here'}
                           </span>
                         </button>
                       ) : (
