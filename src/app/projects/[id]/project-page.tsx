@@ -1871,13 +1871,15 @@ export function ProjectPage({
                           activeTab === 'team' ? 'Search team...' :
                           activeTab === 'picklist' ? 'Search functions...' :
                           activeTab === 'stage-plots' ? 'Search plots...' :
+                          activeTab === 'racks' ? 'Search racks…' :
                           'Search...'
                         }
                         value={
                           activeTab === 'equipment' ? eqSearch :
                           activeTab === 'team' ? teamSearch :
                           activeTab === 'picklist' ? plSearch :
-                          activeTab === 'stage-plots' ? plotSearch : ''
+                          activeTab === 'stage-plots' ? plotSearch :
+                          activeTab === 'racks' ? rackSearch : ''
                         }
                         onChange={(e) => {
                           const v = e.target.value
@@ -1885,6 +1887,7 @@ export function ProjectPage({
                           else if (activeTab === 'team') setTeamSearch(v)
                           else if (activeTab === 'picklist') setPlSearch(v)
                           else if (activeTab === 'stage-plots') setPlotSearch(v)
+                          else if (activeTab === 'racks') setRackSearch(v)
                         }}
                         className="flex-1 rounded-lg border-2 border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
                       />
@@ -1896,6 +1899,7 @@ export function ProjectPage({
                           else if (activeTab === 'team') setTeamSearch('')
                           else if (activeTab === 'picklist') setPlSearch('')
                           else if (activeTab === 'stage-plots') setPlotSearch('')
+                          else if (activeTab === 'racks') setRackSearch('')
                         }}
                         aria-label="Close search"
                         className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
@@ -3643,48 +3647,11 @@ export function ProjectPage({
                 )}
               </div>
 
-              {/* Mobile toolbar — tab dropdown + search toggle on a
-                  single row, same pattern as other tabs. */}
-              <div className="flex items-center gap-2 pb-3 sm:hidden">
-                {!searchOpen && (
-                  <div className="min-w-0 flex-1">
-                    <TabsMobileDropdown tabs={navTabs} activeTab={activeTab} onSelect={setActiveTab} />
-                  </div>
-                )}
-                {searchOpen ? (
-                  <>
-                    <input
-                      type="text"
-                      autoFocus
-                      placeholder="Search racks…"
-                      value={rackSearch}
-                      onChange={(e) => setRackSearch(e.target.value)}
-                      className="flex-1 rounded-lg border-2 border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => { setSearchOpen(false); setRackSearch('') }}
-                      aria-label="Close search"
-                      className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
-                    >
-                      <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setSearchOpen(true)}
-                    aria-label="Search"
-                    className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
-                  >
-                    <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.343-4.343m0 0A8 8 0 1 0 5.343 5.343a8 8 0 0 0 11.314 11.314Z" />
-                    </svg>
-                  </button>
-                )}
-              </div>
+              {/* Mobile toolbar — handled by the SHARED mobile tab/search
+                  toolbar above (the same one that drives Equipment /
+                  Team / Pick List / Plots). The Racks tab is wired into
+                  that block's `activeTab === 'racks'` branches. No
+                  per-tab mobile toolbar needed here. */}
 
               {/* Inline Create-rack form. Opens when the + button in the
                   page header is tapped. Minimal fields for now — name,

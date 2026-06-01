@@ -219,12 +219,19 @@ export function RackStudio({
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {/* Back to the Comms Racks tab. Just a chevron-left icon
+              now — operators recognise it as Back and we save a chunk
+              of horizontal real estate on mobile where the project
+              switcher is competing for the same row. */}
           <button
             type="button"
             onClick={() => router.push(`/projects/${project.id}?tab=racks`)}
-            className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+            aria-label="Back to Racks"
+            className="flex size-9 items-center justify-center rounded-lg border border-white/10 text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
           >
-            Back
+            <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+            </svg>
           </button>
           {/* ProjectSwitcher — switching projects sends the user to
               /projects/<newId>?tab=racks (back to the Racks tab list
@@ -373,7 +380,7 @@ export function RackStudio({
           const offsetFor = (ru: number) => editingSlot && ru > editingEndRu ? EDIT_EXTRA_PX : 0
           const containerHeight = rack.totalRU * RU_PX + 8 + (editingSlot ? EDIT_EXTRA_PX : 0)
           return (
-            <div className="relative rounded-lg border border-white/15 p-2 overflow-y-auto max-h-[calc(100vh-320px)]">
+            <div className="relative p-2 overflow-y-auto max-h-[calc(100vh-320px)]">
               <div className="relative" style={{ height: `${containerHeight}px`, transition: 'height 180ms ease-out' }}>
                 {/* Empty rows + RU numbers */}
                 {Array.from({ length: rack.totalRU }, (_, i) => {
@@ -903,7 +910,9 @@ function SlotRow({
           </div>
         </div>
       ) : (
-        <div className="flex h-full w-full items-center gap-2 border-b border-white/[0.08] bg-transparent px-4 text-sm font-medium text-white">
+        {/* Each slot is its own bordered card now — the chassis no
+            longer carries an outer border, units do. */}
+        <div className="flex h-full w-full items-center gap-2 rounded-lg border border-white/15 bg-transparent px-4 text-sm font-medium text-white">
           <span className="truncate">{slot.label}</span>
           <span className="text-gray-600">·</span>
           <span className="text-[11px] font-normal text-gray-500 truncate">{slot.deviceType}</span>
