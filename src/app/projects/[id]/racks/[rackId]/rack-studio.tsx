@@ -270,6 +270,12 @@ export function RackStudio({
    *  in the rack shifts down by EDIT_EXTRA_PX. Closes on save /
    *  cancel / delete. */
   const [editingSlotId, setEditingSlotId] = useState<number | null>(null)
+  // Measured height of the editing slot's form body (in px). Slot
+  // card reports its actual content height via a ResizeObserver
+  // callback so the chassis math grows JUST enough to fit — no
+  // dead space below the action row. Sensible default for the
+  // first paint before measurement.
+  const [editFormHeight, setEditFormHeight] = useState(180)
   // When a slot enters edit mode, scroll its card into view and
   // focus the first input. Matches the equipment / team / pick-list
   // edit-form pattern. Without this, tapping Edit on a slot that's
@@ -1153,9 +1159,17 @@ export function RackStudio({
         {(() => {
           const editingSlot = editingSlotId ? sideSlots.find((s) => s.id === editingSlotId) ?? null : null
           const editingEndRu = editingSlot ? editingSlot.ruPosition + editingSlot.ruSize - 1 : 0
-          const EDIT_EXTRA_PX = 320
+          // Editing card height = the slot's normal height OR the
+          // header (48px) + measured form body height, whichever is
+          // larger. For 1U slots the form dwarfs the natural row,
+          // so the card grows; for tall slots (6U+) the form fits
+          // inside the natural area, no growth needed. Rows below
+          // shift down by the difference (EDIT_EXTRA_PX).
+          const naturalCardHeight = editingSlot ? editingSlot.ruSize * RU_PX - 2 : 0
+          const editingCardHeight = editingSlot ? Math.max(naturalCardHeight, 48 + editFormHeight) : 0
+          const EDIT_EXTRA_PX = editingSlot ? Math.max(0, editingCardHeight - naturalCardHeight) : 0
           const offsetFor = (ru: number) => editingSlot && ru > editingEndRu ? EDIT_EXTRA_PX : 0
-          const containerHeight = rack.totalRU * RU_PX + 8 + (editingSlot ? EDIT_EXTRA_PX : 0)
+          const containerHeight = rack.totalRU * RU_PX + 8 + EDIT_EXTRA_PX
           return (
             <div data-rack-scroll-container className={`relative lg:order-2 ${
               embedded
@@ -1337,6 +1351,7 @@ export function RackStudio({
                       isDragging={dragSlotId === s.id}
                       rackEquipment={rackEquipment}
                       rackedEquipmentIds={rackedEquipmentIds}
+                      onMeasureEditFormHeight={isEditing ? setEditFormHeight : undefined}
                       refreshAfter={() => { setEditingSlotId(null); router.refresh() }}
                     />
                   )
@@ -1966,6 +1981,7 @@ function SlotRow({
   isDragging,
   rackEquipment,
   rackedEquipmentIds,
+  onMeasureEditFormHeight,
   refreshAfter,
 }: {
   slot: Slot
@@ -2012,6 +2028,12 @@ function SlotRow({
    *  current slot's own equipmentId is exempted at render time so
    *  the active link doesn't dim itself. */
   rackedEquipmentIds?: number[]
+  /** Reports the measured pixel height of the form body to the
+   *  parent so the chassis can grow the editing card to fit
+   *  exactly its content — no fixed EDIT_EXTRA_PX, no dead space
+   *  below the action row. Only provided to the slot that's
+   *  currently being edited; other slots pass undefined. */
+  onMeasureEditFormHeight?: (px: number) => void
   refreshAfter: () => void
 }) {
   // Local form state — only relevant while editing. Initialized from
@@ -2019,6 +2041,27 @@ function SlotRow({
   // Save.
   const [deviceType, setDeviceType] = useState(slot.deviceType)
   const [label, setLabel] = useState(slot.label)
+  // Ref on the form body div for height measurement. When this
+  // slot is being edited, a ResizeObserver reports the measured
+  // pixel height back to RackStudio so the chassis math can grow
+  // the editing card exactly to fit — no fixed EDIT_EXTRA_PX, no
+  // empty space below the action row.
+  const formBodyRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!isEditing || !onMeasureEditFormHeight) return
+    const el = formBodyRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    // scrollHeight = the form body's NATURAL content height, even
+    // when the parent card constrains the visible area. Lets the
+    // measurement loop converge: report scrollHeight → parent
+    // grows the card → form body's visible (offsetHeight) catches
+    // up. Stable after one frame.
+    const report = () => onMeasureEditFormHeight(el.scrollHeight)
+    report()
+    const ro = new ResizeObserver(report)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [isEditing, onMeasureEditFormHeight])
   // Equipment link — '' means "no link", otherwise an Equipment row id.
   const [equipmentId, setEquipmentId] = useState<string>(
     slot.equipmentId != null ? String(slot.equipmentId) : ''
@@ -2108,7 +2151,7 @@ function SlotRow({
             <span className="ml-auto text-[11px] font-normal text-gray-500 font-mono tabular-nums">{ruSpan}</span>
           </div>
           {/* Form body */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+          <div ref={formBodyRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
             {/* Slot edit form. RU position + RU size aren't editable
                 here — those were determined at create time (drag-drop
                 / click-to-add) and the chassis math depends on them
