@@ -2353,9 +2353,12 @@ function SlotRow({
             const linkedEq = slot.equipmentId != null
               ? rackEquipment?.find((eq) => eq.id === slot.equipmentId)
               : null
+            // flex-1 + justify-center centers the device label
+            // between the RU column on the left and the Edit
+            // button on the right.
             if (linkedEq) {
               return (
-                <span className="min-w-0 flex items-baseline gap-2">
+                <span className="min-w-0 flex-1 flex items-baseline justify-center gap-2">
                   <span className="truncate text-white">{linkedEq.name}</span>
                   {linkedEq.location && (
                     <span className="truncate text-[#22a7d3]">{linkedEq.location}</span>
@@ -2366,7 +2369,7 @@ function SlotRow({
                 </span>
               )
             }
-            return <span className="truncate">{slot.label}</span>
+            return <span className="min-w-0 flex-1 truncate text-center">{slot.label}</span>
           })()}
           {canEdit && (
             <button
@@ -2376,7 +2379,10 @@ function SlotRow({
               // opening the edit form.
               onPointerDown={(e) => e.stopPropagation()}
               onClick={onOpenEdit}
-              className="ml-auto shrink-0 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+              // ml-auto removed — the label span above is flex-1
+              // so it already pushes the Edit button to the right
+              // edge of the card.
+              className="shrink-0 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
             >
               Edit
             </button>
