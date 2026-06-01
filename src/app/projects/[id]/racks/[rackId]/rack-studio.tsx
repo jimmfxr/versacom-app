@@ -175,6 +175,13 @@ export function RackStudio({
   // Ref so the pointer handlers see the latest preset / hover without
   // re-binding on every state change.
   const dragStateRef = useRef<{ preset: RackDevicePreset | null; hoverRu: number | null }>({ preset: null, hoverRu: null })
+  // Remembers whether the mobile library sheet was open at the
+  // moment a drag started, so we can restore it after the drop —
+  // mimicking PanelStudio's pickerSnap behavior where the sheet
+  // gets out of the way during a drag and comes back for the next
+  // pick. Ref (not state) so the close/reopen doesn't trigger an
+  // extra render in the drag loop.
+  const sheetWasOpenBeforeDragRef = useRef(false)
   /** Unified in-app confirm modal. Replaces window.confirm() for all
    *  destructive rack-related actions (slot delete, loose-gear ×,
    *  custom-device ×) so the operator sees a styled prompt
@@ -365,6 +372,11 @@ export function RackStudio({
     setDragPos({ x: e.clientX, y: e.clientY })
     setDragHoverRu(null)
     dragStateRef.current = { preset, hoverRu: null }
+    // Hide the mobile sheet during the drag (chassis sits behind
+    // it; otherwise the operator can't see where they're dropping).
+    // The sheet reopens after pointer-up in the cleanup below.
+    sheetWasOpenBeforeDragRef.current = sheetOpen
+    if (sheetOpen) setSheetOpen(false)
   }
 
   // Global pointer handlers for the library-drag gesture. Effects
@@ -391,10 +403,16 @@ export function RackStudio({
     }
     function handleUp() {
       const { preset, hoverRu } = dragStateRef.current
+      const restoreSheet = sheetWasOpenBeforeDragRef.current
       setDragPreset(null)
       setDragPos(null)
       setDragHoverRu(null)
       dragStateRef.current = { preset: null, hoverRu: null }
+      sheetWasOpenBeforeDragRef.current = false
+      // Restore the mobile library sheet so the operator can grab
+      // another device without re-opening it manually. Matches
+      // PanelStudio's pickerSnap restore behavior.
+      if (restoreSheet) setSheetOpen(true)
       if (!preset || hoverRu == null) return
       // Stage the pending target as the drop RU, then hand off to
       // the existing handleDevicePick — same validation, same POST,
@@ -453,7 +471,9 @@ export function RackStudio({
         return
       }
       setPendingRu(null)
-      setSheetOpen(false)
+      // Drag-drop path leaves sheetOpen alone — handleUp already
+      // restored the pre-drag state, so the sheet pops back up
+      // ready for the operator to grab another device.
       setAdding(false)
       router.refresh()
     } catch {
