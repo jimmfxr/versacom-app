@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useTransition, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { PencilIcon, XMarkIcon, ChevronLeftIcon } from '@heroicons/react/24/outline'
 import { QRCodeSVG } from 'qrcode.react'
 import { STATUS_BORDER_STYLES, getStatusLabel } from '@/lib/deploy-status'
@@ -773,8 +773,18 @@ export function ProjectPage({
   // (status dropdown lives there), so don't gate canSeeSettings on isArchived.
   const canSeeSettings = isProjectAdmin || isManager
 
-  // Tab state — user role only sees "My Equipment"
-  const [activeTab, setActiveTab] = useState<Tab>(isUser ? 'my-equipment' : 'equipment')
+  // Tab state — user role only sees "My Equipment".
+  // Initial value reads ?tab=X from the URL so deep links land on the
+  // right tab. Used by the rack-designer "Back" button to return to
+  // /projects/[id]?tab=racks. Falls back to 'my-equipment' for the
+  // user role and 'equipment' for everyone else.
+  const searchParams = useSearchParams()
+  const tabFromUrl = searchParams?.get('tab') as Tab | null
+  const validTabs = new Set<Tab>(['equipment', 'team', 'picklist', 'my-equipment', 'stage-plots', 'racks'])
+  const initialTab: Tab = isUser
+    ? 'my-equipment'
+    : tabFromUrl && validTabs.has(tabFromUrl) ? tabFromUrl : 'equipment'
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab)
 
   // Settings panel
   const [showSettings, setShowSettings] = useState(false)

@@ -110,11 +110,11 @@ export const PRESETS_BY_DEPT: Readonly<Record<PresetDept, readonly RackDevicePre
 /** Display order + labels for the filter dropdown in the library UI. */
 export const PRESET_CATEGORY_LABELS: Readonly<Record<PresetCategory, string>> = {
   devices: 'Devices',
-  switches: 'Switches · 1U each',
+  switches: 'Switches',
   audio: 'Audio',
   drawers: 'Drawers',
   power: 'Power + filler',
-  loose: 'Loose gear · velcro / drawer',
+  loose: 'Loose gear',
 }
 
 export const PRESET_CATEGORY_ORDER: readonly PresetCategory[] = [
