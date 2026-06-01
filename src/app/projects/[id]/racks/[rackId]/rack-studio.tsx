@@ -943,12 +943,20 @@ export function RackStudio({
                             onClick={() => handleEmptyRowClick(ru)}
                             disabled={!canEdit}
                             className={`flex h-[46px] w-full items-center justify-center text-xs transition-colors disabled:cursor-default ${
-                              isPending
-                                ? 'rounded-lg border border-[#0178a3]/60 bg-[#0178a3]/15 text-[#22a7d3]'
-                                : 'border-b border-white/[0.06] text-gray-600 hover:border-b-[#0178a3]/40 hover:text-[#22a7d3] hover:bg-[#0178a3]/[0.04]'
+                              // While dragging from the library, suppress
+                              // the empty-row chrome (text + bottom divider)
+                              // so it doesn't bleed through the semi-
+                              // transparent preview overlay above. The row
+                              // is still a drop target (data-rack-ru +
+                              // pointermove still see it), just invisible.
+                              dragPreset
+                                ? ''
+                                : isPending
+                                  ? 'rounded-lg border border-[#0178a3]/60 bg-[#0178a3]/15 text-[#22a7d3]'
+                                  : 'border-b border-white/[0.06] text-gray-600 hover:border-b-[#0178a3]/40 hover:text-[#22a7d3] hover:bg-[#0178a3]/[0.04]'
                             } ${canEdit ? 'cursor-pointer' : ''}`}
                           >
-                            {isPending ? 'pick a device →' : '+ Drop Here'}
+                            {dragPreset ? '' : (isPending ? 'pick a device →' : '+ Drop Here')}
                           </button>
                         )}
                       </div>
