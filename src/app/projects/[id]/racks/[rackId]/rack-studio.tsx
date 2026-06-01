@@ -2071,18 +2071,20 @@ function SlotRow({
           onPointerDown={canEdit && onStartDrag ? (e) => onStartDrag(slot, e) : undefined}
           style={canEdit && onStartDrag ? { touchAction: 'none', cursor: 'grab' } : undefined}
           // Dim + dashed border while the card is the drag source.
-          // On release, isDragging flips false; if the drop was
-          // rejected (collision / out-of-bounds) the card snaps
-          // back to full opacity in place. If the drop succeeded,
-          // router.refresh re-renders it at the new RU.
-          className={`flex h-full w-full items-center gap-2 rounded-lg pr-4 text-sm font-medium text-white transition-opacity select-none ${
+          // Mobile layout stacks: label row on top, full-width Edit
+          // button on the bottom. Desktop keeps the inline row with
+          // a small auto-width Edit on the right (same as before).
+          className={`flex h-full w-full flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 rounded-lg pr-2 sm:pr-4 py-1 sm:py-0 text-sm font-medium text-white transition-opacity select-none ${
             isDragging
               ? 'bg-[#2a2a2a] opacity-40 outline-dashed outline-2 outline-white/20'
               : 'bg-[#2a2a2a]'
           }`}
         >
-          <span className="w-9 shrink-0 text-center text-sm font-mono tabular-nums text-[#22a7d3]">{slot.ruPosition}</span>
-          <span className="truncate">{slot.label}</span>
+          {/* Top half (mobile) / left side (desktop): RU number + label. */}
+          <div className="flex flex-1 min-h-0 items-center gap-2 pr-2 sm:pr-0">
+            <span className="w-9 shrink-0 text-center text-sm font-mono tabular-nums text-[#22a7d3]">{slot.ruPosition}</span>
+            <span className="truncate">{slot.label}</span>
+          </div>
           {canEdit && (
             <button
               type="button"
@@ -2091,7 +2093,9 @@ function SlotRow({
               // opening the edit form.
               onPointerDown={(e) => e.stopPropagation()}
               onClick={onOpenEdit}
-              className="ml-auto shrink-0 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+              // Mobile: full-width, own row at the bottom.
+              // Desktop: auto-width chip on the right (sm:ml-auto).
+              className="w-[calc(100%-2.25rem)] ml-9 sm:ml-auto sm:w-auto shrink-0 rounded-lg border border-white/10 px-3 py-1 sm:py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
             >
               Edit
             </button>
