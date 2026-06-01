@@ -92,6 +92,14 @@ export function RackStudio({
   /** Search term — filters slot labels + deviceType. */
   const [search, setSearch] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
+  /** ID of the slot currently being edited inline. When non-null the
+   *  slot's card expands to show its edit form; every row below it
+   *  in the rack shifts down by EDIT_EXTRA_PX. Closes on save /
+   *  cancel / delete. */
+  const [editingSlotId, setEditingSlotId] = useState<number | null>(null)
+  /** Tracks whether a save / delete is in flight so the buttons can
+   *  show a pending state and we don't fire concurrent requests. */
+  const [editSaving, setEditSaving] = useState(false)
 
   const sideSlots = slots.filter((s) => s.side === side)
   // `occupied` is built from the FULL set of slots on this side (not
@@ -353,67 +361,87 @@ export function RackStudio({
       {/* ─── Main grid: rack on left, library on right (desktop only) ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 lg:items-stretch lg:min-h-0">
 
-        {/* Rack visualization */}
-        <div className="relative rounded-lg border border-white/15 p-2 overflow-y-auto max-h-[calc(100vh-320px)]">
-          <div className="relative" style={{ height: `${rack.totalRU * RU_PX + 8}px` }}>
-            {/* Empty rows + RU numbers — full grid first, slots layer on top */}
-            {Array.from({ length: rack.totalRU }, (_, i) => {
-              const ru = i + 1
-              const isEmpty = !occupied.has(ru)
-              const isPending = pendingRu === ru
-              return (
-                <div
-                  key={`ru-${ru}`}
-                  className="flex items-center"
-                  style={{ position: 'absolute', top: `${i * RU_PX + 4}px`, left: 0, right: 0, height: `${RU_PX}px` }}
-                >
-                  <div className="w-9 text-center text-[11px] text-gray-500 font-mono tabular-nums tracking-wider">
-                    {ru}
-                  </div>
-                  <div className="flex-1">
-                    {isEmpty && (
-                      <button
-                        type="button"
-                        onClick={() => handleEmptyRowClick(ru)}
-                        disabled={!canEdit}
-                        className={`flex h-12 w-full items-center justify-center text-xs border-b transition-colors disabled:cursor-default ${
-                          isPending
-                            ? 'bg-[#0178a3]/15 border-b-[#0178a3]/60 text-[#22a7d3]'
-                            : 'text-gray-600 border-b-white/[0.06] hover:border-b-[#0178a3]/40 hover:text-[#22a7d3] hover:bg-[#0178a3]/[0.04]'
-                        } ${canEdit ? 'cursor-pointer' : ''}`}
-                      >
-                        {isPending ? 'pick a device →' : '+ Drop Here'}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-            {/* Filled slots (search-filtered for display only). */}
-            {visibleSlots.map((s) => (
-              <div
-                key={s.id}
-                style={{
-                  position: 'absolute',
-                  top: `${(s.ruPosition - 1) * RU_PX + 4}px`,
-                  left: '40px',
-                  right: 0,
-                  height: `${s.ruSize * RU_PX - 2}px`,
-                  zIndex: 1,
-                }}
-              >
-                <div className="flex h-full w-full items-center gap-2 border-b border-white/[0.08] bg-transparent px-4 text-sm font-medium text-white">
-                  <span className="truncate">{s.label}</span>
-                  <span className="text-gray-600">·</span>
-                  <span className="text-[11px] font-normal text-gray-500 truncate">{s.deviceType}</span>
-                  <span className="ml-auto text-[11px] font-normal text-gray-500 font-mono tabular-nums">
-                    {s.ruSize}U · RU {s.ruPosition}-{s.ruPosition + s.ruSize - 1}
-                  </span>
-                </div>
+        {/* Rack visualization. When a slot is being edited, every row
+            BELOW its last occupied RU gets shifted down by
+            EDIT_EXTRA_PX so the inline edit form has room. The
+            container itself grows by the same amount so the bordered
+            chassis still encloses everything. */}
+        {(() => {
+          const editingSlot = editingSlotId ? sideSlots.find((s) => s.id === editingSlotId) ?? null : null
+          const editingEndRu = editingSlot ? editingSlot.ruPosition + editingSlot.ruSize - 1 : 0
+          const EDIT_EXTRA_PX = 320
+          const offsetFor = (ru: number) => editingSlot && ru > editingEndRu ? EDIT_EXTRA_PX : 0
+          const containerHeight = rack.totalRU * RU_PX + 8 + (editingSlot ? EDIT_EXTRA_PX : 0)
+          return (
+            <div className="relative rounded-lg border border-white/15 p-2 overflow-y-auto max-h-[calc(100vh-320px)]">
+              <div className="relative" style={{ height: `${containerHeight}px`, transition: 'height 180ms ease-out' }}>
+                {/* Empty rows + RU numbers */}
+                {Array.from({ length: rack.totalRU }, (_, i) => {
+                  const ru = i + 1
+                  const isEmpty = !occupied.has(ru)
+                  const isPending = pendingRu === ru
+                  return (
+                    <div
+                      key={`ru-${ru}`}
+                      className="flex items-center"
+                      style={{
+                        position: 'absolute',
+                        top: `${i * RU_PX + 4 + offsetFor(ru)}px`,
+                        left: 0,
+                        right: 0,
+                        height: `${RU_PX}px`,
+                        transition: 'top 180ms ease-out',
+                      }}
+                    >
+                      <div className="w-9 text-center text-[11px] text-gray-500 font-mono tabular-nums tracking-wider">
+                        {ru}
+                      </div>
+                      <div className="flex-1">
+                        {isEmpty && (
+                          <button
+                            type="button"
+                            onClick={() => handleEmptyRowClick(ru)}
+                            disabled={!canEdit}
+                            className={`flex h-12 w-full items-center justify-center text-xs border-b transition-colors disabled:cursor-default ${
+                              isPending
+                                ? 'bg-[#0178a3]/15 border-b-[#0178a3]/60 text-[#22a7d3]'
+                                : 'text-gray-600 border-b-white/[0.06] hover:border-b-[#0178a3]/40 hover:text-[#22a7d3] hover:bg-[#0178a3]/[0.04]'
+                            } ${canEdit ? 'cursor-pointer' : ''}`}
+                          >
+                            {isPending ? 'pick a device →' : '+ Drop Here'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+                {/* Filled slots (search-filtered for display only). */}
+                {visibleSlots.map((s) => {
+                  const isEditing = s.id === editingSlotId
+                  return (
+                    <SlotRow
+                      key={s.id}
+                      slot={s}
+                      isEditing={isEditing}
+                      canEdit={canEdit}
+                      topPx={(s.ruPosition - 1) * RU_PX + 4 + offsetFor(s.ruPosition)}
+                      heightPx={isEditing ? s.ruSize * RU_PX - 2 + EDIT_EXTRA_PX : s.ruSize * RU_PX - 2}
+                      onOpenEdit={() => setEditingSlotId(s.id)}
+                      onClose={() => setEditingSlotId(null)}
+                      rackId={rack.id}
+                      totalRU={rack.totalRU}
+                      presets={presets}
+                      editSaving={editSaving}
+                      setEditSaving={setEditSaving}
+                      setError={setError}
+                      refreshAfter={() => { setEditingSlotId(null); router.refresh() }}
+                    />
+                  )
+                })}
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+          )
+        })()}
 
         {/* Device library aside (desktop only) */}
         <aside className="hidden lg:flex lg:flex-col lg:max-h-[calc(100vh-320px)]">
@@ -654,6 +682,244 @@ function DeviceLibrarySheet({
       </div>
     </div>,
     document.body,
+  )
+}
+
+/* ════════════════════════════════════════════════════════════════════
+ * SlotRow
+ * Renders a single RackSlot — display mode when read-only OR not
+ * currently being edited, expanded inline edit form when editing.
+ * Form fields: device type (preset picker), label, RU position+size,
+ * optional equipment link. Actions: Save / Cancel / Delete.
+ * ════════════════════════════════════════════════════════════════════ */
+
+function SlotRow({
+  slot,
+  isEditing,
+  canEdit,
+  topPx,
+  heightPx,
+  onOpenEdit,
+  onClose,
+  rackId,
+  totalRU,
+  presets,
+  editSaving,
+  setEditSaving,
+  setError,
+  refreshAfter,
+}: {
+  slot: Slot
+  isEditing: boolean
+  canEdit: boolean
+  topPx: number
+  heightPx: number
+  onOpenEdit: () => void
+  onClose: () => void
+  rackId: number
+  totalRU: number
+  presets: readonly RackDevicePreset[]
+  editSaving: boolean
+  setEditSaving: (v: boolean) => void
+  setError: (msg: string | null) => void
+  refreshAfter: () => void
+}) {
+  // Local form state — only relevant while editing. Initialized from
+  // the slot's current values; mutated on input; sent to the API on
+  // Save.
+  const [deviceType, setDeviceType] = useState(slot.deviceType)
+  const [label, setLabel] = useState(slot.label)
+  const [ruPosition, setRuPosition] = useState(String(slot.ruPosition))
+  const [ruSize, setRuSize] = useState(String(slot.ruSize))
+
+  async function handleSave() {
+    setError(null)
+    const ruP = parseInt(ruPosition, 10)
+    const ruS = parseInt(ruSize, 10)
+    if (!Number.isFinite(ruP) || ruP < 1) { setError('Start RU must be a positive integer'); return }
+    if (!Number.isFinite(ruS) || ruS < 1) { setError('RU size must be a positive integer'); return }
+    if (ruP + ruS - 1 > totalRU) { setError(`Slot would exceed rack height (${totalRU}RU)`); return }
+    setEditSaving(true)
+    try {
+      const res = await fetch(`/api/racks/${rackId}/slots/${slot.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          deviceType,
+          label: label.trim() || deviceType,
+          ruPosition: ruP,
+          ruSize: ruS,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        setError((data as { error?: string } | null)?.error ?? 'Failed to save')
+        setEditSaving(false)
+        return
+      }
+      setEditSaving(false)
+      refreshAfter()
+    } catch {
+      setError('Network error')
+      setEditSaving(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!window.confirm(`Delete "${slot.label}"?`)) return
+    setError(null)
+    setEditSaving(true)
+    try {
+      const res = await fetch(`/api/racks/${rackId}/slots/${slot.id}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        setError((data as { error?: string } | null)?.error ?? 'Failed to delete')
+        setEditSaving(false)
+        return
+      }
+      setEditSaving(false)
+      refreshAfter()
+    } catch {
+      setError('Network error')
+      setEditSaving(false)
+    }
+  }
+
+  const ruSpan = `${slot.ruSize}U · RU ${slot.ruPosition}-${slot.ruPosition + slot.ruSize - 1}`
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: `${topPx}px`,
+        left: '40px',
+        right: 0,
+        height: `${heightPx}px`,
+        zIndex: isEditing ? 10 : 1,
+        transition: 'top 180ms ease-out, height 180ms ease-out',
+      }}
+    >
+      {isEditing ? (
+        <div className="flex h-full w-full flex-col rounded-lg border border-[#22a7d3]/40 bg-[#0178a3]/[0.04] overflow-hidden">
+          {/* Header row — mirrors the read-only row layout so the
+              card reads continuous when expanded. */}
+          <div className="flex flex-shrink-0 items-center gap-2 border-b border-white/[0.08] px-4 text-sm font-medium text-white"
+               style={{ height: '48px' }}>
+            <span className="truncate">{slot.label}</span>
+            <span className="text-gray-600">·</span>
+            <span className="text-[11px] font-normal text-gray-500 truncate">{slot.deviceType}</span>
+            <span className="ml-auto text-[11px] font-normal text-gray-500 font-mono tabular-nums">{ruSpan}</span>
+          </div>
+          {/* Form body */}
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+            <div>
+              <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Device type</div>
+              <select
+                value={deviceType}
+                onChange={(e) => setDeviceType(e.target.value)}
+                disabled={editSaving}
+                className="w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+              >
+                {/* Include the slot's current value even if it's not in
+                    the preset list (e.g. a custom device added later
+                    that's been deleted). */}
+                {!presets.some((p) => p.name === deviceType) && (
+                  <option value={deviceType}>{deviceType} (custom)</option>
+                )}
+                {presets.filter((p) => p.ruSize > 0).map((p) => (
+                  <option key={p.name} value={p.name}>
+                    {p.name} · {p.ruSize}U
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Label</div>
+              <input
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                disabled={editSaving}
+                placeholder={deviceType}
+                className="w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Start RU</div>
+                <input
+                  type="number"
+                  min={1}
+                  max={totalRU}
+                  value={ruPosition}
+                  onChange={(e) => setRuPosition(e.target.value)}
+                  disabled={editSaving}
+                  className="w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+                />
+              </div>
+              <div>
+                <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">RU size</div>
+                <input
+                  type="number"
+                  min={1}
+                  max={totalRU}
+                  value={ruSize}
+                  onChange={(e) => setRuSize(e.target.value)}
+                  disabled={editSaving}
+                  className="w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+                />
+              </div>
+            </div>
+            {/* Action row */}
+            <div className="flex items-center justify-between pt-1">
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={editSaving}
+                className="rounded-lg border border-red-500/40 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/[0.08] hover:border-red-500/60 disabled:opacity-50"
+              >
+                Delete
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={editSaving}
+                  className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={editSaving}
+                  className="rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {editSaving ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex h-full w-full items-center gap-2 border-b border-white/[0.08] bg-transparent px-4 text-sm font-medium text-white">
+          <span className="truncate">{slot.label}</span>
+          <span className="text-gray-600">·</span>
+          <span className="text-[11px] font-normal text-gray-500 truncate">{slot.deviceType}</span>
+          <span className="ml-2 text-[11px] font-normal text-gray-500 font-mono tabular-nums">{ruSpan}</span>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={onOpenEdit}
+              className="ml-auto shrink-0 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+            >
+              Edit
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 
