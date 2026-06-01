@@ -3619,13 +3619,12 @@ export function ProjectPage({
                           <span>{r.slotCount} {r.slotCount === 1 ? 'slot' : 'slots'}</span>
                         </div>
                       </div>
-                      {/* Edit button — wires up the rack-designer view in
-                          a follow-up commit. For now it's a placeholder
-                          that opens an alert so we can verify the data
-                          is flowing through correctly. */}
+                      {/* Open — navigates to the rack designer page
+                          (/projects/[id]/racks/[rackId]) where the
+                          chassis visualization lives. */}
                       <button
                         type="button"
-                        onClick={() => alert(`Open rack designer for ${r.name} (id=${r.id})`)}
+                        onClick={() => router.push(`/projects/${project.id}/racks/${r.id}`)}
                         className="shrink-0 rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
                       >
                         Open
