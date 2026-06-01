@@ -1734,7 +1734,7 @@ function CustomDeviceForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-lg border border-[#22a7d3]/40 bg-[#0178a3]/[0.04] p-3"
+      className="rounded-lg border border-white/10 p-3"
     >
       <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-2">New device</div>
       <div className="space-y-2">
