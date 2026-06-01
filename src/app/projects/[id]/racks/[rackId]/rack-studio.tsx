@@ -420,23 +420,10 @@ export function RackStudio({
           Same pattern as the Comms / Radios single-row toolbar so the
           chrome reads consistently. */}
       <div className="flex items-center gap-3 flex-wrap py-4">
-        {/* Inner side picker — hidden on desktop in embedded mode
-            because the parent project page surfaces a Front/Rear
-            FilterDropdown on its own tab+search toolbar row. Mobile
-            still renders here since the parent row is `sm:flex` only
-            and would leave the side toggle inaccessible otherwise. */}
-        <div className={embedded ? 'sm:hidden' : ''}>
-          <FilterDropdown
-            ariaLabel="Rack side"
-            value={side}
-            onChange={(v) => { setSide(v as 'front' | 'rear'); setPendingRu(null) }}
-            widthClass="w-32 shrink-0"
-            options={[
-              { value: 'front', label: 'Front' },
-              { value: 'rear', label: 'Rear' },
-            ]}
-          />
-        </div>
+        {/* Front/Rear moved into the device library's top row (paired
+            with + Custom device). Nothing on the toolbar's left side
+            anymore — pushes the tab dropdown / settings cog to the
+            right via flex-1 spacer below. */}
         <div className="flex-1" />
         {/* Tab dropdown — only when the rack studio is a full page.
             In embedded mode the parent Comms page already owns the
@@ -745,6 +732,8 @@ export function RackStudio({
             onFilterChange={setFilter}
             search={librarySearch}
             onSearchChange={setLibrarySearch}
+            side={side}
+            onSideChange={(v) => { setSide(v); setPendingRu(null) }}
             onPick={handleDevicePick}
             pendingRu={pendingRu}
             adding={adding}
@@ -764,6 +753,8 @@ export function RackStudio({
           onFilterChange={setFilter}
           search={librarySearch}
           onSearchChange={setLibrarySearch}
+          side={side}
+          onSideChange={(v) => { setSide(v); setPendingRu(null) }}
           onPick={handleDevicePick}
           pendingRu={pendingRu}
           adding={adding}
@@ -785,6 +776,8 @@ function DeviceLibrary({
   onFilterChange,
   search,
   onSearchChange,
+  side,
+  onSideChange,
   onPick,
   pendingRu,
   adding,
@@ -796,6 +789,12 @@ function DeviceLibrary({
   onFilterChange: (next: 'all' | PresetCategory) => void
   search: string
   onSearchChange: (next: string) => void
+  /** Front/Rear toggle lives at the top of the library now —
+   *  paired with the "+ Custom device" button as the two halves
+   *  of a single row. Lifted here from the rack-studio toolbar so
+   *  the library is the canonical home for rack-context controls. */
+  side: 'front' | 'rear'
+  onSideChange: (next: 'front' | 'rear') => void
   onPick: (preset: RackDevicePreset) => void
   pendingRu: number | null
   adding: boolean
@@ -816,18 +815,33 @@ function DeviceLibrary({
 
   return (
     <>
-      <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-2 flex-shrink-0">
-        Device library
+      {/* Top row — Front/Rear toggle on the left, + Custom device
+          on the right, each half the row width. Same layout on
+          mobile (inside the bottom sheet) and desktop (inside the
+          aside). Front/Rear is sourced from props so the parent
+          can also drive it from elsewhere if needed; defaults to
+          drive the rack studio's side state. */}
+      <div className="grid grid-cols-2 gap-2 mb-2 flex-shrink-0">
+        <FilterDropdown
+          ariaLabel="Rack side"
+          value={side}
+          onChange={(v) => onSideChange(v as 'front' | 'rear')}
+          widthClass="w-full"
+          options={[
+            { value: 'front', label: 'Front' },
+            { value: 'rear', label: 'Rear' },
+          ]}
+        />
+        {/* + Custom device — placeholder for now. The CRUD lands
+            in a later commit. */}
+        <button
+          type="button"
+          disabled
+          className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 opacity-40 cursor-not-allowed"
+        >
+          + Custom device
+        </button>
       </div>
-      {/* + Custom device — placeholder for now. The CRUD lands in a
-          later commit. */}
-      <button
-        type="button"
-        disabled
-        className="w-full mb-2 flex-shrink-0 rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 opacity-40 cursor-not-allowed"
-      >
-        + Custom device
-      </button>
       {/* Search — filters the preset list by substring match on name.
           Lives under + Custom device, above the category filter, so
           the visual hierarchy reads top-down: add → search → filter →
@@ -959,6 +973,8 @@ function DeviceLibrarySheet({
   onFilterChange,
   search,
   onSearchChange,
+  side,
+  onSideChange,
   onPick,
   pendingRu,
   adding,
@@ -970,6 +986,8 @@ function DeviceLibrarySheet({
   onFilterChange: (next: 'all' | PresetCategory) => void
   search: string
   onSearchChange: (next: string) => void
+  side: 'front' | 'rear'
+  onSideChange: (next: 'front' | 'rear') => void
   onPick: (preset: RackDevicePreset) => void
   pendingRu: number | null
   adding: boolean
@@ -1002,6 +1020,8 @@ function DeviceLibrarySheet({
             onFilterChange={onFilterChange}
             search={search}
             onSearchChange={onSearchChange}
+            side={side}
+            onSideChange={onSideChange}
             onPick={onPick}
             pendingRu={pendingRu}
             adding={adding}

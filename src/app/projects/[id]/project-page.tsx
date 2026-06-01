@@ -3681,27 +3681,12 @@ export function ProjectPage({
               {/* Desktop toolbar — tab dropdown + collapsible search on
                   the right. Mirrors the Plots / Comms pattern: search
                   icon expands into an input that replaces the dropdown
-                  space, X collapses it. When a rack is expanded for
-                  editing, a Front/Rear FilterDropdown appears on the
-                  far left — `justify-end` keeps the rest packed right,
-                  `mr-auto` on the Front/Rear wrapper overrides that
-                  for one item only. Without `justify-end` the row was
-                  defaulting to start-aligned when no rack was open. */}
+                  space, X collapses it. (Front/Rear used to live here
+                  on the far left when a rack was expanded; moved into
+                  the device library's top row alongside + Custom
+                  device, so the library is now the canonical home for
+                  rack-context controls.) */}
               <div className="hidden items-center justify-end gap-2 pb-3 sm:flex">
-                {expandedRackId != null && (
-                  <div className="mr-auto w-32 shrink-0">
-                    <FilterDropdown
-                      ariaLabel="Rack side"
-                      value={expandedRackSide}
-                      onChange={(v) => setExpandedRackSide(v as 'front' | 'rear')}
-                      widthClass="w-full"
-                      options={[
-                        { value: 'front', label: 'Front' },
-                        { value: 'rear', label: 'Rear' },
-                      ]}
-                    />
-                  </div>
-                )}
                 {!searchOpen && desktopTabDropdown}
                 {searchOpen ? (
                   <>
