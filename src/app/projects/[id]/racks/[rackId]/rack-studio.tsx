@@ -1520,7 +1520,7 @@ function DeviceLibrarySheet({
       {/* Backdrop tap closes the sheet. */}
       <div className="absolute inset-0" onClick={onClose} />
       <div
-        className="absolute inset-x-0 bottom-0 max-h-[60vh] bg-[#1a1a1a] border-t border-white/10 rounded-t-2xl shadow-2xl flex flex-col"
+        className="absolute inset-x-0 bottom-0 max-h-[60vh] bg-[#202020] border-t border-white/10 rounded-t-2xl shadow-2xl flex flex-col"
       >
         {/* Drag-handle bar */}
         <div className="flex justify-center pt-2 pb-1 cursor-pointer" onClick={onClose}>
