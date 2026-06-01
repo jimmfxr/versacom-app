@@ -1266,7 +1266,7 @@ export function RackStudio({
                           <span className="flex-1 text-center">
                             {isPending && pendingDevice
                               ? `+ Drop ${pendingDevice.name} here`
-                              : '+ Drop Here'}
+                              : 'Empty'}
                           </span>
                         </button>
                       ) : (
