@@ -3778,7 +3778,7 @@ export function ProjectPage({
                   No racks match &ldquo;{rackSearch}&rdquo;.
                 </div>
               ) : (
-                <div data-scroll-container className="flex min-h-0 flex-1 flex-col divide-y divide-white/[0.06] overflow-y-auto overscroll-none pb-20">
+                <div data-scroll-container className="flex min-h-0 flex-1 flex-col divide-y divide-white/[0.06] overflow-y-auto overscroll-none">
                   {/* When a rack is expanded for editing, hide every
                       other rack row so the operator has a clean
                       single-rack workspace. Closing the expansion (×
