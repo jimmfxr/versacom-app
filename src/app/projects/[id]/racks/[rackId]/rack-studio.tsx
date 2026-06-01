@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
 import { FilterDropdown } from '@/components/filter-dropdown'
+import { Modal } from '@/components/modal'
 import { ProjectSwitcher } from '@/app/project-dashboard'
 import {
   PRESETS_BY_DEPT,
@@ -166,6 +167,28 @@ export function RackStudio({
   // Ref so the pointer handlers see the latest preset / hover without
   // re-binding on every state change.
   const dragStateRef = useRef<{ preset: RackDevicePreset | null; hoverRu: number | null }>({ preset: null, hoverRu: null })
+  /** Unified in-app confirm modal. Replaces window.confirm() for all
+   *  destructive rack-related actions (slot delete, loose-gear ×,
+   *  custom-device ×) so the operator sees a styled prompt
+   *  consistent with the rest of the app instead of the browser's
+   *  native dialog. Caller stuffs the message + onConfirm callback
+   *  in via confirmDelete(); the Modal at the end of the JSX
+   *  renders the prompt. */
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    title: string
+    message: React.ReactNode
+    confirmLabel?: string
+    onConfirm: () => void | Promise<void>
+  } | null>(null)
+  const [confirmRunning, setConfirmRunning] = useState(false)
+  function confirmDelete(opts: {
+    title: string
+    message: React.ReactNode
+    confirmLabel?: string
+    onConfirm: () => void | Promise<void>
+  }) {
+    setDeleteConfirm(opts)
+  }
   /** ID of the slot currently being edited inline. When non-null the
    *  slot's card expands to show its edit form; every row below it
    *  in the rack shifts down by EDIT_EXTRA_PX. Closes on save /
@@ -431,25 +454,35 @@ export function RackStudio({
     }
   }
 
-  async function handleCustomDeviceDelete(deviceId: number, name: string) {
+  function handleCustomDeviceDelete(deviceId: number, name: string) {
     if (!canEdit) return
-    if (!window.confirm(`Remove "${name}" from the device library? Existing slots stay; the device just disappears from the picker.`)) return
-    setError(null)
-    setCustomDeletingId(deviceId)
-    try {
-      const res = await fetch(`/api/rack-devices/${deviceId}`, { method: 'DELETE' })
-      if (!res.ok) {
-        const data = await res.json().catch(() => null)
-        setError((data as { error?: string } | null)?.error ?? 'Failed to remove device')
-        setCustomDeletingId(null)
-        return
-      }
-      setCustomDeletingId(null)
-      router.refresh()
-    } catch {
-      setError('Network error')
-      setCustomDeletingId(null)
-    }
+    confirmDelete({
+      title: 'Remove custom device',
+      message: (
+        <>
+          Remove <span className="text-white font-medium">{name}</span> from the device library? Existing slots stay; the device just disappears from the picker.
+        </>
+      ),
+      confirmLabel: 'Remove',
+      onConfirm: async () => {
+        setError(null)
+        setCustomDeletingId(deviceId)
+        try {
+          const res = await fetch(`/api/rack-devices/${deviceId}`, { method: 'DELETE' })
+          if (!res.ok) {
+            const data = await res.json().catch(() => null)
+            setError((data as { error?: string } | null)?.error ?? 'Failed to remove device')
+            setCustomDeletingId(null)
+            return
+          }
+          setCustomDeletingId(null)
+          router.refresh()
+        } catch {
+          setError('Network error')
+          setCustomDeletingId(null)
+        }
+      },
+    })
   }
 
   async function handleCustomDeviceCreate(payload: { name: string; ruSize: number; category: PresetCategory }): Promise<boolean> {
@@ -481,23 +514,33 @@ export function RackStudio({
     }
   }
 
-  async function handleLooseDelete(looseId: number, label: string) {
+  function handleLooseDelete(looseId: number, label: string) {
     if (!canEdit) return
-    if (!window.confirm(`Remove "${label}" from the loose-gear tray?`)) return
-    setError(null)
-    try {
-      const res = await fetch(`/api/racks/${rack.id}/loose/${looseId}`, {
-        method: 'DELETE',
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => null)
-        setError((data as { error?: string } | null)?.error ?? 'Failed to remove')
-        return
-      }
-      router.refresh()
-    } catch {
-      setError('Network error')
-    }
+    confirmDelete({
+      title: 'Remove loose item',
+      message: (
+        <>
+          Remove <span className="text-white font-medium">{label}</span> from the loose-gear tray?
+        </>
+      ),
+      confirmLabel: 'Remove',
+      onConfirm: async () => {
+        setError(null)
+        try {
+          const res = await fetch(`/api/racks/${rack.id}/loose/${looseId}`, {
+            method: 'DELETE',
+          })
+          if (!res.ok) {
+            const data = await res.json().catch(() => null)
+            setError((data as { error?: string } | null)?.error ?? 'Failed to remove')
+            return
+          }
+          router.refresh()
+        } catch {
+          setError('Network error')
+        }
+      },
+    })
   }
 
   async function handleRackSave() {
@@ -535,33 +578,38 @@ export function RackStudio({
     }
   }
 
-  async function handleRackDelete() {
+  function handleRackDelete() {
     if (!canEdit) return
-    if (!window.confirm(`Delete rack "${rack.name}"? Every slot and loose item attached to it goes with it. This can't be undone.`)) return
-    setError(null)
-    setRackSaving(true)
-    try {
-      const res = await fetch(`/api/racks/${rack.id}`, { method: 'DELETE' })
-      if (!res.ok) {
-        const data = await res.json().catch(() => null)
-        setError((data as { error?: string } | null)?.error ?? 'Failed to delete rack')
-        setRackSaving(false)
-        return
-      }
-      setRackSaving(false)
-      if (onDeleted) {
-        // Embedded host (e.g. the Comms Racks tab) owns the cleanup —
-        // clearing the expanded-row state + refreshing the rack list.
-        onDeleted()
-      } else {
-        // Standalone page — bounce back to the Racks tab list so the
-        // user isn't stranded on a 404'd deep link.
-        router.push(`/projects/${project.id}?tab=racks`)
-      }
-    } catch {
-      setError('Network error')
-      setRackSaving(false)
-    }
+    confirmDelete({
+      title: 'Delete rack',
+      message: (
+        <>
+          Delete rack <span className="text-white font-medium">{rack.name}</span>? Every slot and loose item attached to it goes with it. This can&apos;t be undone.
+        </>
+      ),
+      onConfirm: async () => {
+        setError(null)
+        setRackSaving(true)
+        try {
+          const res = await fetch(`/api/racks/${rack.id}`, { method: 'DELETE' })
+          if (!res.ok) {
+            const data = await res.json().catch(() => null)
+            setError((data as { error?: string } | null)?.error ?? 'Failed to delete rack')
+            setRackSaving(false)
+            return
+          }
+          setRackSaving(false)
+          if (onDeleted) {
+            onDeleted()
+          } else {
+            router.push(`/projects/${project.id}?tab=racks`)
+          }
+        } catch {
+          setError('Network error')
+          setRackSaving(false)
+        }
+      },
+    })
   }
 
   return (
@@ -945,6 +993,7 @@ export function RackStudio({
                       editSaving={editSaving}
                       setEditSaving={setEditSaving}
                       setError={setError}
+                      onConfirmDelete={confirmDelete}
                       refreshAfter={() => { setEditingSlotId(null); router.refresh() }}
                     />
                   )
@@ -1011,6 +1060,47 @@ export function RackStudio({
           customDeletingId={customDeletingId}
         />
       )}
+
+      {/* Unified delete confirm. Replaces every window.confirm() call
+          on rack-related destructive actions (slot delete, loose-gear
+          ×, custom-device ×, rack delete) so the prompt is styled
+          in-app and matches the project-delete modal pattern. */}
+      <Modal
+        open={!!deleteConfirm}
+        title={deleteConfirm?.title ?? ''}
+        onClose={confirmRunning ? undefined : () => setDeleteConfirm(null)}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => setDeleteConfirm(null)}
+              disabled={confirmRunning}
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!deleteConfirm) return
+                setConfirmRunning(true)
+                try {
+                  await deleteConfirm.onConfirm()
+                } finally {
+                  setConfirmRunning(false)
+                  setDeleteConfirm(null)
+                }
+              }}
+              disabled={confirmRunning}
+              className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {confirmRunning ? 'Working…' : (deleteConfirm?.confirmLabel ?? 'Delete')}
+            </button>
+          </>
+        }
+      >
+        {deleteConfirm?.message}
+      </Modal>
 
       {/* Drag ghost — a fixed-position pill following the cursor
           while the user is mid-drag from a library tile. createPortal
@@ -1469,6 +1559,7 @@ function SlotRow({
   editSaving,
   setEditSaving,
   setError,
+  onConfirmDelete,
   refreshAfter,
 }: {
   slot: Slot
@@ -1484,6 +1575,15 @@ function SlotRow({
   editSaving: boolean
   setEditSaving: (v: boolean) => void
   setError: (msg: string | null) => void
+  /** Opens the parent's shared confirm modal. SlotRow uses this for
+   *  the Delete affordance inside the edit form, replacing
+   *  window.confirm so the prompt is styled in-app. */
+  onConfirmDelete: (opts: {
+    title: string
+    message: React.ReactNode
+    confirmLabel?: string
+    onConfirm: () => void | Promise<void>
+  }) => void
   refreshAfter: () => void
 }) {
   // Local form state — only relevant while editing. Initialized from
@@ -1527,26 +1627,35 @@ function SlotRow({
     }
   }
 
-  async function handleDelete() {
-    if (!window.confirm(`Delete "${slot.label}"?`)) return
-    setError(null)
-    setEditSaving(true)
-    try {
-      const res = await fetch(`/api/racks/${rackId}/slots/${slot.id}`, {
-        method: 'DELETE',
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => null)
-        setError((data as { error?: string } | null)?.error ?? 'Failed to delete')
-        setEditSaving(false)
-        return
-      }
-      setEditSaving(false)
-      refreshAfter()
-    } catch {
-      setError('Network error')
-      setEditSaving(false)
-    }
+  function handleDelete() {
+    onConfirmDelete({
+      title: 'Delete slot',
+      message: (
+        <>
+          Delete <span className="text-white font-medium">{slot.label}</span> from the rack?
+        </>
+      ),
+      onConfirm: async () => {
+        setError(null)
+        setEditSaving(true)
+        try {
+          const res = await fetch(`/api/racks/${rackId}/slots/${slot.id}`, {
+            method: 'DELETE',
+          })
+          if (!res.ok) {
+            const data = await res.json().catch(() => null)
+            setError((data as { error?: string } | null)?.error ?? 'Failed to delete')
+            setEditSaving(false)
+            return
+          }
+          setEditSaving(false)
+          refreshAfter()
+        } catch {
+          setError('Network error')
+          setEditSaving(false)
+        }
+      },
+    })
   }
 
   const ruSpan = `${slot.ruSize}U · RU ${slot.ruPosition}-${slot.ruPosition + slot.ruSize - 1}`

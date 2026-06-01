@@ -1008,6 +1008,10 @@ export function ProjectPage({
   })
   const [rackEditSaving, setRackEditSaving] = useState(false)
   const [rackEditError, setRackEditError] = useState<string | null>(null)
+  /** In-app confirm prompt for "Delete rack" — replaces window.confirm.
+   *  When non-null, the styled Modal at the bottom of this component
+   *  is shown asking the operator to confirm. */
+  const [rackDeleteConfirm, setRackDeleteConfirm] = useState<{ id: number; name: string } | null>(null)
   useEffect(() => {
     if (expandedRackId == null) return
     const r = commsRacks.find((x) => x.id === expandedRackId)
@@ -3841,26 +3845,7 @@ export function ProjectPage({
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
                             <button
                               type="button"
-                              onClick={async () => {
-                                if (!window.confirm(`Delete rack "${r.name}"? Every slot and loose item attached to it goes with it. This can't be undone.`)) return
-                                setRackEditError(null)
-                                setRackEditSaving(true)
-                                try {
-                                  const res = await fetch(`/api/racks/${r.id}`, { method: 'DELETE' })
-                                  if (!res.ok) {
-                                    const data = await res.json().catch(() => null)
-                                    setRackEditError((data as { error?: string } | null)?.error ?? 'Failed to delete')
-                                    setRackEditSaving(false)
-                                    return
-                                  }
-                                  setRackEditSaving(false)
-                                  setExpandedRackId(null)
-                                  router.refresh()
-                                } catch {
-                                  setRackEditError('Network error')
-                                  setRackEditSaving(false)
-                                }
-                              }}
+                              onClick={() => setRackDeleteConfirm({ id: r.id, name: r.name })}
                               disabled={rackEditSaving}
                               className="w-full rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                             >
@@ -4100,6 +4085,59 @@ export function ProjectPage({
         }
       >
         Are you sure you want to delete <span className="text-white font-medium">{project.name}</span>? This will remove all members and cannot be undone.
+      </Modal>
+
+      {/* Delete Rack confirm — replaces window.confirm so the prompt
+          matches the project-delete + other in-app modals. The actual
+          DELETE fetch runs from the Delete button's onClick below;
+          this Modal just gates it on operator confirmation. */}
+      <Modal
+        open={!!rackDeleteConfirm}
+        title="Delete Rack"
+        onClose={rackEditSaving ? undefined : () => setRackDeleteConfirm(null)}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => setRackDeleteConfirm(null)}
+              disabled={rackEditSaving}
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!rackDeleteConfirm) return
+                const id = rackDeleteConfirm.id
+                setRackEditError(null)
+                setRackEditSaving(true)
+                try {
+                  const res = await fetch(`/api/racks/${id}`, { method: 'DELETE' })
+                  if (!res.ok) {
+                    const data = await res.json().catch(() => null)
+                    setRackEditError((data as { error?: string } | null)?.error ?? 'Failed to delete')
+                    setRackEditSaving(false)
+                    return
+                  }
+                  setRackEditSaving(false)
+                  setRackDeleteConfirm(null)
+                  setExpandedRackId(null)
+                  router.refresh()
+                } catch {
+                  setRackEditError('Network error')
+                  setRackEditSaving(false)
+                }
+              }}
+              disabled={rackEditSaving}
+              className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/15 active:bg-red-500 active:border-red-500 active:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {rackEditSaving ? 'Deleting…' : 'Delete'}
+            </button>
+          </>
+        }
+      >
+        Delete rack <span className="text-white font-medium">{rackDeleteConfirm?.name}</span>? Every slot and loose item attached to it goes with it. This can&apos;t be undone.
       </Modal>
     </>
   )
