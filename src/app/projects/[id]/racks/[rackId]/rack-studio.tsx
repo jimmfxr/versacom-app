@@ -1516,25 +1516,50 @@ function DeviceLibrarySheet({
 }) {
   if (typeof document === 'undefined') return null
   return createPortal(
-    <div className="fixed inset-0 z-[80] lg:hidden">
-      {/* Backdrop tap closes the sheet. */}
-      <div className="absolute inset-0" onClick={onClose} />
+    // Two siblings styled to match PanelStudio's mobile picker
+    // exactly: a tinted scrim at z-[199] (tap to close), and the
+    // sheet itself at z-[200] with the same rounded corners, shadow,
+    // drag-handle pill, header padding + size-12 close-X, and body
+    // gutter. Different visual surfaces (chassis vs panel) but the
+    // chrome should read as the same component.
+    <>
       <div
-        className="absolute inset-x-0 bottom-0 max-h-[60vh] bg-[#202020] border-t border-white/10 rounded-t-2xl shadow-2xl flex flex-col"
+        className="fixed inset-0 z-[199] lg:hidden bg-black/50 transition-colors duration-200"
+        onClick={onClose}
+      />
+      <div
+        className="fixed left-0 right-0 bottom-0 z-[200] max-h-[60vh] lg:hidden flex w-full flex-col overflow-hidden rounded-t-[20px] bg-[#202020] shadow-[0_-10px_40px_rgba(0,0,0,0.6)]"
       >
-        {/* Drag-handle bar */}
-        <div className="flex justify-center pt-2 pb-1 cursor-pointer" onClick={onClose}>
-          <div className="w-9 h-1 rounded-full bg-white/20" />
+        {/* Drag-handle pill — same size + color as PanelStudio's
+            (h-1.5 w-12 / bg-white/60 / pt-3 pb-2). Tap to close
+            stays for now since the rack sheet doesn't support
+            drag-snap states yet — a single tap on the handle is
+            the next-best dismiss affordance. */}
+        <div
+          onClick={onClose}
+          className="flex flex-shrink-0 cursor-pointer items-center justify-center pt-3 pb-2 select-none"
+          aria-label="Tap to close"
+        >
+          <div className="h-1.5 w-12 rounded-full bg-white/60" />
         </div>
-        <div className="flex items-center justify-between px-4 pb-2">
-          <div className="text-sm font-semibold text-white">
-            {pendingRu != null ? `Pick a device for RU ${pendingRu}` : 'Device library'}
+        {/* Header — px-[18px] py-4, border-b, size-12 close button.
+            Layout matches PanelStudio's picker header so the two
+            surfaces read as siblings. */}
+        <div className="flex flex-shrink-0 items-center justify-between gap-2.5 border-b border-white/[0.06] px-[18px] py-4">
+          <div className="flex-1 min-w-0">
+            <div className="text-[13px] font-semibold text-white">
+              {pendingRu != null ? `Pick a device for RU ${pendingRu}` : 'Device library'}
+            </div>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-300 text-2xl leading-none">
-            ×
+          <button
+            onClick={onClose}
+            aria-label="Close picker"
+            className="flex size-12 shrink-0 items-center justify-center rounded-md bg-transparent text-3xl text-gray-300 transition-colors hover:bg-white/[0.06] hover:text-white"
+          >
+            &times;
           </button>
         </div>
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-6">
+        <div className="flex-1 min-h-0 overflow-y-auto px-[18px] py-4">
           <DeviceLibrary
             items={items}
             filter={filter}
@@ -1558,7 +1583,7 @@ function DeviceLibrarySheet({
           />
         </div>
       </div>
-    </div>,
+    </>,
     document.body,
   )
 }
