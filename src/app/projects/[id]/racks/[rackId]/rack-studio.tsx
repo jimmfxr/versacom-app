@@ -919,7 +919,7 @@ export function RackStudio({
                   return (
                     <div
                       key={`ru-${ru}`}
-                      className="group/row flex items-center"
+                      className="group flex items-center"
                       style={{
                         position: 'absolute',
                         top: `${i * RU_PX + 4 + offsetFor(ru)}px`,
@@ -940,7 +940,7 @@ export function RackStudio({
                         // misleading hover affordance.
                         isPending
                           ? 'text-[#22a7d3]'
-                          : `text-gray-400${canEdit && isEmpty ? ' group-hover/row:text-[#22a7d3]' : ''}`
+                          : `text-gray-400${canEdit && isEmpty ? ' group-hover:text-[#22a7d3]' : ''}`
                       }`}>
                         {/* RU label hides during a library drag so it
                             doesn't bleed through the semi-transparent
@@ -971,7 +971,7 @@ export function RackStudio({
                                   // ALSO lights up the row body — and vice
                                   // versa — instead of the two halves
                                   // toggling independently.
-                                  : `border-b border-white/[0.06] text-gray-600 ${canEdit ? 'group-hover/row:border-b-[#0178a3]/40 group-hover/row:text-[#22a7d3] group-hover/row:bg-[#0178a3]/[0.04]' : ''}`
+                                  : `border-b border-white/[0.06] text-gray-600 ${canEdit ? 'group-hover:border-b-[#0178a3]/40 group-hover:text-[#22a7d3] group-hover:bg-[#0178a3]/[0.04]' : ''}`
                             } ${canEdit ? 'cursor-pointer' : ''}`}
                           >
                             {dragPreset ? '' : (isPending ? '← pick a device' : '+ Drop Here')}
