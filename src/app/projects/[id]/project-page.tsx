@@ -3648,9 +3648,11 @@ export function ProjectPage({
                   icon expands into an input that replaces the dropdown
                   space, X collapses it. When a rack is expanded for
                   editing, a Front/Rear FilterDropdown appears on the
-                  far left — `mr-auto` pushes it left while the tab +
-                  search stay packed to the right. */}
-              <div className="hidden items-center gap-2 pb-3 sm:flex">
+                  far left — `justify-end` keeps the rest packed right,
+                  `mr-auto` on the Front/Rear wrapper overrides that
+                  for one item only. Without `justify-end` the row was
+                  defaulting to start-aligned when no rack was open. */}
+              <div className="hidden items-center justify-end gap-2 pb-3 sm:flex">
                 {expandedRackId != null && (
                   <div className="mr-auto w-32 shrink-0">
                     <FilterDropdown
