@@ -901,7 +901,7 @@ export function RackStudio({
           const offsetFor = (ru: number) => editingSlot && ru > editingEndRu ? EDIT_EXTRA_PX : 0
           const containerHeight = rack.totalRU * RU_PX + 8 + (editingSlot ? EDIT_EXTRA_PX : 0)
           return (
-            <div className={`relative p-2 rounded-lg bg-[#2a2a2a] border border-white/[0.06] overflow-y-auto lg:order-2 ${
+            <div className={`relative rounded-lg border border-white/[0.06] overflow-y-auto lg:order-2 ${
               embedded
                 // Embedded: mobile keeps the 70vh cap because the
                 // outer tab scroll handles overflow there. Desktop
