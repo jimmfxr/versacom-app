@@ -820,6 +820,20 @@ export function ProjectPage({
   // activeTab in deps would loop — we only react to URL changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, isUser])
+  // Single entrypoint for tab changes — mirrors the new tab into the
+  // URL via router.replace (no history entry) so the URL stays the
+  // source of truth. Without this, the URL→state useEffect above
+  // would fight any local tab change on the next re-render
+  // (router.refresh, prop update, etc.) and yank the user back to
+  // whatever the URL still said.
+  const changeTab = useCallback((next: Tab) => {
+    setActiveTab(next)
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      params.set('tab', next)
+      router.replace(`?${params.toString()}`, { scroll: false })
+    }
+  }, [router])
 
   // Settings panel
   const [showSettings, setShowSettings] = useState(false)
@@ -1669,7 +1683,7 @@ export function ProjectPage({
   // ProjectSwitcher trigger sitting next to it in the page header.
   const desktopTabDropdown = (
     <div className="hidden w-[280px] sm:block">
-      <TabsMobileDropdown tabs={navTabs} activeTab={activeTab} onSelect={setActiveTab} compact />
+      <TabsMobileDropdown tabs={navTabs} activeTab={activeTab} onSelect={changeTab} compact />
     </div>
   )
 
@@ -1916,7 +1930,7 @@ export function ProjectPage({
                 <div className="flex items-center gap-2 sm:hidden">
                   {!searchOpen && (
                     <div className="min-w-0 flex-1">
-                      <TabsMobileDropdown tabs={navTabs} activeTab={activeTab} onSelect={setActiveTab} />
+                      <TabsMobileDropdown tabs={navTabs} activeTab={activeTab} onSelect={changeTab} />
                     </div>
                   )}
                   {searchOpen ? (
@@ -2596,7 +2610,7 @@ export function ProjectPage({
                                     type="button"
                                     onClick={() => {
                                       if (isCrew && item.assignedMemberId === currentMemberId) {
-                                        setActiveTab('my-equipment')
+                                        changeTab('my-equipment')
                                       } else {
                                         router.push(`/projects/${project.id}/panel/${item.id}`)
                                       }
@@ -3173,7 +3187,7 @@ export function ProjectPage({
                                                 // inline edit form.
                                                 setEqSearch('')
                                                 setEqLocationFilter(null)
-                                                setActiveTab('equipment')
+                                                changeTab('equipment')
                                                 startEqEdit(item)
                                               }}
                                               className="text-[#22a7d3] hover:text-[#019bc7] hover:underline"
