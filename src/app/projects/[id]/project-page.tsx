@@ -3906,8 +3906,8 @@ export function ProjectPage({
                           </div>
                         </div>
                       ) : (
-                        <div className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                          <div className="min-w-0 flex items-baseline gap-2">
+                        <div className="flex flex-col items-stretch gap-4 py-3 sm:flex-row sm:items-start sm:gap-4">
+                          <div className="min-w-0 flex-1 flex items-baseline gap-2">
                             <span className="text-sm font-semibold text-white truncate">{r.name}</span>
                             <span className="shrink-0 text-xs text-gray-500">{r.totalRU}RU</span>
                           </div>
