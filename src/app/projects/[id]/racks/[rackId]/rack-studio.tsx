@@ -801,6 +801,10 @@ function DeviceLibrary({
   canEdit: boolean
   renderInSheet: boolean
 }) {
+  // Library search expand/collapse — local to the library (the
+  // search term itself is parent-owned so it survives sheet
+  // open/close, but the icon-vs-input toggle is a UI concern).
+  const [librarySearchOpen, setLibrarySearchOpen] = useState(false)
   // Filter pipeline — category narrows first, then search trims by
   // substring match on preset.name. Search is case-insensitive and
   // empty-string-safe.
@@ -832,41 +836,70 @@ function DeviceLibrary({
             { value: 'rear', label: 'Rear' },
           ]}
         />
-        {/* + Custom device — placeholder for now. The CRUD lands
-            in a later commit. */}
+        {/* + Custom — placeholder for now. The CRUD lands in a
+            later commit. */}
         <button
           type="button"
           disabled
           className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 opacity-40 cursor-not-allowed"
         >
-          + Custom device
+          + Custom
         </button>
       </div>
-      {/* Search — filters the preset list by substring match on name.
-          Lives under + Custom device, above the category filter, so
-          the visual hierarchy reads top-down: add → search → filter →
-          results. */}
-      <div className="flex-shrink-0 mb-2">
-        <input
-          type="text"
-          placeholder="Search devices…"
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
-        />
-      </div>
-      {/* Category filter — shared FilterDropdown component. */}
-      <div className="flex-shrink-0 mb-3">
-        <FilterDropdown
-          ariaLabel="Device category"
-          value={filter}
-          onChange={(v) => onFilterChange(v as 'all' | PresetCategory)}
-          widthClass="w-full"
-          options={[
-            { value: 'all', label: 'All devices' },
-            ...PRESET_CATEGORY_ORDER.map((c) => ({ value: c, label: PRESET_CATEGORY_LABELS[c] })),
-          ]}
-        />
+      {/* Category dropdown + search-icon toggle on the right. Tap
+          the magnifier and it swaps the dropdown for a text input
+          (with an × to close) — same expand/collapse pattern the
+          tab+search toolbar uses elsewhere in the app, so the
+          interaction reads consistently. Live search-term state is
+          held by the parent so the toggle doesn't drop the value. */}
+      <div className="flex-shrink-0 mb-3 flex items-center gap-2">
+        {librarySearchOpen ? (
+          <>
+            <input
+              type="text"
+              autoFocus
+              placeholder="Search devices…"
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+            />
+            <button
+              type="button"
+              onClick={() => { setLibrarySearchOpen(false); onSearchChange('') }}
+              aria-label="Close search"
+              className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+            >
+              <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="flex-1">
+              <FilterDropdown
+                ariaLabel="Device category"
+                value={filter}
+                onChange={(v) => onFilterChange(v as 'all' | PresetCategory)}
+                widthClass="w-full"
+                options={[
+                  { value: 'all', label: 'All devices' },
+                  ...PRESET_CATEGORY_ORDER.map((c) => ({ value: c, label: PRESET_CATEGORY_LABELS[c] })),
+                ]}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setLibrarySearchOpen(true)}
+              aria-label="Search"
+              className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+            >
+              <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.343-4.343m0 0A8 8 0 1 0 5.343 5.343a8 8 0 0 0 11.314 11.314Z" />
+              </svg>
+            </button>
+          </>
+        )}
       </div>
       <div
         className={`${renderInSheet ? '' : 'flex-1 min-h-0 overflow-y-auto pr-1'} space-y-3`}
@@ -1256,11 +1289,12 @@ function SlotRow({
         // Each slot is its own bordered card. Background +
         // border match the panel-studio key style so the rack
         // chassis reads visually consistent with PanelStudio.
+        // Trimmed to just the label + Edit — deviceType usually
+        // duplicates the label for preset devices, and the RU
+        // range is implicit from the slot's position in the
+        // chassis (the leftmost RU column already labels it).
         <div className="flex h-full w-full items-center gap-2 rounded-lg border border-[#3a3a3a] bg-[#202020] px-4 text-sm font-medium text-white">
           <span className="truncate">{slot.label}</span>
-          <span className="text-gray-600">·</span>
-          <span className="text-[11px] font-normal text-gray-500 truncate">{slot.deviceType}</span>
-          <span className="ml-2 text-[11px] font-normal text-gray-500 font-mono tabular-nums">{ruSpan}</span>
           {canEdit && (
             <button
               type="button"
