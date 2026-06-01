@@ -1600,7 +1600,7 @@ function DeviceTile({
         // tone (#2a2a2a) instead of the panel KEY tone, so the
         // device library reads as a stack of chassis-colored tiles
         // sitting on the page bg.
-        className={`flex w-full items-center gap-3 rounded-[10px] border px-3.5 py-3 text-left text-sm transition-colors ${
+        className={`flex w-full items-center gap-3 rounded-[10px] border px-3.5 py-3 text-left text-sm transition-colors select-none ${
           disabled
             ? 'border-white/[0.08] text-gray-500 cursor-not-allowed opacity-50'
             : isDragging
@@ -2022,7 +2022,7 @@ function SlotRow({
           // rejected (collision / out-of-bounds) the card snaps
           // back to full opacity in place. If the drop succeeded,
           // router.refresh re-renders it at the new RU.
-          className={`flex h-full w-full items-center gap-2 rounded-lg pr-4 text-sm font-medium text-white transition-opacity ${
+          className={`flex h-full w-full items-center gap-2 rounded-lg pr-4 text-sm font-medium text-white transition-opacity select-none ${
             isDragging
               ? 'bg-[#2a2a2a] opacity-40 outline-dashed outline-2 outline-white/20'
               : 'bg-[#2a2a2a]'
