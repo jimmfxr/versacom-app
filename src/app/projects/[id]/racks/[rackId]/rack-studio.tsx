@@ -1745,7 +1745,7 @@ function SlotRow({
               card reads continuous when expanded. */}
           <div className="flex flex-shrink-0 items-center gap-2 border-b border-white/[0.08] pr-4 text-sm font-medium text-white"
                style={{ height: '48px' }}>
-            <span className="w-9 shrink-0 text-center text-sm text-gray-400 font-mono tabular-nums">{slot.ruPosition}</span>
+            <span className="w-9 shrink-0 text-center text-sm font-mono tabular-nums text-[#22a7d3]">{slot.ruPosition}</span>
             <span className="truncate">{slot.label}</span>
             <span className="text-gray-600">·</span>
             <span className="text-[11px] font-normal text-gray-500 truncate">{slot.deviceType}</span>
@@ -1847,7 +1847,7 @@ function SlotRow({
         // the left (centered in a w-9 column), then the label,
         // then the Edit button on the right.
         <div className="flex h-full w-full items-center gap-2 rounded-lg border border-[#3a3a3a] bg-[#2a2a2a] pr-4 text-sm font-medium text-white">
-          <span className="w-9 shrink-0 text-center text-sm text-gray-400 font-mono tabular-nums">{slot.ruPosition}</span>
+          <span className="w-9 shrink-0 text-center text-sm font-mono tabular-nums text-[#22a7d3]">{slot.ruPosition}</span>
           <span className="truncate">{slot.label}</span>
           {canEdit && (
             <button
