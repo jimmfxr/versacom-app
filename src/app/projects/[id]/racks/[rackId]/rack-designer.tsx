@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef, useLayoutEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
+import { FilterDropdown } from '@/components/filter-dropdown'
 import {
   PRESETS_BY_DEPT,
   PRESET_CATEGORY_LABELS,
@@ -167,7 +168,7 @@ export function RackDesigner({
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-5 pb-28 sm:pb-8 min-h-0 flex-1 flex flex-col">
+    <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col px-4 sm:px-6 lg:px-8 py-5 pb-28 sm:pb-8">
 
       {/* ─── Page header ─── */}
       <header className="flex flex-row items-center justify-between gap-3 border-b border-white/20 pb-4">
@@ -196,11 +197,21 @@ export function RackDesigner({
         </button>
       </header>
 
-      {/* ─── Toolbar: side picker (left) ─── */}
+      {/* ─── Toolbar: side picker (left) ───
+          Uses the shared FilterDropdown component (same one Radios
+          uses for Sort / Filter chips) so the dropdown chrome reads
+          consistently across the app. */}
       <div className="flex items-center gap-3 flex-wrap py-4">
-        <div className="w-[140px]">
-          <SideDropdown value={side} onChange={(v) => { setSide(v); setPendingRu(null) }} />
-        </div>
+        <FilterDropdown
+          ariaLabel="Rack side"
+          value={side}
+          onChange={(v) => { setSide(v as 'front' | 'rear'); setPendingRu(null) }}
+          widthClass="w-32 shrink-0"
+          options={[
+            { value: 'front', label: 'Front' },
+            { value: 'rear', label: 'Rear' },
+          ]}
+        />
         <div className="flex-1" />
       </div>
 
@@ -381,8 +392,18 @@ function DeviceLibrary({
       >
         + Custom device
       </button>
+      {/* Category filter — shared FilterDropdown component. */}
       <div className="flex-shrink-0 mb-3">
-        <LibraryFilterDropdown value={filter} onChange={onFilterChange} />
+        <FilterDropdown
+          ariaLabel="Device category"
+          value={filter}
+          onChange={(v) => onFilterChange(v as 'all' | PresetCategory)}
+          widthClass="w-full"
+          options={[
+            { value: 'all', label: 'All devices' },
+            ...PRESET_CATEGORY_ORDER.map((c) => ({ value: c, label: PRESET_CATEGORY_LABELS[c] })),
+          ]}
+        />
       </div>
       <div
         className={`${renderInSheet ? '' : 'flex-1 min-h-0 overflow-y-auto pr-1'} space-y-3`}
@@ -539,200 +560,3 @@ function DeviceLibrarySheet({
   )
 }
 
-/* ════════════════════════════════════════════════════════════════════
- * Filter dropdown (library)
- * ════════════════════════════════════════════════════════════════════ */
-
-function LibraryFilterDropdown({
-  value,
-  onChange,
-}: {
-  value: 'all' | PresetCategory
-  onChange: (next: 'all' | PresetCategory) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const triggerRef = useRef<HTMLButtonElement>(null)
-  const popoverRef = useRef<HTMLDivElement>(null)
-  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
-
-  useEffect(() => {
-    function onDown(e: MouseEvent) {
-      const t = e.target as Node
-      if (!ref.current?.contains(t) && !popoverRef.current?.contains(t)) setOpen(false)
-    }
-    if (open) document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
-  }, [open])
-
-  useLayoutEffect(() => {
-    if (!open) { setPos(null); return }
-    function update() {
-      const btn = triggerRef.current
-      if (!btn) return
-      const r = btn.getBoundingClientRect()
-      setPos({ top: r.bottom + 4, left: r.left, width: r.width })
-    }
-    update()
-    window.addEventListener('scroll', update, true)
-    window.addEventListener('resize', update)
-    return () => {
-      window.removeEventListener('scroll', update, true)
-      window.removeEventListener('resize', update)
-    }
-  }, [open])
-
-  const label = value === 'all' ? 'All devices' : PRESET_CATEGORY_LABELS[value as PresetCategory]
-  const options: Array<{ value: 'all' | PresetCategory; label: string }> = [
-    { value: 'all', label: 'All devices' },
-    ...PRESET_CATEGORY_ORDER.map((c) => ({ value: c, label: PRESET_CATEGORY_LABELS[c] })),
-  ]
-
-  return (
-    <div ref={ref} className="relative w-full">
-      <button
-        ref={triggerRef}
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className={`flex w-full items-center justify-between gap-2.5 rounded-lg border-2 bg-[#202020] px-3.5 py-2 text-sm font-medium text-white transition-colors ${
-          open ? 'border-[#0178a3]' : 'border-white/10 hover:border-white/20'
-        }`}
-      >
-        <span className="truncate">{label}</span>
-        <svg
-          className={`size-3.5 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
-          viewBox="0 0 20 20"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <polyline points="5 8 10 13 15 8" />
-        </svg>
-      </button>
-      {open && pos && typeof document !== 'undefined' && createPortal(
-        <div
-          ref={popoverRef}
-          className="z-[1000] rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl"
-          style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width }}
-        >
-          {options.map((opt) => {
-            const active = opt.value === value
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => { setOpen(false); onChange(opt.value) }}
-                className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left transition-colors ${
-                  active ? 'bg-[#0178a3]' : 'hover:bg-white/[0.06]'
-                }`}
-              >
-                <span className={`text-sm font-medium ${active ? 'text-white' : 'text-gray-200'}`}>
-                  {opt.label}
-                </span>
-              </button>
-            )
-          })}
-        </div>,
-        document.body,
-      )}
-    </div>
-  )
-}
-
-/* ════════════════════════════════════════════════════════════════════
- * Side picker
- * ════════════════════════════════════════════════════════════════════ */
-
-function SideDropdown({
-  value,
-  onChange,
-}: {
-  value: 'front' | 'rear'
-  onChange: (next: 'front' | 'rear') => void
-}) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const triggerRef = useRef<HTMLButtonElement>(null)
-  const popoverRef = useRef<HTMLDivElement>(null)
-  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
-
-  useEffect(() => {
-    function onDown(e: MouseEvent) {
-      const t = e.target as Node
-      if (!ref.current?.contains(t) && !popoverRef.current?.contains(t)) setOpen(false)
-    }
-    if (open) document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
-  }, [open])
-
-  useLayoutEffect(() => {
-    if (!open) { setPos(null); return }
-    function update() {
-      const btn = triggerRef.current
-      if (!btn) return
-      const r = btn.getBoundingClientRect()
-      setPos({ top: r.bottom + 4, left: r.left, width: r.width })
-    }
-    update()
-    window.addEventListener('scroll', update, true)
-    window.addEventListener('resize', update)
-    return () => {
-      window.removeEventListener('scroll', update, true)
-      window.removeEventListener('resize', update)
-    }
-  }, [open])
-
-  return (
-    <div ref={ref} className="relative w-full">
-      <button
-        ref={triggerRef}
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className={`flex w-full items-center justify-between gap-2.5 rounded-lg border-2 bg-[#202020] px-3.5 py-2 text-sm font-medium text-white transition-colors ${
-          open ? 'border-[#0178a3]' : 'border-white/10 hover:border-white/20'
-        }`}
-      >
-        <span>{value === 'front' ? 'Front' : 'Rear'}</span>
-        <svg
-          className={`size-3.5 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
-          viewBox="0 0 20 20"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <polyline points="5 8 10 13 15 8" />
-        </svg>
-      </button>
-      {open && pos && typeof document !== 'undefined' && createPortal(
-        <div
-          ref={popoverRef}
-          className="z-[1000] rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-2xl"
-          style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width }}
-        >
-          {(['front', 'rear'] as const).map((v) => {
-            const active = v === value
-            return (
-              <button
-                key={v}
-                type="button"
-                onClick={() => { setOpen(false); onChange(v) }}
-                className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left transition-colors ${
-                  active ? 'bg-[#0178a3]' : 'hover:bg-white/[0.06]'
-                }`}
-              >
-                <span className={`text-sm font-medium ${active ? 'text-white' : 'text-gray-200'}`}>
-                  {v === 'front' ? 'Front' : 'Rear'}
-                </span>
-              </button>
-            )
-          })}
-        </div>,
-        document.body,
-      )}
-    </div>
-  )
-}
