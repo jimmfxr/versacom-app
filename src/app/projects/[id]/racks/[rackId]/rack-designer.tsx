@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
 import { FilterDropdown } from '@/components/filter-dropdown'
+import { ProjectSwitcher } from '@/app/project-dashboard'
 import {
   PRESETS_BY_DEPT,
   PRESET_CATEGORY_LABELS,
@@ -57,12 +58,16 @@ const RU_PX = 48
 
 export function RackDesigner({
   project,
+  userProjects,
   rack,
   slots,
   looseItems,
   canEdit,
 }: {
   project: { id: number; name: string }
+  /** All active projects the current user belongs to — feeds the
+   *  ProjectSwitcher in the page header. */
+  userProjects: Array<{ id: number; name: string }>
   rack: {
     id: number
     name: string
@@ -84,13 +89,28 @@ export function RackDesigner({
   const [sheetOpen, setSheetOpen] = useState(false)
   /** Category filter for the device library. */
   const [filter, setFilter] = useState<'all' | PresetCategory>('all')
+  /** Search term — filters slot labels + deviceType. */
+  const [search, setSearch] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
 
   const sideSlots = slots.filter((s) => s.side === side)
+  // `occupied` is built from the FULL set of slots on this side (not
+  // the search-filtered subset) — search is a render-time visual
+  // filter, the underlying chassis state is unchanged. That way the
+  // user can't accidentally place a new device on an RU that's
+  // already taken just because the slot was filtered out of view.
   const occupied = new Set<number>()
   for (const s of sideSlots) {
     for (let i = 0; i < s.ruSize; i++) occupied.add(s.ruPosition + i)
   }
   const usedRU = sideSlots.reduce((acc, s) => acc + s.ruSize, 0)
+  const searchQ = search.trim().toLowerCase()
+  const visibleSlots = searchQ.length === 0
+    ? sideSlots
+    : sideSlots.filter((s) =>
+        s.label.toLowerCase().includes(searchQ) ||
+        s.deviceType.toLowerCase().includes(searchQ),
+      )
 
   const dept: PresetDept = rack.dept === 'radios' ? 'radios' : 'comms'
   const presets = PRESETS_BY_DEPT[dept]
@@ -170,7 +190,11 @@ export function RackDesigner({
   return (
     <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col px-4 sm:px-6 lg:px-8 py-5 pb-28 sm:pb-8">
 
-      {/* ─── Page header ─── */}
+      {/* ─── Page header ───
+          Rack name + meta on the left, Back button + ProjectSwitcher
+          on the right. Mirrors the Comms page header so the rack
+          designer reads as a logical continuation of /projects/[id]?
+          tab=racks (same shell, deeper view). */}
       <header className="flex flex-row items-center justify-between gap-3 border-b border-white/20 pb-4">
         <div className="min-w-0">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white truncate">
@@ -184,23 +208,38 @@ export function RackDesigner({
               </>
             )}
             <span>{rack.totalRU}RU</span>
-            <span className="text-gray-600">·</span>
-            <span className="text-gray-300">{project.name}</span>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => router.push(`/projects/${project.id}?tab=racks`)}
-          className="shrink-0 rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
-        >
-          Back
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => router.push(`/projects/${project.id}?tab=racks`)}
+            className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+          >
+            Back
+          </button>
+          {/* ProjectSwitcher — switching projects sends the user to
+              /projects/<newId>?tab=racks (back to the Racks tab list
+              for that show — we can't deep-link to an equivalent rack
+              there). Mobile: half-row width like everywhere else. */}
+          <div className="w-[calc(50vw-1rem)] sm:w-auto">
+            <ProjectSwitcher
+              projectId={project.id}
+              projectName={project.name}
+              userProjects={userProjects}
+              basePath="/projects/:id"
+            />
+          </div>
+        </div>
       </header>
 
-      {/* ─── Toolbar: side picker (left) ───
-          Uses the shared FilterDropdown component (same one Radios
-          uses for Sort / Filter chips) so the dropdown chrome reads
-          consistently across the app. */}
+      {/* ─── Toolbar ───
+          Left cluster: rack-context controls (side picker).
+          Right cluster: tab dropdown (jumps back to a sibling tab on
+            the parent project) + per-tab search (filters slot labels +
+            device types).
+          Same pattern as the Comms / Radios single-row toolbar so the
+          chrome reads consistently. */}
       <div className="flex items-center gap-3 flex-wrap py-4">
         <FilterDropdown
           ariaLabel="Rack side"
@@ -213,6 +252,64 @@ export function RackDesigner({
           ]}
         />
         <div className="flex-1" />
+        {!searchOpen && (
+          <div className="w-[180px]">
+            <FilterDropdown
+              ariaLabel="Project tab"
+              value="racks"
+              onChange={(v) => {
+                if (v === 'racks') return
+                // Other tabs live on the Comms page — bounce the user
+                // back to the project at that tab.
+                router.push(`/projects/${project.id}?tab=${v}`)
+              }}
+              widthClass="w-full"
+              options={[
+                { value: 'equipment', label: 'Equipment' },
+                { value: 'team', label: 'Team' },
+                { value: 'picklist', label: 'Pick List' },
+                { value: 'stage-plots', label: 'Plots' },
+                { value: 'racks', label: 'Racks' },
+              ]}
+            />
+          </div>
+        )}
+        {/* Search — collapsible toggle just like Comms / Radios.
+            When open, the input takes the same space the tab
+            dropdown was occupying. */}
+        {searchOpen ? (
+          <div className="flex items-center gap-2 flex-1 sm:flex-initial">
+            <input
+              type="text"
+              autoFocus
+              placeholder="Search devices…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full sm:w-[220px] rounded-lg border-2 border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+            />
+            <button
+              type="button"
+              onClick={() => { setSearchOpen(false); setSearch('') }}
+              aria-label="Close search"
+              className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+            >
+              <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            aria-label="Search"
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+          >
+            <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.343-4.343m0 0A8 8 0 1 0 5.343 5.343a8 8 0 0 0 11.314 11.314Z" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* ─── Stats line ─── */}
@@ -292,8 +389,8 @@ export function RackDesigner({
                 </div>
               )
             })}
-            {/* Filled slots */}
-            {sideSlots.map((s) => (
+            {/* Filled slots (search-filtered for display only). */}
+            {visibleSlots.map((s) => (
               <div
                 key={s.id}
                 style={{

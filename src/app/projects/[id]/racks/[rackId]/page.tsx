@@ -67,19 +67,38 @@ export default async function RackDesignerPage({
   })
   if (!rack) notFound()
 
-  // Project name for the page header — same place ProjectSwitcher
-  // shows on Comms.
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    select: { id: true, name: true },
-  })
+  // Project for the page header (name + id) AND the full list of the
+  // current user's active projects so ProjectSwitcher can offer
+  // jumping to any of them.
+  const [project, userProjectMemberships] = await Promise.all([
+    prisma.project.findUnique({
+      where: { id: projectId },
+      select: { id: true, name: true },
+    }),
+    prisma.projectMember.findMany({
+      where: { userId: session.user.id, project: { status: 'active' } },
+      select: { project: { select: { id: true, name: true } } },
+    }),
+  ])
   if (!project) notFound()
+
+  // De-dupe by project id (a user can hold multiple roles on one show).
+  const seen = new Set<number>()
+  const userProjects: Array<{ id: number; name: string }> = []
+  for (const m of userProjectMemberships) {
+    if (m.project && !seen.has(m.project.id)) {
+      seen.add(m.project.id)
+      userProjects.push(m.project)
+    }
+  }
+  userProjects.sort((a, b) => a.name.localeCompare(b.name))
 
   const canEdit = membership.role === 'admin' || membership.role === 'manager'
 
   return (
     <RackDesigner
       project={project}
+      userProjects={userProjects}
       rack={{
         id: rack.id,
         name: rack.name,
