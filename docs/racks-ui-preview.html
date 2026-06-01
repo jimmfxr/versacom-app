@@ -1,0 +1,1441 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Racks UI preview — Nodal Control</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root { color-scheme: dark; }
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #202020; color: #e5e7eb; }
+
+  /* ───── Component styles that mirror the real app ───── */
+
+  /* Desktop navbar item (matches navbar.tsx) */
+  .nav-item {
+    position: relative; display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 500;
+    color: #9ca3af;
+  }
+  .nav-item:hover { color: #d1d5db; }
+  .nav-item.current { color: #fff; }
+  .nav-item.current::after {
+    content: ''; position: absolute; left: 16px; right: 16px; bottom: 2px;
+    height: 2px; background: #22a7d3; border-radius: 1px;
+  }
+
+  /* Icon button (matches QR / scanner / kiosk style) */
+  .icon-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: 8px;
+    color: #9ca3af; transition: background-color 120ms, color 120ms;
+    cursor: pointer;
+  }
+  .icon-btn:hover { background: rgba(255,255,255,0.06); color: #fff; }
+
+  /* Dropdown trigger (TabsMobileDropdown / ProjectSwitcher / BrowseProjectDropdown) */
+  .dropdown-trigger {
+    display: flex; width: 100%; align-items: center; justify-content: space-between;
+    gap: 10px; border-radius: 8px; border: 2px solid; background: #202020;
+    padding: 8px 14px; font-size: 14px; font-weight: 500; color: #fff;
+    transition: border-color 120ms;
+    cursor: pointer;
+  }
+  .dropdown-trigger.closed { border-color: rgba(255,255,255,0.1); }
+  .dropdown-trigger.closed:hover { border-color: rgba(255,255,255,0.2); }
+  .dropdown-trigger.open { border-color: #0178a3; }
+
+  /* Dropdown popover */
+  .dropdown-popover {
+    margin-top: 4px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
+    background: #2a2a2a; padding: 4px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  }
+  .dropdown-item {
+    display: flex; width: 100%; align-items: center; justify-content: space-between;
+    gap: 12px; border-radius: 6px; padding: 8px 12px; text-align: left;
+    transition: background-color 120ms;
+    font-size: 14px; font-weight: 500; color: #d1d5db;
+    cursor: pointer;
+  }
+  .dropdown-item:not(.active):hover { background: rgba(255,255,255,0.06); }
+  .dropdown-item.active { background: #0178a3; color: #fff; }
+  .dropdown-item .count { font-size: 12px; color: #6b7280; }
+  .dropdown-item.active .count { color: rgba(255,255,255,0.7); }
+
+  /* Segmented control (Main/Shift, Front/Rear) */
+  .segmented {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #202020; border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px; padding: 4px;
+  }
+  .segmented button {
+    padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 600;
+    color: #d1d5db; transition: background-color 120ms; cursor: pointer;
+    border: 1px solid transparent;
+  }
+  .segmented button.active {
+    background: rgba(1,120,163,0.15); color: #22a7d3;
+    border-color: rgba(34,167,211,0.4);
+  }
+  .segmented button:not(.active):hover { background: rgba(255,255,255,0.04); }
+
+  /* Buttons — matched to the Comms "Edit" button on the Equipment
+     tab: px-4 py-2, rounded-lg, text-sm, font-medium, gray-200 text,
+     border-white/10, with active:cyan. Primary uses solid cyan. */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 8px 16px; border-radius: 8px;
+    font-size: 14px; font-weight: 500;
+    border: 1px solid transparent;
+    transition: background-color 120ms, border-color 120ms, color 120ms;
+    cursor: pointer;
+  }
+  .btn-primary { background: #0178a3; color: #fff; }
+  .btn-primary:hover { background: #019bc7; }
+  .btn-ghost {
+    border-color: rgba(255,255,255,0.1); color: #e5e7eb; background: transparent;
+  }
+  .btn-ghost:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.04); }
+  .btn-ghost:active { border-color: #0178a3; background: #0178a3; color: #fff; }
+  .btn-danger { border-color: rgba(239,68,68,0.4); color: #ef4444; background: transparent; }
+  .btn-danger:hover { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.6); }
+
+  /* Rack visualization */
+  .ru-row { height: 48px; }
+  .ru-num { width: 36px; text-align: center; font-variant-numeric: tabular-nums; color: #6b7280; font-size: 11px; letter-spacing: 0.04em; }
+  .slot {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    border-radius: 0;
+    transition: background-color 120ms ease, border-color 120ms ease;
+    cursor: grab;
+    display: flex; align-items: center; padding: 0 14px;
+    color: #e5e7eb; font-size: 13px; font-weight: 500;
+  }
+  .slot:hover { background: rgba(255,255,255,0.03); border-bottom-color: rgba(34,167,211,0.4); }
+  .slot:active { cursor: grabbing; }
+  .slot .drag-handle { color: #6b7280; margin-right: 8px; line-height: 1; }
+  .slot .pill { font-size: 11px; color: #6b7280; margin-left: auto; font-variant-numeric: tabular-nums; }
+
+  /* Slot-row Edit button. Desktop: small chip on the far right
+     (sits AFTER the pill). Mobile: full-width row that wraps below
+     the slot's label / device line. */
+  /* Slot Edit button — same size as the Comms / Radios "Edit"
+     button: px-4 py-2 (8/16), rounded-lg, text-sm, font-medium. */
+  .slot-edit-btn {
+    flex-shrink: 0;
+    margin-left: 10px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: transparent;
+    color: #e5e7eb;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 120ms, border-color 120ms, color 120ms;
+  }
+  .slot-edit-btn:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.04); }
+  .slot-edit-btn:active { background: #0178a3; border-color: #0178a3; color: #fff; }
+  @media (max-width: 639px) {
+    /* Mobile: keep slot on a single row so the height still matches
+       its RU (48px × ruSize). The Edit button just gets enough
+       padding to be a comfortable tap target — stacking it below
+       would overflow the RU height and break the rack's visual
+       1RU = 48px contract. Pill is hidden to give the button room. */
+    .slot:not(.editing) .pill { display: none; }
+    .slot-edit-btn { padding: 6px 14px; }
+  }
+
+  /* Inline editing — when a slot is in edit mode it expands to
+     reveal the form fields inside its own card. The first row
+     keeps the label / device / pill bar (height = original); the
+     form panel sits below within the same border-rounded card. */
+  .slot.editing {
+    border: none;
+    border-bottom: 1px solid rgba(34,167,211,0.5);
+    border-radius: 0;
+    cursor: default;
+    align-items: stretch;
+    flex-direction: column;
+    padding: 0;
+    background: transparent;
+  }
+  .slot.editing .slot-header {
+    display: flex; align-items: center; padding: 0 14px;
+    height: 48px; flex-shrink: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .slot.editing .slot-form {
+    padding: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .slot.editing .slot-form-row { display: flex; gap: 10px; }
+  .slot.editing .slot-form-row > * { flex: 1; }
+  .slot.editing .slot-form-actions {
+    display: flex; gap: 8px; justify-content: flex-end;
+    margin-top: 4px;
+  }
+  .slot.editing .slot-form-actions .btn-danger {
+    margin-right: auto;
+  }
+  .resize-handle {
+    position: absolute; left: 8px; right: 8px; bottom: -3px; height: 6px;
+    cursor: ns-resize; border-radius: 3px;
+    opacity: 0; transition: opacity 100ms;
+  }
+  .slot-wrapper:hover .resize-handle { opacity: 1; background: rgba(34,167,211,0.4); }
+  .empty-row {
+    height: 48px;
+    display: flex; align-items: center; justify-content: center;
+    color: #4b5563; font-size: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    transition: color 120ms, background-color 120ms, border-bottom-color 120ms;
+  }
+  .empty-row:hover { color: #22a7d3; background: rgba(34,167,211,0.04); border-bottom-color: rgba(34,167,211,0.4); cursor: pointer; }
+  .swatch { width: 8px; height: 8px; border-radius: 2px; margin-right: 8px; flex-shrink: 0; }
+
+  .library-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px;
+    font-size: 12px; color: #d1d5db;
+    cursor: pointer;
+    transition: border-color 120ms, background-color 120ms, color 120ms;
+  }
+  .library-item:hover { border-color: rgba(34,167,211,0.4); }
+  /* Armed (selected) library item — same cyan chip style as the
+     active picker chip in panel-studio. */
+  .library-item.armed {
+    background: #0178a3;
+    border-color: #0178a3;
+    color: #fff;
+  }
+  .library-item.armed .text-gray-500 { color: rgba(255,255,255,0.7); }
+
+  /* Draggable device items — disable browser-native long-press
+     callout/contextmenu, prevent text selection. touch-action: none
+     lets us own the gesture for drag instead of letting iOS handle
+     vertical scroll. */
+  .draggable-device {
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .draggable-device.dragging { opacity: 0.4; }
+
+  /* Ghost element that tracks the pointer during drag. */
+  .drag-ghost {
+    position: fixed;
+    z-index: 200;
+    pointer-events: none;
+    background: #0178a3;
+    color: #fff;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    white-space: nowrap;
+  }
+  /* Tiny RU pill on the ghost */
+  .drag-ghost .ghost-size {
+    margin-left: 8px;
+    font-size: 10px;
+    opacity: 0.85;
+    font-weight: 500;
+  }
+
+  /* Bottom sheet (mobile device library) — mirrors panel-studio's
+     mobile picker. Slides up from the bottom to a fixed height (~55%
+     of viewport). A drag handle bar at the top hints "you can drag
+     this". Tapping a library item simulates "drag started" — the
+     sheet retracts so the user can drop the item into the rack. */
+  .sheet-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0); /* no dim — the sheet sits over the rack but the rack stays interactive */
+    z-index: 60;
+    pointer-events: none; /* only the sheet itself catches taps */
+  }
+  .sheet-backdrop.open { pointer-events: auto; }
+  .sheet {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    height: 55vh; max-height: 480px;
+    background: #1a1a1a;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -20px 40px rgba(0,0,0,0.4);
+    transform: translateY(100%);
+    transition: transform 280ms cubic-bezier(0.32, 0.72, 0, 1);
+    z-index: 61;
+    pointer-events: auto;
+    display: flex; flex-direction: column;
+  }
+  .sheet-backdrop.open .sheet { transform: translateY(0); }
+  .sheet-grabber {
+    flex-shrink: 0; display: flex; justify-content: center;
+    padding: 10px 0 4px;
+    cursor: grab; touch-action: none;
+  }
+  .sheet-grabber-bar {
+    width: 36px; height: 4px; border-radius: 2px;
+    background: rgba(255,255,255,0.2);
+  }
+  .sheet-header { flex-shrink: 0; padding: 6px 16px 12px; display: flex; align-items: center; justify-content: space-between; }
+  .sheet-body { flex: 1; overflow-y: auto; padding: 0 16px 24px; }
+
+  /* Floating "Device library" pill / FAB (mobile only) */
+  .lib-fab {
+    position: fixed;
+    right: 16px;
+    bottom: calc(64px + 16px); /* clear the BottomNav */
+    z-index: 50;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 16px; border-radius: 9999px;
+    background: #0178a3; color: #fff;
+    font-size: 13px; font-weight: 600;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    cursor: pointer;
+    transition: background-color 120ms;
+  }
+  .lib-fab:hover { background: #019bc7; }
+
+  /* Modal */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    display: none; align-items: center; justify-content: center; z-index: 200; padding: 16px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: #1a1a1a; border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px; padding: 20px; width: 100%; max-width: 440px;
+  }
+  .input, .select {
+    width: 100%; background: #202020; border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px; padding: 8px 12px; color: #e5e7eb; font-size: 13px;
+  }
+  .input:focus, .select:focus { outline: none; border-color: rgba(34,167,211,0.5); }
+  .field-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; margin-bottom: 4px; font-weight: 600; }
+
+  /* Preview-doc chrome (NOT app chrome) */
+  .preview-doc-section-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: #6b7280; font-weight: 600; margin-bottom: 8px;
+  }
+
+  /* Auto-hide chrome — mobile top bar slides up, BottomNav slides
+     down. 180ms ease-out matches the real app's transition. */
+  #mobileTopBar { transition: transform 180ms ease-out; }
+  #bottomNav    { transition: transform 180ms ease-out; }
+  #mobileTopBar.hidden-chrome { transform: translateY(-100%); }
+  #bottomNav.hidden-chrome    { transform: translateY(100%); }
+
+  /* Notification dot for navbar bell */
+  .bell-badge {
+    position: absolute; top: -2px; right: -2px;
+    min-width: 18px; height: 18px; padding: 0 5px;
+    background: #ef4444; color: #fff;
+    border-radius: 9999px; ring: 2px solid #202020;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; line-height: 1;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═════════════════════════════════════════════════════════════════ -->
+<!-- DESKTOP MOCKUP — exact app chrome                                  -->
+<!-- ═════════════════════════════════════════════════════════════════ -->
+
+<!-- Desktop navbar (sm+ only — mirrors AppShell when NEW_BOTTOM_NAV is on) -->
+<nav class="sticky top-0 z-40 bg-[#202020] border-b border-white/[0.04] hidden sm:block">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div class="flex h-16 justify-between items-center">
+      <!-- Left: logo + nav items -->
+      <div class="flex items-center">
+        <div class="flex items-center gap-2 mr-6">
+          <div class="h-8 w-8 rounded-md bg-gradient-to-br from-[#0178a3] to-[#22a7d3] flex items-center justify-center">
+            <svg class="w-4 h-4 text-white" viewBox="0 0 20 20" fill="currentColor"><path d="M10 1L2 5v6c0 5 8 8 8 8s8-3 8-8V5l-8-4z"/></svg>
+          </div>
+          <div class="font-bold text-white tracking-wide">CLAIR</div>
+        </div>
+        <div class="flex items-center space-x-1">
+          <a class="nav-item">Dashboard</a>
+          <a class="nav-item">Tasks <span class="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">3</span></a>
+          <a class="nav-item">Projects</a>
+          <a class="nav-item current">Comms</a>
+          <a class="nav-item">Radios</a>
+          <a class="nav-item">My Equipment</a>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="icon-btn" aria-label="Scan">
+          <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path d="M3 4h4M3 4v4M21 4h-4M21 4v4M3 20h4M3 20v-4M21 20h-4M21 20v-4M7 8h10v8H7z"/></svg>
+        </button>
+        <button class="icon-btn" aria-label="Join QR">
+          <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path d="M3 4h6v6H3zM15 4h6v6h-6zM3 14h6v6H3zM15 14h2v2h-2zM19 14h2v2h-2zM15 18h2v2h-2zM19 18h2v2h-2z"/></svg>
+        </button>
+        <button class="icon-btn" aria-label="Kiosk">
+          <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><rect x="3" y="4" width="18" height="12" rx="1"/><path d="M8 20h8M12 16v4"/></svg>
+        </button>
+        <button class="icon-btn relative" aria-label="Notifications">
+          <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+          <span class="bell-badge">2</span>
+        </button>
+        <button class="ml-1 size-9 rounded-full bg-[#0178a3] text-sm font-semibold text-white outline outline-1 outline-white/10">TC</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- Mobile slim top bar (sm:hidden — matches AppShell when NEW_BOTTOM_NAV is on).
+     Just brand + avatar, the rest moves to BottomNav at the bottom.
+     Auto-hides on scroll-down via the same snap pattern the real app
+     uses (translateY + 180ms ease-out). -->
+<nav id="mobileTopBar" class="sticky top-0 z-40 bg-[#202020] border-b border-white/[0.04] sm:hidden">
+  <div class="flex h-14 items-center justify-between px-4">
+    <div class="flex items-center gap-2">
+      <div class="h-7 w-7 rounded-md bg-gradient-to-br from-[#0178a3] to-[#22a7d3] flex items-center justify-center">
+        <svg class="w-3.5 h-3.5 text-white" viewBox="0 0 20 20" fill="currentColor"><path d="M10 1L2 5v6c0 5 8 8 8 8s8-3 8-8V5l-8-4z"/></svg>
+      </div>
+      <div class="text-sm font-bold text-white tracking-wide">CLAIR</div>
+    </div>
+    <button class="size-8 rounded-full bg-[#0178a3] text-xs font-semibold text-white outline outline-1 outline-white/10">TC</button>
+  </div>
+</nav>
+
+<!-- Page content area (PageLayout shape) -->
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-5 pb-28 sm:pb-5">
+
+  <!-- PageHeader: title + actions all on one row at every viewport.
+       Mobile: title is smaller (text-2xl), project switcher shrinks
+       to half the viewport width. Desktop: 3xl title, 280px switcher. -->
+  <header id="autoHideHeader" class="flex flex-row items-center justify-between gap-2 border-b border-white/20 pb-4">
+    <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-white shrink-0">Comms</h1>
+    <div class="flex items-center justify-end gap-2 min-w-0">
+      <!-- Per-tab Add (+) button. On the Racks tab this opens the
+           "Create rack" form. -->
+      <button
+        aria-label="Add rack"
+        title="Add rack"
+        onclick="openModal('Create rack')"
+        class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#0178a3] text-white transition-colors hover:bg-[#019bc7]">
+        <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
+      </button>
+      <!-- ProjectSwitcher — mobile: shrinks via flex; desktop: 280px. -->
+      <div class="min-w-0 flex-1 sm:flex-initial sm:w-[280px]">
+        <div class="dropdown-trigger closed">
+          <span class="truncate">2026 WWE</span>
+          <svg class="size-4 shrink-0 text-gray-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Toolbar — Racks layout.
+       Desktop: single row, view controls left (rack picker + front/rear), tab dropdown + search right.
+       Mobile:  stacks into TWO rows — top row = tab dropdown (flex-1) + search icon (matches Radios/Comms),
+                bottom row = rack picker (flex-1) + front/rear (smaller). -->
+  <div class="py-4 space-y-3 sm:space-y-0">
+
+    <!-- Top row: rack picker + front/rear (DESKTOP) — wrapped together so they sit left.
+         On mobile this row is REORDERED below (sm:order-1 puts the tab/search row first). -->
+    <div class="flex items-center gap-2 sm:gap-3 order-2 sm:order-1">
+      <div class="flex-1 sm:w-[180px] sm:flex-initial">
+        <div class="dropdown-trigger closed">
+          <span class="truncate">FOH Rack</span>
+          <svg class="size-4 shrink-0 text-gray-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
+        </div>
+      </div>
+      <div class="w-[140px] shrink-0">
+        <div class="dropdown-trigger closed" onclick="toggleSideDropdown()">
+          <span id="sideDropdownLabel">Front</span>
+          <svg class="size-4 text-gray-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
+        </div>
+        <div id="sidePopover" class="dropdown-popover absolute z-30 w-[140px] hidden">
+          <button class="dropdown-item active" onclick="switchSide('front')"><span>Front</span></button>
+          <button class="dropdown-item" onclick="switchSide('rear')"><span>Rear</span></button>
+        </div>
+      </div>
+      <!-- Desktop-only spacer pushes the next group right -->
+      <div class="hidden sm:block flex-1"></div>
+      <!-- Desktop tab dropdown + search inline -->
+      <div class="hidden sm:flex items-center gap-3">
+        <div class="w-[280px]">
+          <div class="dropdown-trigger open" onclick="document.getElementById('tabPopover').classList.toggle('hidden')">
+            <span>Racks</span>
+            <svg class="size-4 text-gray-400 rotate-180" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
+          </div>
+          <div id="tabPopover" class="dropdown-popover absolute z-30 w-[280px]">
+            <button class="dropdown-item"><span>Equipment</span><span class="count">42</span></button>
+            <button class="dropdown-item"><span>Team</span><span class="count">18</span></button>
+            <button class="dropdown-item"><span>Pick List</span><span class="count">24</span></button>
+            <button class="dropdown-item"><span>Plots</span><span class="count">3</span></button>
+            <button class="dropdown-item active"><span>Racks</span><span class="count">3</span></button>
+          </div>
+        </div>
+        <button type="button" aria-label="Search"
+          class="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white">
+          <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.343-4.343m0 0A8 8 0 1 0 5.343 5.343a8 8 0 0 0 11.314 11.314Z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile-only tab dropdown + search row (sits ABOVE the view controls). -->
+    <div class="flex sm:hidden items-center gap-2 order-1 sm:order-2">
+      <div class="flex-1 min-w-0">
+        <div class="dropdown-trigger closed" onclick="document.getElementById('tabPopoverMobile').classList.toggle('hidden')">
+          <span>Racks</span>
+          <svg class="size-4 text-gray-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
+        </div>
+        <div id="tabPopoverMobile" class="dropdown-popover absolute z-30 left-4 right-4 hidden">
+          <button class="dropdown-item"><span>Equipment</span><span class="count">42</span></button>
+          <button class="dropdown-item"><span>Team</span><span class="count">18</span></button>
+          <button class="dropdown-item"><span>Pick List</span><span class="count">24</span></button>
+          <button class="dropdown-item"><span>Plots</span><span class="count">3</span></button>
+          <button class="dropdown-item active"><span>Racks</span><span class="count">3</span></button>
+        </div>
+      </div>
+      <button type="button" aria-label="Search"
+        class="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white">
+        <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.343-4.343m0 0A8 8 0 1 0 5.343 5.343a8 8 0 0 0 11.314 11.314Z"/></svg>
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Stats line — same style as Radios "X of Y assigned" -->
+  <div class="text-xs text-gray-500 mb-4">
+    <span class="text-gray-300">FOH Rack</span>
+    &middot; 17RU
+    &middot; <span id="sideLabel">Front view</span>
+    &middot; <span id="usedCount">11</span> of 17 RUs used
+  </div>
+
+  <!-- The Racks page content: rack visualization + device library -->
+  <div class="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 lg:items-stretch lg:max-h-[calc(100vh-220px)]">
+
+    <!-- Left column: loose tray on top, scrollable rack below. -->
+    <div class="lg:flex lg:flex-col lg:min-h-0">
+      <!-- Loose gear tray. Sits ABOVE the rack — small devices that
+           are tagged to this rack but don't occupy an RU. No border /
+           background — reads as a quiet meta strip. -->
+      <div id="looseTray" class="mb-3 flex-shrink-0">
+        <div class="flex items-center gap-2 mb-1.5">
+          <div class="text-[10px] uppercase tracking-wider text-gray-500">Loose gear · no RU</div>
+          <div class="text-[10px] text-gray-600">velcro / drawer</div>
+        </div>
+        <div id="looseTrayList" class="flex flex-wrap gap-2"></div>
+      </div>
+
+      <!-- Rack — bordered, scrolls inside its column (desktop + mobile)
+           so a tall rack doesn't push the device library off the bottom.
+           Border wraps the whole RU column to read as a physical chassis.
+           Fixed max-height for the scrollable region. -->
+      <div class="relative lg:flex-1 lg:min-h-0 overflow-y-auto rounded-lg border border-white/15 p-2 max-h-[calc(100vh-300px)]">
+        <div id="rackView" class="relative"></div>
+      </div>
+    </div>
+
+    <!-- Device library — visible inline on desktop only. On mobile it
+         hides; a bottom-sheet (see below) takes over.
+         HOVER any item to preview the drop on the rack (cyan outline
+         shows the N RUs the device will occupy at the next free
+         position). Click an empty row first to set the target, then
+         click a library item to place it there. -->
+    <aside id="desktopLibrary" class="hidden lg:flex lg:flex-col lg:max-h-[640px]">
+      <div class="text-[10px] uppercase tracking-wider text-gray-500 mb-2 flex-shrink-0">Device library</div>
+      <!-- + Custom device button — sits at the top of the column so
+           it's always reachable (doesn't get pushed off-screen when
+           the device list scrolls). Same size + styling as the
+           Comms "Edit" button (px-4 py-2, rounded-lg, border-white/10
+           text-gray-200, font-medium). -->
+      <button class="btn btn-ghost w-full mb-2 flex-shrink-0">+ Custom device</button>
+      <!-- Category filter dropdown — same chrome as the rack picker /
+           tab dropdown so the page reads consistently. -->
+      <div class="flex-shrink-0 mb-3 relative">
+        <div id="libraryFilterTrigger" class="dropdown-trigger closed" onclick="toggleFilterDropdown()">
+          <span id="libraryFilterLabel">All devices</span>
+          <svg class="size-4 text-gray-400" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 8 10 13 15 8" /></svg>
+        </div>
+        <div id="libraryFilterPopover" class="dropdown-popover absolute z-30 left-0 right-0 hidden"></div>
+      </div>
+      <!-- Scrollable list. -->
+      <div id="desktopLibraryList" class="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1"></div>
+    </aside>
+
+  </div>
+
+
+</div>
+
+<!-- Mobile bottom sheet — device library. Opens ONLY when the user
+     taps an empty RU row (click-to-add flow). Tapping a device
+     places it at that row. Drag-and-drop (desktop) shows a RU
+     preview on the rack as the user drags — see desktop library
+     aside for that interaction. -->
+<!-- Mobile bottom sheet -->
+<!-- (FAB removed — sheet only opens via tap-to-add on an empty row) -->
+<div id="sheetBackdrop" class="sheet-backdrop lg:hidden">
+  <div class="sheet" id="sheet">
+    <!-- Drag grabber bar at top -->
+    <div class="sheet-grabber" onclick="closeSheet()">
+      <div class="sheet-grabber-bar"></div>
+    </div>
+    <div class="sheet-header">
+      <div>
+        <div class="text-base font-semibold text-white">Device library</div>
+        <div class="text-[11px] text-gray-500 mt-0.5">Long-press an item to drag it into the rack.</div>
+      </div>
+      <button onclick="closeSheet()" class="text-gray-500 hover:text-gray-300 text-2xl leading-none">&times;</button>
+    </div>
+    <!-- Fixed search input — sits above the scrolling list and stays
+         put as the user scrolls through devices. Doesn't shrink with
+         scroll, doesn't auto-hide. -->
+    <div class="flex-shrink-0 px-4 pb-3">
+      <div class="relative">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.343-4.343m0 0A8 8 0 1 0 5.343 5.343a8 8 0 0 0 11.314 11.314Z"/></svg>
+        <input type="text" placeholder="Search devices…"
+          class="w-full rounded-lg border-2 border-white/10 bg-[#202020] py-2 pl-9 pr-3 text-sm text-gray-200 placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]" />
+      </div>
+    </div>
+    <div class="sheet-body">
+      <div id="sheetLibraryList" class="space-y-3"><!-- populated by JS --></div>
+      <button class="btn btn-ghost w-full mt-3 text-[11px]">+ Custom device</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile BottomNav (sm:hidden — mirrors the real BottomNav).
+     Auto-hides on scroll-down. -->
+<nav id="bottomNav" class="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 bg-[#1a1a1a] pb-6 pt-5 sm:hidden border-t border-white/[0.04]">
+  <a class="relative flex items-center justify-center text-gray-400">
+    <svg class="size-6" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/></svg>
+  </a>
+  <a class="relative flex items-center justify-center text-[#22a7d3]">
+    <svg class="size-6" fill="currentColor" viewBox="0 0 24 24"><path d="M11.625 16.5a1.875 1.875 0 1 0 0-3.75 1.875 1.875 0 0 0 0 3.75Z"/><path fill-rule="evenodd" d="M5.625 1.5H9a3.75 3.75 0 0 1 3.75 3.75v1.875c0 1.036.84 1.875 1.875 1.875H16.5a3.75 3.75 0 0 1 3.75 3.75v7.875c0 1.035-.84 1.875-1.875 1.875H5.625a1.875 1.875 0 0 1-1.875-1.875V3.375c0-1.036.84-1.875 1.875-1.875Zm6 16.5c.66 0 1.277-.19 1.797-.518l1.048 1.048a.75.75 0 0 0 1.06-1.06l-1.047-1.048A3.375 3.375 0 1 0 11.625 18Z" clip-rule="evenodd"/><path d="M14.25 5.25a5.23 5.23 0 0 0-1.279-3.434 9.768 9.768 0 0 1 6.963 6.963A5.23 5.23 0 0 0 16.5 7.5h-1.875a.375.375 0 0 1-.375-.375V5.25Z"/></svg>
+  </a>
+  <a class="relative flex items-center justify-center text-gray-400">
+    <svg class="size-6" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"/></svg>
+    <span class="absolute right-[calc(50%-18px)] top-0 inline-flex min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">2</span>
+  </a>
+  <a class="relative flex items-center justify-center text-gray-400">
+    <svg class="size-6" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+  </a>
+</nav>
+
+<!-- Edit slot modal -->
+<div id="modalBackdrop" class="modal-backdrop">
+  <div class="modal">
+    <div class="flex items-center justify-between mb-4">
+      <h3 id="modalTitle" class="text-lg font-bold text-white">Edit slot</h3>
+      <button onclick="closeModal()" class="text-gray-500 hover:text-gray-300 text-2xl leading-none">&times;</button>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <div class="field-label">Device type</div>
+        <select class="select">
+          <option>Artist-64 Frame</option>
+          <option>Artist-32 Frame</option>
+          <option>Antaira Switch</option>
+          <option>Bolero Antenna Master</option>
+          <option>Patchbay</option>
+          <option>Power Conditioner</option>
+          <option>UPS</option>
+          <option>Blank panel</option>
+          <option>Custom…</option>
+        </select>
+      </div>
+      <div>
+        <div class="field-label">Label</div>
+        <input class="input" value="Artist-64 Frame A" />
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <div class="field-label">Start RU</div>
+          <input class="input" value="7" />
+        </div>
+        <div>
+          <div class="field-label">RU size</div>
+          <input class="input" value="4" />
+        </div>
+      </div>
+      <div>
+        <div class="field-label">Link to equipment <span class="normal-case text-gray-600 ml-1">(optional)</span></div>
+        <select class="select">
+          <option>(unlinked — free-form label)</option>
+          <option>SW 1 · Antaira LNX-1602G</option>
+          <option>SW 2 · Antaira LNX-1602G</option>
+          <option>FRM 1 · Artist-64</option>
+        </select>
+      </div>
+    </div>
+    <div class="flex items-center justify-between mt-5">
+      <button class="btn btn-danger">Delete</button>
+      <div class="flex gap-2">
+        <button onclick="closeModal()" class="btn btn-ghost">Cancel</button>
+        <button onclick="closeModal()" class="btn btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Demo rack — 17RU (a real touring rack size). RU_PX matches the
+  // ~38px button / dropdown height so 1RU lines up visually with the
+  // controls above it.
+  const TOTAL_RU = 17
+  const RU_PX = 48
+
+  const slots = {
+    front: [
+      { id: 1, ruPosition: 1,  ruSize: 1, deviceType: 'Switch · 40P+4F',     label: 'SW 1',          color: '#0178a3' },
+      { id: 2, ruPosition: 2,  ruSize: 1, deviceType: 'Switch · 40P+4F',     label: 'SW 2',          color: '#0178a3' },
+      { id: 3, ruPosition: 3,  ruSize: 1, deviceType: 'Meinberg PTP',        label: 'PTP — Master',  color: '#0178a3' },
+      { id: 4, ruPosition: 5,  ruSize: 1, deviceType: 'Patchbay',            label: 'PB 1 — Audio',  color: '#0178a3' },
+      { id: 5, ruPosition: 7,  ruSize: 3, deviceType: 'Artist-64 Frame',     label: 'Artist-64 A',   color: '#0178a3' },
+      { id: 6, ruPosition: 10, ruSize: 3, deviceType: 'Artist-64 Frame',     label: 'Artist-64 B',   color: '#0178a3' },
+      { id: 7, ruPosition: 17, ruSize: 1, deviceType: 'UPS',                 label: 'UPS — APC',     color: '#0178a3' },
+    ],
+    rear: [
+      { id: 100, ruPosition: 17, ruSize: 1, deviceType: 'Power Conditioner', label: 'Furman PL-Plus C', color: '#0178a3' },
+    ],
+  }
+  let currentSide = 'front'
+
+  let editingSlotId = null
+  const EDIT_EXTRA_PX = 320
+
+  function renderRack() {
+    const container = document.getElementById('rackView')
+    container.innerHTML = ''
+    const sideSlots = slots[currentSide]
+    const occupied = new Set()
+    for (const s of sideSlots) for (let i = 0; i < s.ruSize; i++) occupied.add(s.ruPosition + i)
+
+    // If a slot is being edited, push subsequent rows / slots down by
+    // EDIT_EXTRA_PX so the inline form has room to breathe.
+    const editing = sideSlots.find((s) => s.id === editingSlotId)
+    function offsetFor(ru) {
+      if (editing && ru > editing.ruPosition + editing.ruSize - 1) return EDIT_EXTRA_PX
+      return 0
+    }
+    container.style.height = `${TOTAL_RU * RU_PX + 8 + (editing ? EDIT_EXTRA_PX : 0)}px`
+
+    for (let ru = 1; ru <= TOTAL_RU; ru++) {
+      const row = document.createElement('div')
+      row.className = 'ru-row flex items-center'
+      row.style.position = 'absolute'
+      row.style.top = `${(ru - 1) * RU_PX + 4 + offsetFor(ru)}px`
+      row.style.left = '0'
+      row.style.right = '0'
+      row.style.zIndex = '0'
+      row.style.transition = 'top 180ms ease-out'
+
+      const num = document.createElement('div')
+      num.className = 'ru-num'
+      num.textContent = ru
+      row.appendChild(num)
+
+      const fillArea = document.createElement('div')
+      fillArea.className = 'flex-1'
+      if (!occupied.has(ru)) {
+        const empty = document.createElement('div')
+        empty.className = 'empty-row'
+        empty.textContent = 'click drag and drop here'
+        empty.onclick = () => beginAddAtRu(ru)
+        fillArea.appendChild(empty)
+      }
+      row.appendChild(fillArea)
+      container.appendChild(row)
+    }
+
+    for (const s of sideSlots) {
+      const isEditing = s.id === editingSlotId
+      const wrap = document.createElement('div')
+      wrap.className = 'slot-wrapper'
+      wrap.style.position = 'absolute'
+      wrap.style.top = `${(s.ruPosition - 1) * RU_PX + 4 + offsetFor(s.ruPosition)}px`
+      wrap.style.left = '40px'
+      wrap.style.right = '0'
+      wrap.style.height = isEditing
+        ? `${s.ruSize * RU_PX - 2 + EDIT_EXTRA_PX}px`
+        : `${s.ruSize * RU_PX - 2}px`
+      wrap.style.zIndex = isEditing ? '10' : '1'
+      wrap.style.transition = 'top 180ms ease-out, height 180ms ease-out'
+
+      const slot = document.createElement('div')
+      slot.className = 'slot relative w-full h-full draggable-slot' + (isEditing ? ' editing' : '')
+      slot.dataset.slotId = String(s.id)
+      if (isEditing) {
+        // Inline edit form — replaces the modal. The slot card grows
+        // to fit the form fields; subsequent slots / RU rows are
+        // already pushed down via offsetFor().
+        const deviceOptions = Object.keys(LIBRARY).filter((k) => !LIBRARY[k].loose)
+          .map((k) => `<option ${k === s.deviceType ? 'selected' : ''}>${k}</option>`).join('')
+        slot.innerHTML = `
+          <div class="slot-header">
+            <span class="drag-handle">⋮⋮</span>
+            <span class="font-semibold text-white">${s.label}</span>
+            <span class="text-gray-600 mx-2">·</span>
+            <span class="text-[11px] text-gray-500">${s.deviceType}</span>
+            <span class="pill">${s.ruSize}U · RU ${s.ruPosition}-${s.ruPosition + s.ruSize - 1}</span>
+          </div>
+          <div class="slot-form">
+            <div>
+              <div class="field-label">Device type</div>
+              <select class="select" data-edit="device">${deviceOptions}</select>
+            </div>
+            <div>
+              <div class="field-label">Label</div>
+              <input class="input" data-edit="label" value="${s.label.replace(/"/g, '&quot;')}" />
+            </div>
+            <div class="slot-form-row">
+              <div>
+                <div class="field-label">Start RU</div>
+                <input class="input" data-edit="ruPos" type="number" min="1" max="${TOTAL_RU}" value="${s.ruPosition}" />
+              </div>
+              <div>
+                <div class="field-label">RU size</div>
+                <input class="input" data-edit="ruSize" type="number" min="1" max="${TOTAL_RU}" value="${s.ruSize}" />
+              </div>
+            </div>
+            <div>
+              <div class="field-label">Link to equipment <span class="normal-case text-gray-600 ml-1">(optional)</span></div>
+              <select class="select" data-edit="link">
+                <option>(unlinked — free-form label)</option>
+                <option>SW 1 · Antaira LNX-1602G</option>
+                <option>SW 2 · Antaira LNX-1602G</option>
+                <option>FRM 1 · Artist-64</option>
+              </select>
+            </div>
+            <div class="slot-form-actions">
+              <button class="btn btn-danger" data-edit-action="delete">Delete</button>
+              <button class="btn btn-ghost" data-edit-action="cancel">Cancel</button>
+              <button class="btn btn-primary" data-edit-action="save">Save</button>
+            </div>
+          </div>
+        `
+        slot.querySelector('[data-edit-action="cancel"]').onclick = () => { editingSlotId = null; renderRack() }
+        slot.querySelector('[data-edit-action="save"]').onclick = () => {
+          const dev = slot.querySelector('[data-edit="device"]').value
+          const lab = slot.querySelector('[data-edit="label"]').value
+          const ruP = parseInt(slot.querySelector('[data-edit="ruPos"]').value, 10)
+          const ruS = parseInt(slot.querySelector('[data-edit="ruSize"]').value, 10)
+          s.deviceType = dev
+          s.label = lab
+          if (Number.isFinite(ruP) && ruP >= 1) s.ruPosition = ruP
+          if (Number.isFinite(ruS) && ruS >= 1) s.ruSize = ruS
+          editingSlotId = null
+          renderRack()
+        }
+        slot.querySelector('[data-edit-action="delete"]').onclick = () => {
+          const idx = slots[currentSide].findIndex((x) => x.id === s.id)
+          if (idx >= 0) slots[currentSide].splice(idx, 1)
+          editingSlotId = null
+          renderRack()
+        }
+      } else {
+        // Non-editing slot. Layout:
+        //   Desktop: [⋮⋮ label · device pill] [Edit btn] — single row
+        //   Mobile:  [⋮⋮ label · device pill]
+        //            [    Edit btn full-width    ]
+        // The .slot CSS flips to flex-col below sm: so the button
+        // stacks below. Drag (long-press anywhere on the slot row)
+        // still works — the Edit button has its own click handler
+        // separate from the slot drag.
+        slot.innerHTML = `
+          <span class="drag-handle">⋮⋮</span>
+          <span>${s.label}</span>
+          <span class="text-gray-600 mx-2">·</span>
+          <span class="text-[11px] text-gray-500">${s.deviceType}</span>
+          <span class="pill">${s.ruSize}U · RU ${s.ruPosition}-${s.ruPosition + s.ruSize - 1}</span>
+          <button class="slot-edit-btn" type="button">Edit</button>
+        `
+        // Edit button click — opens the inline edit form.
+        slot.querySelector('.slot-edit-btn').addEventListener('click', (e) => {
+          e.stopPropagation()
+          editingSlotId = s.id
+          renderRack()
+        })
+        // Drag from the row (NOT the button) still moves the slot.
+        slot.addEventListener('pointerdown', (e) => {
+          if (e.target.closest('.slot-edit-btn')) return
+          onSlotDown(e, slot, s.id)
+        })
+        const handle = document.createElement('div'); handle.className = 'resize-handle'; wrap.appendChild(handle)
+      }
+      wrap.appendChild(slot)
+      container.appendChild(wrap)
+    }
+
+    // Sum RUs occupied across all slots on this side (sum of ruSize values).
+    document.getElementById('usedCount').textContent =
+      sideSlots.reduce((acc, s) => acc + s.ruSize, 0)
+    document.getElementById('sideLabel').textContent = currentSide === 'front' ? 'Front view' : 'Rear view'
+  }
+  function switchSide(s) {
+    currentSide = s
+    document.getElementById('sideDropdownLabel').textContent = s === 'front' ? 'Front' : 'Rear'
+    const items = document.querySelectorAll('#sidePopover .dropdown-item')
+    items.forEach((it, i) => it.classList.toggle('active', (s === 'front' && i === 0) || (s === 'rear' && i === 1)))
+    document.getElementById('sidePopover').classList.add('hidden')
+    renderRack()
+  }
+  function toggleSideDropdown() {
+    document.getElementById('sidePopover').classList.toggle('hidden')
+  }
+  function openModal(t) { document.getElementById('modalTitle').textContent = t; document.getElementById('modalBackdrop').classList.add('open') }
+  function closeModal() { document.getElementById('modalBackdrop').classList.remove('open') }
+
+  // Click-to-add flow:
+  //   1. User taps an empty RU row → beginAddAtRu(ru)
+  //   2. Sheet (library) opens, remembering that RU as the target
+  //   3. User taps a device in the sheet → placeAtRu(device)
+  //   4. Sheet closes, the rack flashes a preview of the N RUs the
+  //      device will occupy at that target, then the slot is added.
+  // Drag-and-drop flow (desktop): grabbing a library item starts a
+  // drag; as the pointer moves over the rack we render the same
+  // preview overlay at whatever RU the pointer is on, sized to the
+  // device's RU height — see previewDropAt().
+  // Section grouping for the library list. `key` is used by the
+  // filter chips to scope the visible items.
+  const LIBRARY_SECTIONS = [
+    { key: 'devices',  label: 'Devices',                         short: 'Devices',  items: ['Artist-128 Frame', 'Artist-64 Frame', 'Artist-32 Frame', 'Artist-1024 Frame', 'RTS-ODIN', 'RTS-OMS', 'IMF 102', 'ST Model 46', 'ST Model 47', 'Brainstorm', 'Meinberg PTP'] },
+    { key: 'switches', label: 'Switches · 1U each',              short: 'Switches', items: ['Switch · 26P+4F', 'Switch · 40P+4F', 'Switch · 24X8F8V', 'Switch · 16F', 'Switch · 9P+1F', 'Pliant Copper Hub', 'Pliant Fiber Hub', 'Media Switch'] },
+    { key: 'audio',    label: 'Audio',                           short: 'Audio',    items: ['Dark88', 'A16R'] },
+    { key: 'drawers',  label: 'Drawers',                         short: 'Drawers',  items: ['Drawer · 1U', 'Drawer · 2U', 'Drawer · 3U', 'Drawer · 4U'] },
+    { key: 'power',    label: 'Power + filler',                  short: 'Power',    items: ['UPS', 'Power Conditioner', 'Patchbay', 'Blank panel'] },
+    { key: 'loose',    label: 'Loose gear · velcro / drawer',    short: 'Loose',    items: ['Antaira', 'Intellanet (Old)', 'Intellanet (New)', 'TP Link', 'Netgate', 'Bolero Antenna Master'] },
+  ]
+
+  let activeFilter = 'all'
+
+  function filterLabelFor(key) {
+    if (key === 'all') return 'All devices'
+    const section = LIBRARY_SECTIONS.find((s) => s.key === key)
+    return section ? section.label : 'All devices'
+  }
+
+  function renderFilters() {
+    const pop = document.getElementById('libraryFilterPopover')
+    const label = document.getElementById('libraryFilterLabel')
+    if (!pop || !label) return
+    label.textContent = filterLabelFor(activeFilter)
+    pop.innerHTML = ''
+    const items = [{ key: 'all', label: 'All devices' }, ...LIBRARY_SECTIONS.map((s) => ({ key: s.key, label: s.label }))]
+    for (const it of items) {
+      const b = document.createElement('button')
+      b.className = 'dropdown-item' + (it.key === activeFilter ? ' active' : '')
+      b.innerHTML = `<span>${it.label}</span>`
+      b.onclick = () => {
+        activeFilter = it.key
+        pop.classList.add('hidden')
+        renderFilters()
+        renderLibrary('desktopLibraryList')
+      }
+      pop.appendChild(b)
+    }
+  }
+  function toggleFilterDropdown() {
+    document.getElementById('libraryFilterPopover').classList.toggle('hidden')
+  }
+
+  function renderLibrary(containerId) {
+    const c = document.getElementById(containerId)
+    if (!c) return
+    c.innerHTML = ''
+    const sectionsToRender = activeFilter === 'all' || containerId !== 'desktopLibraryList'
+      ? LIBRARY_SECTIONS
+      : LIBRARY_SECTIONS.filter((s) => s.key === activeFilter)
+    // When filtering to a single section, hide its header (the chip
+    // already labels what's being shown).
+    const showHeaders = sectionsToRender.length !== 1 || containerId !== 'desktopLibraryList'
+    for (const section of sectionsToRender) {
+      const sectionEl = document.createElement('div')
+      if (showHeaders) {
+        const header = document.createElement('div')
+        header.className = 'text-[10px] uppercase tracking-wider text-gray-600 font-semibold mb-1.5 px-1'
+        header.textContent = section.label
+        sectionEl.appendChild(header)
+      }
+      const list = document.createElement('div')
+      list.className = 'space-y-1.5'
+      for (const name of section.items) {
+        const def = LIBRARY[name]
+        if (!def) continue
+        const row = document.createElement('div')
+        row.className = 'library-item draggable-device'
+        row.dataset.device = name
+        const tag = def.loose ? '—' : `${def.size}U`
+        row.innerHTML = `<span class="truncate">${name}</span><span class="ml-auto shrink-0 text-[10px] text-gray-500">${tag}</span>`
+        list.appendChild(row)
+      }
+      sectionEl.appendChild(list)
+      c.appendChild(sectionEl)
+    }
+    c.querySelectorAll('.draggable-device').forEach(bindDeviceDrag)
+  }
+
+  // Loose gear currently attached to the active rack (front + rear
+  // share — small gear isn't side-specific).
+  const looseGear = [
+    { id: 1001, deviceType: 'Antaira' },
+    { id: 1002, deviceType: 'TP Link' },
+  ]
+  function renderLooseTray() {
+    const list = document.getElementById('looseTrayList')
+    if (!list) return
+    list.innerHTML = ''
+    if (looseGear.length === 0) {
+      const empty = document.createElement('div')
+      empty.className = 'text-[11px] text-gray-600 px-1 py-1'
+      empty.textContent = 'No loose gear assigned to this rack yet.'
+      list.appendChild(empty)
+      return
+    }
+    for (const g of looseGear) {
+      const chip = document.createElement('div')
+      chip.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#2a2a2a] border border-white/10 text-xs text-gray-200'
+      chip.innerHTML = `<span>${g.deviceType}</span><button class="text-gray-500 hover:text-red-400 text-sm leading-none" title="Remove">&times;</button>`
+      chip.querySelector('button').onclick = () => {
+        const idx = looseGear.findIndex((x) => x.id === g.id)
+        if (idx >= 0) looseGear.splice(idx, 1)
+        renderLooseTray()
+      }
+      list.appendChild(chip)
+    }
+  }
+
+  let pendingRu = null
+  function beginAddAtRu(ru) {
+    pendingRu = ru
+    document.getElementById('sheetBackdrop').classList.add('open')
+  }
+  function closeSheet() {
+    document.getElementById('sheetBackdrop').classList.remove('open')
+    pendingRu = null
+  }
+  // Library devices that the sheet items map to. `size` = RU height
+  // when rack-mounted; `loose: true` means the device doesn't take
+  // an RU slot — gets velcro'd to free space inside the rack or
+  // tossed in a drawer. Loose gear drops onto a separate "Loose
+  // gear" zone below the rack, not on a specific RU row.
+  const LIBRARY = {
+    // ── Comms frames ──
+    'Artist-128 Frame':        { size: 6 },
+    'Artist-64 Frame':         { size: 3 },
+    'Artist-32 Frame':         { size: 2 },
+    'Artist-1024 Frame':       { size: 2 },
+    'RTS-ODIN':                { size: 1 },
+    'RTS-OMS':                 { size: 1 },
+    'IMF 102':                 { size: 1 },
+    'ST Model 46':             { size: 1 },
+    'ST Model 47':             { size: 1 },
+    'Brainstorm':              { size: 1 },
+    'Meinberg PTP':            { size: 1 },
+    // ── Managed switches (1RU each) ──
+    'Switch · 26P+4F':         { size: 1 },
+    'Switch · 40P+4F':         { size: 1 },
+    'Switch · 24X8F8V':        { size: 1 },
+    'Switch · 16F':            { size: 1 },
+    'Switch · 9P+1F':          { size: 1 },
+    'Pliant Copper Hub':       { size: 1 },
+    'Pliant Fiber Hub':        { size: 1 },
+    'Media Switch':            { size: 1 },
+    // ── Audio ──
+    'Dark88':                  { size: 1 },
+    'A16R':                    { size: 1 },
+    // ── Drawers ──
+    'Drawer · 1U':             { size: 1 },
+    'Drawer · 2U':             { size: 2 },
+    'Drawer · 3U':             { size: 3 },
+    'Drawer · 4U':             { size: 4 },
+    // ── Power + filler ──
+    'UPS':                     { size: 1 },
+    'Power Conditioner':       { size: 1 },
+    'Patchbay':                { size: 1 },
+    'Blank panel':             { size: 1 },
+    // ── Loose gear (velcro/drawer — no RU) ──
+    'Antaira':                 { loose: true },
+    'Intellanet (Old)':        { loose: true },
+    'Intellanet (New)':        { loose: true },
+    'TP Link':                 { loose: true },
+    'Netgate':                 { loose: true },
+    'Bolero Antenna Master':   { loose: true },
+  }
+  // Triggered when a user taps a library item in the sheet.
+  function pickFromLibrary(deviceType) {
+    const ru = pendingRu
+    closeSheet()
+    if (ru == null) return
+    const def = LIBRARY[deviceType]
+    if (!def) return
+    // Show the drop-preview overlay for ~700ms, then commit.
+    previewDropAt(ru, def.size, () => {
+      slots[currentSide].push({
+        id: Date.now(),
+        ruPosition: ru,
+        ruSize: def.size,
+        deviceType,
+        label: deviceType,
+        color: def.color,
+      })
+      renderRack()
+    })
+  }
+  // Visual drop preview — cyan-outlined band that covers `size` RU
+  // rows starting at `ru`. In the real implementation this fires
+  // continuously as the user drags, repositioning to track the
+  // pointer. Here it shows for ~700ms before the slot commits, OR
+  // persists while the user hovers a library item (then is cleared
+  // by clearPreview).
+  function placePreview(ru, size) {
+    const rackView = document.getElementById('rackView')
+    if (!rackView) return null
+    clearPreview()
+    const preview = document.createElement('div')
+    preview.id = 'dropPreview'
+    preview.style.position = 'absolute'
+    preview.style.top = `${(ru - 1) * RU_PX + 4}px`
+    preview.style.left = '40px'
+    preview.style.right = '0'
+    preview.style.height = `${size * RU_PX - 2}px`
+    preview.style.borderRadius = '8px'
+    preview.style.border = '2px dashed #22a7d3'
+    preview.style.background = 'rgba(34,167,211,0.12)'
+    preview.style.zIndex = '5'
+    preview.style.pointerEvents = 'none'
+    preview.innerHTML = `<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:11px;font-weight:600;color:#22a7d3;letter-spacing:.04em;text-transform:uppercase;">Drop here · ${size}U · RU ${ru}-${ru + size - 1}</div>`
+    rackView.appendChild(preview)
+    return preview
+  }
+  function clearPreview() {
+    const existing = document.getElementById('dropPreview')
+    if (existing) existing.remove()
+  }
+  function previewDropAt(ru, size, after) {
+    placePreview(ru, size)
+    setTimeout(() => { clearPreview(); if (after) after() }, 700)
+  }
+  // ─── Real pointer-drag: library → rack AND slot-move within rack ───
+  // Shared drag state. `source` distinguishes:
+  //   - 'library' → creates a new slot at drop
+  //   - 'slot' → moves the existing slot's ruPosition
+  // Desktop (mouse / pen): pointerdown starts a drag immediately.
+  // Mobile (touch): pointerdown starts a long-press timer (~250ms);
+  // if the pointer moves more than a few px before the timer fires,
+  // the drag is cancelled (so a normal vertical scroll of the page
+  // / sheet still works). Once armed, a "ghost" follows the pointer
+  // and the rack shows a cyan RU preview snapped to wherever the
+  // pointer is over the rack.
+  let dragState = null
+  let slotClickWasDrag = false
+  const DRAG_LONG_PRESS_MS = 250
+  const DRAG_THRESHOLD_PX = 8
+  function bindDeviceDrag(el) {
+    el.addEventListener('pointerdown', (e) => onDeviceDown(e, el))
+  }
+  function onDeviceDown(e, el) {
+    if (e.button !== undefined && e.button !== 0) return
+    const deviceType = el.dataset.device
+    if (!deviceType || !LIBRARY[deviceType]) return
+    startDrag(e, el, { source: 'library', deviceType })
+  }
+  function onSlotDown(e, el, slotId) {
+    if (e.button !== undefined && e.button !== 0) return
+    const slot = slots[currentSide].find((s) => s.id === slotId)
+    if (!slot) return
+    startDrag(e, el, {
+      source: 'slot',
+      slotId,
+      deviceType: slot.deviceType,
+      ruSize: slot.ruSize,
+      originalRu: slot.ruPosition,
+    })
+  }
+  function startDrag(e, el, opts) {
+    const isTouch = e.pointerType === 'touch'
+    dragState = {
+      ...opts,
+      sourceEl: el,
+      startX: e.clientX,
+      startY: e.clientY,
+      pointerId: e.pointerId,
+      isTouch,
+      armed: !isTouch,
+      moved: false,
+      ghostEl: null,
+      dropRu: null,
+      dropLoose: false,
+      longPressTimer: null,
+      sheetWasOpen: document.getElementById('sheetBackdrop').classList.contains('open'),
+    }
+    try { el.setPointerCapture(e.pointerId) } catch {}
+    if (isTouch) {
+      dragState.longPressTimer = setTimeout(() => {
+        if (!dragState || dragState.armed) return
+        dragState.armed = true
+        if (dragState.source === 'library' && dragState.sheetWasOpen) closeSheet()
+        startDragGhost(e.clientX, e.clientY)
+      }, DRAG_LONG_PRESS_MS)
+    } else {
+      startDragGhost(e.clientX, e.clientY)
+    }
+    document.addEventListener('pointermove', onDevicePointerMove)
+    document.addEventListener('pointerup', onDevicePointerUp)
+    document.addEventListener('pointercancel', onDevicePointerUp)
+  }
+  function startDragGhost(x, y) {
+    if (!dragState) return
+    dragState.sourceEl.classList.add('dragging')
+    const size = dragState.source === 'slot'
+      ? dragState.ruSize
+      : (LIBRARY[dragState.deviceType]?.size ?? 0)
+    const sizeLabel = (LIBRARY[dragState.deviceType]?.loose) ? '—' : `${size}U`
+    const ghost = document.createElement('div')
+    ghost.className = 'drag-ghost'
+    ghost.innerHTML = `${dragState.deviceType} <span class="ghost-size">${sizeLabel}</span>`
+    document.body.appendChild(ghost)
+    dragState.ghostEl = ghost
+    updateDragVisuals(x, y)
+  }
+  function onDevicePointerMove(e) {
+    if (!dragState) return
+    const dx = Math.abs(e.clientX - dragState.startX)
+    const dy = Math.abs(e.clientY - dragState.startY)
+    if (!dragState.armed) {
+      // touch + waiting for long-press → moving too early cancels
+      if (dx + dy > DRAG_THRESHOLD_PX) {
+        if (dragState.longPressTimer) clearTimeout(dragState.longPressTimer)
+        cleanupDrag()
+      }
+      return
+    }
+    dragState.moved = true
+    e.preventDefault()
+    updateDragVisuals(e.clientX, e.clientY)
+  }
+  function updateDragVisuals(x, y) {
+    if (!dragState || !dragState.ghostEl) return
+    dragState.ghostEl.style.left = `${x}px`
+    dragState.ghostEl.style.top = `${y}px`
+
+    // Determine the device's RU size and "loose" status for the
+    // current drag — slot-source uses the slot's existing ruSize.
+    const def = LIBRARY[dragState.deviceType]
+    const size = dragState.source === 'slot' ? dragState.ruSize : (def?.size ?? 0)
+    const isLoose = !!def?.loose && dragState.source === 'library'
+
+    if (isLoose) {
+      const tray = document.getElementById('looseTray')
+      const trayRect = tray.getBoundingClientRect()
+      const overTray = x >= trayRect.left - 40 && x <= trayRect.right + 40 &&
+                       y >= trayRect.top  - 40 && y <= trayRect.bottom + 40
+      tray.style.borderColor = overTray ? 'rgba(34,167,211,0.6)' : 'rgba(255,255,255,0.15)'
+      tray.style.background = overTray ? 'rgba(34,167,211,0.06)' : ''
+      clearPreview()
+      dragState.dropLoose = overTray
+      dragState.dropRu = null
+      return
+    }
+
+    if (size === 0) return
+
+    const rackView = document.getElementById('rackView')
+    if (!rackView) return
+    const rect = rackView.getBoundingClientRect()
+    const overRack = x >= rect.left - 60 && x <= rect.right + 60 &&
+                     y >= rect.top  - 60 && y <= rect.bottom + 60
+    if (!overRack) { clearPreview(); dragState.dropRu = null; return }
+    const offsetY = y - rect.top
+    let ru = Math.floor((offsetY - 4) / RU_PX) + 1
+    if (ru < 1) ru = 1
+    if (ru > TOTAL_RU - size + 1) ru = TOTAL_RU - size + 1
+    // Occupied set EXCLUDES the slot being moved (so it can land on
+    // its own position without colliding with itself).
+    const occupied = new Set()
+    for (const s of slots[currentSide]) {
+      if (dragState.source === 'slot' && s.id === dragState.slotId) continue
+      for (let i = 0; i < s.ruSize; i++) occupied.add(s.ruPosition + i)
+    }
+    function fitsAt(start) {
+      if (start < 1 || start + size - 1 > TOTAL_RU) return false
+      for (let i = 0; i < size; i++) if (occupied.has(start + i)) return false
+      return true
+    }
+    let target = ru
+    if (!fitsAt(target)) {
+      let up = target - 1, down = target + 1, found = null
+      while (up >= 1 || down <= TOTAL_RU - size + 1) {
+        if (fitsAt(up)) { found = up; break }
+        if (fitsAt(down)) { found = down; break }
+        up--; down++
+      }
+      target = found
+    }
+    if (target != null) {
+      placePreview(target, size)
+      dragState.dropRu = target
+    } else {
+      clearPreview()
+      dragState.dropRu = null
+    }
+  }
+  function onDevicePointerUp() {
+    if (!dragState) return
+    if (dragState.longPressTimer) clearTimeout(dragState.longPressTimer)
+    const def = LIBRARY[dragState.deviceType]
+    if (dragState.armed) {
+      if (dragState.source === 'library' && def?.loose && dragState.dropLoose) {
+        // Library → loose tray
+        looseGear.push({ id: Date.now(), deviceType: dragState.deviceType })
+        renderLooseTray()
+      } else if (dragState.source === 'library' && def && !def.loose && dragState.dropRu != null) {
+        // Library → rack RU
+        slots[currentSide].push({
+          id: Date.now(),
+          ruPosition: dragState.dropRu,
+          ruSize: def.size,
+          deviceType: dragState.deviceType,
+          label: dragState.deviceType,
+          color: '#0178a3',
+        })
+        renderRack()
+      } else if (dragState.source === 'slot' && dragState.dropRu != null) {
+        // Move existing slot to a new RU. If it ended up at its
+        // original position, no change — fall through silently.
+        if (dragState.dropRu !== dragState.originalRu) {
+          const slot = slots[currentSide].find((s) => s.id === dragState.slotId)
+          if (slot) slot.ruPosition = dragState.dropRu
+          renderRack()
+        }
+      }
+      // Suppress the click event that would otherwise fire on touch
+      // pointerup → prevents the slot edit modal from opening right
+      // after a slot-move drag.
+      if (dragState.source === 'slot' && dragState.moved) slotClickWasDrag = true
+    }
+    // Reset tray styling
+    const tray = document.getElementById('looseTray')
+    if (tray) { tray.style.borderColor = ''; tray.style.background = '' }
+    cleanupDrag()
+  }
+  function cleanupDrag() {
+    if (!dragState) return
+    if (dragState.ghostEl) dragState.ghostEl.remove()
+    if (dragState.sourceEl) dragState.sourceEl.classList.remove('dragging')
+    clearPreview()
+    document.removeEventListener('pointermove', onDevicePointerMove)
+    document.removeEventListener('pointerup', onDevicePointerUp)
+    document.removeEventListener('pointercancel', onDevicePointerUp)
+    dragState = null
+  }
+  // Render the device libraries (desktop aside + mobile sheet) — this
+  // also binds the drag listeners on each item.
+  renderFilters()
+  renderLibrary('desktopLibraryList')
+  renderLibrary('sheetLibraryList')
+  renderLooseTray()
+  renderRack()
+
+  // Hide popovers on outside click
+  document.addEventListener('click', (e) => {
+    ;['tabPopover', 'tabPopoverMobile', 'sidePopover', 'libraryFilterPopover'].forEach((id) => {
+      const pop = document.getElementById(id)
+      if (!pop) return
+      if (!pop.classList.contains('hidden') && !pop.parentElement.contains(e.target)) pop.classList.add('hidden')
+    })
+  })
+
+  // ─── Auto-hide chrome on scroll-down (matches the real useHideProgress) ───
+  // Snap model: cumulative scroll/touch deltas in one direction crossing
+  // a threshold flip state. Top bar slides up (-100% translateY), BottomNav
+  // slides down (+100% translateY). 600ms post-commit cooldown so a single
+  // gesture can't immediately flip state again. Touch events feed in
+  // alongside scroll so pages that don't actually scroll still respond
+  // to swipe intent.
+  ;(function () {
+    const topBar = document.getElementById('mobileTopBar')
+    const bottomNav = document.getElementById('bottomNav')
+    if (!topBar && !bottomNav) return
+    let hidden = false
+    let dirAccum = 0
+    let lastY = window.scrollY
+    let cooldownUntil = 0
+    let touchLastY = null
+    let touchStartX = null
+    let touchStartY = null
+    let gestureAxis = 'pending' // pending | horizontal | vertical
+    const DOWN_THRESHOLD = 8
+    const UP_THRESHOLD = 30
+    const COOLDOWN_MS = 600
+    function commit(next) {
+      if (hidden === next) return
+      hidden = next
+      if (topBar) topBar.classList.toggle('hidden-chrome', hidden)
+      if (bottomNav) bottomNav.classList.toggle('hidden-chrome', hidden)
+      dirAccum = 0
+      cooldownUntil = performance.now() + COOLDOWN_MS
+    }
+    function applyDelta(delta) {
+      if (delta === 0) return
+      if (performance.now() < cooldownUntil) return
+      if ((delta > 0) !== (dirAccum > 0)) dirAccum = 0
+      dirAccum += delta
+      if (!hidden && dirAccum >= DOWN_THRESHOLD) commit(true)
+      else if (hidden && dirAccum <= -UP_THRESHOLD) commit(false)
+    }
+    function onScroll() {
+      const y = window.scrollY
+      // Top-anchor reset when transitioning to top.
+      if (y <= 4 && lastY > 4 && performance.now() >= cooldownUntil) {
+        commit(false)
+        lastY = y
+        return
+      }
+      const delta = y - lastY
+      lastY = y
+      applyDelta(delta)
+    }
+    function onTouchStart(e) {
+      if (e.touches.length !== 1) return
+      touchStartX = e.touches[0].clientX
+      touchStartY = e.touches[0].clientY
+      touchLastY = e.touches[0].clientY
+      gestureAxis = 'pending'
+    }
+    function onTouchMove(e) {
+      if (touchLastY == null || touchStartX == null || touchStartY == null) return
+      if (e.touches.length !== 1) return
+      const x = e.touches[0].clientX
+      const y = e.touches[0].clientY
+      if (gestureAxis === 'pending') {
+        const dx = Math.abs(x - touchStartX)
+        const dy = Math.abs(y - touchStartY)
+        if (dx + dy >= 8) gestureAxis = dx > dy ? 'horizontal' : 'vertical'
+      }
+      const delta = touchLastY - y // finger up = positive (scroll-down intent)
+      touchLastY = y
+      if (gestureAxis !== 'vertical') return
+      applyDelta(delta)
+    }
+    function onTouchEnd() {
+      touchLastY = null; touchStartX = null; touchStartY = null
+      gestureAxis = 'pending'
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    document.addEventListener('touchstart', onTouchStart, { passive: true })
+    document.addEventListener('touchmove', onTouchMove, { passive: true })
+    document.addEventListener('touchend', onTouchEnd, { passive: true })
+    document.addEventListener('touchcancel', onTouchEnd, { passive: true })
+  })()
+</script>
+
+</body>
+</html>
