@@ -615,7 +615,13 @@ export function RackStudio({
   return (
     <div className={
       embedded
-        ? 'flex w-full flex-col'
+        // Embedded: fill the parent (the expanded rack row) so the
+        // inner main grid has a defined height to work with. The
+        // toolbar / loose tray / etc. up top are flex-shrink-0;
+        // the chassis + library grid below is flex-1 min-h-0 and
+        // owns the scroll. Net effect: chrome stays put, only
+        // chassis and library scroll.
+        ? 'flex min-h-0 w-full flex-1 flex-col'
         : 'mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col px-4 sm:px-6 lg:px-8 py-5 pb-28 sm:pb-8'
     }>
 
@@ -881,7 +887,7 @@ export function RackStudio({
       )}
 
       {/* ─── Main grid: rack on left, library on right (desktop only) ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 lg:items-stretch lg:min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 lg:flex-1 lg:items-stretch lg:min-h-0">
 
         {/* Rack visualization. When a slot is being edited, every row
             BELOW its last occupied RU gets shifted down by
@@ -897,14 +903,12 @@ export function RackStudio({
           return (
             <div className={`relative p-2 rounded-lg bg-[#2a2a2a] border border-white/[0.06] overflow-y-auto ${
               embedded
-                // Embedded: cap at 70vh on mobile (where the tab scroll
-                // does the heavy lifting), but on desktop fill the
-                // viewport minus the chrome above (app header + Comms
-                // header + tab toolbar + expanded row header ≈ 180px).
-                // Without the lg override the chassis was capped at
-                // 70vh even on tall monitors with hundreds of pixels
-                // to spare — felt fixed-height.
-                ? 'max-h-[70vh] lg:max-h-[calc(100vh-180px)]'
+                // Embedded: mobile keeps the 70vh cap because the
+                // outer tab scroll handles overflow there. Desktop
+                // drops the cap and uses lg:h-full to fill the grid
+                // cell instead — the parent flex chain owns the
+                // height, the chassis just scrolls inside it.
+                ? 'max-h-[70vh] lg:max-h-none lg:h-full lg:min-h-0'
                 // Standalone page: app header + page header + toolbar
                 // adds ≈ 320px of chrome above.
                 : 'max-h-[calc(100vh-320px)]'
@@ -1033,13 +1037,12 @@ export function RackStudio({
         })()}
 
         {/* Device library aside (desktop only).
-            Sticks to the top of the scroll container so it stays in
-            view when the rack header inputs scroll past — operators
-            shouldn't have to scroll back up to drop another device.
-            `self-start` keeps the aside at its natural height inside
-            the grid row instead of stretching with the chassis,
-            which would break sticky. */}
-        <aside className={`hidden lg:flex lg:flex-col lg:sticky lg:top-0 lg:self-start ${embedded ? 'lg:max-h-[calc(100vh-180px)]' : 'lg:max-h-[calc(100vh-320px)]'}`}>
+            Embedded: fills its grid cell via lg:h-full + lg:min-h-0
+            (the outer flex chain caps the total studio height; the
+            library's inner device list owns the scroll inside).
+            Standalone: keeps a viewport-relative max-h since there's
+            no flex parent constraining its height. */}
+        <aside className={`hidden lg:flex lg:flex-col ${embedded ? 'lg:h-full lg:min-h-0' : 'lg:max-h-[calc(100vh-320px)]'}`}>
           <DeviceLibrary
             items={libraryItems}
             filter={filter}

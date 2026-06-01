@@ -3791,7 +3791,16 @@ export function ProjectPage({
                     .map((r) => {
                     const isExpanded = expandedRackId === r.id
                     return (
-                    <div key={r.id} className="flex flex-col">
+                    <div
+                      key={r.id}
+                      // When this rack is expanded, the row becomes
+                      // the flex-1 column inside the Racks tab scroll
+                      // body — the chassis + library inside the rack
+                      // studio can fill the rest of the viewport
+                      // height instead of competing with the tab
+                      // scroll for vertical space.
+                      className={`flex flex-col ${isExpanded ? 'min-h-0 flex-1' : ''}`}
+                    >
                       {/* Header row.
                           - Collapsed: static "name · location · RU ·
                             slots" strip + Edit button (toggles expand).
@@ -3941,7 +3950,7 @@ export function ProjectPage({
                           existing /api/racks/.../slots endpoints and
                           router.refresh() pulls fresh data back. */}
                       {isExpanded && (
-                        <div className="pb-4">
+                        <div className="flex min-h-0 flex-1 flex-col pb-4">
                           <RackStudio
                             embedded
                             project={{ id: project.id, name: project.name }}
