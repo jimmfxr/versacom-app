@@ -887,7 +887,7 @@ export function RackStudio({
       )}
 
       {/* ─── Main grid: rack on left, library on right (desktop only) ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 lg:flex-1 lg:items-stretch lg:min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4 lg:flex-1 lg:items-stretch lg:min-h-0">
 
         {/* Rack visualization. When a slot is being edited, every row
             BELOW its last occupied RU gets shifted down by
@@ -901,7 +901,7 @@ export function RackStudio({
           const offsetFor = (ru: number) => editingSlot && ru > editingEndRu ? EDIT_EXTRA_PX : 0
           const containerHeight = rack.totalRU * RU_PX + 8 + (editingSlot ? EDIT_EXTRA_PX : 0)
           return (
-            <div className={`relative p-2 rounded-lg bg-[#2a2a2a] border border-white/[0.06] overflow-y-auto ${
+            <div className={`relative p-2 rounded-lg bg-[#2a2a2a] border border-white/[0.06] overflow-y-auto lg:order-2 ${
               embedded
                 // Embedded: mobile keeps the 70vh cap because the
                 // outer tab scroll handles overflow there. Desktop
@@ -1042,7 +1042,7 @@ export function RackStudio({
             library's inner device list owns the scroll inside).
             Standalone: keeps a viewport-relative max-h since there's
             no flex parent constraining its height. */}
-        <aside className={`hidden lg:flex lg:flex-col ${embedded ? 'lg:h-full lg:min-h-0' : 'lg:max-h-[calc(100vh-320px)]'}`}>
+        <aside className={`hidden lg:flex lg:flex-col lg:order-1 ${embedded ? 'lg:h-full lg:min-h-0' : 'lg:max-h-[calc(100vh-320px)]'}`}>
           <DeviceLibrary
             items={libraryItems}
             filter={filter}
