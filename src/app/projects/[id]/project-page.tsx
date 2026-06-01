@@ -3768,6 +3768,14 @@ export function ProjectPage({
                             slots={r.slots}
                             looseItems={r.looseItems}
                             canEdit={isProjectAdmin || isManager}
+                            onDeleted={() => {
+                              // Rack vanished — collapse the expansion
+                              // (the row will unmount on refresh too,
+                              // but clearing state first prevents a
+                              // flash of "expanded but empty").
+                              setExpandedRackId(null)
+                              router.refresh()
+                            }}
                           />
                         </div>
                       )}

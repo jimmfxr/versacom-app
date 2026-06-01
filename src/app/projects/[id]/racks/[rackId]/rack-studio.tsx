@@ -65,6 +65,7 @@ export function RackStudio({
   canEdit,
   embedded = false,
   onCloseEmbedded,
+  onDeleted,
 }: {
   project: { id: number; name: string }
   /** All active projects the current user belongs to — feeds the
@@ -93,6 +94,12 @@ export function RackStudio({
    *  host handles closing entirely, but exposing the callback keeps
    *  the option open for an in-studio close button later. */
   onCloseEmbedded?: () => void
+  /** Called after the rack is successfully deleted via the settings
+   *  panel's Delete button. Embedded host uses this to clear the
+   *  expandedRackId state + refresh; if omitted (standalone page),
+   *  the component falls back to router.push back to the Racks tab
+   *  list. */
+  onDeleted?: () => void
 }) {
   // Silence unused-warning on onCloseEmbedded until we wire an
   // in-studio close button — kept as an explicit no-op so TS knows
@@ -118,6 +125,15 @@ export function RackStudio({
   /** Tracks whether a save / delete is in flight so the buttons can
    *  show a pending state and we don't fire concurrent requests. */
   const [editSaving, setEditSaving] = useState(false)
+  /** Rack settings panel — collapses above the chassis when open.
+   *  Holds the rename / relocate / resize inputs and the Delete
+   *  button. Closed by default; the Settings button in the toolbar
+   *  toggles it. */
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [rackName, setRackName] = useState(rack.name)
+  const [rackLocation, setRackLocation] = useState(rack.location ?? '')
+  const [rackTotalRU, setRackTotalRU] = useState(String(rack.totalRU))
+  const [rackSaving, setRackSaving] = useState(false)
 
   const sideSlots = slots.filter((s) => s.side === side)
   // `occupied` is built from the FULL set of slots on this side (not
@@ -210,6 +226,70 @@ export function RackStudio({
     } catch {
       setError('Network error')
       setAdding(false)
+    }
+  }
+
+  async function handleRackSave() {
+    if (!canEdit) return
+    setError(null)
+    const name = rackName.trim()
+    if (!name) { setError('Rack name is required'); return }
+    const totalRU = parseInt(rackTotalRU, 10)
+    if (!Number.isFinite(totalRU) || totalRU < 1 || totalRU > 60) {
+      setError('RU height must be 1–60'); return
+    }
+    setRackSaving(true)
+    try {
+      const res = await fetch(`/api/racks/${rack.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          location: rackLocation.trim() || null,
+          totalRU,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        setError((data as { error?: string } | null)?.error ?? 'Failed to save')
+        setRackSaving(false)
+        return
+      }
+      setRackSaving(false)
+      setSettingsOpen(false)
+      router.refresh()
+    } catch {
+      setError('Network error')
+      setRackSaving(false)
+    }
+  }
+
+  async function handleRackDelete() {
+    if (!canEdit) return
+    if (!window.confirm(`Delete rack "${rack.name}"? Every slot and loose item attached to it goes with it. This can't be undone.`)) return
+    setError(null)
+    setRackSaving(true)
+    try {
+      const res = await fetch(`/api/racks/${rack.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        setError((data as { error?: string } | null)?.error ?? 'Failed to delete rack')
+        setRackSaving(false)
+        return
+      }
+      setRackSaving(false)
+      if (onDeleted) {
+        // Embedded host (e.g. the Comms Racks tab) owns the cleanup —
+        // clearing the expanded-row state + refreshing the rack list.
+        onDeleted()
+      } else {
+        // Standalone page — bounce back to the Racks tab list so the
+        // user isn't stranded on a 404'd deep link.
+        router.push(`/projects/${project.id}?tab=racks`)
+      }
+    } catch {
+      setError('Network error')
+      setRackSaving(false)
     }
   }
 
@@ -317,6 +397,29 @@ export function RackStudio({
             />
           </div>
         )}
+        {/* Rack settings — toggles the inline rename / location /
+            RU-height / Delete panel below the toolbar. Admin/manager
+            only; hidden on read-only views. Stays compact (square
+            button matching the search toggle) so the toolbar density
+            doesn't change. */}
+        {canEdit && !searchOpen && (
+          <button
+            type="button"
+            onClick={() => setSettingsOpen((v) => !v)}
+            aria-label="Rack settings"
+            aria-pressed={settingsOpen}
+            className={`flex size-9 shrink-0 items-center justify-center rounded-lg border transition-colors ${
+              settingsOpen
+                ? 'border-[#0178a3] bg-[#0178a3] text-white'
+                : 'border-white/10 bg-[#2a2a2a] text-gray-200 hover:border-white/20 hover:bg-[#313131] hover:text-white'
+            }`}
+          >
+            <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+            </svg>
+          </button>
+        )}
         {/* Search — collapsible toggle just like Comms / Radios.
             When open, the input takes the same space the tab
             dropdown was occupying. */}
@@ -354,6 +457,86 @@ export function RackStudio({
           </button>
         )}
       </div>
+
+      {/* ─── Rack settings panel ───
+          Collapses above the chassis when the Settings cog is tapped.
+          Name + Location + RU height fields plus Save / Cancel and a
+          destructive Delete on the right. Shares the same blue-tint
+          card treatment as the slot edit form for visual consistency. */}
+      {settingsOpen && canEdit && (
+        <div className="mb-3 rounded-lg border border-[#22a7d3]/40 bg-[#0178a3]/[0.04] p-4">
+          <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-2">Rack settings</div>
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_120px] gap-3">
+            <div>
+              <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Name</div>
+              <input
+                value={rackName}
+                onChange={(e) => setRackName(e.target.value)}
+                disabled={rackSaving}
+                placeholder="FOH Rack"
+                className="w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+              />
+            </div>
+            <div>
+              <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Location <span className="normal-case text-gray-600">(optional)</span></div>
+              <input
+                value={rackLocation}
+                onChange={(e) => setRackLocation(e.target.value)}
+                disabled={rackSaving}
+                placeholder="FOH / MON / Studio A"
+                className="w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+              />
+            </div>
+            <div>
+              <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">RU height</div>
+              <input
+                type="number"
+                min={1}
+                max={60}
+                value={rackTotalRU}
+                onChange={(e) => setRackTotalRU(e.target.value)}
+                disabled={rackSaving}
+                className="w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+              />
+            </div>
+          </div>
+          <div className="mt-4 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={handleRackDelete}
+              disabled={rackSaving}
+              className="rounded-lg border border-red-500/40 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/[0.08] hover:border-red-500/60 disabled:opacity-50"
+            >
+              Delete rack
+            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  // Reset fields to their server values and collapse — same
+                  // semantics as the slot edit's Cancel.
+                  setRackName(rack.name)
+                  setRackLocation(rack.location ?? '')
+                  setRackTotalRU(String(rack.totalRU))
+                  setSettingsOpen(false)
+                }}
+                disabled={rackSaving}
+                className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleRackSave}
+                disabled={rackSaving}
+                className="rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {rackSaving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── Stats line ───
           Embedded mode drops the rack name (the host row above shows
