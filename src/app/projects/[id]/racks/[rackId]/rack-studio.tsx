@@ -731,8 +731,14 @@ export function RackStudio({
           )
         })()}
 
-        {/* Device library aside (desktop only) */}
-        <aside className={`hidden lg:flex lg:flex-col ${embedded ? 'lg:max-h-[calc(100vh-180px)]' : 'lg:max-h-[calc(100vh-320px)]'}`}>
+        {/* Device library aside (desktop only).
+            Sticks to the top of the scroll container so it stays in
+            view when the rack header inputs scroll past — operators
+            shouldn't have to scroll back up to drop another device.
+            `self-start` keeps the aside at its natural height inside
+            the grid row instead of stretching with the chassis,
+            which would break sticky. */}
+        <aside className={`hidden lg:flex lg:flex-col lg:sticky lg:top-0 lg:self-start ${embedded ? 'lg:max-h-[calc(100vh-180px)]' : 'lg:max-h-[calc(100vh-320px)]'}`}>
           <DeviceLibrary
             presets={presets}
             filter={filter}
