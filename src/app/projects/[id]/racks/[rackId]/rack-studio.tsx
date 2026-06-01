@@ -919,7 +919,7 @@ export function RackStudio({
                   return (
                     <div
                       key={`ru-${ru}`}
-                      className="flex items-center"
+                      className="group/row flex items-center"
                       style={{
                         position: 'absolute',
                         top: `${i * RU_PX + 4 + offsetFor(ru)}px`,
@@ -929,16 +929,23 @@ export function RackStudio({
                         transition: 'top 180ms ease-out',
                       }}
                     >
-                      <div className={`w-9 text-center text-sm font-mono tabular-nums ${
-                        isPending ? 'text-[#22a7d3]' : 'text-gray-400'
+                      <div className={`w-9 text-center text-sm font-mono tabular-nums transition-colors ${
+                        // Pending target → cyan. Hovering the row →
+                        // cyan via group-hover/row so the RU number
+                        // lights up with the empty-row body, not a
+                        // beat after. Default empty rows → gray-400.
+                        // Drag overlays hide the label entirely.
+                        // Gated on canEdit + isEmpty so read-only
+                        // viewers and occupied rows don't get a
+                        // misleading hover affordance.
+                        isPending
+                          ? 'text-[#22a7d3]'
+                          : `text-gray-400${canEdit && isEmpty ? ' group-hover/row:text-[#22a7d3]' : ''}`
                       }`}>
                         {/* RU label hides during a library drag so it
                             doesn't bleed through the semi-transparent
                             preview overlay above. The overlay shows
-                            its own start-RU instead. When the row is
-                            the pending target (cyan highlight), the
-                            RU number flips to cyan too so the label
-                            and the row read as one highlighted unit. */}
+                            its own start-RU instead. */}
                         {dragPreset ? '' : ru}
                       </div>
                       <div className="flex-1">
@@ -959,7 +966,12 @@ export function RackStudio({
                                 ? ''
                                 : isPending
                                   ? 'rounded-lg border border-[#0178a3]/60 bg-[#0178a3]/15 text-[#22a7d3]'
-                                  : 'border-b border-white/[0.06] text-gray-600 hover:border-b-[#0178a3]/40 hover:text-[#22a7d3] hover:bg-[#0178a3]/[0.04]'
+                                  // Hover styles use group-hover/row so
+                                  // pointing at the RU column on the left
+                                  // ALSO lights up the row body — and vice
+                                  // versa — instead of the two halves
+                                  // toggling independently.
+                                  : `border-b border-white/[0.06] text-gray-600 ${canEdit ? 'group-hover/row:border-b-[#0178a3]/40 group-hover/row:text-[#22a7d3] group-hover/row:bg-[#0178a3]/[0.04]' : ''}`
                             } ${canEdit ? 'cursor-pointer' : ''}`}
                           >
                             {dragPreset ? '' : (isPending ? '← pick a device' : '+ Drop Here')}
