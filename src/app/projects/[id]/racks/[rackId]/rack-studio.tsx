@@ -2274,7 +2274,29 @@ function SlotRow({
           }`}
         >
           <span className="w-9 shrink-0 text-center text-sm font-mono tabular-nums text-[#22a7d3]">{slot.ruPosition}</span>
-          <span className="truncate">{slot.label}</span>
+          {(() => {
+            // When the slot is linked to an Equipment row, mirror
+            // the library-tile layout: id (white) · location (cyan)
+            // · model (gray) on one row. Otherwise fall back to the
+            // slot's freeform label.
+            const linkedEq = slot.equipmentId != null
+              ? rackEquipment?.find((eq) => eq.id === slot.equipmentId)
+              : null
+            if (linkedEq) {
+              return (
+                <span className="min-w-0 flex items-baseline gap-2">
+                  <span className="truncate text-white">{linkedEq.name}</span>
+                  {linkedEq.location && (
+                    <span className="truncate text-[#22a7d3]">{linkedEq.location}</span>
+                  )}
+                  {linkedEq.hardwareType && (
+                    <span className="truncate text-[11px] text-gray-500">{linkedEq.hardwareType}</span>
+                  )}
+                </span>
+              )
+            }
+            return <span className="truncate">{slot.label}</span>
+          })()}
           {canEdit && (
             <button
               type="button"
