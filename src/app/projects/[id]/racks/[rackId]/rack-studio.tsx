@@ -131,9 +131,11 @@ export function RackStudio({
   const [sheetOpen, setSheetOpen] = useState(false)
   /** Category filter for the device library. */
   const [filter, setFilter] = useState<'all' | PresetCategory>('all')
-  /** Search term — filters slot labels + deviceType. */
-  const [search, setSearch] = useState('')
-  const [searchOpen, setSearchOpen] = useState(false)
+  /** Device library search term — filters preset items by name.
+   *  Previously this was a toolbar-level slot-label filter; moved
+   *  into the library aside since searching the library is the
+   *  more useful action (chassis is small, library has many items). */
+  const [librarySearch, setLibrarySearch] = useState('')
   /** ID of the slot currently being edited inline. When non-null the
    *  slot's card expands to show its edit form; every row below it
    *  in the rack shifts down by EDIT_EXTRA_PX. Closes on save /
@@ -163,13 +165,9 @@ export function RackStudio({
     for (let i = 0; i < s.ruSize; i++) occupied.add(s.ruPosition + i)
   }
   const usedRU = sideSlots.reduce((acc, s) => acc + s.ruSize, 0)
-  const searchQ = search.trim().toLowerCase()
-  const visibleSlots = searchQ.length === 0
-    ? sideSlots
-    : sideSlots.filter((s) =>
-        s.label.toLowerCase().includes(searchQ) ||
-        s.deviceType.toLowerCase().includes(searchQ),
-      )
+  // Chassis renders every slot on this side — no filter pass. The
+  // search affordance moved into the device library aside.
+  const visibleSlots = sideSlots
 
   const dept: PresetDept = rack.dept === 'radios' ? 'radios' : 'comms'
   const presets = PRESETS_BY_DEPT[dept]
@@ -443,7 +441,7 @@ export function RackStudio({
         {/* Tab dropdown — only when the rack studio is a full page.
             In embedded mode the parent Comms page already owns the
             tab dropdown above, so we'd be doubling it up. */}
-        {!embedded && !searchOpen && (
+        {!embedded && (
           <div className="w-[280px]">
             <FilterDropdown
               ariaLabel="Project tab"
@@ -467,10 +465,9 @@ export function RackStudio({
         )}
         {/* Rack settings — toggles the inline rename / location /
             RU-height / Delete panel below the toolbar. Admin/manager
-            only; hidden on read-only views. Stays compact (square
-            button matching the search toggle) so the toolbar density
-            doesn't change. */}
-        {canEdit && !searchOpen && (
+            only; hidden in embedded mode (host row will surface the
+            edit fields directly when expanded). */}
+        {canEdit && !embedded && (
           <button
             type="button"
             onClick={() => setSettingsOpen((v) => !v)}
@@ -488,50 +485,13 @@ export function RackStudio({
             </svg>
           </button>
         )}
-        {/* Search — collapsible toggle just like Comms / Radios.
-            When open, the input takes the same space the tab
-            dropdown was occupying. */}
-        {searchOpen ? (
-          <div className="flex items-center gap-2 flex-1 sm:flex-initial">
-            <input
-              type="text"
-              autoFocus
-              placeholder="Search devices…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full sm:w-[220px] rounded-lg border-2 border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
-            />
-            <button
-              type="button"
-              onClick={() => { setSearchOpen(false); setSearch('') }}
-              aria-label="Close search"
-              className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
-            >
-              <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setSearchOpen(true)}
-            aria-label="Search"
-            className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
-          >
-            <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.343-4.343m0 0A8 8 0 1 0 5.343 5.343a8 8 0 0 0 11.314 11.314Z" />
-            </svg>
-          </button>
-        )}
       </div>
 
       {/* ─── Rack settings panel ───
-          Collapses above the chassis when the Settings cog is tapped.
-          Name + Location + RU height fields plus Save / Cancel and a
-          destructive Delete on the right. Shares the same blue-tint
-          card treatment as the slot edit form for visual consistency. */}
-      {settingsOpen && canEdit && (
+          Standalone-page only. Embedded mode surfaces the same
+          inputs in the host row header instead, so we'd be doubling
+          up if we rendered the panel here too. */}
+      {settingsOpen && canEdit && !embedded && (
         <div className="mb-3 rounded-lg border border-[#22a7d3]/40 bg-[#0178a3]/[0.04] p-4">
           <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-2">Rack settings</div>
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_120px] gap-3">
@@ -764,6 +724,8 @@ export function RackStudio({
             presets={presets}
             filter={filter}
             onFilterChange={setFilter}
+            search={librarySearch}
+            onSearchChange={setLibrarySearch}
             onPick={handleDevicePick}
             pendingRu={pendingRu}
             adding={adding}
@@ -781,6 +743,8 @@ export function RackStudio({
           presets={presets}
           filter={filter}
           onFilterChange={setFilter}
+          search={librarySearch}
+          onSearchChange={setLibrarySearch}
           onPick={handleDevicePick}
           pendingRu={pendingRu}
           adding={adding}
@@ -800,6 +764,8 @@ function DeviceLibrary({
   presets,
   filter,
   onFilterChange,
+  search,
+  onSearchChange,
   onPick,
   pendingRu,
   adding,
@@ -809,14 +775,25 @@ function DeviceLibrary({
   presets: readonly RackDevicePreset[]
   filter: 'all' | PresetCategory
   onFilterChange: (next: 'all' | PresetCategory) => void
+  search: string
+  onSearchChange: (next: string) => void
   onPick: (preset: RackDevicePreset) => void
   pendingRu: number | null
   adding: boolean
   canEdit: boolean
   renderInSheet: boolean
 }) {
-  const filtered = filter === 'all' ? presets : presets.filter((p) => p.category === filter)
-  const showHeaders = filter === 'all'
+  // Filter pipeline — category narrows first, then search trims by
+  // substring match on preset.name. Search is case-insensitive and
+  // empty-string-safe.
+  const q = search.trim().toLowerCase()
+  const byCategory = filter === 'all' ? presets : presets.filter((p) => p.category === filter)
+  const filtered = q.length === 0 ? byCategory : byCategory.filter((p) => p.name.toLowerCase().includes(q))
+  // Skip the category-header layout when EITHER a category filter is
+  // set OR a search is active — both modes mean "show me a flat list,
+  // not grouped sections". Otherwise the user could see headers like
+  // "Switches" with zero items because every item was filtered out.
+  const showHeaders = filter === 'all' && q.length === 0
 
   return (
     <>
@@ -832,6 +809,19 @@ function DeviceLibrary({
       >
         + Custom device
       </button>
+      {/* Search — filters the preset list by substring match on name.
+          Lives under + Custom device, above the category filter, so
+          the visual hierarchy reads top-down: add → search → filter →
+          results. */}
+      <div className="flex-shrink-0 mb-2">
+        <input
+          type="text"
+          placeholder="Search devices…"
+          value={search}
+          onChange={(e) => onSearchChange(e.target.value)}
+          className="w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+        />
+      </div>
       {/* Category filter — shared FilterDropdown component. */}
       <div className="flex-shrink-0 mb-3">
         <FilterDropdown
@@ -948,6 +938,8 @@ function DeviceLibrarySheet({
   presets,
   filter,
   onFilterChange,
+  search,
+  onSearchChange,
   onPick,
   pendingRu,
   adding,
@@ -957,6 +949,8 @@ function DeviceLibrarySheet({
   presets: readonly RackDevicePreset[]
   filter: 'all' | PresetCategory
   onFilterChange: (next: 'all' | PresetCategory) => void
+  search: string
+  onSearchChange: (next: string) => void
   onPick: (preset: RackDevicePreset) => void
   pendingRu: number | null
   adding: boolean
@@ -987,6 +981,8 @@ function DeviceLibrarySheet({
             presets={presets}
             filter={filter}
             onFilterChange={onFilterChange}
+            search={search}
+            onSearchChange={onSearchChange}
             onPick={onPick}
             pendingRu={pendingRu}
             adding={adding}
