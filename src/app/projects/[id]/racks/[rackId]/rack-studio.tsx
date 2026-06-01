@@ -138,6 +138,12 @@ export function RackStudio({
   const side = sideProp ?? internalSide
   const setSide = onSideChange ?? setInternalSide
   const [pendingRu, setPendingRu] = useState<number | null>(null)
+  // Reverse flow: operator tapped a device tile first (without first
+  // tapping an empty RU). The chassis lights up every empty row cyan
+  // as a 'pick a slot' invite; the next tap on a row POSTs the slot.
+  // Only one of pendingRu / pendingDevice is non-null at a time —
+  // setting one clears the other.
+  const [pendingDevice, setPendingDevice] = useState<RackDevicePreset | null>(null)
   const [adding, setAdding] = useState(false)
   // setError used to drive an inline red banner; now it just pipes
   // to the shared bottom-right toast queue. The shape stays
@@ -262,6 +268,16 @@ export function RackStudio({
 
   function handleEmptyRowClick(ru: number) {
     if (!canEdit) return
+    // Reverse flow: a device was tapped first; tapping a row commits
+    // the POST without going through pendingRu. We hand off to the
+    // RU-aware variant so the validation + create are the same code
+    // path as the click-from-RU and drag-drop flows.
+    if (pendingDevice) {
+      const preset = pendingDevice
+      setPendingDevice(null)
+      void handleDevicePickAtRu(preset, ru)
+      return
+    }
     if (pendingRu === ru) {
       // Tap-the-same-row toggles off (cancel without picking).
       setPendingRu(null)
@@ -310,7 +326,16 @@ export function RackStudio({
     }
     const ru = pendingRu
     if (ru == null) {
-      setError('Tap an empty RU row first, then pick a device.')
+      // Reverse flow: no RU picked yet → arm this device instead.
+      // Tap again on the same tile toggles it off. Setting
+      // pendingDevice lights up every empty row cyan as a 'pick a
+      // slot' invite; the next empty-row tap commits the POST via
+      // handleEmptyRowClick.
+      if (pendingDevice?.name === preset.name) {
+        setPendingDevice(null)
+      } else {
+        setPendingDevice(preset)
+      }
       return
     }
     if (ru + preset.ruSize - 1 > rack.totalRU) {
@@ -943,7 +968,11 @@ export function RackStudio({
                 {Array.from({ length: rack.totalRU }, (_, i) => {
                   const ru = i + 1
                   const isEmpty = !occupied.has(ru)
-                  const isPending = pendingRu === ru
+                  // Row is "pending" when either:
+                  //  - Operator explicitly tapped THIS row → pendingRu === ru, OR
+                  //  - Operator tapped a device first → pendingDevice is
+                  //    set, so every empty row reads as a candidate slot.
+                  const isPending = pendingRu === ru || pendingDevice != null
                   return (
                     <div
                       key={`ru-${ru}`}
@@ -985,7 +1014,9 @@ export function RackStudio({
                             {ru}
                           </span>
                           <span className="flex-1 text-center">
-                            {isPending ? '← pick a device' : '+ Drop Here'}
+                            {pendingDevice
+                              ? `+ Drop ${pendingDevice.name} here`
+                              : isPending ? '← pick a device' : '+ Drop Here'}
                           </span>
                         </button>
                       ) : (
@@ -1089,7 +1120,7 @@ export function RackStudio({
             onSideChange={(v) => { setSide(v); setPendingRu(null) }}
             onPick={handleDevicePick}
             onStartDrag={startLibraryDrag}
-            dragging={dragPreset}
+            dragging={dragPreset ?? pendingDevice}
             pendingRu={pendingRu}
             adding={adding}
             canEdit={canEdit}
