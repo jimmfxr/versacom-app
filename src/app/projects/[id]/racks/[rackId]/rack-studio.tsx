@@ -1491,7 +1491,10 @@ function DeviceTile({
             : isDragging
               ? 'border-[#0178a3] bg-[#0178a3] text-white'
               : highlightTarget
-                ? 'border-[#22a7d3]/50 text-gray-200 hover:bg-white/[0.03]'
+                // A slot is pending (operator tapped an empty RU);
+                // every droppable device lights up cyan so the next
+                // tap action reads as 'pick this for that slot'.
+                ? 'border-[#22a7d3] text-[#22a7d3] hover:bg-[#0178a3]/10'
                 : 'border-white/[0.08] text-gray-300 hover:border-[rgba(34,167,211,0.5)] hover:bg-white/[0.03]'
         }`}
       >
