@@ -956,12 +956,15 @@ export function RackStudio({
       )}
 
       {/* ─── Toolbar ───
-          Left cluster: rack-context controls (side picker).
-          Right cluster: tab dropdown (jumps back to a sibling tab on
-            the parent project) + per-tab search (filters slot labels +
-            device types).
-          Same pattern as the Comms / Radios single-row toolbar so the
-          chrome reads consistently. */}
+          Only renders in standalone mode (deep-link page). In
+          embedded mode (inside the Comms Racks tab) it'd be
+          completely empty — Front/Rear lives in the library top
+          row, the tab dropdown lives on the parent Comms toolbar,
+          the settings cog is gated on !embedded. py-4 of pure
+          padding for no content was creating a 32px gap between
+          the row header and the chassis below; pulling the whole
+          row out closes that gap. */}
+      {!embedded && (
       <div className="flex items-center gap-3 flex-wrap py-4">
         {/* Front/Rear moved into the device library's top row (paired
             with + Custom device). Nothing on the toolbar's left side
@@ -1016,6 +1019,7 @@ export function RackStudio({
           </button>
         )}
       </div>
+      )}
 
       {/* ─── Rack settings panel ───
           Standalone-page only. Embedded mode surfaces the same
