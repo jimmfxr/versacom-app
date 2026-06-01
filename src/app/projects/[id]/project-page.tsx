@@ -3984,12 +3984,12 @@ export function ProjectPage({
                             )}
                             {r.location && (
                               <>
-                                <span className="shrink-0 text-xs text-gray-600">·</span>
-                                <span className="truncate text-xs text-[#22a7d3]">{r.location}</span>
+                                <span className="shrink-0 text-sm text-gray-600">·</span>
+                                <span className="truncate text-sm text-[#22a7d3]">{r.location}</span>
                               </>
                             )}
-                            <span className="shrink-0 text-xs text-gray-600">·</span>
-                            <span className="shrink-0 text-xs text-gray-500 font-mono tabular-nums">{r.totalRU}RU</span>
+                            <span className="shrink-0 text-sm text-gray-600">·</span>
+                            <span className="shrink-0 text-sm text-gray-500 font-mono tabular-nums">{r.totalRU}RU</span>
                           </div>
                           <button
                             type="button"
