@@ -1017,6 +1017,13 @@ export function ProjectPage({
   // canonical side.
   const [expandedRackSide, setExpandedRackSide] = useState<'front' | 'rear'>('front')
   useEffect(() => { setExpandedRackSide('front') }, [expandedRackId])
+  // Rack-metadata edit form open state. Decouples 'I'm viewing
+  // this rack' (expandedRackId) from 'I'm editing its name/
+  // location/RU' (rackMetaFormOpen). Default to false on expand
+  // so the operator sees the chassis first; clicking the rack
+  // name on the tab toolbar opens the form, Close button hides it.
+  const [rackMetaFormOpen, setRackMetaFormOpen] = useState(false)
+  useEffect(() => { setRackMetaFormOpen(false) }, [expandedRackId])
   // Inline rack-metadata form. When a rack is expanded the row header
   // replaces the static "name · location · 17RU · 5 slots" strip with
   // editable inputs (name / location / totalRU) plus Save / Delete /
@@ -3727,6 +3734,51 @@ export function ProjectPage({
                   device, so the library is now the canonical home for
                   rack-context controls.) */}
               <div className="hidden items-center justify-end gap-2 pb-3 sm:flex">
+                {/* Expanded-rack header on the toolbar: name +
+                    location + RU on the far left, plus a × to
+                    collapse. Click the name to toggle the rack-
+                    metadata edit form below (Form's Close button
+                    returns here). mr-auto pushes the cluster left
+                    while tab dropdown + search stay on the right. */}
+                {expandedRackId != null && (() => {
+                  const r = commsRacks.find((x) => x.id === expandedRackId)
+                  if (!r) return null
+                  return (
+                    <div className="mr-auto flex items-center gap-2 min-w-0">
+                      <button
+                        type="button"
+                        onClick={() => (isProjectAdmin || isManager) && setRackMetaFormOpen((v) => !v)}
+                        disabled={!(isProjectAdmin || isManager)}
+                        aria-pressed={rackMetaFormOpen}
+                        className={`flex items-center gap-2 min-w-0 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                          rackMetaFormOpen
+                            ? 'border-[#0178a3] bg-[#0178a3]/15 text-[#22a7d3]'
+                            : 'border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04]'
+                        }`}
+                      >
+                        <span className="truncate font-semibold">{r.name}</span>
+                        {r.location && (
+                          <>
+                            <span className="text-gray-600">·</span>
+                            <span className="truncate text-gray-400">{r.location}</span>
+                          </>
+                        )}
+                        <span className="text-gray-600">·</span>
+                        <span className="shrink-0 text-gray-400 font-mono tabular-nums">{r.totalRU}RU</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedRackId(null)}
+                        aria-label="Collapse rack"
+                        className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                      >
+                        <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )
+                })()}
                 {!searchOpen && desktopTabDropdown}
                 {searchOpen ? (
                   <>
@@ -3838,7 +3890,7 @@ export function ProjectPage({
                             Save + Delete + Close. Inputs are admin/
                             manager only; read-only viewers see the
                             static text even when expanded. */}
-                      {isExpanded && (isProjectAdmin || isManager) ? (
+                      {isExpanded && (isProjectAdmin || isManager) && rackMetaFormOpen ? (
                         <AutoHideHeader>
                         <div className="flex flex-col gap-2 py-3 sm:flex-row sm:flex-wrap sm:items-center">
                           {/* Inputs container.
@@ -3892,7 +3944,14 @@ export function ProjectPage({
                             </button>
                             <button
                               type="button"
-                              onClick={() => setExpandedRackId(null)}
+                              // Close hides the metadata form but
+                              // keeps the rack expanded — the
+                              // toolbar still shows the name and the
+                              // chassis stays open. To collapse the
+                              // rack itself, the operator hits the
+                              // × button on the toolbar (next to the
+                              // name display).
+                              onClick={() => setRackMetaFormOpen(false)}
                               disabled={rackEditSaving}
                               className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                             >
@@ -3927,6 +3986,12 @@ export function ProjectPage({
                                     return
                                   }
                                   setRackEditSaving(false)
+                                  // Auto-close the form after a
+                                  // successful save — operator
+                                  // returns to the toolbar-display
+                                  // view of the updated name /
+                                  // location / RU.
+                                  setRackMetaFormOpen(false)
                                   router.refresh()
                                 } catch {
                                   setRackEditError('Network error')
