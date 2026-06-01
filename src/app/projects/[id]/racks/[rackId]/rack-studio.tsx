@@ -2308,12 +2308,13 @@ function SlotRow({
           }`}
         >
           {/* RU column: one number per RU the slot occupies, stacked
-              top-to-bottom and evenly distributed inside the card.
-              For 1U slots that's a single centered number; for
-              multi-RU slots (4U, 6U, etc.) each row of the slot
-              gets its own RU label — same treatment the drag
-              preview overlay uses. */}
-          <span className="w-9 shrink-0 flex flex-col items-center justify-around py-1 font-mono tabular-nums text-sm text-[#22a7d3]">
+              top-to-bottom and spread across the full card height
+              (self-stretch overrides the parent's items-center so
+              this column fills the card vertically while other
+              content stays centered). Each number sits roughly at
+              its real 48px row position via flex justify-around +
+              equal child spacing. */}
+          <span className="w-9 shrink-0 self-stretch flex flex-col items-center justify-around py-1 font-mono tabular-nums text-sm text-[#22a7d3]">
             {Array.from({ length: slot.ruSize }, (_, i) => (
               <span key={i}>{slot.ruPosition + i}</span>
             ))}
