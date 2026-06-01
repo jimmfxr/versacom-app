@@ -1437,18 +1437,22 @@ function DeviceTile({
         // mobile; without it the gesture scrolls the library instead
         // of dragging.
         style={onPointerDown ? { touchAction: 'none' } : undefined}
-        className={`flex w-full items-center gap-2.5 rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
+        // Sizing matches PanelStudio's pick-list cards exactly so
+        // both pickers render at the same row height + padding +
+        // radius — rounded-[10px], px-3.5 py-3, text-sm, gap-3,
+        // bg-[#202020], border-white/[0.08].
+        className={`flex w-full items-center gap-3 rounded-[10px] border px-3.5 py-3 text-left text-sm transition-colors ${
           disabled
-            ? 'border-white/10 text-gray-500 cursor-not-allowed opacity-50'
+            ? 'border-white/[0.08] bg-[#202020] text-gray-500 cursor-not-allowed opacity-50'
             : isDragging
               ? 'border-[#22a7d3]/70 bg-[#0178a3]/15 text-[#22a7d3] opacity-70'
               : highlightTarget
-                ? 'border-[#22a7d3]/50 text-gray-200 hover:bg-[#0178a3]/10'
-                : 'border-white/15 text-gray-300 hover:border-white/25 hover:bg-white/[0.03]'
+                ? 'border-[#22a7d3]/50 bg-[#202020] text-gray-200 hover:bg-[#262626]'
+                : 'border-white/[0.08] bg-[#202020] text-gray-300 hover:border-[rgba(34,167,211,0.5)] hover:bg-[#262626]'
         }`}
       >
         <span className="truncate">{preset.name}</span>
-        <span className={`ml-auto shrink-0 text-[10px] text-gray-500 ${onDelete ? 'mr-6' : ''}`}>
+        <span className={`ml-auto shrink-0 text-xs text-gray-500 ${onDelete ? 'mr-6' : ''}`}>
           {isLoose ? '—' : `${preset.ruSize}U`}
         </span>
       </button>
