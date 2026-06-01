@@ -1940,35 +1940,29 @@ function SlotRow({
     }
   }
 
-  function handleDelete() {
-    onConfirmDelete({
-      title: 'Delete slot',
-      message: (
-        <>
-          Delete <span className="text-white font-medium">{slot.label}</span> from the rack?
-        </>
-      ),
-      onConfirm: async () => {
-        setError(null)
-        setEditSaving(true)
-        try {
-          const res = await fetch(`/api/racks/${rackId}/slots/${slot.id}`, {
-            method: 'DELETE',
-          })
-          if (!res.ok) {
-            const data = await res.json().catch(() => null)
-            setError((data as { error?: string } | null)?.error ?? 'Failed to delete')
-            setEditSaving(false)
-            return
-          }
-          setEditSaving(false)
-          refreshAfter()
-        } catch {
-          setError('Network error')
-          setEditSaving(false)
-        }
-      },
-    })
+  async function handleDelete() {
+    // No confirm prompt — operator explicitly tapped Delete on the
+    // slot's own edit form, so the intent is unambiguous. Direct
+    // DELETE keeps the gesture fast (especially when cleaning up
+    // multiple slots in a row).
+    setError(null)
+    setEditSaving(true)
+    try {
+      const res = await fetch(`/api/racks/${rackId}/slots/${slot.id}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        setError((data as { error?: string } | null)?.error ?? 'Failed to delete')
+        setEditSaving(false)
+        return
+      }
+      setEditSaving(false)
+      refreshAfter()
+    } catch {
+      setError('Network error')
+      setEditSaving(false)
+    }
   }
 
   const ruSpan = `${slot.ruSize}U · RU ${slot.ruPosition}-${slot.ruPosition + slot.ruSize - 1}`
