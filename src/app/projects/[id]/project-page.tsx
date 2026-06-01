@@ -3985,7 +3985,7 @@ export function ProjectPage({
                             {r.location && (
                               <>
                                 <span className="shrink-0 text-xs text-gray-600">·</span>
-                                <span className="truncate text-xs text-gray-400">{r.location}</span>
+                                <span className="truncate text-xs text-[#22a7d3]">{r.location}</span>
                               </>
                             )}
                             <span className="shrink-0 text-xs text-gray-600">·</span>
