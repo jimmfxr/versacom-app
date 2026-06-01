@@ -15,28 +15,38 @@ model User {
   id             Int       @id @default(autoincrement())
   firstName      String
   lastName       String
-  pin            String    // bcrypt hashed, never plaintext
-  /** Optional avatar — stored as a data URL (`data:image/webp;base64,...`)
-   *  generated client-side from the chosen file, resized down to 256x256
-   *  + ~85% webp. Inline-storing avoids any external blob/storage
-   *  dependency at the cost of slightly bigger user rows (~30–60 KB). */
+  pin            String // bcrypt hashed, never plaintext
+  /**
+   * Optional avatar — stored as a data URL (`data:image/webp;base64,...`)
+   * generated client-side from the chosen file, resized down to 256x256
+   * + ~85% webp. Inline-storing avoids any external blob/storage
+   * dependency at the cost of slightly bigger user rows (~30–60 KB).
+   */
   avatarUrl      String?
-  /** Free-form personal role / position description (e.g. "A1",
-   *  "Comms Tech"). Distinct from ProjectMember.position which scopes
-   *  the position to a single show. This is the user's general
-   *  identity, surfaced on /profile and (later) suggestable when they
-   *  join a new show. */
+  /**
+   * Free-form personal role / position description (e.g. "A1",
+   * "Comms Tech"). Distinct from ProjectMember.position which scopes
+   * the position to a single show. This is the user's general
+   * identity, surfaced on /profile and (later) suggestable when they
+   * join a new show.
+   */
   position       String?
-  /** Free-form department label — Audio, Video, RF, Lighting, Comms,
-   *  etc. Same shape as `position` (per-user global default) — kept in
-   *  sync with ProjectMember.department whenever a per-show value is
-   *  written. Surfaced on /profile and pre-fillable on joins. */
+  /**
+   * Free-form department label — Audio, Video, RF, Lighting, Comms,
+   * etc. Same shape as `position` (per-user global default) — kept in
+   * sync with ProjectMember.department whenever a per-show value is
+   * written. Surfaced on /profile and pre-fillable on joins.
+   */
   department     String?
-  /** Optional contact email — surfaced on /profile so admins can reach
-   *  out about lockouts / scheduling. Not used for auth (PIN-only). */
+  /**
+   * Optional contact email — surfaced on /profile so admins can reach
+   * out about lockouts / scheduling. Not used for auth (PIN-only).
+   */
   email          String?
-  /** Optional contact phone — surfaced on /profile for the same reason
-   *  as email. Free-form so international formats Just Work. */
+  /**
+   * Optional contact phone — surfaced on /profile for the same reason
+   * as email. Free-form so international formats Just Work.
+   */
   phone          String?
   failedAttempts Int       @default(0)
   lockedUntil    DateTime?
@@ -45,7 +55,7 @@ model User {
   updatedAt      DateTime  @updatedAt
 
   // Relations
-  createdProjects   Project[]            @relation("ProjectCreator")
+  createdProjects   Project[]                @relation("ProjectCreator")
   memberships       ProjectMember[]
   changeRequests    ChangeRequest[]
   accessRequests    AccessRequest[]
@@ -67,7 +77,9 @@ model User {
 model NotificationPreference {
   id      Int     @id @default(autoincrement())
   userId  Int
-  /** Stable string identifier — see src/lib/notification-types.ts for the catalog. */
+  /**
+   * Stable string identifier — see src/lib/notification-types.ts for the catalog.
+   */
   type    String
   enabled Boolean @default(true)
 
@@ -148,41 +160,42 @@ model PanelPresence {
 }
 
 model Project {
-  id          Int      @id @default(autoincrement())
-  name        String
-  pin         String?  @unique // 4-digit join code, shared with crew
-  status      String   @default("active") // active, archived
-  createdById Int
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                  Int      @id @default(autoincrement())
+  name                String
+  pin                 String?  @unique // 4-digit join code, shared with crew
+  status              String   @default("active") // active, archived
+  createdById         Int
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
   // Manager-set "brought to the show" totals for panel misc accessories.
   // 0 (default) means "not tracked" — fall back to needed count.
-  goosenecksBrought    Int @default(0)
-  footswitchesBrought  Int @default(0)
-  speakersBrought      Int @default(0)
+  goosenecksBrought   Int      @default(0)
+  footswitchesBrought Int      @default(0)
+  speakersBrought     Int      @default(0)
   // Cable accessories derived from panel footswitch/speaker config.
   // 0 (default) means "not tracked" — fall back to needed count.
-  quarterXlrmBrought   Int @default(0) // 1/4" to XLR-M, one per footswitch
-  db9XlrfBrought       Int @default(0) // DB9 to XLR-F, one per FS-equipped panel
-  rj45XlrmfBrought     Int @default(0) // RJ45 to XLR-M/F, one per speaker
+  quarterXlrmBrought  Int      @default(0) // 1/4" to XLR-M, one per footswitch
+  db9XlrfBrought      Int      @default(0) // DB9 to XLR-F, one per FS-equipped panel
+  rj45XlrmfBrought    Int      @default(0) // RJ45 to XLR-M/F, one per speaker
   // When admin activates Return phase, crew see "done" gear as Return tasks
   // alongside the existing Deploy tasks. Toggle on the project edit form.
-  returnPhaseActive    Boolean @default(false)
+  returnPhaseActive   Boolean  @default(false)
 
   // Relations
-  createdBy      User             @relation("ProjectCreator", fields: [createdById], references: [id])
-  members        ProjectMember[]
-  pickListItems  PickListItem[]
-  changeRequests ChangeRequest[]
-  accessRequests AccessRequest[]
-  equipment      Equipment[]
-  rackTemplates  RackTemplate[]
-  headsetInventory ProjectHeadsetInventory[]
+  createdBy          User                        @relation("ProjectCreator", fields: [createdById], references: [id])
+  members            ProjectMember[]
+  pickListItems      PickListItem[]
+  changeRequests     ChangeRequest[]
+  accessRequests     AccessRequest[]
+  equipment          Equipment[]
+  rackTemplates      RackTemplate[]
+  rackDevices        RackDevice[]
+  headsetInventory   ProjectHeadsetInventory[]
   accessoryInventory ProjectAccessoryInventory[]
-  plots          Plot[]
-  notifications  Notification[]
-  radios         Radio[]
-  zones          Zone[]
+  plots              Plot[]
+  notifications      Notification[]
+  radios             Radio[]
+  zones              Zone[]
 }
 
 /// Two-way radios tracked per project. Independent table from
@@ -194,46 +207,46 @@ model Project {
 /// operator picked the name from team-autosuggest; the user-facing
 /// "my radio" view prefers the FK over name-matching.
 model Radio {
-  id           Int       @id @default(autoincrement())
-  projectId    Int
+  id                        Int       @id @default(autoincrement())
+  projectId                 Int
   /// Display ID — auto-generated as "RAD 1", "RAD 2"... by bulk add.
   /// Re-uses the new starting-ID generator (letter/dotted/integer
   /// suffix support) shared with the Equipment bulk-create flow.
-  name         String
-  firstName    String?
-  lastName     String?
-  department   String?
-  position     String?
+  name                      String
+  firstName                 String?
+  lastName                  String?
+  department                String?
+  position                  String?
   /// Free-form barcode/QR scanned off the physical radio
   /// (e.g. `C8098764`). Nullable because admin can pre-create blank
   /// radios via bulk-add and fill the barcode later.
-  barcode      String?
+  barcode                   String?
   /// Inventory status — replaces the old `checkedOut` boolean. Values:
   /// 'na' (default — fresh, no cycle), 'out' (checked out to a
   /// person), 'returned' (back in inventory), 'damaged' (broken),
   /// 'lost' (missing). See src/lib/radio-status.ts for the canonical
   /// enum + label/border maps. `checkedOutAt` is kept as an audit
   /// timestamp for the most recent check-out.
-  status       String    @default("na")
-  checkedOutAt DateTime?
+  status                    String    @default("na")
+  checkedOutAt              DateTime?
   /// Accessory flags — yes/no toggles surfaced in the radio edit
   /// card. When true the collapsed row renders a chip for each.
   /// Default false so legacy radios stay accessory-free until an
   /// operator opts in.
-  fistMic      Boolean   @default(false)
-  surveillance Boolean   @default(false)
-  doubleMuff   Boolean   @default(false)
-  lightweight  Boolean   @default(false)
+  fistMic                   Boolean   @default(false)
+  surveillance              Boolean   @default(false)
+  doubleMuff                Boolean   @default(false)
+  lightweight               Boolean   @default(false)
   /// Optional barcode for each accessory, captured by the radio
   /// scanner when the operator toggles a chip ON in the assignment
   /// modal. The scanner prompts to scan the accessory's barcode so
   /// individual accessories can be inventoried separately from the
   /// radio they're paired with. UI labels the lightweight accessory
   /// as "LWHS" but the DB column keeps the legacy name.
-  fistMicBarcode      String?
-  surveillanceBarcode String?
-  doubleMuffBarcode   String?
-  lightweightBarcode  String?
+  fistMicBarcode            String?
+  surveillanceBarcode       String?
+  doubleMuffBarcode         String?
+  lightweightBarcode        String?
   /// Optional link to a ProjectMember. Set when the operator picks
   /// an existing team member from autosuggest; falls back to null
   /// when the radio is assigned to someone not on the team. The
@@ -241,8 +254,8 @@ model Radio {
   /// so the row reads correctly even after the team membership is
   /// edited or removed.
   assignedToProjectMemberId Int?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
 
   project    Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   assignedTo ProjectMember? @relation(fields: [assignedToProjectMemberId], references: [id], onDelete: SetNull)
@@ -323,10 +336,10 @@ model Plot {
 }
 
 model ProjectHeadsetInventory {
-  id          Int     @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   projectId   Int
   headsetType String
-  brought     Int     @default(0)
+  brought     Int      @default(0)
   updatedAt   DateTime @updatedAt
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -358,12 +371,14 @@ model ProjectMember {
   id           Int     @id @default(autoincrement())
   userId       Int
   projectId    Int
-  role         String  // admin, manager, crew, user
+  role         String // admin, manager, crew, user
   position     String? // e.g. PLHQ, A1, A2
-  /** Per-show department label — e.g. Audio, Video, RF, Lighting,
-   *  Comms. Free-form so users can put whatever the production crew
-   *  actually calls things. Separate from position because the same
-   *  person might be "A1" (position) in "Audio" (department). */
+  /**
+   * Per-show department label — e.g. Audio, Video, RF, Lighting,
+   * Comms. Free-form so users can put whatever the production crew
+   * actually calls things. Separate from position because the same
+   * person might be "A1" (position) in "Audio" (department).
+   */
   department   String?
   location     String? // e.g. FOH, MON, STAGE
   hardwareType String? // e.g. RSP-1232, Bolero
@@ -373,12 +388,12 @@ model ProjectMember {
   riedelId     Int?
 
   // Relations
-  user            User              @relation(fields: [userId], references: [id])
-  project         Project           @relation(fields: [projectId], references: [id])
-  panelKeys       PanelKey[]
-  equipment       Equipment[]
-  changeRequests  ChangeRequest[]   @relation("ChangeRequestTarget")
-  radios          Radio[]
+  user           User            @relation(fields: [userId], references: [id])
+  project        Project         @relation(fields: [projectId], references: [id])
+  panelKeys      PanelKey[]
+  equipment      Equipment[]
+  changeRequests ChangeRequest[] @relation("ChangeRequestTarget")
+  radios         Radio[]
 
   @@unique([userId, projectId])
 }
@@ -387,8 +402,8 @@ model PickListItem {
   id        Int     @id @default(autoincrement())
   projectId Int
   code      String? // Human-readable code: C001 (CONF), IF01 (IFB), G001 (GRP), A001 (Audio_IO)
-  name      String  // Function name
-  type      String  // PTP, CONF, IFB, Audio_IO, GRP
+  name      String // Function name
+  type      String // PTP, CONF, IFB, Audio_IO, GRP
 
   // Relations
   project   Project    @relation(fields: [projectId], references: [id])
@@ -403,7 +418,7 @@ model PanelKey {
   // device (panels / hardwire_bp / wireless_bp). Members with multiple
   // devices on a project get one PanelKey row per device per slot.
   equipmentId     Int
-  keyIndex        Int    // Physical key position
+  keyIndex        Int // Physical key position
   page            String @default("main") // main, shift
   expansion       Int    @default(0) // 0 = main panel, 1-6 = expansion
   pickListItemId  Int?
@@ -462,7 +477,7 @@ model ChangeRequest {
 }
 
 model ChangeRequestItem {
-  id              Int    @id @default(autoincrement())
+  id              Int     @id @default(autoincrement())
   changeRequestId Int
   panelKeyId      Int
   fieldChanged    String
@@ -492,35 +507,35 @@ model AccessRequest {
 // ============================================================
 
 model Equipment {
-  id           Int     @id @default(autoincrement())
-  projectId    Int
-  assignedToId Int?
-  name         String  // Auto-generated identifier e.g. PNL 1, WLBP 1, SW 1, FBR A
-  category     String  // panels, wireless_bp, hardwire_bp, switches, antennas, audio, mults
-  hardwareType String?
-  position     String?
-  location     String?
-  headsetType  String?
-  ipAddress    String?
-  patch        String? // Patch label (switches only)
-  deployStatus String  @default("na") // deployed, done, returned, not-needed, damaged, na
-  notes        String?
-  assetId      Int?
+  id               Int     @id @default(autoincrement())
+  projectId        Int
+  assignedToId     Int?
+  name             String // Auto-generated identifier e.g. PNL 1, WLBP 1, SW 1, FBR A
+  category         String // panels, wireless_bp, hardwire_bp, switches, antennas, audio, mults
+  hardwareType     String?
+  position         String?
+  location         String?
+  headsetType      String?
+  ipAddress        String?
+  patch            String? // Patch label (switches only)
+  deployStatus     String  @default("na") // deployed, done, returned, not-needed, damaged, na
+  notes            String?
+  assetId          Int?
   // Panel-only misc accessories (default off for all categories)
-  gooseneck    Boolean @default(false)
-  footswitches Int     @default(0)
-  speakers     Int     @default(0)
+  gooseneck        Boolean @default(false)
+  footswitches     Int     @default(0)
+  speakers         Int     @default(0)
   // Mult-only: the switch / Pliant antenna this mult plugs INTO at
   // its trunk end. Multiple mults can trunk into the same device.
   trunkEquipmentId Int?
   // Mult-only: number of strands/pairs. Fiber is variable (chosen at
   // create time: 2/4/12/24/48/76); Ethernet/W1/CPC are fixed at
   // 5/16/4 but stored here too for consistency.
-  strandCount  Int?
+  strandCount      Int?
   // Mult-only: physical length in feet (25 / 50 / 100 / 150 / 300 /
   // 500 / 1000). Stored as an int so we can sort + filter; rendered
   // with a trailing apostrophe in the UI.
-  lengthFeet   Int?
+  lengthFeet       Int?
 
   // Relations
   project         Project         @relation(fields: [projectId], references: [id])
@@ -537,6 +552,11 @@ model Equipment {
   trunkingMults   Equipment[]     @relation("MultTrunk")
   strands         MultStrand[]    @relation("MultStrands")
   attachedStrands MultStrand[]    @relation("StrandAttachment")
+  // Rack designer — this Equipment row can be linked to one or more
+  // RackSlot rows (or RackLooseItem rows) so deploy status / IP /
+  // asset all flow through to the rack visualization.
+  rackSlots       RackSlot[]      @relation("RackSlotEquipment")
+  rackLooseItems  RackLooseItem[] @relation("RackLooseEquipment")
 }
 
 // One row per strand/pair on a mult. The mult itself lives in
@@ -566,7 +586,7 @@ model Asset {
   qrCode       String   @unique
   hardwareType String
   serialNumber String
-  owner        String   // e.g. Clair Global
+  owner        String // e.g. Clair Global
   status       String   @default("active") // active, retired, repair
   createdAt    DateTime @default(now())
 
@@ -575,31 +595,88 @@ model Asset {
   nfgReports NfgReport[]
 }
 
+/// Rack designer — per-project chassis layouts (FOH Rack, MON Rack,
+/// RF Rack, etc.). Lives as a Tab on both Comms (/projects/[id]) and
+/// Radios (/radios) — the `dept` field scopes which side a rack
+/// belongs to so the two tabs don't see each other's racks.
 model RackTemplate {
   id          Int     @id @default(autoincrement())
-  name        String  // e.g. FS11, Bolero, Bolero to Helixnet
+  name        String // e.g. "FOH Rack", "MON Rack", "RF 1"
   description String?
-  totalRU     Int
-  type        String  // standard, custom
+  totalRU     Int // 17, 32, 40 — standard sizes vary by show
+  type        String // "standard" (library template) or "custom" (per-project)
+  /// Which tab "owns" this rack. 'comms' shows on /projects/[id]?tab=racks;
+  /// 'radios' shows on /radios?tab=racks. Independent data scopes.
+  dept        String  @default("comms") // 'comms' | 'radios'
+  /// Where this rack physically lives at the show — FOH, MON, STAGE,
+  /// "Studio A", "Truck 1", etc. Free-form like Equipment.location.
+  location    String?
   projectId   Int?
 
   // Relations
-  project Project?   @relation(fields: [projectId], references: [id])
-  slots   RackSlot[]
+  project    Project?        @relation(fields: [projectId], references: [id])
+  slots      RackSlot[]
+  looseItems RackLooseItem[]
 }
 
+/// A single rack slot at a specific RU position on one side of the
+/// rack. `equipmentId` is OPTIONAL — when set, this slot is bound to
+/// a real Equipment row (deploy status / IP / asset all flow through);
+/// when null, the slot is a free-form label (Artist frames, audio
+/// gear, drawers — anything not yet in the Equipment table).
 model RackSlot {
-  id             Int    @id @default(autoincrement())
+  id             Int     @id @default(autoincrement())
   rackTemplateId Int
-  ruPosition     Int    // Starting RU position (top = 1)
-  ruSize         Int    // Height in RU
-  side           String // front, rear
-  deviceType     String // e.g. Artist-64 Frame, Antaira Switch
+  ruPosition     Int // Starting RU position (top = 1)
+  ruSize         Int // Height in RU
+  side           String // 'front' | 'rear'
+  deviceType     String // e.g. "Artist-64 Frame", "Switch · 40P+4F"
   label          String
   color          String?
+  /// Optional link to a real Equipment row so deploy status / IP /
+  /// asset metadata flows through to the rack view.
+  equipmentId    Int?
 
   // Relations
-  rackTemplate RackTemplate @relation(fields: [rackTemplateId], references: [id])
+  rackTemplate RackTemplate @relation(fields: [rackTemplateId], references: [id], onDelete: Cascade)
+  equipment    Equipment?   @relation("RackSlotEquipment", fields: [equipmentId], references: [id])
+}
+
+/// Small devices tagged to a rack that don't occupy an RU slot —
+/// velcro'd to free space inside the chassis or thrown in a drawer.
+/// Typical: Antaira / Intellanet / TP Link / Netgate unmanaged
+/// switches, Bolero Antenna Master. Tracked here so operators still
+/// know what's living inside the rack even though it's not on the
+/// RU grid.
+model RackLooseItem {
+  id             Int     @id @default(autoincrement())
+  rackTemplateId Int
+  deviceType     String
+  label          String?
+  /// Optional Equipment link (same idea as RackSlot.equipmentId).
+  equipmentId    Int?
+
+  // Relations
+  rackTemplate RackTemplate @relation(fields: [rackTemplateId], references: [id], onDelete: Cascade)
+  equipment    Equipment?   @relation("RackLooseEquipment", fields: [equipmentId], references: [id])
+}
+
+/// Custom devices added by the user via the "+ Custom device" button
+/// in the rack designer's device library. Project-scoped (each show's
+/// library can have its own customs) and saved so they're reusable
+/// across racks. Built-in presets (Artist-64, Antaira switches, etc.)
+/// live in code (lib/rack-presets.ts) — this table is ONLY user-
+/// authored extras.
+model RackDevice {
+  id        Int    @id @default(autoincrement())
+  name      String // displayed in the library list
+  ruSize    Int // 0 means "loose" (no RU); otherwise 1, 2, 3...
+  category  String // 'devices' | 'switches' | 'audio' | 'drawers' | 'power' | 'loose'
+  projectId Int? // null = global library available to all projects
+  dept      String @default("comms") // 'comms' | 'radios' — scopes which tab sees it
+
+  // Relations
+  project Project? @relation(fields: [projectId], references: [id])
 }
 
 model NfgReport {
