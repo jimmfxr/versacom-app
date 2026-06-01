@@ -901,7 +901,7 @@ export function RackStudio({
           const offsetFor = (ru: number) => editingSlot && ru > editingEndRu ? EDIT_EXTRA_PX : 0
           const containerHeight = rack.totalRU * RU_PX + 8 + (editingSlot ? EDIT_EXTRA_PX : 0)
           return (
-            <div className={`relative rounded-lg border border-white/[0.06] overflow-y-auto lg:order-2 ${
+            <div className={`relative overflow-y-auto lg:order-2 ${
               embedded
                 // Embedded: mobile keeps the 70vh cap because the
                 // outer tab scroll handles overflow there. Desktop
@@ -1443,18 +1443,20 @@ function DeviceTile({
         // mobile; without it the gesture scrolls the library instead
         // of dragging.
         style={onPointerDown ? { touchAction: 'none' } : undefined}
-        // Sizing matches PanelStudio's pick-list cards exactly so
-        // both pickers render at the same row height + padding +
-        // radius — rounded-[10px], px-3.5 py-3, text-sm, gap-3,
-        // bg-[#202020], border-white/[0.08].
+        // Same row geometry as PanelStudio's pick-list cards
+        // (rounded-[10px], px-3.5 py-3, text-sm, gap-3,
+        // border-white/[0.08]) — but the fill is the panel CHASSIS
+        // tone (#2a2a2a) instead of the panel KEY tone, so the
+        // device library reads as a stack of chassis-colored tiles
+        // sitting on the page bg.
         className={`flex w-full items-center gap-3 rounded-[10px] border px-3.5 py-3 text-left text-sm transition-colors ${
           disabled
-            ? 'border-white/[0.08] bg-[#202020] text-gray-500 cursor-not-allowed opacity-50'
+            ? 'border-white/[0.08] bg-[#2a2a2a] text-gray-500 cursor-not-allowed opacity-50'
             : isDragging
               ? 'border-[#22a7d3]/70 bg-[#0178a3]/15 text-[#22a7d3] opacity-70'
               : highlightTarget
-                ? 'border-[#22a7d3]/50 bg-[#202020] text-gray-200 hover:bg-[#262626]'
-                : 'border-white/[0.08] bg-[#202020] text-gray-300 hover:border-[rgba(34,167,211,0.5)] hover:bg-[#262626]'
+                ? 'border-[#22a7d3]/50 bg-[#2a2a2a] text-gray-200 hover:bg-[#333333]'
+                : 'border-white/[0.08] bg-[#2a2a2a] text-gray-300 hover:border-[rgba(34,167,211,0.5)] hover:bg-[#333333]'
         }`}
       >
         <span className="truncate">{preset.name}</span>
