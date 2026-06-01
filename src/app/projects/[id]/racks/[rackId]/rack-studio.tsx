@@ -937,7 +937,11 @@ export function RackStudio({
                       }}
                     >
                       <div className="w-9 text-center text-sm text-gray-400 font-mono tabular-nums">
-                        {ru}
+                        {/* RU label hides during a library drag so it
+                            doesn't bleed through the semi-transparent
+                            preview overlay above. The overlay shows
+                            its own start-RU instead. */}
+                        {dragPreset ? '' : ru}
                       </div>
                       <div className="flex-1">
                         {isEmpty && (
