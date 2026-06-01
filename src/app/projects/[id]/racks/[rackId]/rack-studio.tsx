@@ -1482,8 +1482,11 @@ function DeviceLibrary({
         </div>
       )}
       <div
-        className={`${renderInSheet ? '' : 'flex-1 min-h-0 overflow-y-auto pr-1'} space-y-3`}
-        style={renderInSheet ? undefined : undefined}
+        // Device list scrolls in its own container on BOTH surfaces
+        // — desktop aside and mobile sheet — so the top controls
+        // above can stay pinned (flex-shrink-0) while the list
+        // slides under them.
+        className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-3"
       >
         {showHeaders ? (
           PRESET_CATEGORY_ORDER.map((cat) => {
@@ -1694,7 +1697,7 @@ function DeviceLibrarySheet({
         onClick={onClose}
       />
       <div
-        className="fixed left-0 right-0 bottom-0 z-[200] max-h-[60vh] lg:hidden flex w-full flex-col overflow-hidden rounded-t-[20px] bg-[#202020] shadow-[0_-10px_40px_rgba(0,0,0,0.6)]"
+        className="fixed left-0 right-0 bottom-0 z-[200] max-h-[92vh] lg:hidden flex w-full flex-col overflow-hidden rounded-t-[20px] bg-[#202020] shadow-[0_-10px_40px_rgba(0,0,0,0.6)]"
       >
         {/* Drag-handle pill — same size + color as PanelStudio's
             (h-1.5 w-12 / bg-white/60 / pt-3 pb-2). Tap to close
@@ -1725,7 +1728,13 @@ function DeviceLibrarySheet({
             &times;
           </button>
         </div>
-        <div className="flex-1 min-h-0 overflow-y-auto px-[18px] py-4">
+        {/* Body is a flex column now (not a scroll context). The
+            DeviceLibrary's top controls (Front/Rear + Custom row,
+            category + search row) are flex-shrink-0 inside; only
+            the device list section grows + scrolls. Net effect:
+            filters stay pinned at the top of the sheet while the
+            list slides under them. */}
+        <div className="flex-1 min-h-0 flex flex-col px-[18px] py-4">
           <DeviceLibrary
             items={items}
             filter={filter}
