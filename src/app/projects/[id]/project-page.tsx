@@ -4225,7 +4225,7 @@ function CreateRackForm({
   }
 
   return (
-    <form onSubmit={submit} className="mb-3 rounded-lg border border-white/10 p-4">
+    <form onSubmit={submit} className="mb-3 p-4">
       <div className="text-sm font-semibold text-white mb-3">Create rack</div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_120px]">
         <div>
