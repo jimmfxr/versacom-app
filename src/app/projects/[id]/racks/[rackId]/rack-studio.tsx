@@ -932,7 +932,7 @@ export function RackStudio({
                         transition: 'top 180ms ease-out',
                       }}
                     >
-                      <div className="w-9 pl-1 text-left text-sm text-gray-400 font-mono tabular-nums">
+                      <div className="w-9 text-center text-sm text-gray-400 font-mono tabular-nums">
                         {ru}
                       </div>
                       <div className="flex-1">
@@ -983,20 +983,23 @@ export function RackStudio({
                       style={{
                         position: 'absolute',
                         top: `${(start - 1) * RU_PX + 4 + offsetFor(start)}px`,
-                        left: '40px',
+                        left: 0,
                         right: 0,
                         height: `${dragPreset.ruSize * RU_PX - 2}px`,
                         zIndex: 5,
                         pointerEvents: 'none',
                       }}
-                      className={`flex items-center justify-center rounded-lg border-2 ${
+                      className={`flex items-center rounded-lg border-2 ${
                         fits
                           ? 'border-[#22a7d3] bg-[#0178a3]/20 text-[#22a7d3]'
                           : 'border-red-500 bg-red-500/10 text-red-300'
                       } text-sm font-medium`}
                     >
-                      <span>{dragPreset.name}</span>
-                      <span className="ml-2 text-xs opacity-70">{dragPreset.ruSize}U</span>
+                      <span className="w-9 text-center font-mono tabular-nums">{start}</span>
+                      <span className="flex-1 text-center">
+                        {dragPreset.name}
+                        <span className="ml-2 text-xs opacity-70">{dragPreset.ruSize}U</span>
+                      </span>
                     </div>
                   )
                 })()}
@@ -1720,7 +1723,7 @@ function SlotRow({
       style={{
         position: 'absolute',
         top: `${topPx}px`,
-        left: '40px',
+        left: 0,
         right: 0,
         height: `${heightPx}px`,
         zIndex: isEditing ? 10 : 1,
@@ -1731,8 +1734,9 @@ function SlotRow({
         <div className="flex h-full w-full flex-col rounded-lg border border-[#3a3a3a] bg-[#202020] overflow-hidden">
           {/* Header row — mirrors the read-only row layout so the
               card reads continuous when expanded. */}
-          <div className="flex flex-shrink-0 items-center gap-2 border-b border-white/[0.08] px-4 text-sm font-medium text-white"
+          <div className="flex flex-shrink-0 items-center gap-2 border-b border-white/[0.08] pr-4 text-sm font-medium text-white"
                style={{ height: '48px' }}>
+            <span className="w-9 shrink-0 text-center text-sm text-gray-400 font-mono tabular-nums">{slot.ruPosition}</span>
             <span className="truncate">{slot.label}</span>
             <span className="text-gray-600">·</span>
             <span className="text-[11px] font-normal text-gray-500 truncate">{slot.deviceType}</span>
@@ -1829,14 +1833,12 @@ function SlotRow({
           </div>
         </div>
       ) : (
-        // Each slot is its own bordered card. Background +
-        // border match the panel-studio key style so the rack
-        // chassis reads visually consistent with PanelStudio.
-        // Trimmed to just the label + Edit — deviceType usually
-        // duplicates the label for preset devices, and the RU
-        // range is implicit from the slot's position in the
-        // chassis (the leftmost RU column already labels it).
-        <div className="flex h-full w-full items-center gap-2 rounded-lg border border-[#3a3a3a] bg-[#202020] px-4 text-sm font-medium text-white">
+        // Each slot is its own bordered card now spanning the full
+        // chassis width — the RU number sits inside the card on
+        // the left (centered in a w-9 column), then the label,
+        // then the Edit button on the right.
+        <div className="flex h-full w-full items-center gap-2 rounded-lg border border-[#3a3a3a] bg-[#202020] pr-4 text-sm font-medium text-white">
+          <span className="w-9 shrink-0 text-center text-sm text-gray-400 font-mono tabular-nums">{slot.ruPosition}</span>
           <span className="truncate">{slot.label}</span>
           {canEdit && (
             <button
