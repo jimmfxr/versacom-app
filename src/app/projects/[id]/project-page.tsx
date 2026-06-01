@@ -3717,7 +3717,16 @@ export function ProjectPage({
                 </div>
               ) : (
                 <div data-scroll-container className="flex min-h-0 flex-1 flex-col divide-y divide-white/[0.06] overflow-y-auto overscroll-none pb-20">
-                  {filteredRacks.map((r) => {
+                  {/* When a rack is expanded for editing, hide every
+                      other rack row so the operator has a clean
+                      single-rack workspace. Closing the expansion (×
+                      / Close on the row header) restores the full
+                      list. This matches PanelStudio's focus mode —
+                      one thing at a time, no neighboring rows
+                      competing for attention or scroll. */}
+                  {filteredRacks
+                    .filter((r) => expandedRackId == null || r.id === expandedRackId)
+                    .map((r) => {
                     const isExpanded = expandedRackId === r.id
                     return (
                     <div key={r.id} className="flex flex-col">
