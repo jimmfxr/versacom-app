@@ -66,6 +66,8 @@ export function RackStudio({
   embedded = false,
   onCloseEmbedded,
   onDeleted,
+  side: sideProp,
+  onSideChange,
 }: {
   project: { id: number; name: string }
   /** All active projects the current user belongs to — feeds the
@@ -100,13 +102,28 @@ export function RackStudio({
    *  the component falls back to router.push back to the Racks tab
    *  list. */
   onDeleted?: () => void
+  /** Controlled side state. When both `side` and `onSideChange` are
+   *  provided the parent owns the front/rear toggle — used in
+   *  embedded mode so the desktop side picker can sit in the parent
+   *  page's tab+search toolbar row instead of the rack studio's
+   *  inner toolbar. Mobile still renders the inner picker since the
+   *  parent's row is `sm:flex` only. Leave both undefined to fall
+   *  back to local state (standalone page). */
+  side?: 'front' | 'rear'
+  onSideChange?: (next: 'front' | 'rear') => void
 }) {
   // Silence unused-warning on onCloseEmbedded until we wire an
   // in-studio close button — kept as an explicit no-op so TS knows
   // we considered it.
   void onCloseEmbedded
   const router = useRouter()
-  const [side, setSide] = useState<'front' | 'rear'>('front')
+  // Controlled-or-uncontrolled side state. When the parent supplies
+  // `side`/`onSideChange` (embedded mode), we use those so the parent
+  // can render a duplicate Front/Rear control in its own toolbar
+  // and stay in lockstep. Otherwise local state — same UX as before.
+  const [internalSide, setInternalSide] = useState<'front' | 'rear'>('front')
+  const side = sideProp ?? internalSide
+  const setSide = onSideChange ?? setInternalSide
   const [pendingRu, setPendingRu] = useState<number | null>(null)
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -405,16 +422,23 @@ export function RackStudio({
           Same pattern as the Comms / Radios single-row toolbar so the
           chrome reads consistently. */}
       <div className="flex items-center gap-3 flex-wrap py-4">
-        <FilterDropdown
-          ariaLabel="Rack side"
-          value={side}
-          onChange={(v) => { setSide(v as 'front' | 'rear'); setPendingRu(null) }}
-          widthClass="w-32 shrink-0"
-          options={[
-            { value: 'front', label: 'Front' },
-            { value: 'rear', label: 'Rear' },
-          ]}
-        />
+        {/* Inner side picker — hidden on desktop in embedded mode
+            because the parent project page surfaces a Front/Rear
+            FilterDropdown on its own tab+search toolbar row. Mobile
+            still renders here since the parent row is `sm:flex` only
+            and would leave the side toggle inaccessible otherwise. */}
+        <div className={embedded ? 'sm:hidden' : ''}>
+          <FilterDropdown
+            ariaLabel="Rack side"
+            value={side}
+            onChange={(v) => { setSide(v as 'front' | 'rear'); setPendingRu(null) }}
+            widthClass="w-32 shrink-0"
+            options={[
+              { value: 'front', label: 'Front' },
+              { value: 'rear', label: 'Rear' },
+            ]}
+          />
+        </div>
         <div className="flex-1" />
         {/* Tab dropdown — only when the rack studio is a full page.
             In embedded mode the parent Comms page already owns the

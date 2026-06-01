@@ -965,6 +965,14 @@ export function ProjectPage({
   // different rack switches expansion to that one. The standalone
   // /projects/[id]/racks/[rackId] page still works as a deep-link.
   const [expandedRackId, setExpandedRackId] = useState<number | null>(null)
+  // Front/Rear toggle for the embedded rack studio. Lifted up to this
+  // level so the desktop toolbar row can host the Front/Rear control
+  // on the far left of the tab+search row while the rack-studio body
+  // keeps its mobile-only side picker. Reset to 'front' every time a
+  // different rack is expanded so the operator always starts on the
+  // canonical side.
+  const [expandedRackSide, setExpandedRackSide] = useState<'front' | 'rear'>('front')
+  useEffect(() => { setExpandedRackSide('front') }, [expandedRackId])
   const [addPlotLabel, setAddPlotLabel] = useState('')
   const [addPlotUrl, setAddPlotUrl] = useState('')
   const [editingPlotId, setEditingPlotId] = useState<number | null>(null)
@@ -3638,8 +3646,25 @@ export function ProjectPage({
               {/* Desktop toolbar — tab dropdown + collapsible search on
                   the right. Mirrors the Plots / Comms pattern: search
                   icon expands into an input that replaces the dropdown
-                  space, X collapses it. */}
-              <div className="hidden items-center justify-end gap-2 pb-3 sm:flex">
+                  space, X collapses it. When a rack is expanded for
+                  editing, a Front/Rear FilterDropdown appears on the
+                  far left — `mr-auto` pushes it left while the tab +
+                  search stay packed to the right. */}
+              <div className="hidden items-center gap-2 pb-3 sm:flex">
+                {expandedRackId != null && (
+                  <div className="mr-auto w-32 shrink-0">
+                    <FilterDropdown
+                      ariaLabel="Rack side"
+                      value={expandedRackSide}
+                      onChange={(v) => setExpandedRackSide(v as 'front' | 'rear')}
+                      widthClass="w-full"
+                      options={[
+                        { value: 'front', label: 'Front' },
+                        { value: 'rear', label: 'Rear' },
+                      ]}
+                    />
+                  </div>
+                )}
                 {!searchOpen && desktopTabDropdown}
                 {searchOpen ? (
                   <>
@@ -3777,6 +3802,8 @@ export function ProjectPage({
                             slots={r.slots}
                             looseItems={r.looseItems}
                             canEdit={isProjectAdmin || isManager}
+                            side={expandedRackSide}
+                            onSideChange={setExpandedRackSide}
                             onDeleted={() => {
                               // Rack vanished — collapse the expansion
                               // (the row will unmount on refresh too,
