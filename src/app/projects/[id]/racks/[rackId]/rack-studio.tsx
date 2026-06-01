@@ -268,26 +268,22 @@ export function RackStudio({
 
   function handleEmptyRowClick(ru: number) {
     if (!canEdit) return
-    // Reverse flow: a device was tapped first; tapping a row commits
-    // the POST without going through pendingRu. We hand off to the
-    // RU-aware variant so the validation + create are the same code
-    // path as the click-from-RU and drag-drop flows.
+    // If a device is armed (operator tapped a library tile), the row
+    // tap commits the POST — same validation as click-from-RU and
+    // drag-drop. Otherwise the row click is intentionally silent:
+    // no pendingRu state, no cyan highlight, no 'pick a device'
+    // prompt. On mobile we still open the device library sheet so
+    // the operator has a path to pick something; on desktop the
+    // library is already visible on the left, so nothing happens.
     if (pendingDevice) {
       const preset = pendingDevice
       setPendingDevice(null)
       void handleDevicePickAtRu(preset, ru)
       return
     }
-    if (pendingRu === ru) {
-      // Tap-the-same-row toggles off (cancel without picking).
-      setPendingRu(null)
-      setSheetOpen(false)
-      return
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches) {
+      setSheetOpen(true)
     }
-    setPendingRu(ru)
-    setError(null)
-    // Mobile: open the sheet so the user can pick.
-    setSheetOpen(true)
   }
 
   async function handleDevicePick(preset: RackDevicePreset) {
@@ -968,11 +964,11 @@ export function RackStudio({
                 {Array.from({ length: rack.totalRU }, (_, i) => {
                   const ru = i + 1
                   const isEmpty = !occupied.has(ru)
-                  // Row is "pending" when either:
-                  //  - Operator explicitly tapped THIS row → pendingRu === ru, OR
-                  //  - Operator tapped a device first → pendingDevice is
-                  //    set, so every empty row reads as a candidate slot.
-                  const isPending = pendingRu === ru || pendingDevice != null
+                  // Row is "pending" ONLY when a device is armed.
+                  // Tapping an empty row by itself doesn't produce
+                  // any visual state — the only "next-tap-drops-here"
+                  // signal comes from arming a device first.
+                  const isPending = pendingDevice != null
                   return (
                     <div
                       key={`ru-${ru}`}
@@ -1014,9 +1010,7 @@ export function RackStudio({
                             {ru}
                           </span>
                           <span className="flex-1 text-center">
-                            {pendingDevice
-                              ? `+ Drop ${pendingDevice.name} here`
-                              : isPending ? '← pick a device' : '+ Drop Here'}
+                            {pendingDevice ? `+ Drop ${pendingDevice.name} here` : '+ Drop Here'}
                           </span>
                         </button>
                       ) : (
@@ -1414,7 +1408,7 @@ function DeviceLibrary({
                     onClick={() => onPick(p)}
                     onPointerDown={onStartDrag ? (e) => onStartDrag(p, e) : undefined}
                     disabled={!canEdit || adding}
-                    highlightTarget={pendingRu != null && p.ruSize > 0}
+                    highlightTarget={false}
                     isDragging={!!dragging && dragging.name === p.name}
                     onDelete={p.isCustom && p.id != null && canEdit
                       ? () => onCustomDelete(p.id as number, p.name)
