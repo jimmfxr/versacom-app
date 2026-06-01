@@ -194,17 +194,36 @@ export default async function ProjectDetailPage({
           select: { project: { select: { id: true, name: true } } },
         }),
     // Racks scoped to this project + dept='comms'. Used to render the
-    // Racks tab body and drive the tab count. `_count.slots` lets us
-    // show how many devices are racked on each row without a second
-    // query.
+    // Racks tab body AND power the inline rack studio expansion —
+    // clicking Edit on a rack row opens the full rack studio in place,
+    // so we need slots + looseItems up front. Cheap for typical
+    // projects (3-15 racks, a few hundred slots at the extreme).
     prisma.rackTemplate.findMany({
       where: { projectId, dept: 'comms' },
       select: {
         id: true,
         name: true,
+        description: true,
         location: true,
         totalRU: true,
-        _count: { select: { slots: true } },
+        dept: true,
+        slots: {
+          select: {
+            id: true,
+            ruPosition: true,
+            ruSize: true,
+            side: true,
+            deviceType: true,
+            label: true,
+            color: true,
+            equipmentId: true,
+          },
+          orderBy: [{ side: 'asc' }, { ruPosition: 'asc' }],
+        },
+        looseItems: {
+          select: { id: true, deviceType: true, label: true, equipmentId: true },
+          orderBy: { id: 'asc' },
+        },
       },
       orderBy: [{ name: 'asc' }],
     }),
@@ -381,9 +400,13 @@ export default async function ProjectDetailPage({
       commsRacks={commsRackRows.map((r) => ({
         id: r.id,
         name: r.name,
+        description: r.description,
         location: r.location,
         totalRU: r.totalRU,
-        slotCount: r._count.slots,
+        dept: r.dept,
+        slotCount: r.slots.length,
+        slots: r.slots,
+        looseItems: r.looseItems,
       }))}
     />
   )

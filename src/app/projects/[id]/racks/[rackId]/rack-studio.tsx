@@ -63,10 +63,12 @@ export function RackStudio({
   slots,
   looseItems,
   canEdit,
+  embedded = false,
+  onCloseEmbedded,
 }: {
   project: { id: number; name: string }
   /** All active projects the current user belongs to — feeds the
-   *  ProjectSwitcher in the page header. */
+   *  ProjectSwitcher in the page header. Unused when `embedded`. */
   userProjects: Array<{ id: number; name: string }>
   rack: {
     id: number
@@ -79,7 +81,23 @@ export function RackStudio({
   slots: Slot[]
   looseItems: LooseItem[]
   canEdit: boolean
+  /** Embedded mode: this component is rendered inside the Comms Racks
+   *  tab as an inline expansion of a rack row. Skips the page header
+   *  (rack name + back + project switcher) and the toolbar's tab
+   *  dropdown (parent page already has one). Also drops the outer
+   *  page padding so the body aligns with the row above. */
+  embedded?: boolean
+  /** When embedded, the host renders an explicit "Close" affordance
+   *  (× button) — wire it through so the rack studio can offer the
+   *  same control via the toolbar when it makes sense. Currently the
+   *  host handles closing entirely, but exposing the callback keeps
+   *  the option open for an in-studio close button later. */
+  onCloseEmbedded?: () => void
 }) {
+  // Silence unused-warning on onCloseEmbedded until we wire an
+  // in-studio close button — kept as an explicit no-op so TS knows
+  // we considered it.
+  void onCloseEmbedded
   const router = useRouter()
   const [side, setSide] = useState<'front' | 'rear'>('front')
   const [pendingRu, setPendingRu] = useState<number | null>(null)
@@ -196,13 +214,19 @@ export function RackStudio({
   }
 
   return (
-    <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col px-4 sm:px-6 lg:px-8 py-5 pb-28 sm:pb-8">
+    <div className={
+      embedded
+        ? 'flex w-full flex-col'
+        : 'mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col px-4 sm:px-6 lg:px-8 py-5 pb-28 sm:pb-8'
+    }>
 
       {/* ─── Page header ───
           Rack name + meta on the left, Back button + ProjectSwitcher
           on the right. Mirrors the Comms page header so the rack
           designer reads as a logical continuation of /projects/[id]?
-          tab=racks (same shell, deeper view). */}
+          tab=racks (same shell, deeper view). Hidden in embedded
+          mode — the host row provides the name + close affordance. */}
+      {!embedded && (
       <header className="flex flex-row items-center justify-between gap-3 border-b border-white/20 pb-4">
         <div className="min-w-0">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white truncate">
@@ -247,6 +271,7 @@ export function RackStudio({
           </div>
         </div>
       </header>
+      )}
 
       {/* ─── Toolbar ───
           Left cluster: rack-context controls (side picker).
@@ -267,7 +292,10 @@ export function RackStudio({
           ]}
         />
         <div className="flex-1" />
-        {!searchOpen && (
+        {/* Tab dropdown — only when the rack studio is a full page.
+            In embedded mode the parent Comms page already owns the
+            tab dropdown above, so we'd be doubling it up. */}
+        {!embedded && !searchOpen && (
           <div className="w-[280px]">
             <FilterDropdown
               ariaLabel="Project tab"
@@ -327,12 +355,19 @@ export function RackStudio({
         )}
       </div>
 
-      {/* ─── Stats line ─── */}
+      {/* ─── Stats line ───
+          Embedded mode drops the rack name (the host row above shows
+          it) but keeps the side + utilization counts since they
+          change as the user toggles Front/Rear. */}
       <div className="text-xs text-gray-500 mb-3">
-        <span className="text-gray-300">{rack.name}</span>
-        <span className="mx-1 text-gray-600">·</span>
-        <span>{rack.totalRU}RU</span>
-        <span className="mx-1 text-gray-600">·</span>
+        {!embedded && (
+          <>
+            <span className="text-gray-300">{rack.name}</span>
+            <span className="mx-1 text-gray-600">·</span>
+            <span>{rack.totalRU}RU</span>
+            <span className="mx-1 text-gray-600">·</span>
+          </>
+        )}
         <span>{side === 'front' ? 'Front view' : 'Rear view'}</span>
         <span className="mx-1 text-gray-600">·</span>
         <span>{usedRU} of {rack.totalRU} RUs used</span>
@@ -392,7 +427,7 @@ export function RackStudio({
           const offsetFor = (ru: number) => editingSlot && ru > editingEndRu ? EDIT_EXTRA_PX : 0
           const containerHeight = rack.totalRU * RU_PX + 8 + (editingSlot ? EDIT_EXTRA_PX : 0)
           return (
-            <div className="relative p-2 overflow-y-auto max-h-[calc(100vh-320px)]">
+            <div className={`relative p-2 overflow-y-auto ${embedded ? 'max-h-[70vh]' : 'max-h-[calc(100vh-320px)]'}`}>
               <div className="relative" style={{ height: `${containerHeight}px`, transition: 'height 180ms ease-out' }}>
                 {/* Empty rows + RU numbers */}
                 {Array.from({ length: rack.totalRU }, (_, i) => {
@@ -463,7 +498,7 @@ export function RackStudio({
         })()}
 
         {/* Device library aside (desktop only) */}
-        <aside className="hidden lg:flex lg:flex-col lg:max-h-[calc(100vh-320px)]">
+        <aside className={`hidden lg:flex lg:flex-col ${embedded ? 'lg:max-h-[70vh]' : 'lg:max-h-[calc(100vh-320px)]'}`}>
           <DeviceLibrary
             presets={presets}
             filter={filter}

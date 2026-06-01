@@ -37,6 +37,7 @@ import { AutoHideHeader } from '@/components/auto-hide-header'
 import { LocationSummary } from '@/components/location-summary'
 import { HeadsetInventoryEditor } from '@/components/headset-inventory-editor'
 import { usePersistentState } from '@/lib/use-persistent-state'
+import { RackStudio } from './racks/[rackId]/rack-studio'
 import { updateProject, deleteProject, setReturnPhase, renameLocation } from './actions'
 import { bulkCreateEquipment, updateEquipment, deleteEquipment } from './distribution/actions'
 import { createPlot, updatePlot, deletePlot } from './plot-actions'
@@ -733,9 +734,30 @@ export function ProjectPage({
   commsRacks?: Array<{
     id: number
     name: string
+    description: string | null
     location: string | null
     totalRU: number
+    dept: string
     slotCount: number
+    /** Slots are fetched up front (not lazily) so the inline rack
+     *  studio expansion can render instantly when the user taps
+     *  Edit. Same shape as the standalone rack-studio page expects. */
+    slots: Array<{
+      id: number
+      ruPosition: number
+      ruSize: number
+      side: string
+      deviceType: string
+      label: string
+      color: string | null
+      equipmentId: number | null
+    }>
+    looseItems: Array<{
+      id: number
+      deviceType: string
+      label: string | null
+      equipmentId: number | null
+    }>
   }>
 }) {
   const router = useRouter()
@@ -936,6 +958,13 @@ export function ProjectPage({
   // Inline "Create rack" form on the Racks tab. When true the tab
   // body renders the form above the rack list.
   const [showAddRack, setShowAddRack] = useState(false)
+  // Inline rack-studio expansion. When non-null the matching rack's
+  // row uncollapses to render the full rack studio (chassis + library
+  // + slot edit) right inside the Racks tab — no navigation away.
+  // Toggling Edit on the same rack collapses it; clicking Edit on a
+  // different rack switches expansion to that one. The standalone
+  // /projects/[id]/racks/[rackId] page still works as a deep-link.
+  const [expandedRackId, setExpandedRackId] = useState<number | null>(null)
   const [addPlotLabel, setAddPlotLabel] = useState('')
   const [addPlotUrl, setAddPlotUrl] = useState('')
   const [editingPlotId, setEditingPlotId] = useState<number | null>(null)
@@ -3688,33 +3717,63 @@ export function ProjectPage({
                 </div>
               ) : (
                 <div data-scroll-container className="flex min-h-0 flex-1 flex-col divide-y divide-white/[0.06] overflow-y-auto overscroll-none pb-20">
-                  {filteredRacks.map((r) => (
-                    <div
-                      key={r.id}
-                      className="flex items-center justify-between gap-4 py-3"
-                    >
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold text-white truncate">{r.name}</div>
-                        <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-500">
-                          {r.location && <span className="text-gray-300">{r.location}</span>}
-                          {r.location && <span className="text-gray-600">·</span>}
-                          <span>{r.totalRU}RU</span>
-                          <span className="text-gray-600">·</span>
-                          <span>{r.slotCount} {r.slotCount === 1 ? 'slot' : 'slots'}</span>
+                  {filteredRacks.map((r) => {
+                    const isExpanded = expandedRackId === r.id
+                    return (
+                    <div key={r.id} className="flex flex-col">
+                      {/* Header row — always visible. The Edit button
+                          toggles the inline rack-studio expansion below.
+                          When expanded, the button switches to Close so
+                          a second tap collapses without hunting for an
+                          alternate control. */}
+                      <div className="flex items-center justify-between gap-4 py-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-white truncate">{r.name}</div>
+                          <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-500">
+                            {r.location && <span className="text-gray-300">{r.location}</span>}
+                            {r.location && <span className="text-gray-600">·</span>}
+                            <span>{r.totalRU}RU</span>
+                            <span className="text-gray-600">·</span>
+                            <span>{r.slotCount} {r.slotCount === 1 ? 'slot' : 'slots'}</span>
+                          </div>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedRackId(isExpanded ? null : r.id)}
+                          className="shrink-0 rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+                        >
+                          {isExpanded ? 'Close' : 'Edit'}
+                        </button>
                       </div>
-                      {/* Open — navigates to the rack designer page
-                          (/projects/[id]/racks/[rackId]) where the
-                          chassis visualization lives. */}
-                      <button
-                        type="button"
-                        onClick={() => router.push(`/projects/${project.id}/racks/${r.id}`)}
-                        className="shrink-0 rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
-                      >
-                        Open
-                      </button>
+                      {/* Inline rack studio — uncollapses in place when
+                          Edit is tapped. Server pre-fetched slots +
+                          looseItems on this rack so the expansion is
+                          instant; mutations inside still call the
+                          existing /api/racks/.../slots endpoints and
+                          router.refresh() pulls fresh data back. */}
+                      {isExpanded && (
+                        <div className="pb-4">
+                          <RackStudio
+                            embedded
+                            project={{ id: project.id, name: project.name }}
+                            userProjects={userProjects}
+                            rack={{
+                              id: r.id,
+                              name: r.name,
+                              description: r.description,
+                              location: r.location,
+                              totalRU: r.totalRU,
+                              dept: r.dept,
+                            }}
+                            slots={r.slots}
+                            looseItems={r.looseItems}
+                            canEdit={isProjectAdmin || isManager}
+                          />
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>
