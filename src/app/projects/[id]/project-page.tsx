@@ -930,6 +930,8 @@ export function ProjectPage({
 
   // Stage plots state (mockup — no API yet)
   const [plotSearch, setPlotSearch] = useState('')
+  // Racks tab — filters the rack list by name or location.
+  const [rackSearch, setRackSearch] = useState('')
   const [showAddPlot, setShowAddPlot] = useState(false)
   // Inline "Create rack" form on the Racks tab. When true the tab
   // body renders the form above the rack list.
@@ -3588,13 +3590,100 @@ export function ProjectPage({
               the rack designer page (TODO — landing in a follow-up commit).
               The + (Add Rack) button in the page header opens the inline
               Create Rack form. */}
-          {activeTab === 'racks' && (
+          {activeTab === 'racks' && (() => {
+            // Render-side filter — case-insensitive substring match on
+            // name or location. Empty query keeps everything.
+            const q = rackSearch.trim().toLowerCase()
+            const filteredRacks = q.length === 0
+              ? commsRacks
+              : commsRacks.filter((r) =>
+                  r.name.toLowerCase().includes(q) ||
+                  (r.location ?? '').toLowerCase().includes(q),
+                )
+            return (
             <div className="flex min-h-0 flex-1 flex-col">
-              {/* Desktop toolbar — tab dropdown on the right (search not
-                  wired yet; will be in a follow-up). Mirrors the Plots
-                  tab's pattern so the toolbar reads consistently. */}
+              {/* Desktop toolbar — tab dropdown + collapsible search on
+                  the right. Mirrors the Plots / Comms pattern: search
+                  icon expands into an input that replaces the dropdown
+                  space, X collapses it. */}
               <div className="hidden items-center justify-end gap-2 pb-3 sm:flex">
-                {desktopTabDropdown}
+                {!searchOpen && desktopTabDropdown}
+                {searchOpen ? (
+                  <>
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="Search racks…"
+                      value={rackSearch}
+                      onChange={(e) => setRackSearch(e.target.value)}
+                      className="w-[280px] rounded-lg border-2 border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { setSearchOpen(false); setRackSearch('') }}
+                      aria-label="Close search"
+                      className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                    >
+                      <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setSearchOpen(true)}
+                    aria-label="Search"
+                    className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                  >
+                    <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.343-4.343m0 0A8 8 0 1 0 5.343 5.343a8 8 0 0 0 11.314 11.314Z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+
+              {/* Mobile toolbar — tab dropdown + search toggle on a
+                  single row, same pattern as other tabs. */}
+              <div className="flex items-center gap-2 pb-3 sm:hidden">
+                {!searchOpen && (
+                  <div className="min-w-0 flex-1">
+                    <TabsMobileDropdown tabs={navTabs} activeTab={activeTab} onSelect={setActiveTab} />
+                  </div>
+                )}
+                {searchOpen ? (
+                  <>
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="Search racks…"
+                      value={rackSearch}
+                      onChange={(e) => setRackSearch(e.target.value)}
+                      className="flex-1 rounded-lg border-2 border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { setSearchOpen(false); setRackSearch('') }}
+                      aria-label="Close search"
+                      className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                    >
+                      <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setSearchOpen(true)}
+                    aria-label="Search"
+                    className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                  >
+                    <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.343-4.343m0 0A8 8 0 1 0 5.343 5.343a8 8 0 0 0 11.314 11.314Z" />
+                    </svg>
+                  </button>
+                )}
               </div>
 
               {/* Inline Create-rack form. Opens when the + button in the
@@ -3611,7 +3700,8 @@ export function ProjectPage({
                 />
               )}
 
-              {/* Rack list. Empty state when no racks yet. */}
+              {/* Rack list. Empty states differ between "no racks at all"
+                  and "racks exist but none match the search". */}
               {commsRacks.length === 0 && !showAddRack ? (
                 <div className="flex flex-1 flex-col items-center justify-center gap-3 py-12 text-center">
                   <div className="text-sm text-gray-400">No racks yet on this show.</div>
@@ -3625,9 +3715,13 @@ export function ProjectPage({
                     </button>
                   )}
                 </div>
+              ) : filteredRacks.length === 0 ? (
+                <div className="flex flex-1 flex-col items-center justify-center gap-2 py-12 text-center text-sm text-gray-500">
+                  No racks match &ldquo;{rackSearch}&rdquo;.
+                </div>
               ) : (
                 <div data-scroll-container className="flex min-h-0 flex-1 flex-col divide-y divide-white/[0.06] overflow-y-auto overscroll-none pb-20">
-                  {commsRacks.map((r) => (
+                  {filteredRacks.map((r) => (
                     <div
                       key={r.id}
                       className="flex items-center justify-between gap-4 py-3"
@@ -3657,7 +3751,8 @@ export function ProjectPage({
                 </div>
               )}
             </div>
-          )}
+            )
+          })()}
 
           {/* ═══════════════════════════════ MY EQUIPMENT TAB (User role) ═══════════════════════════════ */}
           {activeTab === 'my-equipment' && (() => {
