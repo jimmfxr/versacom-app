@@ -643,13 +643,18 @@ export function RackStudio({
   return (
     <div className={
       embedded
-        // Embedded: fill the parent (the expanded rack row) so the
-        // inner main grid has a defined height to work with. The
-        // toolbar / loose tray / etc. up top are flex-shrink-0;
-        // the chassis + library grid below is flex-1 min-h-0 and
-        // owns the scroll. Net effect: chrome stays put, only
-        // chassis and library scroll.
-        ? 'flex min-h-0 w-full flex-1 flex-col'
+        // Embedded desktop: fill the parent (the expanded rack
+        // row) so the inner main grid has a defined height to work
+        // with. The toolbar / loose tray / etc. up top are
+        // flex-shrink-0; the chassis + library grid below is
+        // flex-1 min-h-0 and owns the scroll. Net effect: chrome
+        // stays put, only chassis and library scroll.
+        // Embedded mobile: NO flex-1 / min-h-0 — the chassis grows
+        // to its natural totalRU * 48 height and the racks-tab
+        // scroll body handles overflow. Constraining it on mobile
+        // was clipping tall racks and could leave the chassis off-
+        // screen during a drag-and-drop.
+        ? 'flex w-full flex-col lg:min-h-0 lg:flex-1'
         : 'mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col px-4 sm:px-6 lg:px-8 py-5 pb-28 sm:pb-8'
     }>
 

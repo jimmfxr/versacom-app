@@ -3799,13 +3799,13 @@ export function ProjectPage({
                     return (
                     <div
                       key={r.id}
-                      // When this rack is expanded, the row becomes
-                      // the flex-1 column inside the Racks tab scroll
-                      // body — the chassis + library inside the rack
-                      // studio can fill the rest of the viewport
-                      // height instead of competing with the tab
-                      // scroll for vertical space.
-                      className={`flex flex-col ${isExpanded ? 'min-h-0 flex-1' : ''}`}
+                      // Desktop only: when expanded, the row becomes
+                      // a flex-1 column inside the racks-tab scroll
+                      // body so the chassis + library fill the
+                      // viewport. Mobile (no lg:) keeps natural row
+                      // height — the chassis grows to its full
+                      // totalRU * 48 height and the page scrolls.
+                      className={`flex flex-col ${isExpanded ? 'lg:min-h-0 lg:flex-1' : ''}`}
                     >
                       {/* Header row.
                           - Collapsed: static "name · location · RU ·
@@ -3943,7 +3943,7 @@ export function ProjectPage({
                           existing /api/racks/.../slots endpoints and
                           router.refresh() pulls fresh data back. */}
                       {isExpanded && (
-                        <div className="flex min-h-0 flex-1 flex-col">
+                        <div className="flex flex-col lg:min-h-0 lg:flex-1">
                           <RackStudio
                             embedded
                             project={{ id: project.id, name: project.name }}
