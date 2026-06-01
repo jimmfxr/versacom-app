@@ -3950,7 +3950,7 @@ export function ProjectPage({
                           existing /api/racks/.../slots endpoints and
                           router.refresh() pulls fresh data back. */}
                       {isExpanded && (
-                        <div className="flex min-h-0 flex-1 flex-col pb-4">
+                        <div className="flex min-h-0 flex-1 flex-col">
                           <RackStudio
                             embedded
                             project={{ id: project.id, name: project.name }}
