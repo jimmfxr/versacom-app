@@ -1009,6 +1009,18 @@ export function ProjectPage({
   // different rack switches expansion to that one. The standalone
   // /projects/[id]/racks/[rackId] page still works as a deep-link.
   const [expandedRackId, setExpandedRackId] = useState<number | null>(null)
+  // Restore the expanded rack from ?expand=<id> in the URL — the
+  // Rack Preview page's X button rounds-trips through this so the
+  // operator lands back on the same rack they were viewing. Only
+  // honors the param when it matches a real rack on this project.
+  useEffect(() => {
+    const exp = searchParams?.get('expand')
+    if (!exp) return
+    const id = parseInt(exp, 10)
+    if (!Number.isFinite(id)) return
+    if (!commsRacks.some((r) => r.id === id)) return
+    setExpandedRackId(id)
+  }, [searchParams, commsRacks])
   // Front/Rear toggle for the embedded rack studio. Lifted up to this
   // level so the desktop toolbar row can host the Front/Rear control
   // on the far left of the tab+search row while the rack-studio body

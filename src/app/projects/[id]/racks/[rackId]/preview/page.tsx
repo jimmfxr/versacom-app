@@ -84,7 +84,7 @@ export default async function RackPreviewPage({
           <span className="text-sm text-gray-500 font-mono tabular-nums">{rack.totalRU}RU</span>
         </div>
         <Link
-          href={`/projects/${projectId}?tab=racks`}
+          href={`/projects/${projectId}?tab=racks&expand=${rackTemplateId}`}
           aria-label="Close rack preview"
           className="flex h-9 shrink-0 items-center text-gray-400 transition-colors hover:text-white"
         >
