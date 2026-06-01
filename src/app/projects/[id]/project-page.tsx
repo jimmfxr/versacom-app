@@ -3962,7 +3962,7 @@ export function ProjectPage({
                         </div>
                         </AutoHideHeader>
                       ) : (
-                        <div className={`flex flex-col items-stretch gap-4 transition-colors sm:flex-row sm:items-start sm:gap-4 ${isExpanded ? 'pt-3 pb-1' : 'py-3 hover:bg-white/[0.04]'}`}>
+                        <div className={`flex flex-row items-center gap-4 transition-colors sm:items-start ${isExpanded ? 'pt-3 pb-1' : 'py-3 hover:bg-white/[0.04]'}`}>
                           <div className="min-w-0 flex-1 flex items-baseline gap-2">
                             {/* Rack name is clickable when expanded
                                 + the operator can edit — toggles
@@ -3994,7 +3994,7 @@ export function ProjectPage({
                           <button
                             type="button"
                             onClick={() => setExpandedRackId(isExpanded ? null : r.id)}
-                            className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white sm:w-auto"
+                            className="shrink-0 rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
                           >
                             {isExpanded ? 'Close' : 'Edit'}
                           </button>
