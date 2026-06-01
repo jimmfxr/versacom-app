@@ -69,8 +69,9 @@ export default async function RackPreviewPage({
   return (
     <div className="min-h-screen w-full bg-[#202020] px-4 sm:px-6 lg:px-8 py-5">
       {/* Header: rack name + location + RU on the left, X close on
-          the right. X returns to the Racks tab. */}
-      <header className="mb-5 flex items-center justify-between border-b border-white/10 pb-4">
+          the right. X returns to the Racks tab. No bottom border /
+          margin / padding — sits flush with the chassis below. */}
+      <header className="flex items-center justify-between">
         <div className="min-w-0 flex items-baseline gap-2">
           <span className="text-sm font-semibold text-white truncate">{rack.name}</span>
           {rack.location && (
