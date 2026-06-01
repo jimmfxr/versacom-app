@@ -194,6 +194,19 @@ export function RackStudio({
   // pick. Ref (not state) so the close/reopen doesn't trigger an
   // extra render in the drag loop.
   const sheetWasOpenBeforeDragRef = useRef(false)
+  /** Pending pointerdown on a library tile. Tap-vs-hold: we don't
+   *  start an actual drag on pointerdown — only when the pointer
+   *  has moved past a small distance threshold. If pointerup
+   *  happens first with no movement, the click event fires
+   *  naturally (→ arm the device via handleDevicePick). This lets
+   *  a single library tile be both 'tap to arm' AND 'hold-and-drag'
+   *  without the two gestures conflicting. */
+  const pendingDragRef = useRef<{
+    preset: RackDevicePreset
+    startX: number
+    startY: number
+    pointerId: number
+  } | null>(null)
   /** Unified in-app confirm modal. Replaces window.confirm() for all
    *  destructive rack-related actions (slot delete, loose-gear ×,
    *  custom-device ×) so the operator sees a styled prompt
@@ -332,11 +345,13 @@ export function RackStudio({
       // Tap again on the same tile toggles it off. Setting
       // pendingDevice lights up every empty row cyan as a 'pick a
       // slot' invite; the next empty-row tap commits the POST via
-      // handleEmptyRowClick.
+      // handleEmptyRowClick. On mobile we also close the library
+      // sheet so the chassis is visible for the next tap.
       if (pendingDevice?.name === preset.name) {
         setPendingDevice(null)
       } else {
         setPendingDevice(preset)
+        setSheetOpen(false)
       }
       return
     }
@@ -384,29 +399,58 @@ export function RackStudio({
     }
   }
 
-  /** Initiates a drag from a library tile. Called from DeviceTile's
-   *  onPointerDown. Captures the pointer on document so the gesture
-   *  survives leaving the tile, even if the cursor crosses the
-   *  library's overflow boundary. */
+  /** Records a pointerdown on a library tile without starting an
+   *  actual drag. The drag promotes to "active" only after the
+   *  pointer moves past a small distance threshold (handled in the
+   *  always-on pointermove effect below). Pointerup before move →
+   *  click fires naturally → handleDevicePick arms the device. */
   function startLibraryDrag(preset: RackDevicePreset, e: React.PointerEvent) {
     if (!canEdit) return
-    if (preset.ruSize === 0) {
-      // Loose gear has no RU position — keep the click-to-add flow
-      // for it (drop targets only make sense for RU-occupying gear).
-      return
+    if (preset.ruSize === 0) return  // Loose gear: click-to-add only.
+    pendingDragRef.current = {
+      preset,
+      startX: e.clientX,
+      startY: e.clientY,
+      pointerId: e.pointerId,
     }
-    setDragPreset(preset)
-    setDragPos({ x: e.clientX, y: e.clientY })
-    setDragHoverRu(null)
-    dragStateRef.current = { preset, hoverRu: null }
-    // Hide the mobile sheet during the drag (chassis sits behind
-    // it; otherwise the operator can't see where they're dropping).
-    // The sheet reopens after pointer-up in the cleanup below.
-    sheetWasOpenBeforeDragRef.current = sheetOpen
-    if (sheetOpen) setSheetOpen(false)
   }
 
-  // Global pointer handlers for the library-drag gesture. Effects
+  // Pre-drag listener (always on): converts a pending library
+  // pointerdown into an active drag once the pointer moves past a
+  // threshold. Pointerup with no movement → tap → handleDevicePick
+  // runs via the button's natural onClick path.
+  useEffect(() => {
+    const THRESHOLD = 6  // px; ignores accidental finger jitter on tap
+    function maybePromote(ev: PointerEvent) {
+      const pending = pendingDragRef.current
+      if (!pending || pending.pointerId !== ev.pointerId) return
+      const dx = ev.clientX - pending.startX
+      const dy = ev.clientY - pending.startY
+      if (Math.hypot(dx, dy) <= THRESHOLD) return
+      // Promote to active drag.
+      const preset = pending.preset
+      pendingDragRef.current = null
+      setDragPreset(preset)
+      setDragPos({ x: ev.clientX, y: ev.clientY })
+      setDragHoverRu(null)
+      dragStateRef.current = { preset, hoverRu: null }
+      sheetWasOpenBeforeDragRef.current = sheetOpen
+      if (sheetOpen) setSheetOpen(false)
+    }
+    function clearPending() {
+      pendingDragRef.current = null
+    }
+    document.addEventListener('pointermove', maybePromote)
+    document.addEventListener('pointerup', clearPending)
+    document.addEventListener('pointercancel', clearPending)
+    return () => {
+      document.removeEventListener('pointermove', maybePromote)
+      document.removeEventListener('pointerup', clearPending)
+      document.removeEventListener('pointercancel', clearPending)
+    }
+  }, [sheetOpen])
+
+  // Global pointer handlers for the active-drag phase. Effects
   // attach a single listener pair while dragPreset is set; on
   // pointerup they fire the same handleDevicePick we use for clicks.
   useEffect(() => {
