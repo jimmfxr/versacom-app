@@ -4304,19 +4304,22 @@ function CreateRackForm({
         </div>
       </div>
       {error && <div className="mt-2 text-xs text-red-400">{error}</div>}
-      <div className="mt-3 flex items-center justify-end gap-2">
+      {/* Action row — full-width buttons stacked on mobile, auto-
+          width inline on desktop. Matches the Equipment / Team /
+          Pick-List edit forms. */}
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
         <button
           type="button"
           onClick={onCancel}
           disabled={saving}
-          className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] disabled:opacity-50"
+          className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] disabled:opacity-50 sm:w-auto"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={saving}
-          className="rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
         >
           {saving ? 'Creating…' : 'Create'}
         </button>
