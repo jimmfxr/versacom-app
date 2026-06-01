@@ -1460,7 +1460,7 @@ function DeviceTile({
         }`}
       >
         <span className="truncate">{preset.name}</span>
-        <span className={`ml-auto shrink-0 text-xs text-gray-500 ${onDelete ? 'mr-6' : ''}`}>
+        <span className={`ml-auto shrink-0 text-xs font-mono tabular-nums text-[#22a7d3] ${onDelete ? 'mr-6' : ''}`}>
           {isLoose ? '—' : `${preset.ruSize}U`}
         </span>
       </button>
@@ -1736,7 +1736,7 @@ function SlotRow({
       }}
     >
       {isEditing ? (
-        <div className="flex h-full w-full flex-col rounded-lg border border-[#3a3a3a] bg-[#202020] overflow-hidden">
+        <div className="flex h-full w-full flex-col rounded-lg border border-[#3a3a3a] bg-[#2a2a2a] overflow-hidden">
           {/* Header row — mirrors the read-only row layout so the
               card reads continuous when expanded. */}
           <div className="flex flex-shrink-0 items-center gap-2 border-b border-white/[0.08] pr-4 text-sm font-medium text-white"
@@ -1842,7 +1842,7 @@ function SlotRow({
         // chassis width — the RU number sits inside the card on
         // the left (centered in a w-9 column), then the label,
         // then the Edit button on the right.
-        <div className="flex h-full w-full items-center gap-2 rounded-lg border border-[#3a3a3a] bg-[#202020] pr-4 text-sm font-medium text-white">
+        <div className="flex h-full w-full items-center gap-2 rounded-lg border border-[#3a3a3a] bg-[#2a2a2a] pr-4 text-sm font-medium text-white">
           <span className="w-9 shrink-0 text-center text-sm text-gray-400 font-mono tabular-nums">{slot.ruPosition}</span>
           <span className="truncate">{slot.label}</span>
           {canEdit && (
