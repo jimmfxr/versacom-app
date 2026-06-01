@@ -71,6 +71,9 @@ type LibraryItem = RackDevicePreset & {
   equipmentId?: number
   isEquipment?: boolean
   hardwareType?: string | null
+  /** Equipment.location — rendered cyan between the white id name
+   *  and the gray model on equipment-backed tiles. */
+  location?: string | null
 }
 
 /** Pared-down Equipment shape for the slot edit form's link picker.
@@ -349,14 +352,18 @@ export function RackStudio({
           eq.category === 'switches' ? 'switches'
           : eq.category === 'audio' ? 'audio'
           : 'devices'
-        const display = eq.name?.trim() || eq.location?.trim() || `Equipment ${eq.id}`
+        // Equipment.name is the id-like label ('PNL 3' / 'SW 1');
+        // the tile renders it white. Location + hardwareType ride
+        // alongside in their own fields so the tile can color each
+        // segment independently.
         return {
-          name: display,
+          name: eq.name?.trim() || `Equipment ${eq.id}`,
           ruSize: matchingPreset?.ruSize ?? 1,
           category: mappedCategory,
           equipmentId: eq.id,
           isEquipment: true as const,
           hardwareType: eq.hardwareType,
+          location: eq.location,
         }
       }),
     ...presets.map((p) => ({ ...p })),
@@ -1768,13 +1775,17 @@ function DeviceTile({
                 : 'border-white/[0.08] text-gray-300 hover:border-[rgba(34,167,211,0.5)] hover:bg-white/[0.03]'
         }`}
       >
-        {/* Equipment-backed tile: stacked label — equipment name
-            (or location fallback) in cyan on top, hardwareType
-            (model) in small gray below. Presets just render the
-            single preset name in their default text color. */}
+        {/* Equipment-backed tile: three pieces on one row,
+            colored independently — id (white) · location (cyan) ·
+            model (gray). Each segment truncates so the row
+            doesn't blow out the tile width. Presets just render
+            their single name in default text color. */}
         {preset.isEquipment ? (
-          <span className="min-w-0 flex flex-col">
-            <span className="truncate text-[#22a7d3]">{preset.name}</span>
+          <span className="min-w-0 flex items-baseline gap-2">
+            <span className="truncate text-white">{preset.name}</span>
+            {preset.location && (
+              <span className="truncate text-[#22a7d3]">{preset.location}</span>
+            )}
             {preset.hardwareType && (
               <span className="truncate text-[11px] text-gray-500">{preset.hardwareType}</span>
             )}
