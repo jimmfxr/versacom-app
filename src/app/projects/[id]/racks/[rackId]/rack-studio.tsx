@@ -1451,12 +1451,12 @@ function DeviceTile({
         // sitting on the page bg.
         className={`flex w-full items-center gap-3 rounded-[10px] border px-3.5 py-3 text-left text-sm transition-colors ${
           disabled
-            ? 'border-white/[0.08] bg-[#2a2a2a] text-gray-500 cursor-not-allowed opacity-50'
+            ? 'border-white/[0.08] text-gray-500 cursor-not-allowed opacity-50'
             : isDragging
               ? 'border-[#22a7d3]/70 bg-[#0178a3]/15 text-[#22a7d3] opacity-70'
               : highlightTarget
-                ? 'border-[#22a7d3]/50 bg-[#2a2a2a] text-gray-200 hover:bg-[#333333]'
-                : 'border-white/[0.08] bg-[#2a2a2a] text-gray-300 hover:border-[rgba(34,167,211,0.5)] hover:bg-[#333333]'
+                ? 'border-[#22a7d3]/50 text-gray-200 hover:bg-white/[0.03]'
+                : 'border-white/[0.08] text-gray-300 hover:border-[rgba(34,167,211,0.5)] hover:bg-white/[0.03]'
         }`}
       >
         <span className="truncate">{preset.name}</span>
