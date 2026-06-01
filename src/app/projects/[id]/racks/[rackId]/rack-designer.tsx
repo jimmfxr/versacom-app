@@ -382,7 +382,7 @@ export function RackDesigner({
                             : 'text-gray-600 border-b-white/[0.06] hover:border-b-[#0178a3]/40 hover:text-[#22a7d3] hover:bg-[#0178a3]/[0.04]'
                         } ${canEdit ? 'cursor-pointer' : ''}`}
                       >
-                        {isPending ? 'pick a device →' : 'click drag and drop here'}
+                        {isPending ? 'pick a device →' : '+ Drop Here'}
                       </button>
                     )}
                   </div>
