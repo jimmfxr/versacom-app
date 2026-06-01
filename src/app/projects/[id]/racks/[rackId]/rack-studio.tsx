@@ -54,6 +54,11 @@ type LooseItem = {
   equipmentId: number | null
 }
 
+/** A device shown in the library list — either a hard-coded preset
+ *  or a user-added custom. Customs carry their RackDevice row id
+ *  + an isCustom flag so the chip can offer a × delete affordance. */
+type LibraryItem = RackDevicePreset & { id?: number; isCustom?: boolean }
+
 const RU_PX = 48
 
 export function RackStudio({
@@ -62,6 +67,7 @@ export function RackStudio({
   rack,
   slots,
   looseItems,
+  customDevices = [],
   canEdit,
   embedded = false,
   onCloseEmbedded,
@@ -83,6 +89,11 @@ export function RackStudio({
   }
   slots: Slot[]
   looseItems: LooseItem[]
+  /** Project-scoped custom devices. Merged with the hard-coded
+   *  presets so the library renders them inline in the appropriate
+   *  category section. Empty by default for projects that haven't
+   *  added any. */
+  customDevices?: Array<{ id: number; name: string; ruSize: number; category: string }>
   canEdit: boolean
   /** Embedded mode: this component is rendered inside the Comms Racks
    *  tab as an inline expansion of a rack row. Skips the page header
@@ -136,6 +147,14 @@ export function RackStudio({
    *  into the library aside since searching the library is the
    *  more useful action (chassis is small, library has many items). */
   const [librarySearch, setLibrarySearch] = useState('')
+  /** + Custom device form visibility. Opens inline at the top of the
+   *  library when the user taps + Custom. Lives at this level so
+   *  both the desktop aside and the mobile sheet share the
+   *  open/close state. */
+  const [customFormOpen, setCustomFormOpen] = useState(false)
+  /** Custom device delete in-flight tracker — keyed by device id so
+   *  we can disable the × on one chip without freezing the others. */
+  const [customDeletingId, setCustomDeletingId] = useState<number | null>(null)
   /** ID of the slot currently being edited inline. When non-null the
    *  slot's card expands to show its edit form; every row below it
    *  in the rack shifts down by EDIT_EXTRA_PX. Closes on save /
@@ -171,6 +190,26 @@ export function RackStudio({
 
   const dept: PresetDept = rack.dept === 'radios' ? 'radios' : 'comms'
   const presets = PRESETS_BY_DEPT[dept]
+  // Merge presets + custom devices into a single library list. Each
+  // entry carries the same shape so the filter / search / render
+  // pipeline is identical for both kinds; custom entries gain an
+  // optional `id` + `isCustom` flag so the library row can show a ×
+  // delete affordance only on the user-added ones.
+  const libraryItems: LibraryItem[] = [
+    ...presets.map((p) => ({ ...p })),
+    ...customDevices.map((d) => ({
+      // PresetCategory string-matches the RackDevice.category column;
+      // anything outside the union falls back to 'devices' so a
+      // future schema drift doesn't break the render.
+      name: d.name,
+      ruSize: d.ruSize,
+      category: (['devices', 'switches', 'audio', 'drawers', 'power', 'loose'] as const).includes(d.category as PresetCategory)
+        ? (d.category as PresetCategory)
+        : ('devices' as PresetCategory),
+      id: d.id,
+      isCustom: true as const,
+    })),
+  ]
 
   function handleEmptyRowClick(ru: number) {
     if (!canEdit) return
@@ -266,6 +305,56 @@ export function RackStudio({
     } catch {
       setError('Network error')
       setAdding(false)
+    }
+  }
+
+  async function handleCustomDeviceDelete(deviceId: number, name: string) {
+    if (!canEdit) return
+    if (!window.confirm(`Remove "${name}" from the device library? Existing slots stay; the device just disappears from the picker.`)) return
+    setError(null)
+    setCustomDeletingId(deviceId)
+    try {
+      const res = await fetch(`/api/rack-devices/${deviceId}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        setError((data as { error?: string } | null)?.error ?? 'Failed to remove device')
+        setCustomDeletingId(null)
+        return
+      }
+      setCustomDeletingId(null)
+      router.refresh()
+    } catch {
+      setError('Network error')
+      setCustomDeletingId(null)
+    }
+  }
+
+  async function handleCustomDeviceCreate(payload: { name: string; ruSize: number; category: PresetCategory }) {
+    if (!canEdit) return
+    setError(null)
+    try {
+      const res = await fetch('/api/rack-devices', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          projectId: project.id,
+          dept,
+          name: payload.name,
+          ruSize: payload.ruSize,
+          category: payload.category,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        setError((data as { error?: string } | null)?.error ?? 'Failed to create device')
+        return false
+      }
+      setCustomFormOpen(false)
+      router.refresh()
+      return true
+    } catch {
+      setError('Network error')
+      return false
     }
   }
 
@@ -705,7 +794,7 @@ export function RackStudio({
                       onClose={() => setEditingSlotId(null)}
                       rackId={rack.id}
                       totalRU={rack.totalRU}
-                      presets={presets}
+                      presets={libraryItems}
                       editSaving={editSaving}
                       setEditSaving={setEditSaving}
                       setError={setError}
@@ -727,7 +816,7 @@ export function RackStudio({
             which would break sticky. */}
         <aside className={`hidden lg:flex lg:flex-col lg:sticky lg:top-0 lg:self-start ${embedded ? 'lg:max-h-[calc(100vh-180px)]' : 'lg:max-h-[calc(100vh-320px)]'}`}>
           <DeviceLibrary
-            presets={presets}
+            items={libraryItems}
             filter={filter}
             onFilterChange={setFilter}
             search={librarySearch}
@@ -739,6 +828,11 @@ export function RackStudio({
             adding={adding}
             canEdit={canEdit}
             renderInSheet={false}
+            customFormOpen={customFormOpen}
+            onCustomFormOpenChange={setCustomFormOpen}
+            onCustomCreate={handleCustomDeviceCreate}
+            onCustomDelete={handleCustomDeviceDelete}
+            customDeletingId={customDeletingId}
           />
         </aside>
 
@@ -748,7 +842,7 @@ export function RackStudio({
       {sheetOpen && (
         <DeviceLibrarySheet
           onClose={() => { setSheetOpen(false); setPendingRu(null) }}
-          presets={presets}
+          items={libraryItems}
           filter={filter}
           onFilterChange={setFilter}
           search={librarySearch}
@@ -759,6 +853,11 @@ export function RackStudio({
           pendingRu={pendingRu}
           adding={adding}
           canEdit={canEdit}
+          customFormOpen={customFormOpen}
+          onCustomFormOpenChange={setCustomFormOpen}
+          onCustomCreate={handleCustomDeviceCreate}
+          onCustomDelete={handleCustomDeviceDelete}
+          customDeletingId={customDeletingId}
         />
       )}
 
@@ -771,7 +870,7 @@ export function RackStudio({
  * ════════════════════════════════════════════════════════════════════ */
 
 function DeviceLibrary({
-  presets,
+  items,
   filter,
   onFilterChange,
   search,
@@ -783,14 +882,22 @@ function DeviceLibrary({
   adding,
   canEdit,
   renderInSheet,
+  customFormOpen,
+  onCustomFormOpenChange,
+  onCustomCreate,
+  onCustomDelete,
+  customDeletingId,
 }: {
-  presets: readonly RackDevicePreset[]
+  /** Library list = hard-coded presets merged with project-scoped
+   *  custom devices. Customs carry an `id` + `isCustom: true` so the
+   *  chip can offer a × delete. */
+  items: readonly LibraryItem[]
   filter: 'all' | PresetCategory
   onFilterChange: (next: 'all' | PresetCategory) => void
   search: string
   onSearchChange: (next: string) => void
   /** Front/Rear toggle lives at the top of the library now —
-   *  paired with the "+ Custom device" button as the two halves
+   *  paired with the "+ Custom" button as the two halves
    *  of a single row. Lifted here from the rack-studio toolbar so
    *  the library is the canonical home for rack-context controls. */
   side: 'front' | 'rear'
@@ -800,6 +907,13 @@ function DeviceLibrary({
   adding: boolean
   canEdit: boolean
   renderInSheet: boolean
+  /** + Custom device inline form state. Lifted to RackStudio so
+   *  desktop + mobile share open/close. */
+  customFormOpen: boolean
+  onCustomFormOpenChange: (open: boolean) => void
+  onCustomCreate: (payload: { name: string; ruSize: number; category: PresetCategory }) => Promise<boolean>
+  onCustomDelete: (deviceId: number, name: string) => void | Promise<void>
+  customDeletingId: number | null
 }) {
   // Library search expand/collapse — local to the library (the
   // search term itself is parent-owned so it survives sheet
@@ -809,7 +923,7 @@ function DeviceLibrary({
   // substring match on preset.name. Search is case-insensitive and
   // empty-string-safe.
   const q = search.trim().toLowerCase()
-  const byCategory = filter === 'all' ? presets : presets.filter((p) => p.category === filter)
+  const byCategory = filter === 'all' ? items : items.filter((p) => p.category === filter)
   const filtered = q.length === 0 ? byCategory : byCategory.filter((p) => p.name.toLowerCase().includes(q))
   // Skip the category-header layout when EITHER a category filter is
   // set OR a search is active — both modes mean "show me a flat list,
@@ -836,12 +950,19 @@ function DeviceLibrary({
             { value: 'rear', label: 'Rear' },
           ]}
         />
-        {/* + Custom — placeholder for now. The CRUD lands in a
-            later commit. */}
+        {/* + Custom — opens the inline create form below. Disabled
+            when the form is already open (one form at a time) or
+            when the viewer can't edit. */}
         <button
           type="button"
-          disabled
-          className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 opacity-40 cursor-not-allowed"
+          onClick={() => onCustomFormOpenChange(!customFormOpen)}
+          disabled={!canEdit}
+          aria-pressed={customFormOpen}
+          className={`w-full rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+            customFormOpen
+              ? 'border-[#0178a3] bg-[#0178a3] text-white'
+              : 'border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04]'
+          }`}
         >
           + Custom
         </button>
@@ -901,23 +1022,39 @@ function DeviceLibrary({
           </>
         )}
       </div>
+      {/* Inline + Custom create form. Slides open between the
+          search/filter row and the device list. Closes itself on
+          successful create (handler returns true) so the new
+          device appears in the list right away. */}
+      {customFormOpen && canEdit && (
+        <div className="mb-3 flex-shrink-0">
+          <CustomDeviceForm
+            onCreate={onCustomCreate}
+            onCancel={() => onCustomFormOpenChange(false)}
+          />
+        </div>
+      )}
       <div
         className={`${renderInSheet ? '' : 'flex-1 min-h-0 overflow-y-auto pr-1'} space-y-3`}
         style={renderInSheet ? undefined : undefined}
       >
         {showHeaders ? (
           PRESET_CATEGORY_ORDER.map((cat) => {
-            const items = presets.filter((p) => p.category === cat)
-            if (items.length === 0) return null
+            const sectionItems = items.filter((p) => p.category === cat)
+            if (sectionItems.length === 0) return null
             return (
               <Section key={cat} label={PRESET_CATEGORY_LABELS[cat]}>
-                {items.map((p) => (
+                {sectionItems.map((p) => (
                   <DeviceTile
-                    key={p.name}
+                    key={p.isCustom ? `custom-${p.id}` : `preset-${p.name}`}
                     preset={p}
                     onClick={() => onPick(p)}
                     disabled={!canEdit || adding}
                     highlightTarget={pendingRu != null && p.ruSize > 0}
+                    onDelete={p.isCustom && p.id != null && canEdit
+                      ? () => onCustomDelete(p.id as number, p.name)
+                      : undefined}
+                    deleting={p.isCustom && p.id != null && customDeletingId === p.id}
                   />
                 ))}
               </Section>
@@ -927,11 +1064,15 @@ function DeviceLibrary({
           <Section label={PRESET_CATEGORY_LABELS[filter as PresetCategory]} hideLabel>
             {filtered.map((p) => (
               <DeviceTile
-                key={p.name}
+                key={p.isCustom ? `custom-${p.id}` : `preset-${p.name}`}
                 preset={p}
                 onClick={() => onPick(p)}
-                disabled={!canEdit || adding || (p.ruSize === 0 && true)}
+                disabled={!canEdit || adding}
                 highlightTarget={pendingRu != null && p.ruSize > 0}
+                onDelete={p.isCustom && p.id != null && canEdit
+                  ? () => onCustomDelete(p.id as number, p.name)
+                  : undefined}
+                deleting={p.isCustom && p.id != null && customDeletingId === p.id}
               />
             ))}
           </Section>
@@ -967,31 +1108,53 @@ function DeviceTile({
   onClick,
   disabled,
   highlightTarget,
+  onDelete,
+  deleting,
 }: {
-  preset: RackDevicePreset
+  preset: LibraryItem
   onClick: () => void
   disabled: boolean
   highlightTarget: boolean
+  /** Provided only when this tile represents a custom device the
+   *  viewer is allowed to delete. Renders a small × on the right
+   *  edge that swallows the parent button click. */
+  onDelete?: () => void
+  deleting?: boolean
 }) {
   const isLoose = preset.ruSize === 0
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`flex w-full items-center gap-2.5 rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
-        disabled
-          ? 'border-white/10 text-gray-500 cursor-not-allowed opacity-50'
-          : highlightTarget
-            ? 'border-[#22a7d3]/50 text-gray-200 hover:bg-[#0178a3]/10'
-            : 'border-white/15 text-gray-300 hover:border-white/25 hover:bg-white/[0.03]'
-      }`}
-    >
-      <span className="truncate">{preset.name}</span>
-      <span className="ml-auto shrink-0 text-[10px] text-gray-500">
-        {isLoose ? '—' : `${preset.ruSize}U`}
-      </span>
-    </button>
+    <div className="relative flex items-stretch">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className={`flex w-full items-center gap-2.5 rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
+          disabled
+            ? 'border-white/10 text-gray-500 cursor-not-allowed opacity-50'
+            : highlightTarget
+              ? 'border-[#22a7d3]/50 text-gray-200 hover:bg-[#0178a3]/10'
+              : 'border-white/15 text-gray-300 hover:border-white/25 hover:bg-white/[0.03]'
+        }`}
+      >
+        <span className="truncate">{preset.name}</span>
+        <span className={`ml-auto shrink-0 text-[10px] text-gray-500 ${onDelete ? 'mr-6' : ''}`}>
+          {isLoose ? '—' : `${preset.ruSize}U`}
+        </span>
+      </button>
+      {onDelete && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onDelete() }}
+          disabled={deleting}
+          aria-label={`Remove ${preset.name}`}
+          className="absolute right-2 top-1/2 -translate-y-1/2 flex size-5 items-center justify-center rounded text-gray-500 transition-colors hover:bg-white/[0.06] hover:text-red-400 disabled:opacity-30"
+        >
+          <svg className="size-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -1001,7 +1164,7 @@ function DeviceTile({
 
 function DeviceLibrarySheet({
   onClose,
-  presets,
+  items,
   filter,
   onFilterChange,
   search,
@@ -1012,9 +1175,14 @@ function DeviceLibrarySheet({
   pendingRu,
   adding,
   canEdit,
+  customFormOpen,
+  onCustomFormOpenChange,
+  onCustomCreate,
+  onCustomDelete,
+  customDeletingId,
 }: {
   onClose: () => void
-  presets: readonly RackDevicePreset[]
+  items: readonly LibraryItem[]
   filter: 'all' | PresetCategory
   onFilterChange: (next: 'all' | PresetCategory) => void
   search: string
@@ -1025,6 +1193,11 @@ function DeviceLibrarySheet({
   pendingRu: number | null
   adding: boolean
   canEdit: boolean
+  customFormOpen: boolean
+  onCustomFormOpenChange: (open: boolean) => void
+  onCustomCreate: (payload: { name: string; ruSize: number; category: PresetCategory }) => Promise<boolean>
+  onCustomDelete: (deviceId: number, name: string) => void | Promise<void>
+  customDeletingId: number | null
 }) {
   if (typeof document === 'undefined') return null
   return createPortal(
@@ -1048,7 +1221,7 @@ function DeviceLibrarySheet({
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-6">
           <DeviceLibrary
-            presets={presets}
+            items={items}
             filter={filter}
             onFilterChange={onFilterChange}
             search={search}
@@ -1060,6 +1233,11 @@ function DeviceLibrarySheet({
             adding={adding}
             canEdit={canEdit}
             renderInSheet
+            customFormOpen={customFormOpen}
+            onCustomFormOpenChange={onCustomFormOpenChange}
+            onCustomCreate={onCustomCreate}
+            onCustomDelete={onCustomDelete}
+            customDeletingId={customDeletingId}
           />
         </div>
       </div>
@@ -1101,7 +1279,7 @@ function SlotRow({
   onClose: () => void
   rackId: number
   totalRU: number
-  presets: readonly RackDevicePreset[]
+  presets: readonly LibraryItem[]
   editSaving: boolean
   setEditSaving: (v: boolean) => void
   setError: (msg: string | null) => void
@@ -1307,6 +1485,112 @@ function SlotRow({
         </div>
       )}
     </div>
+  )
+}
+
+/* ════════════════════════════════════════════════════════════════════
+ * CustomDeviceForm
+ * Inline form rendered inside the device library when the user taps
+ * + Custom. Collects name + RU size + category, POSTs to
+ * /api/rack-devices. The save handler is provided by the parent and
+ * returns a boolean so this form can clear its inputs only on
+ * success (a failed save keeps the typed values for the operator to
+ * fix and retry).
+ * ════════════════════════════════════════════════════════════════════ */
+
+function CustomDeviceForm({
+  onCreate,
+  onCancel,
+}: {
+  onCreate: (payload: { name: string; ruSize: number; category: PresetCategory }) => Promise<boolean>
+  onCancel: () => void
+}) {
+  const [name, setName] = useState('')
+  const [ruSizeStr, setRuSizeStr] = useState('1')
+  const [category, setCategory] = useState<PresetCategory>('devices')
+  const [saving, setSaving] = useState(false)
+  const [localError, setLocalError] = useState<string | null>(null)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setLocalError(null)
+    const trimmed = name.trim()
+    if (!trimmed) { setLocalError('Name is required'); return }
+    const ruSize = parseInt(ruSizeStr, 10)
+    if (!Number.isFinite(ruSize) || ruSize < 0 || ruSize > 60) {
+      setLocalError('RU size must be 0 (loose) or 1–60'); return
+    }
+    setSaving(true)
+    const ok = await onCreate({ name: trimmed, ruSize, category })
+    setSaving(false)
+    if (ok) {
+      setName('')
+      setRuSizeStr('1')
+      setCategory('devices')
+    }
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-lg border border-[#22a7d3]/40 bg-[#0178a3]/[0.04] p-3"
+    >
+      <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-2">New device</div>
+      <div className="space-y-2">
+        <input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          disabled={saving}
+          placeholder="Device name"
+          className="w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+        />
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            type="number"
+            min={0}
+            max={60}
+            value={ruSizeStr}
+            onChange={(e) => setRuSizeStr(e.target.value)}
+            disabled={saving}
+            aria-label="RU size"
+            placeholder="RU (0 = loose)"
+            className="w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+          />
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value as PresetCategory)}
+            disabled={saving}
+            aria-label="Category"
+            className="w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+          >
+            {PRESET_CATEGORY_ORDER.map((c) => (
+              <option key={c} value={c}>{PRESET_CATEGORY_LABELS[c]}</option>
+            ))}
+          </select>
+        </div>
+        {localError && (
+          <div className="text-[11px] text-red-300">{localError}</div>
+        )}
+        <div className="flex items-center justify-end gap-2 pt-1">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={saving}
+            className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-lg bg-[#0178a3] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {saving ? 'Adding…' : 'Add device'}
+          </button>
+        </div>
+      </div>
+    </form>
   )
 }
 

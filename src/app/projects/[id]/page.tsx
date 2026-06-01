@@ -17,7 +17,7 @@ export default async function ProjectDetailPage({
   const session = await getSession()
   const userId = session?.user.id ?? null
 
-  const [project, equipment, memberRows, pickListItems, panelKeyUsage, expansionRows, allUsers, distinctPositions, distinctDepartments, headsetInventory, plots, userProjectMemberships, commsRackRows] = await Promise.all([
+  const [project, equipment, memberRows, pickListItems, panelKeyUsage, expansionRows, allUsers, distinctPositions, distinctDepartments, headsetInventory, plots, userProjectMemberships, commsRackRows, commsCustomDevices] = await Promise.all([
     prisma.project.findUnique({
       where: { id: projectId },
       select: {
@@ -227,6 +227,15 @@ export default async function ProjectDetailPage({
       },
       orderBy: [{ name: 'asc' }],
     }),
+    // Project-scoped custom rack devices (dept='comms'). These show
+    // up in the rack studio's device library alongside the hard-coded
+    // presets from src/lib/rack-presets.ts. Per-project so a custom
+    // switch on Show A doesn't leak onto Show B.
+    prisma.rackDevice.findMany({
+      where: { projectId, dept: 'comms' },
+      select: { id: true, name: true, ruSize: true, category: true },
+      orderBy: [{ category: 'asc' }, { name: 'asc' }],
+    }),
   ])
 
   // Project deleted (or stale lastProject cookie pointing nowhere). Bounce
@@ -408,6 +417,7 @@ export default async function ProjectDetailPage({
         slots: r.slots,
         looseItems: r.looseItems,
       }))}
+      commsCustomDevices={commsCustomDevices}
     />
   )
 }

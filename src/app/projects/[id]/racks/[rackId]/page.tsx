@@ -69,8 +69,9 @@ export default async function RackStudioPage({
 
   // Project for the page header (name + id) AND the full list of the
   // current user's active projects so ProjectSwitcher can offer
-  // jumping to any of them.
-  const [project, userProjectMemberships] = await Promise.all([
+  // jumping to any of them. Plus the project's custom rack devices
+  // so the device library merges them with the hard-coded presets.
+  const [project, userProjectMemberships, customDevices] = await Promise.all([
     prisma.project.findUnique({
       where: { id: projectId },
       select: { id: true, name: true },
@@ -78,6 +79,11 @@ export default async function RackStudioPage({
     prisma.projectMember.findMany({
       where: { userId: session.user.id, project: { status: 'active' } },
       select: { project: { select: { id: true, name: true } } },
+    }),
+    prisma.rackDevice.findMany({
+      where: { projectId, dept: rack.dept },
+      select: { id: true, name: true, ruSize: true, category: true },
+      orderBy: [{ category: 'asc' }, { name: 'asc' }],
     }),
   ])
   if (!project) notFound()
@@ -109,6 +115,7 @@ export default async function RackStudioPage({
       }}
       slots={rack.slots}
       looseItems={rack.looseItems}
+      customDevices={customDevices}
       canEdit={canEdit}
     />
   )

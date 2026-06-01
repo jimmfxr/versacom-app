@@ -701,6 +701,7 @@ export function ProjectPage({
   },
   plots = [],
   commsRacks = [],
+  commsCustomDevices = [],
 }: {
   project: Project
   equipment: EquipmentItem[]
@@ -758,6 +759,16 @@ export function ProjectPage({
       label: string | null
       equipmentId: number | null
     }>
+  }>
+  /** Project-scoped custom rack devices. Merged with the hard-coded
+   *  presets in the rack studio's device library so users can add
+   *  their own gear (a non-preset switch, an obscure DSP) and have
+   *  it appear right next to the canned options. */
+  commsCustomDevices?: Array<{
+    id: number
+    name: string
+    ruSize: number
+    category: string
   }>
 }) {
   const router = useRouter()
@@ -3960,6 +3971,7 @@ export function ProjectPage({
                             }}
                             slots={r.slots}
                             looseItems={r.looseItems}
+                            customDevices={commsCustomDevices}
                             canEdit={isProjectAdmin || isManager}
                             side={expandedRackSide}
                             onSideChange={setExpandedRackSide}
