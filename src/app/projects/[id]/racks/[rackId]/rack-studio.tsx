@@ -929,11 +929,16 @@ export function RackStudio({
                         transition: 'top 180ms ease-out',
                       }}
                     >
-                      <div className="w-9 text-center text-sm text-gray-400 font-mono tabular-nums">
+                      <div className={`w-9 text-center text-sm font-mono tabular-nums ${
+                        isPending ? 'text-[#22a7d3]' : 'text-gray-400'
+                      }`}>
                         {/* RU label hides during a library drag so it
                             doesn't bleed through the semi-transparent
                             preview overlay above. The overlay shows
-                            its own start-RU instead. */}
+                            its own start-RU instead. When the row is
+                            the pending target (cyan highlight), the
+                            RU number flips to cyan too so the label
+                            and the row read as one highlighted unit. */}
                         {dragPreset ? '' : ru}
                       </div>
                       <div className="flex-1">
@@ -957,7 +962,7 @@ export function RackStudio({
                                   : 'border-b border-white/[0.06] text-gray-600 hover:border-b-[#0178a3]/40 hover:text-[#22a7d3] hover:bg-[#0178a3]/[0.04]'
                             } ${canEdit ? 'cursor-pointer' : ''}`}
                           >
-                            {dragPreset ? '' : (isPending ? 'pick a device →' : '+ Drop Here')}
+                            {dragPreset ? '' : (isPending ? '← pick a device' : '+ Drop Here')}
                           </button>
                         )}
                       </div>
