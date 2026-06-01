@@ -978,10 +978,10 @@ export function RackStudio({
                           } ${canEdit ? 'cursor-pointer' : ''}`}
                         >
                           <span className="w-9 shrink-0 text-center text-sm font-mono tabular-nums">
-                            {dragPreset ? '' : ru}
+                            {ru}
                           </span>
                           <span className="flex-1 text-center">
-                            {dragPreset ? '' : (isPending ? '← pick a device' : '+ Drop Here')}
+                            {isPending ? '← pick a device' : '+ Drop Here'}
                           </span>
                         </button>
                       ) : (
@@ -1021,9 +1021,14 @@ export function RackStudio({
                         pointerEvents: 'none',
                       }}
                       className={`flex items-center rounded-lg border-2 ${
+                        // Solid fill so the preview cleanly masks the
+                        // rows it covers (existing slot cards, empty-
+                        // row chrome, RU labels) without those
+                        // bleeding through. Other rows outside the
+                        // drop range stay fully visible.
                         fits
-                          ? 'border-[#22a7d3] bg-[#0178a3]/20 text-[#22a7d3]'
-                          : 'border-red-500 bg-red-500/10 text-red-300'
+                          ? 'border-[#22a7d3] bg-[#0178a3] text-white'
+                          : 'border-red-500 bg-red-500 text-white'
                       } text-sm font-medium`}
                     >
                       <span className="w-9 text-center font-mono tabular-nums">{start}</span>
