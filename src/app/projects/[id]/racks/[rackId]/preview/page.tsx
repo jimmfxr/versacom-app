@@ -86,7 +86,7 @@ export default async function RackPreviewPage({
         <Link
           href={`/projects/${projectId}?tab=racks`}
           aria-label="Close rack preview"
-          className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+          className="flex h-9 shrink-0 items-center text-gray-400 transition-colors hover:text-white"
         >
           <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
