@@ -950,19 +950,16 @@ function DeviceLibrary({
             { value: 'rear', label: 'Rear' },
           ]}
         />
-        {/* + Custom — opens the inline create form below. Disabled
-            when the form is already open (one form at a time) or
-            when the viewer can't edit. */}
+        {/* + Custom — opens the inline create form below. Same
+            neutral styling whether open or closed (no cyan
+            highlight); the open state is communicated by the form
+            appearing under the row, not by the button color. */}
         <button
           type="button"
           onClick={() => onCustomFormOpenChange(!customFormOpen)}
           disabled={!canEdit}
           aria-pressed={customFormOpen}
-          className={`w-full rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-            customFormOpen
-              ? 'border-[#0178a3] bg-[#0178a3] text-white'
-              : 'border-white/10 text-gray-200 hover:border-white/20 hover:bg-white/[0.04]'
-          }`}
+          className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] disabled:opacity-40 disabled:cursor-not-allowed"
         >
           + Custom
         </button>
