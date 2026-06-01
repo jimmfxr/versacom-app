@@ -1049,7 +1049,7 @@ export function RackStudio({
                         zIndex: 5,
                         pointerEvents: 'none',
                       }}
-                      className={`flex items-center rounded-lg border-2 ${
+                      className={`flex items-stretch rounded-lg border-2 ${
                         // Solid fill so the preview cleanly masks the
                         // rows it covers (existing slot cards, empty-
                         // row chrome, RU labels) without those
@@ -1060,8 +1060,16 @@ export function RackStudio({
                           : 'border-red-500 bg-red-500 text-white'
                       } text-sm font-medium`}
                     >
-                      <span className="w-9 text-center font-mono tabular-nums">{start}</span>
-                      <span className="flex-1 text-center">
+                      {/* RU column: one number per RU the device
+                          would occupy, evenly distributed top-to-
+                          bottom over the overlay so each row's slot
+                          number reads as 'covered by this drop'. */}
+                      <span className="w-9 shrink-0 flex flex-col items-center justify-around py-1 font-mono tabular-nums text-sm">
+                        {Array.from({ length: dragPreset.ruSize }, (_, i) => (
+                          <span key={i}>{start + i}</span>
+                        ))}
+                      </span>
+                      <span className="flex-1 flex items-center justify-center">
                         {dragPreset.name}
                         <span className="ml-2 text-xs opacity-70">{dragPreset.ruSize}U</span>
                       </span>
