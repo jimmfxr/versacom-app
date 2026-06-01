@@ -648,7 +648,7 @@ export function RackStudio({
           const offsetFor = (ru: number) => editingSlot && ru > editingEndRu ? EDIT_EXTRA_PX : 0
           const containerHeight = rack.totalRU * RU_PX + 8 + (editingSlot ? EDIT_EXTRA_PX : 0)
           return (
-            <div className={`relative p-2 overflow-y-auto ${embedded ? 'max-h-[70vh]' : 'max-h-[calc(100vh-320px)]'}`}>
+            <div className={`relative p-2 rounded-lg bg-[#2a2a2a] border border-white/[0.06] overflow-y-auto ${embedded ? 'max-h-[70vh]' : 'max-h-[calc(100vh-320px)]'}`}>
               <div className="relative" style={{ height: `${containerHeight}px`, transition: 'height 180ms ease-out' }}>
                 {/* Empty rows + RU numbers */}
                 {Array.from({ length: rack.totalRU }, (_, i) => {
@@ -1113,7 +1113,7 @@ function SlotRow({
       }}
     >
       {isEditing ? (
-        <div className="flex h-full w-full flex-col rounded-lg border border-[#22a7d3]/40 bg-[#0178a3]/[0.04] overflow-hidden">
+        <div className="flex h-full w-full flex-col rounded-lg border border-[#3a3a3a] bg-[#202020] overflow-hidden">
           {/* Header row — mirrors the read-only row layout so the
               card reads continuous when expanded. */}
           <div className="flex flex-shrink-0 items-center gap-2 border-b border-white/[0.08] px-4 text-sm font-medium text-white"
@@ -1214,9 +1214,10 @@ function SlotRow({
           </div>
         </div>
       ) : (
-        // Each slot is its own bordered card now — the chassis no
-        // longer carries an outer border, units do.
-        <div className="flex h-full w-full items-center gap-2 rounded-lg border border-white/15 bg-transparent px-4 text-sm font-medium text-white">
+        // Each slot is its own bordered card. Background +
+        // border match the panel-studio key style so the rack
+        // chassis reads visually consistent with PanelStudio.
+        <div className="flex h-full w-full items-center gap-2 rounded-lg border border-[#3a3a3a] bg-[#202020] px-4 text-sm font-medium text-white">
           <span className="truncate">{slot.label}</span>
           <span className="text-gray-600">·</span>
           <span className="text-[11px] font-normal text-gray-500 truncate">{slot.deviceType}</span>
