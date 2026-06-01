@@ -910,26 +910,15 @@ export function RackStudio({
                 : 'max-h-[calc(100vh-320px)]'
             }`}>
               <div className="relative" style={{ height: `${containerHeight}px`, transition: 'height 180ms ease-out' }}>
-                {/* Empty rows + RU numbers */}
+                {/* Empty rows + RU numbers. Drag highlight is now a
+                    single overlay rendered AFTER this map (so it
+                    stacks on top of empty rows and filled slots in
+                    the drop range), instead of styling each row
+                    individually. */}
                 {Array.from({ length: rack.totalRU }, (_, i) => {
                   const ru = i + 1
                   const isEmpty = !occupied.has(ru)
                   const isPending = pendingRu === ru
-                  // Drag-drop highlight: when the user is dragging a
-                  // library tile, every RU in the range the device
-                  // would occupy (dragHoverRu .. dragHoverRu + size - 1)
-                  // tints cyan. If any of those RUs is occupied or
-                  // out-of-bounds, the row turns red so the operator
-                  // knows the drop will fail.
-                  let dragHighlight: 'valid' | 'invalid' | null = null
-                  if (dragPreset && dragHoverRu != null) {
-                    const start = dragHoverRu
-                    const end = start + dragPreset.ruSize - 1
-                    if (ru >= start && ru <= end) {
-                      const wouldFit = end <= rack.totalRU && !Array.from({ length: dragPreset.ruSize }, (_, j) => occupied.has(start + j)).includes(true)
-                      dragHighlight = wouldFit ? 'valid' : 'invalid'
-                    }
-                  }
                   return (
                     <div
                       key={`ru-${ru}`}
@@ -954,26 +943,55 @@ export function RackStudio({
                             onClick={() => handleEmptyRowClick(ru)}
                             disabled={!canEdit}
                             className={`flex h-[46px] w-full items-center justify-center text-xs transition-colors disabled:cursor-default ${
-                              dragHighlight === 'valid'
-                                ? 'rounded-lg border border-[#22a7d3]/70 bg-[#0178a3]/20 text-[#22a7d3]'
-                                : dragHighlight === 'invalid'
-                                  ? 'rounded-lg border border-red-500/60 bg-red-500/10 text-red-300'
-                                  : isPending
-                                    ? 'rounded-lg border border-[#0178a3]/60 bg-[#0178a3]/15 text-[#22a7d3]'
-                                    : 'border-b border-white/[0.06] text-gray-600 hover:border-b-[#0178a3]/40 hover:text-[#22a7d3] hover:bg-[#0178a3]/[0.04]'
+                              isPending
+                                ? 'rounded-lg border border-[#0178a3]/60 bg-[#0178a3]/15 text-[#22a7d3]'
+                                : 'border-b border-white/[0.06] text-gray-600 hover:border-b-[#0178a3]/40 hover:text-[#22a7d3] hover:bg-[#0178a3]/[0.04]'
                             } ${canEdit ? 'cursor-pointer' : ''}`}
                           >
-                            {dragHighlight === 'valid'
-                              ? `drop ${dragPreset?.name}`
-                              : dragHighlight === 'invalid'
-                                ? 'won’t fit'
-                                : isPending ? 'pick a device →' : '+ Drop Here'}
+                            {isPending ? 'pick a device →' : '+ Drop Here'}
                           </button>
                         )}
                       </div>
                     </div>
                   )
                 })}
+                {/* Drag preview overlay — one bordered box spanning
+                    the entire RU range the device would occupy.
+                    Cyan when the drop would succeed, red when it
+                    would fail (out-of-bounds or any RU in the
+                    range is occupied). Centered text shows the
+                    device name + RU size — no "drop" / "won't fit"
+                    verbiage, the color tells the story. */}
+                {dragPreset && dragHoverRu != null && (() => {
+                  const start = dragHoverRu
+                  const end = start + dragPreset.ruSize - 1
+                  const fits = end <= rack.totalRU
+                    && !Array.from({ length: dragPreset.ruSize }, (_, j) => occupied.has(start + j)).includes(true)
+                  return (
+                    <div
+                      // Match the slot card geometry exactly so the
+                      // preview reads as "this is where the slot
+                      // would land if you released now."
+                      style={{
+                        position: 'absolute',
+                        top: `${(start - 1) * RU_PX + 4 + offsetFor(start)}px`,
+                        left: '40px',
+                        right: 0,
+                        height: `${dragPreset.ruSize * RU_PX - 2}px`,
+                        zIndex: 5,
+                        pointerEvents: 'none',
+                      }}
+                      className={`flex items-center justify-center rounded-lg border-2 ${
+                        fits
+                          ? 'border-[#22a7d3] bg-[#0178a3]/20 text-[#22a7d3]'
+                          : 'border-red-500 bg-red-500/10 text-red-300'
+                      } text-sm font-medium`}
+                    >
+                      <span>{dragPreset.name}</span>
+                      <span className="ml-2 text-xs opacity-70">{dragPreset.ruSize}U</span>
+                    </div>
+                  )
+                })()}
                 {/* Filled slots (search-filtered for display only). */}
                 {visibleSlots.map((s) => {
                   const isEditing = s.id === editingSlotId
