@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
 import { FilterDropdown } from '@/components/filter-dropdown'
@@ -155,6 +155,17 @@ export function RackStudio({
   /** Custom device delete in-flight tracker — keyed by device id so
    *  we can disable the × on one chip without freezing the others. */
   const [customDeletingId, setCustomDeletingId] = useState<number | null>(null)
+  /** Drag-and-drop state — when set, the user is mid-drag from a
+   *  library tile. The ghost element tracks the cursor, and the
+   *  chassis highlights the RU rows the device would occupy on
+   *  release. Click-to-add still works as a fallback for users who
+   *  prefer the original two-tap flow. */
+  const [dragPreset, setDragPreset] = useState<RackDevicePreset | null>(null)
+  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null)
+  const [dragHoverRu, setDragHoverRu] = useState<number | null>(null)
+  // Ref so the pointer handlers see the latest preset / hover without
+  // re-binding on every state change.
+  const dragStateRef = useRef<{ preset: RackDevicePreset | null; hoverRu: number | null }>({ preset: null, hoverRu: null })
   /** ID of the slot currently being edited inline. When non-null the
    *  slot's card expands to show its edit form; every row below it
    *  in the rack shifts down by EDIT_EXTRA_PX. Closes on save /
@@ -308,6 +319,118 @@ export function RackStudio({
     }
   }
 
+  /** Initiates a drag from a library tile. Called from DeviceTile's
+   *  onPointerDown. Captures the pointer on document so the gesture
+   *  survives leaving the tile, even if the cursor crosses the
+   *  library's overflow boundary. */
+  function startLibraryDrag(preset: RackDevicePreset, e: React.PointerEvent) {
+    if (!canEdit) return
+    if (preset.ruSize === 0) {
+      // Loose gear has no RU position — keep the click-to-add flow
+      // for it (drop targets only make sense for RU-occupying gear).
+      return
+    }
+    setDragPreset(preset)
+    setDragPos({ x: e.clientX, y: e.clientY })
+    setDragHoverRu(null)
+    dragStateRef.current = { preset, hoverRu: null }
+  }
+
+  // Global pointer handlers for the library-drag gesture. Effects
+  // attach a single listener pair while dragPreset is set; on
+  // pointerup they fire the same handleDevicePick we use for clicks.
+  useEffect(() => {
+    if (!dragPreset) return
+    function findHoverRu(x: number, y: number): number | null {
+      // elementsFromPoint covers nested overflow scrollers + portals
+      // that elementFromPoint can miss. Walk the stack looking for
+      // any node with data-rack-ru.
+      const els = typeof document !== 'undefined' ? document.elementsFromPoint(x, y) : []
+      for (const el of els) {
+        const ru = (el as HTMLElement).dataset?.rackRu
+        if (ru != null) return parseInt(ru, 10)
+      }
+      return null
+    }
+    function handleMove(ev: PointerEvent) {
+      setDragPos({ x: ev.clientX, y: ev.clientY })
+      const ru = findHoverRu(ev.clientX, ev.clientY)
+      setDragHoverRu(ru)
+      dragStateRef.current.hoverRu = ru
+    }
+    function handleUp() {
+      const { preset, hoverRu } = dragStateRef.current
+      setDragPreset(null)
+      setDragPos(null)
+      setDragHoverRu(null)
+      dragStateRef.current = { preset: null, hoverRu: null }
+      if (!preset || hoverRu == null) return
+      // Stage the pending target as the drop RU, then hand off to
+      // the existing handleDevicePick — same validation, same POST,
+      // same router.refresh, same error surface.
+      setPendingRu(hoverRu)
+      // setPendingRu schedules a state update; handleDevicePick reads
+      // pendingRu inside its body. We can't rely on the new state
+      // being visible yet — pass the RU explicitly via a synthetic
+      // pick that bypasses the pendingRu check by setting it just
+      // before. Workaround: capture local + use directly.
+      void handleDevicePickAtRu(preset, hoverRu)
+    }
+    document.addEventListener('pointermove', handleMove)
+    document.addEventListener('pointerup', handleUp)
+    document.addEventListener('pointercancel', handleUp)
+    return () => {
+      document.removeEventListener('pointermove', handleMove)
+      document.removeEventListener('pointerup', handleUp)
+      document.removeEventListener('pointercancel', handleUp)
+    }
+  }, [dragPreset]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Click-bypass variant of handleDevicePick that uses an explicit
+   *  RU instead of pendingRu state. Used by the drag-drop release
+   *  path where pendingRu would lag behind the gesture. */
+  async function handleDevicePickAtRu(preset: RackDevicePreset, ru: number) {
+    if (!canEdit) return
+    if (ru + preset.ruSize - 1 > rack.totalRU) {
+      setError(`${preset.name} (${preset.ruSize}U) doesn't fit at RU ${ru}.`)
+      return
+    }
+    for (let i = 0; i < preset.ruSize; i++) {
+      if (occupied.has(ru + i)) {
+        setError(`RU ${ru + i} is already taken — pick another row.`)
+        return
+      }
+    }
+    setAdding(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/racks/${rack.id}/slots`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          ruPosition: ru,
+          ruSize: preset.ruSize,
+          side,
+          deviceType: preset.name,
+          label: preset.name,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        setError((data as { error?: string } | null)?.error ?? 'Failed to add device')
+        setAdding(false)
+        return
+      }
+      setPendingRu(null)
+      setSheetOpen(false)
+      setAdding(false)
+      router.refresh()
+    } catch {
+      setError('Network error')
+      setAdding(false)
+    }
+  }
+
   async function handleCustomDeviceDelete(deviceId: number, name: string) {
     if (!canEdit) return
     if (!window.confirm(`Remove "${name}" from the device library? Existing slots stay; the device just disappears from the picker.`)) return
@@ -329,8 +452,8 @@ export function RackStudio({
     }
   }
 
-  async function handleCustomDeviceCreate(payload: { name: string; ruSize: number; category: PresetCategory }) {
-    if (!canEdit) return
+  async function handleCustomDeviceCreate(payload: { name: string; ruSize: number; category: PresetCategory }): Promise<boolean> {
+    if (!canEdit) return false
     setError(null)
     try {
       const res = await fetch('/api/rack-devices', {
@@ -744,6 +867,21 @@ export function RackStudio({
                   const ru = i + 1
                   const isEmpty = !occupied.has(ru)
                   const isPending = pendingRu === ru
+                  // Drag-drop highlight: when the user is dragging a
+                  // library tile, every RU in the range the device
+                  // would occupy (dragHoverRu .. dragHoverRu + size - 1)
+                  // tints cyan. If any of those RUs is occupied or
+                  // out-of-bounds, the row turns red so the operator
+                  // knows the drop will fail.
+                  let dragHighlight: 'valid' | 'invalid' | null = null
+                  if (dragPreset && dragHoverRu != null) {
+                    const start = dragHoverRu
+                    const end = start + dragPreset.ruSize - 1
+                    if (ru >= start && ru <= end) {
+                      const wouldFit = end <= rack.totalRU && !Array.from({ length: dragPreset.ruSize }, (_, j) => occupied.has(start + j)).includes(true)
+                      dragHighlight = wouldFit ? 'valid' : 'invalid'
+                    }
+                  }
                   return (
                     <div
                       key={`ru-${ru}`}
@@ -764,15 +902,24 @@ export function RackStudio({
                         {isEmpty && (
                           <button
                             type="button"
+                            data-rack-ru={ru}
                             onClick={() => handleEmptyRowClick(ru)}
                             disabled={!canEdit}
                             className={`flex h-[46px] w-full items-center justify-center text-xs transition-colors disabled:cursor-default ${
-                              isPending
-                                ? 'rounded-lg border border-[#0178a3]/60 bg-[#0178a3]/15 text-[#22a7d3]'
-                                : 'border-b border-white/[0.06] text-gray-600 hover:border-b-[#0178a3]/40 hover:text-[#22a7d3] hover:bg-[#0178a3]/[0.04]'
+                              dragHighlight === 'valid'
+                                ? 'rounded-lg border border-[#22a7d3]/70 bg-[#0178a3]/20 text-[#22a7d3]'
+                                : dragHighlight === 'invalid'
+                                  ? 'rounded-lg border border-red-500/60 bg-red-500/10 text-red-300'
+                                  : isPending
+                                    ? 'rounded-lg border border-[#0178a3]/60 bg-[#0178a3]/15 text-[#22a7d3]'
+                                    : 'border-b border-white/[0.06] text-gray-600 hover:border-b-[#0178a3]/40 hover:text-[#22a7d3] hover:bg-[#0178a3]/[0.04]'
                             } ${canEdit ? 'cursor-pointer' : ''}`}
                           >
-                            {isPending ? 'pick a device →' : '+ Drop Here'}
+                            {dragHighlight === 'valid'
+                              ? `drop ${dragPreset?.name}`
+                              : dragHighlight === 'invalid'
+                                ? 'won’t fit'
+                                : isPending ? 'pick a device →' : '+ Drop Here'}
                           </button>
                         )}
                       </div>
@@ -824,6 +971,8 @@ export function RackStudio({
             side={side}
             onSideChange={(v) => { setSide(v); setPendingRu(null) }}
             onPick={handleDevicePick}
+            onStartDrag={startLibraryDrag}
+            dragging={dragPreset}
             pendingRu={pendingRu}
             adding={adding}
             canEdit={canEdit}
@@ -850,6 +999,8 @@ export function RackStudio({
           side={side}
           onSideChange={(v) => { setSide(v); setPendingRu(null) }}
           onPick={handleDevicePick}
+          onStartDrag={startLibraryDrag}
+          dragging={dragPreset}
           pendingRu={pendingRu}
           adding={adding}
           canEdit={canEdit}
@@ -859,6 +1010,21 @@ export function RackStudio({
           onCustomDelete={handleCustomDeviceDelete}
           customDeletingId={customDeletingId}
         />
+      )}
+
+      {/* Drag ghost — a fixed-position pill following the cursor
+          while the user is mid-drag from a library tile. createPortal
+          so it isn't clipped by the rack studio's overflow scrollers.
+          pointer-events:none keeps it out of elementsFromPoint so the
+          drop-target detection sees the chassis underneath. */}
+      {dragPreset && dragPos && typeof document !== 'undefined' && createPortal(
+        <div
+          className="pointer-events-none fixed z-[100] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-[#22a7d3]/60 bg-[#0178a3]/30 px-3 py-1.5 text-xs font-medium text-white shadow-lg"
+          style={{ left: dragPos.x, top: dragPos.y }}
+        >
+          {dragPreset.name} <span className="ml-1 text-white/60">{dragPreset.ruSize}U</span>
+        </div>,
+        document.body,
       )}
 
     </div>
@@ -878,6 +1044,8 @@ function DeviceLibrary({
   side,
   onSideChange,
   onPick,
+  onStartDrag,
+  dragging,
   pendingRu,
   adding,
   canEdit,
@@ -903,6 +1071,15 @@ function DeviceLibrary({
   side: 'front' | 'rear'
   onSideChange: (next: 'front' | 'rear') => void
   onPick: (preset: RackDevicePreset) => void
+  /** Pointer-down on a tile starts a library→rack drag. Provided
+   *  by the parent so the global pointermove/up logic stays in one
+   *  place; the tile just calls this on pointer down. */
+  onStartDrag?: (preset: RackDevicePreset, e: React.PointerEvent) => void
+  /** The device being dragged right now (if any). Tiles use this to
+   *  visually fade their own state — the one being dragged stays
+   *  full opacity, the others dim so the in-flight gesture is
+   *  obvious. */
+  dragging?: RackDevicePreset | null
   pendingRu: number | null
   adding: boolean
   canEdit: boolean
@@ -1046,8 +1223,10 @@ function DeviceLibrary({
                     key={p.isCustom ? `custom-${p.id}` : `preset-${p.name}`}
                     preset={p}
                     onClick={() => onPick(p)}
+                    onPointerDown={onStartDrag ? (e) => onStartDrag(p, e) : undefined}
                     disabled={!canEdit || adding}
                     highlightTarget={pendingRu != null && p.ruSize > 0}
+                    isDragging={!!dragging && dragging.name === p.name}
                     onDelete={p.isCustom && p.id != null && canEdit
                       ? () => onCustomDelete(p.id as number, p.name)
                       : undefined}
@@ -1103,15 +1282,26 @@ function Section({
 function DeviceTile({
   preset,
   onClick,
+  onPointerDown,
   disabled,
   highlightTarget,
+  isDragging,
   onDelete,
   deleting,
 }: {
   preset: LibraryItem
   onClick: () => void
+  /** Pointer-down kicks off a library→rack drag. Click still
+   *  works (the click event fires after pointer up only if no
+   *  drag occurred, since the parent's pointerup handler doesn't
+   *  preventDefault). */
+  onPointerDown?: (e: React.PointerEvent) => void
   disabled: boolean
   highlightTarget: boolean
+  /** True when THIS tile is the one currently being dragged.
+   *  Keeps the tile rendered (so the drag start position has
+   *  somewhere to anchor) but visually marks it as in-flight. */
+  isDragging?: boolean
   /** Provided only when this tile represents a custom device the
    *  viewer is allowed to delete. Renders a small × on the right
    *  edge that swallows the parent button click. */
@@ -1124,13 +1314,21 @@ function DeviceTile({
       <button
         type="button"
         onClick={onClick}
+        onPointerDown={onPointerDown}
         disabled={disabled}
+        // touch-none disables the browser's default touch-scroll on
+        // the tile so pointermove events get delivered cleanly on
+        // mobile; without it the gesture scrolls the library instead
+        // of dragging.
+        style={onPointerDown ? { touchAction: 'none' } : undefined}
         className={`flex w-full items-center gap-2.5 rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
           disabled
             ? 'border-white/10 text-gray-500 cursor-not-allowed opacity-50'
-            : highlightTarget
-              ? 'border-[#22a7d3]/50 text-gray-200 hover:bg-[#0178a3]/10'
-              : 'border-white/15 text-gray-300 hover:border-white/25 hover:bg-white/[0.03]'
+            : isDragging
+              ? 'border-[#22a7d3]/70 bg-[#0178a3]/15 text-[#22a7d3] opacity-70'
+              : highlightTarget
+                ? 'border-[#22a7d3]/50 text-gray-200 hover:bg-[#0178a3]/10'
+                : 'border-white/15 text-gray-300 hover:border-white/25 hover:bg-white/[0.03]'
         }`}
       >
         <span className="truncate">{preset.name}</span>
@@ -1169,6 +1367,8 @@ function DeviceLibrarySheet({
   side,
   onSideChange,
   onPick,
+  onStartDrag,
+  dragging,
   pendingRu,
   adding,
   canEdit,
@@ -1187,6 +1387,8 @@ function DeviceLibrarySheet({
   side: 'front' | 'rear'
   onSideChange: (next: 'front' | 'rear') => void
   onPick: (preset: RackDevicePreset) => void
+  onStartDrag?: (preset: RackDevicePreset, e: React.PointerEvent) => void
+  dragging?: RackDevicePreset | null
   pendingRu: number | null
   adding: boolean
   canEdit: boolean
@@ -1226,6 +1428,8 @@ function DeviceLibrarySheet({
             side={side}
             onSideChange={onSideChange}
             onPick={onPick}
+            onStartDrag={onStartDrag}
+            dragging={dragging}
             pendingRu={pendingRu}
             adding={adding}
             canEdit={canEdit}
