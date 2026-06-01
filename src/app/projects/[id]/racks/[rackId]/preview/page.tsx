@@ -67,7 +67,8 @@ export default async function RackPreviewPage({
   const containerHeight = rack.totalRU * RU_PX + 8
 
   return (
-    <div className="min-h-screen w-full bg-[#202020] px-4 sm:px-6 lg:px-8 py-5">
+    <div className="min-h-screen w-full bg-[#202020] py-5">
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
       {/* Header: rack name + location + RU on the left, X close on
           the right. X returns to the Racks tab. No bottom border /
           margin / padding — sits flush with the chassis below. */}
@@ -141,6 +142,7 @@ export default async function RackPreviewPage({
             <span className="min-w-0 flex-1 truncate text-center">{s.label}</span>
           </div>
         ))}
+      </div>
       </div>
     </div>
   )
