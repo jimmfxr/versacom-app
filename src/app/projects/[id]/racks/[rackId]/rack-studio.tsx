@@ -2307,7 +2307,17 @@ function SlotRow({
               : 'bg-[#2a2a2a]'
           }`}
         >
-          <span className="w-9 shrink-0 text-center text-sm font-mono tabular-nums text-[#22a7d3]">{slot.ruPosition}</span>
+          {/* RU column: one number per RU the slot occupies, stacked
+              top-to-bottom and evenly distributed inside the card.
+              For 1U slots that's a single centered number; for
+              multi-RU slots (4U, 6U, etc.) each row of the slot
+              gets its own RU label — same treatment the drag
+              preview overlay uses. */}
+          <span className="w-9 shrink-0 flex flex-col items-center justify-around py-1 font-mono tabular-nums text-sm text-[#22a7d3]">
+            {Array.from({ length: slot.ruSize }, (_, i) => (
+              <span key={i}>{slot.ruPosition + i}</span>
+            ))}
+          </span>
           {(() => {
             // When the slot is linked to an Equipment row, mirror
             // the library-tile layout: id (white) · location (cyan)
