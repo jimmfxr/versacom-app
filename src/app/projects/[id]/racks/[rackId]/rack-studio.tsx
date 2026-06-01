@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
 import { FilterDropdown } from '@/components/filter-dropdown'
 import { Modal } from '@/components/modal'
+import { showToast } from '@/components/toast'
 import { ProjectSwitcher } from '@/app/project-dashboard'
 import {
   PRESETS_BY_DEPT,
@@ -138,7 +139,14 @@ export function RackStudio({
   const setSide = onSideChange ?? setInternalSide
   const [pendingRu, setPendingRu] = useState<number | null>(null)
   const [adding, setAdding] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  // setError used to drive an inline red banner; now it just pipes
+  // to the shared bottom-right toast queue. The shape stays
+  // (msg: string | null) so every existing caller works unchanged:
+  // null is a no-op (toasts auto-dismiss; no need to clear), and a
+  // string fires an error toast.
+  const setError = (msg: string | null) => {
+    if (msg) showToast('error', msg)
+  }
   /** Mobile bottom-sheet visibility — only relevant when canEdit. */
   const [sheetOpen, setSheetOpen] = useState(false)
   /** Category filter for the device library. */
@@ -837,24 +845,9 @@ export function RackStudio({
         <span>{usedRU} of {rack.totalRU} RUs used</span>
       </div>
 
-      {/* Error toast (inline above rack) — dismissible via the × so
-          the user can clear stale guidance like "Tap an empty RU row
-          first" once they've taken the action. */}
-      {error && (
-        <div className="mb-3 flex items-start gap-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-          <span className="flex-1">{error}</span>
-          <button
-            type="button"
-            onClick={() => setError(null)}
-            aria-label="Dismiss"
-            className="shrink-0 text-red-300/70 hover:text-red-100 transition-colors leading-none -mt-0.5"
-          >
-            <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      )}
+      {/* Errors used to render here as an inline red banner; they
+          now flow through showToast() and surface in the shared
+          bottom-right toast queue. No inline UI needed. */}
 
       {/* ─── Loose gear tray ───
           No header / no empty-state copy — the chips speak for

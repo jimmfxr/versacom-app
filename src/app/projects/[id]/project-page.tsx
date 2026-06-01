@@ -1007,7 +1007,13 @@ export function ProjectPage({
     name: '', location: '', totalRU: '',
   })
   const [rackEditSaving, setRackEditSaving] = useState(false)
-  const [rackEditError, setRackEditError] = useState<string | null>(null)
+  // setRackEditError used to drive an inline red banner under the
+  // row header; now it pipes errors to the shared bottom-right
+  // toast queue. Same (msg | null) shape so every caller works
+  // unchanged — null is a no-op (toasts auto-dismiss).
+  const setRackEditError = (msg: string | null) => {
+    if (msg) showToast('error', msg)
+  }
   /** In-app confirm prompt for "Delete rack" — replaces window.confirm.
    *  When non-null, the styled Modal at the bottom of this component
    *  is shown asking the operator to confirm. */
@@ -3925,24 +3931,9 @@ export function ProjectPage({
                           </button>
                         </div>
                       )}
-                      {/* Inline error from the rack metadata form. Sits
-                          between the header inputs and the chassis so
-                          mistakes are visible without scrolling away. */}
-                      {isExpanded && rackEditError && (
-                        <div className="mb-3 flex items-start gap-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-                          <span className="flex-1">{rackEditError}</span>
-                          <button
-                            type="button"
-                            onClick={() => setRackEditError(null)}
-                            aria-label="Dismiss"
-                            className="shrink-0 text-red-300/70 hover:text-red-100 transition-colors leading-none -mt-0.5"
-                          >
-                            <svg className="size-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-                      )}
+                      {/* Errors from rack metadata save/delete now
+                          flow through showToast() — no inline banner
+                          here anymore. */}
                       {/* Inline rack studio — uncollapses in place when
                           Edit is tapped. Server pre-fetched slots +
                           looseItems on this rack so the expansion is
