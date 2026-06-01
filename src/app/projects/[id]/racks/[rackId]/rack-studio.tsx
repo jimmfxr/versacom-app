@@ -56,10 +56,20 @@ type LooseItem = {
   equipmentId: number | null
 }
 
-/** A device shown in the library list — either a hard-coded preset
- *  or a user-added custom. Customs carry their RackDevice row id
- *  + an isCustom flag so the chip can offer a × delete affordance. */
-type LibraryItem = RackDevicePreset & { id?: number; isCustom?: boolean }
+/** A device shown in the library list. Three kinds, all unified
+ *  under one shape so the filter / search / render pipeline doesn't
+ *  branch:
+ *    - Preset (hard-coded): just RackDevicePreset, no extras.
+ *    - Custom (user-added): id + isCustom flag → × delete shown.
+ *    - Equipment-backed (a real Equipment row on this project):
+ *      equipmentId set + isEquipment flag → dropping this tile
+ *      stamps slot.equipmentId at create time. */
+type LibraryItem = RackDevicePreset & {
+  id?: number
+  isCustom?: boolean
+  equipmentId?: number
+  isEquipment?: boolean
+}
 
 /** Pared-down Equipment shape for the slot edit form's link picker.
  *  Only the fields needed to show the picker option + auto-fill
@@ -164,7 +174,7 @@ export function RackStudio({
   // as a 'pick a slot' invite; the next tap on a row POSTs the slot.
   // Only one of pendingRu / pendingDevice is non-null at a time —
   // setting one clears the other.
-  const [pendingDevice, setPendingDevice] = useState<RackDevicePreset | null>(null)
+  const [pendingDevice, setPendingDevice] = useState<LibraryItem | null>(null)
   const [adding, setAdding] = useState(false)
   // setError used to drive an inline red banner; now it just pipes
   // to the shared bottom-right toast queue. The shape stays
@@ -196,7 +206,7 @@ export function RackStudio({
    *  chassis highlights the RU rows the device would occupy on
    *  release. Click-to-add still works as a fallback for users who
    *  prefer the original two-tap flow. */
-  const [dragPreset, setDragPreset] = useState<RackDevicePreset | null>(null)
+  const [dragPreset, setDragPreset] = useState<LibraryItem | null>(null)
   // When set, the drag originated from an EXISTING slot (move/reposition)
   // rather than a library tile (create). On drop we PATCH the slot's
   // ruPosition instead of POSTing a new slot. The slot's own RUs are
@@ -207,7 +217,7 @@ export function RackStudio({
   const [dragHoverRu, setDragHoverRu] = useState<number | null>(null)
   // Ref so the pointer handlers see the latest preset / hover without
   // re-binding on every state change.
-  const dragStateRef = useRef<{ preset: RackDevicePreset | null; hoverRu: number | null }>({ preset: null, hoverRu: null })
+  const dragStateRef = useRef<{ preset: LibraryItem | null; hoverRu: number | null }>({ preset: null, hoverRu: null })
   // Remembers whether the mobile library sheet was open at the
   // moment a drag started, so we can restore it after the drop —
   // mimicking PanelStudio's pickerSnap behavior where the sheet
@@ -223,7 +233,7 @@ export function RackStudio({
    *  a single library tile be both 'tap to arm' AND 'hold-and-drag'
    *  without the two gestures conflicting. */
   const pendingDragRef = useRef<{
-    preset: RackDevicePreset
+    preset: LibraryItem
     startX: number
     startY: number
     pointerId: number
@@ -339,6 +349,35 @@ export function RackStudio({
       id: d.id,
       isCustom: true as const,
     })),
+    // Real Equipment rows from THIS project, surfaced as draggable
+    // tiles. Dropping one creates a slot AND auto-links to that
+    // equipmentId in a single gesture. Already-racked items are
+    // filtered out — dragging the same physical unit twice would
+    // double-claim it; if the operator wants to MOVE a racked unit
+    // they drag the existing slot card, not the library tile.
+    ...rackEquipment
+      .filter((eq) => !rackedEquipmentIds.includes(eq.id))
+      .map((eq) => {
+        // Derive ruSize: look up the preset whose name matches the
+        // equipment's hardwareType. Falls back to 1U for anything
+        // not in the preset list (custom hardware types, etc.).
+        const matchingPreset = presets.find((p) => p.name === eq.hardwareType)
+        // Map Equipment.category → PresetCategory. panels → devices
+        // since the rack library groups Artist/RTS frames under
+        // 'devices'. switches + audio map straight through.
+        const mappedCategory: PresetCategory =
+          eq.category === 'panels' ? 'devices'
+          : eq.category === 'switches' ? 'switches'
+          : eq.category === 'audio' ? 'audio'
+          : 'devices'
+        return {
+          name: eq.name,
+          ruSize: matchingPreset?.ruSize ?? 1,
+          category: mappedCategory,
+          equipmentId: eq.id,
+          isEquipment: true as const,
+        }
+      }),
   ]
 
   function handleEmptyRowClick(ru: number) {
@@ -361,7 +400,7 @@ export function RackStudio({
     }
   }
 
-  async function handleDevicePick(preset: RackDevicePreset) {
+  async function handleDevicePick(preset: LibraryItem) {
     if (!canEdit) return
     if (preset.ruSize === 0) {
       // Loose gear — no RU position, no collision check, no pending
@@ -435,6 +474,8 @@ export function RackStudio({
           side,
           deviceType: preset.name,
           label: preset.name,
+          // Equipment-backed library tiles stamp slot.equipmentId.
+          equipmentId: preset.equipmentId ?? null,
         }),
       })
       if (!res.ok) {
@@ -460,7 +501,7 @@ export function RackStudio({
    *  pointer moves past a small distance threshold (handled in the
    *  always-on pointermove effect below). Pointerup before move →
    *  click fires naturally → handleDevicePick arms the device. */
-  function startLibraryDrag(preset: RackDevicePreset, e: React.PointerEvent) {
+  function startLibraryDrag(preset: LibraryItem, e: React.PointerEvent) {
     if (!canEdit) return
     if (preset.ruSize === 0) return  // Loose gear: click-to-add only.
     pendingDragRef.current = {
@@ -630,7 +671,7 @@ export function RackStudio({
   /** Click-bypass variant of handleDevicePick that uses an explicit
    *  RU instead of pendingRu state. Used by the drag-drop release
    *  path where pendingRu would lag behind the gesture. */
-  async function handleDevicePickAtRu(preset: RackDevicePreset, ru: number) {
+  async function handleDevicePickAtRu(preset: LibraryItem, ru: number) {
     if (!canEdit) return
     if (ru + preset.ruSize - 1 > rack.totalRU) {
       setError(`${preset.name} (${preset.ruSize}U) doesn't fit at RU ${ru}.`)
@@ -654,6 +695,10 @@ export function RackStudio({
           side,
           deviceType: preset.name,
           label: preset.name,
+          // When the source library item was an Equipment-backed
+          // tile, stamp equipmentId at create time so the link is
+          // captured in one gesture — no follow-up edit needed.
+          equipmentId: preset.equipmentId ?? null,
         }),
       })
       if (!res.ok) {
@@ -1456,16 +1501,16 @@ function DeviceLibrary({
    *  the library is the canonical home for rack-context controls. */
   side: 'front' | 'rear'
   onSideChange: (next: 'front' | 'rear') => void
-  onPick: (preset: RackDevicePreset) => void
+  onPick: (preset: LibraryItem) => void
   /** Pointer-down on a tile starts a library→rack drag. Provided
    *  by the parent so the global pointermove/up logic stays in one
    *  place; the tile just calls this on pointer down. */
-  onStartDrag?: (preset: RackDevicePreset, e: React.PointerEvent) => void
+  onStartDrag?: (preset: LibraryItem, e: React.PointerEvent) => void
   /** The device being dragged right now (if any). Tiles use this to
    *  visually fade their own state — the one being dragged stays
    *  full opacity, the others dim so the in-flight gesture is
    *  obvious. */
-  dragging?: RackDevicePreset | null
+  dragging?: LibraryItem | null
   pendingRu: number | null
   adding: boolean
   canEdit: boolean
@@ -1730,6 +1775,16 @@ function DeviceTile({
         }`}
       >
         <span className="truncate">{preset.name}</span>
+        {/* Equipment-backed tile gets a small cyan dot prefix so
+            the operator can tell "this is the real FOH 1 panel"
+            apart from "this is the generic Artist-128 template". */}
+        {preset.isEquipment && (
+          <span
+            aria-label="Real unit"
+            title="Linked to a project Equipment row"
+            className="size-1.5 shrink-0 rounded-full bg-[#22a7d3]"
+          />
+        )}
         <span className={`ml-auto shrink-0 text-xs font-mono tabular-nums ${isDragging ? 'text-white' : 'text-[#22a7d3]'} ${onDelete ? 'mr-6' : ''}`}>
           {isLoose ? '—' : `${preset.ruSize}U`}
         </span>
@@ -1784,9 +1839,9 @@ function DeviceLibrarySheet({
   onSearchChange: (next: string) => void
   side: 'front' | 'rear'
   onSideChange: (next: 'front' | 'rear') => void
-  onPick: (preset: RackDevicePreset) => void
-  onStartDrag?: (preset: RackDevicePreset, e: React.PointerEvent) => void
-  dragging?: RackDevicePreset | null
+  onPick: (preset: LibraryItem) => void
+  onStartDrag?: (preset: LibraryItem, e: React.PointerEvent) => void
+  dragging?: LibraryItem | null
   pendingRu: number | null
   adding: boolean
   canEdit: boolean
