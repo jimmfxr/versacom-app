@@ -3788,11 +3788,14 @@ export function ProjectPage({
                             static text even when expanded. */}
                       {isExpanded && (isProjectAdmin || isManager) ? (
                         <div className="flex flex-col gap-2 py-3 sm:flex-row sm:flex-wrap sm:items-center">
-                          {/* Inputs row — Name and Location split the
-                              available width evenly (flex-1 each), RU
-                              height stays compact (w-20). Mobile
-                              stacks all three to full width. */}
-                          <div className="flex flex-col gap-2 sm:flex-1 sm:flex-row sm:flex-nowrap sm:items-center">
+                          {/* Inputs container.
+                              - Mobile: 2-column grid → Name + Location
+                                share row 1, RU spans the full second
+                                row.
+                              - Desktop (>= sm): flex row, Name +
+                                Location flex-1 each, RU compact at
+                                w-20. */}
+                          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-1 sm:flex-row sm:flex-nowrap sm:items-center sm:gap-2">
                             <input
                               value={rackEditForm.name}
                               onChange={(e) => setRackEditForm((f) => ({ ...f, name: e.target.value }))}
@@ -3818,7 +3821,7 @@ export function ProjectPage({
                               disabled={rackEditSaving}
                               aria-label="RU height"
                               placeholder="RU"
-                              className="w-full sm:w-20 rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+                              className="col-span-2 w-full sm:col-span-1 sm:w-20 rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
                             />
                           </div>
                           {/* Action row — Delete · Close · Save (left
