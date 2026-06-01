@@ -3816,6 +3816,7 @@ export function ProjectPage({
                             manager only; read-only viewers see the
                             static text even when expanded. */}
                       {isExpanded && (isProjectAdmin || isManager) ? (
+                        <AutoHideHeader>
                         <div className="flex flex-col gap-2 py-3 sm:flex-row sm:flex-wrap sm:items-center">
                           {/* Inputs container.
                               - Mobile: 2-column grid → Name + Location
@@ -3916,6 +3917,7 @@ export function ProjectPage({
                             </Button>
                           </div>
                         </div>
+                        </AutoHideHeader>
                       ) : (
                         <div className={`flex flex-col items-stretch gap-4 py-3 transition-colors sm:flex-row sm:items-start sm:gap-4 ${isExpanded ? '' : 'hover:bg-white/[0.04]'}`}>
                           <div className="min-w-0 flex-1 flex items-baseline gap-2">
