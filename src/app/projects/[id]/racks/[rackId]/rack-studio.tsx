@@ -922,8 +922,8 @@ function SlotRow({
           </div>
         </div>
       ) : (
-        {/* Each slot is its own bordered card now — the chassis no
-            longer carries an outer border, units do. */}
+        // Each slot is its own bordered card now — the chassis no
+        // longer carries an outer border, units do.
         <div className="flex h-full w-full items-center gap-2 rounded-lg border border-white/15 bg-transparent px-4 text-sm font-medium text-white">
           <span className="truncate">{slot.label}</span>
           <span className="text-gray-600">·</span>
