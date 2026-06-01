@@ -1453,14 +1453,14 @@ function DeviceTile({
           disabled
             ? 'border-white/[0.08] text-gray-500 cursor-not-allowed opacity-50'
             : isDragging
-              ? 'border-[#22a7d3]/70 bg-[#0178a3]/15 text-[#22a7d3] opacity-70'
+              ? 'border-[#0178a3] bg-[#0178a3] text-white'
               : highlightTarget
                 ? 'border-[#22a7d3]/50 text-gray-200 hover:bg-white/[0.03]'
                 : 'border-white/[0.08] text-gray-300 hover:border-[rgba(34,167,211,0.5)] hover:bg-white/[0.03]'
         }`}
       >
         <span className="truncate">{preset.name}</span>
-        <span className={`ml-auto shrink-0 text-xs font-mono tabular-nums text-[#22a7d3] ${onDelete ? 'mr-6' : ''}`}>
+        <span className={`ml-auto shrink-0 text-xs font-mono tabular-nums ${isDragging ? 'text-white' : 'text-[#22a7d3]'} ${onDelete ? 'mr-6' : ''}`}>
           {isLoose ? '—' : `${preset.ruSize}U`}
         </span>
       </button>
