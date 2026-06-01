@@ -15,7 +15,7 @@ import {
 } from '@/lib/rack-presets'
 
 /**
- * Rack designer — the page-level UI for a single RackTemplate.
+ * Rack studio — the page-level UI for a single RackTemplate.
  *
  * v1 (previous commit) was read-only: bordered chassis, RU column,
  * empty rows with placeholder text, side toggle.
@@ -56,7 +56,7 @@ type LooseItem = {
 
 const RU_PX = 48
 
-export function RackDesigner({
+export function RackStudio({
   project,
   userProjects,
   rack,

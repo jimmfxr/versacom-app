@@ -1,22 +1,22 @@
 import { notFound, redirect } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/session'
-import { RackDesigner } from './rack-designer'
+import { RackStudio } from './rack-studio'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * Rack designer page. Lives at /projects/[id]/racks/[rackId].
+ * Rack studio page. Lives at /projects/[id]/racks/[rackId].
  *
  * Server-fetches the RackTemplate, its slots (sorted by RU position,
- * grouped by side), and its loose items. Renders the RackDesigner
+ * grouped by side), and its loose items. Renders the RackStudio
  * client component which owns the visualization + future drag/drop
  * interactions.
  *
  * Auth: caller must be a member of the project. Server checks the
  * project membership and 404s otherwise (no cross-project peeking).
  */
-export default async function RackDesignerPage({
+export default async function RackStudioPage({
   params,
 }: {
   params: Promise<{ id: string; rackId: string }>
@@ -96,7 +96,7 @@ export default async function RackDesignerPage({
   const canEdit = membership.role === 'admin' || membership.role === 'manager'
 
   return (
-    <RackDesigner
+    <RackStudio
       project={project}
       userProjects={userProjects}
       rack={{
