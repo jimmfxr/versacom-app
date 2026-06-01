@@ -894,17 +894,20 @@ export function RackStudio({
           const offsetFor = (ru: number) => editingSlot && ru > editingEndRu ? EDIT_EXTRA_PX : 0
           const containerHeight = rack.totalRU * RU_PX + 8 + (editingSlot ? EDIT_EXTRA_PX : 0)
           return (
-            <div className={`relative overflow-y-auto lg:order-2 ${
+            <div className={`relative lg:order-2 ${
               embedded
-                // Embedded: mobile keeps the 70vh cap because the
-                // outer tab scroll handles overflow there. Desktop
-                // drops the cap and uses lg:h-full to fill the grid
-                // cell instead — the parent flex chain owns the
-                // height, the chassis just scrolls inside it.
-                ? 'max-h-[70vh] lg:max-h-none lg:h-full lg:min-h-0'
-                // Standalone page: app header + page header + toolbar
-                // adds ≈ 320px of chrome above.
-                : 'max-h-[calc(100vh-320px)]'
+                // Embedded mobile: no max-h at all — the chassis
+                // grows to its natural height (totalRU * 48 +
+                // padding) and the parent racks-tab scroll body
+                // handles overflow. A 48 RU rack on a tall phone
+                // shows as much as the screen can fit; the user
+                // page-scrolls to see the rest.
+                // Embedded desktop: fills the grid cell via
+                // lg:h-full + lg:min-h-0 + overflow-y-auto.
+                ? 'lg:h-full lg:min-h-0 lg:overflow-y-auto'
+                // Standalone page: app header + page header +
+                // toolbar adds ≈ 320px of chrome above.
+                : 'max-h-[calc(100vh-320px)] overflow-y-auto'
             }`}>
               <div className="relative" style={{ height: `${containerHeight}px`, transition: 'height 180ms ease-out' }}>
                 {/* Empty rows + RU numbers. Drag highlight is now a
