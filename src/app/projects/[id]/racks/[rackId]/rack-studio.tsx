@@ -2019,8 +2019,6 @@ function SlotRow({
   // Save.
   const [deviceType, setDeviceType] = useState(slot.deviceType)
   const [label, setLabel] = useState(slot.label)
-  const [ruPosition, setRuPosition] = useState(String(slot.ruPosition))
-  const [ruSize, setRuSize] = useState(String(slot.ruSize))
   // Equipment link — '' means "no link", otherwise an Equipment row id.
   const [equipmentId, setEquipmentId] = useState<string>(
     slot.equipmentId != null ? String(slot.equipmentId) : ''
@@ -2028,23 +2026,18 @@ function SlotRow({
 
   async function handleSave() {
     setError(null)
-    const ruP = parseInt(ruPosition, 10)
-    const ruS = parseInt(ruSize, 10)
-    if (!Number.isFinite(ruP) || ruP < 1) { setError('Start RU must be a positive integer'); return }
-    if (!Number.isFinite(ruS) || ruS < 1) { setError('RU size must be a positive integer'); return }
-    if (ruP + ruS - 1 > totalRU) { setError(`Slot would exceed rack height (${totalRU}RU)`); return }
     setEditSaving(true)
     try {
+      // RU position + RU size are NOT included — they were set at
+      // create time and the chassis depends on them being stable.
+      // Resize / reposition happens via the drag pipeline on the
+      // chassis itself, not this form.
       const res = await fetch(`/api/racks/${rackId}/slots/${slot.id}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           deviceType,
           label: label.trim() || deviceType,
-          ruPosition: ruP,
-          ruSize: ruS,
-          // Empty string from the picker means 'no link' → null.
-          // Otherwise parse the equipment row id.
           equipmentId: equipmentId === '' ? null : parseInt(equipmentId, 10),
         }),
       })
@@ -2116,110 +2109,104 @@ function SlotRow({
           </div>
           {/* Form body */}
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-            <div>
-              <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Device type</div>
-              <select
-                value={deviceType}
-                onChange={(e) => setDeviceType(e.target.value)}
-                disabled={editSaving}
-                className="w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
-              >
-                {/* Include the slot's current value even if it's not in
-                    the preset list (e.g. a custom device added later
-                    that's been deleted). */}
-                {!presets.some((p) => p.name === deviceType) && (
-                  <option value={deviceType}>{deviceType} (custom)</option>
-                )}
-                {presets.filter((p) => p.ruSize > 0).map((p) => (
-                  <option key={p.name} value={p.name}>
-                    {p.name} · {p.ruSize}U
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Label</div>
-              <input
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                disabled={editSaving}
-                placeholder={deviceType}
-                className="w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Start RU</div>
-                <input
-                  type="number"
-                  min={1}
-                  max={totalRU}
-                  value={ruPosition}
-                  onChange={(e) => setRuPosition(e.target.value)}
-                  disabled={editSaving}
-                  className="w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
-                />
-              </div>
-              <div>
-                <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">RU size</div>
-                <input
-                  type="number"
-                  min={1}
-                  max={totalRU}
-                  value={ruSize}
-                  onChange={(e) => setRuSize(e.target.value)}
-                  disabled={editSaving}
-                  className="w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
-                />
-              </div>
-            </div>
-            {/* Equipment link picker — when populated, the slot
-                points at a real Equipment row on this project. The
-                slot card will surface that equipment's IP / location
-                / deploy status as context. Items already linked to
-                ANOTHER slot are dimmed + disabled so the operator
-                can't accidentally double-claim a unit; this slot's
-                own current link is exempted so it doesn't dim
-                itself. Picker only renders when canEdit + at least
-                one rack-eligible Equipment row exists. */}
-            {rackEquipment && rackEquipment.length > 0 && (
-              <div>
-                <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Linked equipment <span className="normal-case text-gray-600">(optional)</span></div>
-                <select
-                  value={equipmentId}
-                  onChange={(e) => {
-                    const next = e.target.value
-                    setEquipmentId(next)
-                    // Auto-fill label + deviceType from the picked
-                    // equipment IF the operator hasn't customized
-                    // those fields. Lets a clean pick of a panel
-                    // populate the slot in one tap without typing.
-                    if (next) {
-                      const picked = rackEquipment.find((eq) => String(eq.id) === next)
-                      if (picked) {
-                        if (!label.trim() || label === slot.label) setLabel(picked.name)
-                        if (picked.hardwareType && (!deviceType.trim() || deviceType === slot.deviceType)) {
-                          setDeviceType(picked.hardwareType)
-                        }
-                      }
+            {/* Slot edit form. RU position + RU size aren't editable
+                here — those were determined at create time (drag-drop
+                / click-to-add) and the chassis math depends on them
+                being stable. Resize / reposition happens via the
+                drag pipeline on the chassis itself, not this form.
+                Form contents depend on whether the slot is linked
+                to an Equipment row:
+                  - Linked: a single FilterDropdown showing same-
+                    category equipment for swap. Label/deviceType
+                    derive from the linked equipment.
+                  - Unlinked: Device type (FilterDropdown of presets
+                    + customs) + freeform Label input. */}
+            {(() => {
+              const linkedEq = slot.equipmentId != null
+                ? rackEquipment?.find((eq) => eq.id === slot.equipmentId)
+                : null
+              if (linkedEq && rackEquipment && rackEquipment.length > 0) {
+                // LINKED MODE — swap-to-equivalent picker.
+                const swapOptions = rackEquipment
+                  // Same category as the current link AND not racked
+                  // elsewhere (but include the slot's own current
+                  // link so the selected value renders).
+                  .filter((eq) =>
+                    eq.category === linkedEq.category &&
+                    (!rackedEquipmentIds?.includes(eq.id) || eq.id === slot.equipmentId)
+                  )
+                  .map((eq) => {
+                    const parts = [eq.name, eq.location, eq.hardwareType].filter(Boolean) as string[]
+                    return {
+                      value: String(eq.id),
+                      label: parts.join(' · '),
                     }
-                  }}
-                  disabled={editSaving}
-                  className="w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
-                >
-                  <option value="">— No link —</option>
-                  {rackEquipment.map((eq) => {
-                    const taken = (rackedEquipmentIds ?? []).includes(eq.id) && eq.id !== slot.equipmentId
-                    const labelStr = `${eq.name}${eq.location ? ` · ${eq.location}` : ''}${eq.ipAddress ? ` · ${eq.ipAddress}` : ''}${taken ? ' (racked)' : ''}`
-                    return (
-                      <option key={eq.id} value={eq.id} disabled={taken}>
-                        {labelStr}
-                      </option>
-                    )
-                  })}
-                </select>
-              </div>
-            )}
+                  })
+                return (
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Linked equipment</div>
+                    <FilterDropdown
+                      ariaLabel="Linked equipment"
+                      value={equipmentId}
+                      onChange={(v) => {
+                        setEquipmentId(v)
+                        const picked = rackEquipment.find((eq) => String(eq.id) === v)
+                        if (picked) {
+                          // Mirror the picked equipment into label
+                          // + deviceType so the slot's stored fields
+                          // stay in sync (chassis/library lookups
+                          // fall back to slot.label when an
+                          // equipment ref disappears).
+                          setLabel(picked.name)
+                          if (picked.hardwareType) setDeviceType(picked.hardwareType)
+                        }
+                      }}
+                      widthClass="w-full"
+                      options={swapOptions}
+                    />
+                  </div>
+                )
+              }
+              // UNLINKED MODE — preset/custom picker + freeform label.
+              // (presets prop on SlotRow is the merged libraryItems
+              // from RackStudio; equipment-backed entries get filtered
+              // out here since the unlinked picker is for templates,
+              // not real units — those use the Linked mode.)
+              const presetOptions = presets
+                .filter((p) => p.ruSize > 0 && !p.isEquipment)
+                .map((p) => ({ value: p.name, label: `${p.name} · ${p.ruSize}U` }))
+              // Include the slot's current deviceType even if it's
+              // not in the preset list (e.g. a custom device that's
+              // been deleted) so the dropdown can still show what's
+              // there without forcing an immediate change.
+              if (!presetOptions.some((o) => o.value === deviceType)) {
+                presetOptions.unshift({ value: deviceType, label: `${deviceType} (custom)` })
+              }
+              return (
+                <>
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Device type</div>
+                    <FilterDropdown
+                      ariaLabel="Device type"
+                      value={deviceType}
+                      onChange={(v) => setDeviceType(v)}
+                      widthClass="w-full"
+                      options={presetOptions}
+                    />
+                  </div>
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">Label</div>
+                    <input
+                      value={label}
+                      onChange={(e) => setLabel(e.target.value)}
+                      disabled={editSaving}
+                      placeholder={deviceType}
+                      className="w-full rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
+                    />
+                  </div>
+                </>
+              )
+            })()}
             {/* Action row */}
             <div className="flex items-center justify-between pt-1">
               <button
