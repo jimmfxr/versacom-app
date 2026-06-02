@@ -8,6 +8,12 @@ import Link from 'next/link'
 // sizes (17 RU * 30px = 510px → comfortably fits viewport).
 const RU_PX = 30
 
+// Internal chassis padding — slot cards inset from the rounded
+// border so they don't sit flush against the frame. Mirrors how a
+// real rack has rails inside the cabinet walls, not at them.
+const PAD_X = 8
+const PAD_Y = 6
+
 type Slot = {
   id: number
   ruPosition: number
@@ -37,7 +43,7 @@ function Chassis({
   for (const s of sideSlots) {
     for (let i = 0; i < s.ruSize; i++) occupied.add(s.ruPosition + i)
   }
-  const containerHeight = totalRU * RU_PX + 8
+  const containerHeight = totalRU * RU_PX + PAD_Y * 2
 
   return (
     <div className="w-full max-w-md">
@@ -60,9 +66,9 @@ function Chassis({
               className="flex items-center"
               style={{
                 position: 'absolute',
-                top: `${i * RU_PX + 4}px`,
-                left: 0,
-                right: 0,
+                top: `${i * RU_PX + PAD_Y}px`,
+                left: `${PAD_X}px`,
+                right: `${PAD_X}px`,
                 height: `${RU_PX}px`,
               }}
             >
@@ -83,9 +89,9 @@ function Chassis({
             key={s.id}
             style={{
               position: 'absolute',
-              top: `${(s.ruPosition - 1) * RU_PX + 4}px`,
-              left: 0,
-              right: 0,
+              top: `${(s.ruPosition - 1) * RU_PX + PAD_Y}px`,
+              left: `${PAD_X}px`,
+              right: `${PAD_X}px`,
               height: `${s.ruSize * RU_PX - 2}px`,
             }}
             className="flex w-full items-center gap-2 rounded-lg bg-[#2a2a2a] pr-3 text-xs font-medium text-white"
