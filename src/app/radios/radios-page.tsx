@@ -1057,7 +1057,7 @@ function RadioCard({
       // Desktop (sm:): everything flattens back into one wrapping flex
       // row via `sm:contents` on the inner groups, matching the prior
       // inline-everything look.
-      <div className="flex flex-col gap-4 border-b border-white/[0.06] px-2 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-1">
+      <div className="flex flex-col gap-4 border-b-2 border-white/[0.06] px-2 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-1">
         {/* Identity area — on mobile, two stacked sub-rows:
               row 1: ID + names + dept + position + barcode (far right)
               row 2: accessory flags (fist mic / surveillance / etc.)
@@ -1136,7 +1136,7 @@ function RadioCard({
         e.preventDefault()
         save()
       }}
-      className="border-b border-white/[0.06] px-2 py-4"
+      className="border-b-2 border-white/[0.06] px-2 py-4"
     >
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Field
@@ -1513,7 +1513,7 @@ function ZoneCard({
   const [collapsed, setCollapsed] = useState(true)
 
   return (
-    <div className="border-b border-white/[0.06]">
+    <div className="border-b-2 border-white/[0.06]">
       {/* Header row — zone name on the left, Edit chip on the FAR
           RIGHT of the same row (mobile + desktop). Header itself is
           no longer a button; only the chip toggles the expansion so

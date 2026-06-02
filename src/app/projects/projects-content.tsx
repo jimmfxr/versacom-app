@@ -402,7 +402,7 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
           // Scrollable region — card list scrolls inside this div on
           // both mobile and desktop, so the page header, + button,
           // and (mobile) search bar above all stay pinned in view.
-          <div data-scroll-container className="flex-1 divide-y divide-white/[0.06] overflow-y-auto overscroll-none pt-1 pb-20">
+          <div data-scroll-container className="flex-1 divide-y-[2px] divide-white/[0.06] overflow-y-auto overscroll-none pt-1 pb-20">
             {filteredProjects.map((project) => {
               const isArchived = project.status === 'archived'
               const isEditing = editingProjectId === project.id
