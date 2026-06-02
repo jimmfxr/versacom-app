@@ -1,6 +1,6 @@
 # Nodal Control — User Flow
 
-**Updated:** 2026-05-26
+**Updated:** 2026-06-02
 
 End-user navigation and action flows for the current app. Each role starts at a different landing and unlocks different paths.
 
@@ -63,10 +63,14 @@ flowchart LR
     TABS --> TEAM_TAB[Team<br/>admin/manager]
     TABS --> PL_TAB[Pick List<br/>admin/manager]
     TABS --> PLOTS_TAB[Plots]
+    TABS --> RACKS_TAB[Racks v2.4<br/>RackTemplate list]
     TABS --> MYEQ_TAB[My Equipment<br/>crew only]
 
     EQ_TAB -->|click panel card| PS[/projects/ID/panel/EQID/]
     PL_TAB -->|tap location chip| LOC_RENAME[Rename location modal<br/>updates all rows in that loc]
+    RACKS_TAB -->|click Edit on a rack| RACK_INLINE[Inline RackStudio<br/>?expand=rackId in URL]
+    RACK_INLINE -->|eye icon| RACK_PREVIEW[/projects/ID/racks/RID/preview/<br/>chrome-free, both faces]
+    RACK_PREVIEW -->|X close| RACKS_TAB
 
     RADIOS --> RADHDR{Header icons}
     RADHDR --> RQR[QR icon → join QR modal]
@@ -397,3 +401,152 @@ flowchart LR
     UPDATE --> REFRESH[router.refresh]
     REFRESH --> ROW
 ```
+
+---
+
+## 12. Rack Studio — design + edit a rack (v2.4)
+
+The Racks tab under Comms lets ops design rack layouts before the
+truck-pack. Each `RackTemplate` row in the list (name · location · RU ·
+slot count) is collapsed by default. Tapping **Edit** expands the row
+in place into the full RackStudio — all other rows are hidden so the
+operator has a single-rack focus mode.
+
+```mermaid
+flowchart TD
+    RACKS[Racks tab list] -->|+ Create rack| CREATE[Inline create form<br/>name + location + totalRU]
+    RACKS -->|tap Edit on a row| EXPAND[Inline expansion<br/>sets ?expand=rackId in URL<br/>other rows hidden]
+
+    EXPAND --> RS[RackStudio surface]
+    RS --> RS_LEFT[Chassis<br/>vertical RU stack]
+    RS --> RS_RIGHT[Device library<br/>right column desktop<br/>bottom sheet mobile]
+    RS --> RS_TOP[Loose-gear tray<br/>chips above chassis]
+    RS --> RS_HEADER[Header row<br/>name · location · RU<br/>+ eye icon + Close]
+
+    RS_HEADER -->|tap name| META_FORM[Metadata edit form<br/>rename / relocate / resize]
+    META_FORM -->|Save| RS
+    META_FORM -->|Delete| CONFIRM[Modal: Delete rack?]
+    CONFIRM -->|Confirm| GONE[Server delete<br/>collapse expansion<br/>refresh]
+
+    RS_HEADER -->|eye icon| PREVIEW[/preview/ chrome-free]
+    PREVIEW -->|X| EXPAND
+
+    RS_HEADER -->|Close button| RACKS
+
+    classDef url fill:#0178a3,stroke:#0178a3,color:#fff
+    class EXPAND,PREVIEW url
+```
+
+### Three ways to place a slot
+
+The RackStudio supports three flows for adding a device to a rack —
+operators on different inputs (desktop trackpad, iPad touch, gloves on
+a cart) gravitate toward different ones. All three end with the same
+server POST to `/api/racks/[rackId]/slots`.
+
+```mermaid
+flowchart TD
+    OPEN[RackStudio expanded] --> CHOICE{User intent}
+
+    CHOICE -->|drag a library tile| DRAG1[Pointerdown on tile<br/>pendingDragRef records start]
+    DRAG1 -->|pointer moves past 6px| PROMOTE[Promote to active drag<br/>cyan ghost via portal<br/>mobile sheet auto-closes]
+    PROMOTE -->|hovers over RU| HOVER1[data-rack-ru attribute<br/>cyan overlay on target rows<br/>collision-aware]
+    HOVER1 -->|pointerup on valid RU| POST_DRAG[POST new slot<br/>refresh]
+
+    CHOICE -->|tap empty RU| ARM_RU[Arm pending RU<br/>library tiles light up cyan]
+    ARM_RU -->|tap any library tile| POST_PICK_RU[POST new slot at armed RU]
+
+    CHOICE -->|tap library tile| ARM_DEV[Arm device<br/>empty chassis rows light up green]
+    ARM_DEV -->|tap any empty RU| POST_PICK_DEV[POST new slot with armed device]
+
+    POST_DRAG --> REFRESH[router.refresh]
+    POST_PICK_RU --> REFRESH
+    POST_PICK_DEV --> REFRESH
+
+    REFRESH --> OPEN
+```
+
+A tap (no movement past 6px) on a library tile is treated as the
+"arm device" path — the same listener that promotes drags also clears
+the pending ref on a fast pointerup. On mobile, the bottom-sheet
+library auto-closes during the drag so the operator can see the
+chassis, then reopens after drop (`sheetWasOpenBeforeDragRef`).
+
+### Equipment-linked slots (switches + audio)
+
+Slots can optionally link to a real `Equipment` row so deploy status,
+location, model, and IP flow through. The page server-fetches
+equipment in the `switches` and `audio` categories (panels are
+excluded — they sit on desks, not in racks) and renders one tile per
+unracked equipment row at the **top** of its category section in the
+library.
+
+```mermaid
+flowchart LR
+    EQ_TAB[Equipment tab<br/>switches + audio rows] -->|server fetch| LIB[Device library tiles<br/>name white · location cyan · model gray]
+    LIB -->|drag onto RU| LINK[Create slot<br/>equipmentId = eq.id<br/>label = eq.name]
+
+    LINK --> EQUIP_TILE_GONE[Tile disappears from library<br/>rackedEquipmentIds tracks claimed]
+    LINK --> RACK_CARD[Slot card shows<br/>label · location · model]
+
+    RACK_CARD -->|tap Edit| LINKED_FORM[Linked-slot form<br/>single swap-to-equivalent dropdown]
+    LINKED_FORM --> SAME_CAT[Options: same category<br/>+ not racked elsewhere]
+```
+
+Unlinked slots (preset / custom-device-backed) show a different edit
+form: a Device-type picker (filtered to non-equipment library items)
+plus a freeform Label input. RU position and RU size are not editable
+in either form — both are fixed at create time and resize happens via
+drag.
+
+### Loose gear tray
+
+Devices with `ruSize === 0` (Antaira, Intellanet, TP Link, Netgate,
+Bolero Antenna Master) get velcro'd inside the chassis or thrown in a
+drawer — no RU slot. They render as chips in a wrap-flow row above
+the chassis. Adding is tap-to-add (no drag). The × on a chip removes
+**instantly** — no confirmation modal (PD-029). Re-adding from the
+library is one tap if the operator changes their mind.
+
+```mermaid
+flowchart LR
+    LIB[Library: loose category] -->|tap a tile| ADD_LOOSE[POST /api/racks/RID/loose]
+    ADD_LOOSE --> CHIP[Loose chip rendered<br/>above chassis]
+    CHIP -->|tap ×| DELETE[DELETE instantly<br/>no confirm]
+    DELETE --> GONE[Chip vanishes]
+```
+
+### Rack Preview (chrome-free)
+
+The eye icon on an expanded rack row opens
+`/projects/[id]/racks/[rackId]/preview` — a read-only single-rack
+view with no navbar and no bottom-nav (same treatment as `/kiosk` and
+`/zones`). Server pre-fetches both sides of slots so the side-toggle
+costs zero round trips.
+
+```mermaid
+flowchart TD
+    EYE[Eye icon on expanded rack] -->|click| LOAD[/projects/ID/racks/RID/preview/]
+    LOAD --> FETCH[Server fetch<br/>both sides + linked equipment<br/>location + model]
+
+    FETCH --> RENDER{Viewport}
+    RENDER -->|md and up| DESKTOP[Front + Rear side-by-side<br/>each labeled above]
+    RENDER -->|less than md| MOBILE[Horizontal scroll-snap carousel<br/>slide 0 Front · slide 1 Rear]
+
+    MOBILE --> DOTS[2 cyan dot indicators<br/>tap to scroll · swipe-aware]
+
+    DESKTOP --> SLOTS[Slot cards<br/>label white · linkedLocation cyan · model gray]
+    MOBILE --> SLOTS
+
+    SLOTS --> CLOSE{User done?}
+    CLOSE -->|tap X| RETURN[router push to<br/>?tab=racks&expand=rackId]
+    RETURN --> RESTORE[Inline expansion auto-restores<br/>via one-shot URL effect]
+    RESTORE --> EXPAND2[Back on same rack]
+```
+
+The URL → state restore is **one-shot on mount** (guarded by
+`restoredFromUrlRef`); the `changeExpandedRack()` helper mirrors state
+to the URL on every toggle. Together these prevent the "press Close
+→ expansion re-opens 1-2 seconds later" bug that would otherwise
+happen when a background data refresh re-fired the URL effect with a
+stale `?expand=` still in the URL (PD-028).

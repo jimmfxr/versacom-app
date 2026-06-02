@@ -1,7 +1,7 @@
 # Nodal Control — Product Requirements Document
 
-**Version:** 2.3 (radios + scanner + Comms/Radios header chrome + mobile UI sweep)
-**Updated:** 2026-05-26
+**Version:** 2.4 (Rack designer — inline RackStudio + chrome-free Preview + drag/drop library + equipment linking + loose tray)
+**Updated:** 2026-06-02
 **Author:** Jimmy Xiloj / Versacom (ATK / Clair Global)
 **Status:** Living document — describes what is actually built and shipping, not future phases.
 
@@ -36,15 +36,16 @@ Nodal Control is a web-based intercom management platform for live production sh
 - **Comms + Radios header chrome** — QR + Kiosk on Comms, QR + Scanner on Radios, all to the left of the project dropdown (PD-019)
 - **Location rename** on the Pick List — tapping a location chip renames every row in that location at once
 - **Mobile UI sweep** — bigger buttons, full-width stacks on small screens, project row chip on the left, half-row project dropdowns. See PD-022 + PD-023.
+- **Rack designer (NEW in v2.4)** — Comms project gets a Racks tab. Each `RackTemplate` row expands inline into a full "RackStudio" (chassis + device library + slot editor). Drag/drop a preset onto an RU to place it; drag an existing slot to reposition; tap an empty RU to arm-then-pick. Slots can be linked to a real `Equipment` row (switches + audio) so deploy status, location, model, and IP flow through. A chrome-free `/preview` page renders both faces side-by-side on desktop or as a carousel on mobile — kiosk-style, no nav, just the rack. See PD-024 through PD-029.
 
 **What's not built:**
 
 - Monitoring page (planned Phase 3 — not started)
 - NFG / asset tracking (Phase 4 — schema exists, no UI)
-- Rack designer (Phase 2 — schema exists, no UI)
 - Distribution page (the old "master sheet" idea — replaced in practice by the Equipment tab on Project detail)
 - Label / sticker printing (Brother P-touch integration — see §11 Future Work)
 - Web push notifications (planned for Tasks badge so it doesn't depend on a foregrounded tab)
+- Half-RU device slots — RTS PS21 is the real-world half-RU device tracked as 1U for now (see PD-024)
 
 ---
 
@@ -64,6 +65,8 @@ Nodal Control consolidates all of it:
 | Track who has what gear and its deploy status | **Equipment tab** + **My Equipment** |
 | Add crew to the show quickly | **Project PIN** + **Join QR code** |
 | Lock out someone who forgot their PIN | **Admin Tasks → Lockouts** |
+| Plan rack layouts before truck-pack | **Racks tab → RackStudio** (drag/drop on chassis) |
+| Show ops the rack at a glance | **Rack Preview** (chrome-free, both faces) |
 
 ### 1.2 Target users
 
@@ -178,8 +181,10 @@ Every authenticated page is wrapped by `AppShell` (navbar + toast container). No
 | `/login/forgot-pin` | Recovery flow (limited — contact admin) | Everyone |
 | `/` (Dashboard) | Summary of a selected project; project switcher in the header | admin / manager / crew (not user-only) |
 | `/projects` | List of projects accessible to the viewer | admin (global, sees all) / manager / crew (own only) |
-| `/projects/[id]` | **Comms** — project detail with tabs (Equipment / Team / Pick List / Plots / My Equipment). Header exposes QR + Kiosk icon buttons to the left of the project dropdown. | Any member of the project; global admins also allowed |
+| `/projects/[id]` | **Comms** — project detail with tabs (Equipment / Team / Pick List / Plots / Racks / My Equipment). Header exposes QR + Kiosk icon buttons to the left of the project dropdown. The Racks tab can deep-link to a specific rack via `?tab=racks&expand=<rackId>` — the URL stays in sync as the operator opens / closes inline rack expansions (PD-028). | Any member of the project; global admins also allowed |
 | `/projects/[id]/panel/[equipmentId]` | Panel Studio — key editor for a specific panel; `?from=my-equipment` puts it in browse mode | Members per role rules |
+| `/projects/[id]/racks/[rackId]` | Standalone Rack Studio page (deep link). Same component as the inline expansion under `?tab=racks` but with its own page chrome (back button + project switcher in the header). | Members per role rules |
+| `/projects/[id]/racks/[rackId]/preview` | Chrome-free read-only Rack Preview. Renders both Front + Rear chassis side-by-side on desktop or as a horizontal scroll-snap carousel with cyan dot indicators on mobile. AppShell suppresses navbar + bottom-nav on this route (same treatment as `/kiosk` and `/zones`). X button returns to `?tab=racks&expand=<rackId>`. | Members per role rules |
 | `/projects/[id]/kiosk` | Self-serve "join the show" page for a roving tablet (admins/managers print the QR) | Open per project PIN |
 | `/radios` | Radio fleet for the active project — two tabs: **Radio Equipment** (per-radio rows with status dropdown) and **Radio Channels** (zones + tunings). Header exposes QR + Scanner icon buttons. | admin / manager / crew |
 | `/radios/scan` | Continuous barcode-scan loop powered by `@zxing/browser`; branches on radio status (unknown / auto-return / prompt). See §5.7. | admin / manager |
@@ -197,6 +202,7 @@ Every authenticated page is wrapped by `AppShell` (navbar + toast container). No
 | **Team** | Members with role, position, assigned equipment, expansion count, first-login status (Active/Pending) | admin / manager (crew see Equipment + My Equipment + Plots only) |
 | **Pick List** | CONF / IFB / Audio_IO / GRP communication functions. Usage display shows who has each item on their panel. | admin / manager |
 | **Plots** | Stage-plot PDFs uploaded for the show (currently mock state) | All members |
+| **Racks** (v2.4) | One row per `RackTemplate` on this project (name · location · RU · slot count). Edit expands the row inline into the full RackStudio (chassis + device library + slot editor + loose-gear tray). Eye icon → chrome-free `/preview`. See §5.9. | admin / manager / crew |
 | **My Equipment** (nested) | Shows ONLY when the current user is `crew` on this project — surfaces just the gear assigned to them | crew |
 
 ### 4.2 Panel Studio modes
@@ -400,11 +406,73 @@ server action updates **every row in the project that shares the old
 location**, not just the one tapped. This keeps zones / cases / road
 boxes consistent without per-row edits.
 
+### 5.9 Rack Studio (v2.4)
+
+The Racks tab under Comms is the on-show rack-design surface. Each
+`RackTemplate` is one row in the list — name · location · RU · slot
+count. Tapping **Edit** expands the row in place into the full
+RackStudio (chassis + device library + slot editor + loose-gear
+tray). All other rows are hidden while one is expanded — single-rack
+focus mode mirroring PanelStudio.
+
+#### Components
+
+| Surface | Purpose |
+|---|---|
+| **Chassis** | Vertical stack of `totalRU` rows. Each filled RU renders a card with the slot label + a stacked column of every RU it occupies (a 4U Artist frame shows `6 / 7 / 8 / 9` in cyan). Empty rows render the RU number on the left and the word "Empty" centered. |
+| **Device library** | Right column (desktop) or bottom sheet (mobile). Sectioned tiles: Frames · 2-Wire · PTP Clock · Switches · Audio · Patchbay · Panels · Drawers · Power · Loose gear. Filter dropdown collapses to one section + a search field. See PD-027. |
+| **Slot edit form** | Replaces a slot card in place when its Edit button is tapped. ResizeObserver reports the form's scrollHeight back so the chassis math grows JUST enough to fit. Mode-switches: a linked-equipment slot shows a single FilterDropdown for swap-to-equivalent; an unlinked slot shows Device type + Label fields. |
+| **Loose-gear tray** | Wrap-flow row above the chassis. Loose devices (Antaira, Intellanet, Bolero Antenna Master, …) sit here as chips that match the Close button's chrome (rounded-lg · border-white/10 · px-4 py-2). × removes instantly — no confirm modal (PD-029). |
+
+#### Three ways to place a slot
+
+1. **Drag from library → drop on RU.** PointerEvents-based; `pendingDragRef` records a pointerdown on the tile, promotes to an active drag after the pointer moves past a 6px threshold (so a quick tap is still a tap). During drag, the device-library bottom sheet (mobile) auto-closes so the operator can see the chassis, then reopens after drop.
+2. **Tap empty RU → arm-then-pick.** Tapping a free RU on the chassis arms a "pending RU"; the library tiles then light up cyan as droppable. Tapping any tile creates the slot at the armed RU.
+3. **Tap library tile → arm-then-place.** Reverse of (2). Tap a tile first to arm a device, then the chassis empty rows highlight green and a tap places.
+
+Existing slot cards can also be drag-repositioned — the same drag pipeline reuses the slot's `(label, ruSize)` as a synthesized preset. Collisions and out-of-bounds drops are rejected and the card snaps back.
+
+#### Equipment-backed slots (PD-026)
+
+Slots can optionally link to a real `Equipment` row via `RackSlot.equipmentId`. The rack page server-fetches equipment in the `switches` and `audio` categories (panels excluded — they sit on desks, not in racks) and renders one library tile per UNRACKED equipment row at the top of its category section. Each tile shows `name (white) · location (cyan) · hardwareType (gray)`. Dropping a tile onto an RU creates a slot that's bound to that equipment — the slot card mirrors the same three-piece layout, and the Rack Preview page also renders the location and model in cyan/gray next to the name. Slot edit on a linked slot becomes a single "swap-to-equivalent" dropdown (filtered to the same category, same-rack-only).
+
+#### Library structure (PD-027)
+
+The device library is grouped into 10 categories with a fixed display order:
+
+| Category | Examples |
+|---|---|
+| **Frames** | Artist-128 (6U) / Artist-64 (3U) / Artist-32 (2U) / Artist-1024 (2U) / RTS-ODIN (1U) / RTS-OMS (1U) |
+| **2-Wire** | IMF 102 / ST Model 46 / ST Model 47 / RTS PS31 (2U) / RTS PS21 (1U placeholder; real device is half-RU) |
+| **PTP Clock** | Brainstorm / Meinberg PTP |
+| **Switches** | 26P+4F / 40P+4F / 24X8F8V / 16F / 9P+1F / Pliant Copper Hub / Pliant Fiber Hub / Media Switch |
+| **Audio** | Dark88 / A16R |
+| **Patchbay** | AIO / Fiber / Fiber+Ethercon / Ethercon |
+| **Panels** | Blank panel (1U / 2U / 3U / 4U) / Passthrough (1U) |
+| **Drawers** | Drawer 1U / 2U / 3U / 4U |
+| **Power** | UPS (1U + 2U separate tiles) / Power Conditioner |
+| **Loose gear** | Antaira / Intellanet Old / Intellanet New / TP Link / Netgate / Bolero Antenna Master |
+
+Custom devices added via the **+ Custom device** form live in the `RackDevice` table, scoped per project. `coerceCategory()` migrates pre-restructure rows (category='devices') onto a current category at load.
+
+Same-name presets coexist via the cyan size badge on the right of each tile — UPS 1U and UPS 2U are two tiles both named "UPS"; React keys include the ruSize (`preset-UPS-1` / `preset-UPS-2`) to keep identities distinct.
+
+#### Rack Preview
+
+The eye icon next to the Close button on an expanded rack opens `/projects/[id]/racks/[rackId]/preview` — a chrome-free single-rack view (no navbar, no bottom-nav, same treatment as `/kiosk` and `/zones`). Server-fetches **both sides** of slots in one query so the side-toggle costs zero round-trips.
+
+- **Desktop (md+):** Front and Rear chassis render side-by-side, each labeled above. No toggle.
+- **Mobile (<md):** Horizontal scroll-snap carousel — slide 0 is Front, slide 1 is Rear. Two cyan dot indicators below the chassis track + control the active slide.
+
+Slots in the preview show `label (white) · linkedLocation (cyan) · linkedHardwareType (gray)` for equipment-backed slots. Empty rows show `RU number · "Empty"`. Layout uses an explicit `CHASSIS_W = 320px` width with inner `PAD_X = PAD_Y = 20` so cards inset from the rounded chassis border on all four sides (preserves the "rails inside the cabinet" visual metaphor). Caster wheels render under the chassis as two dark circles connected via thin mounting brackets.
+
+The X close button returns to `?tab=racks&expand=<rackId>` so the operator lands back on the same rack they were previewing. The URL→state restore is one-shot-on-mount (guarded by `restoredFromUrlRef`) and the `changeExpandedRack()` helper mirrors state into the URL on every toggle — so closing the expansion doesn't leave a stale `?expand=` that would re-open later (PD-028).
+
 ---
 
 ## 6. Data Model Summary
 
-18 models total. See `uml-erd.md` for the diagram.
+20 models total (RackLooseItem and RackDevice added in v2.4 alongside RackTemplate / RackSlot being promoted from "no UI" to in-use). See `uml-erd.md` for the diagram.
 
 ### Phase 1 models (built + in use)
 
@@ -421,22 +489,25 @@ boxes consistent without per-row edits.
 | `ChangeRequestItem` | Per-key diff within a change request | `panelKeyId`, `fieldChanged`, `previousValue`, `newValue` |
 | `AccessRequest` | Not currently used in UI | (kept in schema for future project-access flow) |
 
-### Phase 2-4 models (schema present, no UI yet)
+### Phase 2-4 models (mixed — some now in use, some still schema-only)
 
-| Model | Future purpose |
+| Model | Status |
 |---|---|
-| `Equipment` | The actual piece of gear — **used heavily now** (v2 promoted this out of future-only) |
-| `Radio` | Radio in the project's fleet — **used heavily now** (v2.3 first-class radios) |
-| `Zone` / `ZoneChannel` / `RadioZone` | Radio zones + tunings — **used now** on the Radio Channels tab |
+| `Equipment` | **Used heavily** — Equipment tab, auto-generated names, deploy status tracking (v2). Also referenced by `RackSlot.equipmentId` / `RackLooseItem.equipmentId` for the rack designer's equipment-linked slots (v2.4). |
+| `Radio` | **Used heavily** (v2.3 first-class radios) |
+| `Zone` / `ZoneChannel` / `RadioZone` | **Used** on the Radio Channels tab |
 | `Plot` | Stage-plot PDF associations (Plots tab in Comms) — schema present |
 | `Notification` / `NotificationPreference` / `PushSubscription` | Backing tables for the planned web-push system (PRD §11.2) |
 | `PanelPresence` | Tracks who is actively viewing a panel for soft-locking — schema present, no UI yet |
 | `Asset` | Warehouse asset with QR code, serial number, owner |
-| `RackTemplate` / `RackSlot` | Rack designer (Phase 2) |
+| `RackTemplate` | **Used (v2.4)** — Racks tab + RackStudio + Preview. `dept`, `location`, `projectId` fields all live now. |
+| `RackSlot` | **Used (v2.4)** — single slot at an RU position on one face of the rack. `equipmentId` (optional) links to a real Equipment row; `deviceType` + `label` carry display info either way. |
+| `RackLooseItem` | **Used (v2.4)** — non-RU devices tagged to a rack (velcro/drawer gear). Renders as chips above the chassis. |
+| `RackDevice` | **Used (v2.4)** — user-authored custom devices added via "+ Custom device". Project-scoped, reusable across racks. Built-in presets stay in code (`src/lib/rack-presets.ts`). |
 | `NfgReport` | "Not Functioning" reports for damaged gear |
 | `MultStrand` | Wiring-strand tracking (Phase 4) |
 
-`Equipment` was originally slated for Phase 2 but ended up being central to v2 — the Equipment tab, auto-generated names, deploy status tracking all live on this model. `Radio` followed the same path in v2.3.
+`Equipment` was originally slated for Phase 2 but ended up being central to v2 — the Equipment tab, auto-generated names, deploy status tracking all live on this model. `Radio` followed the same path in v2.3. `RackTemplate` / `RackSlot` were schema-only until v2.4 — the Racks tab + drag/drop RackStudio promoted them into active surfaces.
 
 ### Radio status enum
 
@@ -520,6 +591,27 @@ Probes each equipment IP via `fetch({ mode: 'no-cors' })` + `<img>` fallback. Se
 
 Auto-generated pick list codes and equipment names are **not zero-padded** (`C1, C2, … C10` instead of `C001, C002, … C010`). A `naturalCompare` helper in `src/app/projects/[id]/project-page.tsx` and within Panel Studio's picker grouping sorts codes numerically ("C2" before "C10") rather than lexicographically.
 
+### 7.10 PointerEvents drag pipeline (Rack Studio)
+
+The rack drag/drop pipeline uses raw `PointerEvent` listeners attached to `document` rather than HTML5 drag-and-drop — works identically across mouse, touch, and pen, doesn't fight `overflow-hidden` parents, and lets us decide the threshold between tap and drag in code.
+
+- **`pendingDragRef`** records a pointerdown on a library tile (preset + startX/Y + pointerId). It does NOT start a drag.
+- A document-level `pointermove` listener watches for that pointer to travel past 6px from start, then **promotes** to an active drag (`setDragPreset(...)`). Pointerup before crossing the threshold is treated as a tap — the button's native onClick fires and arms the device for "pick" mode.
+- During active drag, `document.elementsFromPoint(x, y)` walks every element under the cursor (covers nested overflow scrollers + portals) looking for a `data-rack-ru` attribute to determine the hovered RU.
+- The drag overlay (cyan ghost of the slot it would create) is rendered via `createPortal` to `document.body` so it can escape the chassis's `overflow-hidden`.
+- On pointerup, the same handler resolves: if the source was an existing slot card, PATCH its ruPosition; if from the library, POST a new slot. If outside any RU, the drag silently cancels and the slot card snaps back.
+
+On mobile the bottom-sheet device library auto-closes on drag-promote (`sheetWasOpenBeforeDragRef` records the original state) and reopens after drop, so the operator can see the chassis during the gesture.
+
+### 7.11 URL / state sync for inline expansions
+
+The Comms Racks tab keeps a single `expandedRackId` in component state AND mirrors it into a `?expand=<id>` URL param via the `changeExpandedRack(next)` helper (mirrors the `changeTab` pattern already used for `?tab=`). Two pieces work together:
+
+1. **One-shot URL restore.** A `restoredFromUrlRef` guards the URL→state effect to fire ONCE on first mount. Without this, background data refreshes (which change the `commsRacks` array reference) re-fire the effect, find `?expand=` still in the URL, and re-set state — yanking the operator back into a closed expansion.
+2. **State→URL sync on every change.** Every set-site uses the helper, so closing the expansion strips `?expand=` from the URL. The next URL→state run sees nothing to restore. The two stay locked in sync.
+
+This pattern is what makes the Rack Preview's X close button work: clicking X navigates back to `?tab=racks&expand=<rackId>`, the inline view sees the URL on mount, restores once, then the user's interactions take over.
+
 ---
 
 ## 8. Known Shortcomings / Parking Lot
@@ -527,7 +619,9 @@ Auto-generated pick list codes and equipment names are **not zero-padded** (`C1,
 - **AppShell remounts on every navigation** → Tasks badge briefly flashes 0 despite sessionStorage cache. Deeper fix is moving AppShell to a Next.js route-group layout. Tracked but not yet tackled.
 - **Bulk paste importer** (paste PDF text → parse → preview → bulk add) was started then parked; waiting on sample data from managers to know the real paste format.
 - **Playwright E2E test suite** scaffolded in `tests/e2e/` but requires a `TEST_DATABASE_URL` that's never been set up. Single spec (`change-request.spec.ts`) exists as the first candidate.
-- **Monitoring page / NFG UI / Rack designer** — schema present, no UI. Explicitly deferred from v2 scope.
+- **Monitoring page / NFG UI** — schema present, no UI. Explicitly deferred from v2 scope.
+- **Half-RU rack slots.** Real-world RTS PS21 is a half-RU device that mounts on either the left or right of an RU. Currently tracked as 1U in the library so it occupies a full RU when placed. Proper half-RU support needs: a `slotPosition` column on `RackSlot` ('left' | 'right' | 'full'), drag-pipeline updates to detect which half of an RU the pointer is over, collision detection per-half, and chassis render to split rows into two half-width cards. Medium-effort follow-up. See PD-024.
+- **Rack designer doesn't surface deploy status yet.** Equipment-backed slots show name · location · model in the rack views but not the deploy-status pill. Easy add when the design calls for it.
 - **ChangeRequestItem has no per-item status field.** Current resolution sets the CR to `applied` or `rejected` at the bundle level; per-item approve/deny is inferred by comparing `newValue` to the current `PanelKey` — works for the 95% case but breaks if another edit happens in the ~60s window between resolution and crew polling.
 - **`riedelId` on ProjectMember** is legacy from the original Riedel-integration plan. No current code reads or writes it. Leave alone until the monitoring phase starts.
 - **No web push for Tasks** — admins/crew need to keep a tab open for the badge to refresh. Push would let the device wake on a new CR. Service worker already registered for PWA install; missing piece is the VAPID server.
@@ -554,6 +648,11 @@ When returning to the codebase, these are the files to re-read first:
 | Mobile nav gesture | `src/components/navbar.tsx` (`MobileNavPanel`) |
 | Reachability hook | `src/hooks/use-device-reachability.ts` |
 | QR code display | `src/app/projects/[id]/project-page.tsx` (`QRCodeSVG` import) |
+| Rack device library presets | `src/lib/rack-presets.ts` (COMMS_PRESETS, PRESET_CATEGORY_ORDER, coerceCategory) |
+| Rack drag pipeline | `src/app/projects/[id]/racks/[rackId]/rack-studio.tsx` (search for `pendingDragRef`, `startLibraryDrag`, `startSlotDrag`) |
+| Rack inline expansion / URL sync | `src/app/projects/[id]/project-page.tsx` (search for `expandedRackId`, `changeExpandedRack`) |
+| Rack preview rendering | `src/app/projects/[id]/racks/[rackId]/preview/preview-view.tsx` (Chassis component, RU_PX, PAD_X/Y) |
+| Rack APIs | `src/app/api/racks/...` (rack CRUD, slots CRUD, loose CRUD) and `src/app/api/rack-devices/...` (custom device library) |
 
 ---
 
@@ -580,9 +679,14 @@ Replace polling-only Tasks badge with a push delivery so admins / crew get notif
 
 `riedelId` lives on `ProjectMember` for this. The plan is to push approved key configs straight into a Riedel frame via RRCS XML-RPC so the show comms reflect the approved state without a programmer manually re-entering keys. Significant effort — requires a stateful relay that holds the RRCS connection, plus a mapping layer between our `PickListItem` model and Riedel's port/conference graph.
 
-### 11.4 Rack designer (Phase 2 schema, no UI)
+### 11.4 Rack designer extensions (built v2.4; follow-ups)
 
-`RackTemplate` + `RackSlot` exist. UI would be a per-project rack layout view with drag-and-drop placement of equipment + RU-aware constraints. Lower priority than monitoring.
+The Rack designer shipped in v2.4 (see §5.9, PD-024 through PD-029). Remaining follow-ups:
+
+- **Half-RU slots** — RTS PS21 is the canonical case. Needs a `slotPosition` column ('left' | 'right' | 'full'), drag pipeline updates to detect half-RU hover, per-half collision, and chassis render to split rows into two half-width cards. Medium-effort.
+- **Deploy-status pill on rack slots** — equipment-backed slots could show the same colored pill the Equipment tab uses, so the rack view doubles as a "what's broken / what's not deployed yet" surface.
+- **Rack templates** — `RackTemplate.type` already differentiates "standard" vs "custom" in the schema; we don't yet use the global-library type. A future "starter racks" picker (preloaded with common layouts: comms FOH, comms MON, etc.) would speed up project setup.
+- **Cable-routing overlay** — out of scope for now; the chassis just renders the unit list. Future overlay could draw inter-slot patches.
 
 ### 11.5 NFG / Asset tracking (Phase 4 schema, no UI)
 

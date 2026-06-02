@@ -1,6 +1,6 @@
 # Nodal Control — Entity Relationship Diagram
 
-**Updated:** 2026-05-26
+**Updated:** 2026-06-02
 **Source of truth:** `prisma/schema.prisma`. Regenerate this diagram when the schema changes.
 
 ---
@@ -56,6 +56,10 @@ erDiagram
     Equipment ||--o{ NfgReport : "subject of"
 
     RackTemplate ||--o{ RackSlot : "has slots"
+    RackTemplate ||--o{ RackLooseItem : "has loose items"
+    Equipment ||--o{ RackSlot : "linked from"
+    Equipment ||--o{ RackLooseItem : "linked from"
+    Project ||--o{ RackDevice : "custom library"
 
     User {
         int id PK
@@ -202,20 +206,40 @@ erDiagram
         int id PK
         string name
         string description
-        int totalRU
+        int totalRU "17, 32, 40, varies by show"
         string type "standard or custom"
-        int projectId FK
+        string dept "comms or radios"
+        string location "FOH, MON, STAGE, Studio A, Truck 1"
+        int projectId FK "nullable for global templates"
     }
 
     RackSlot {
         int id PK
         int rackTemplateId FK
         int ruPosition "top = 1"
-        int ruSize
+        int ruSize "1+, used for slot height"
         string side "front or rear"
-        string deviceType
-        string label
+        string deviceType "preset name or custom"
+        string label "free-form or eq.name"
         string color
+        int equipmentId FK "optional Equipment link, switches+audio"
+    }
+
+    RackLooseItem {
+        int id PK
+        int rackTemplateId FK
+        string deviceType "Antaira, Intellanet, Bolero AM, etc"
+        string label "optional"
+        int equipmentId FK "optional Equipment link"
+    }
+
+    RackDevice {
+        int id PK
+        string name "displayed in library"
+        int ruSize "0 = loose, otherwise 1+"
+        string category "frames twoWire ptp switches audio patchbay panels drawers power loose"
+        string dept "comms or radios"
+        int projectId FK "nullable for global library"
     }
 
     NfgReport {
@@ -328,6 +352,45 @@ erDiagram
     ChangeRequest }o--|| User : "submittedBy"
 ```
 
+### Rack designer subset (v2.4)
+
+```mermaid
+erDiagram
+    Project ||--o{ RackTemplate : "owns"
+    Project ||--o{ RackDevice : "custom library"
+    Project ||--o{ Equipment : ""
+    RackTemplate ||--o{ RackSlot : "RU slots"
+    RackTemplate ||--o{ RackLooseItem : "loose chips"
+    Equipment ||--o| RackSlot : "optional link"
+    Equipment ||--o| RackLooseItem : "optional link"
+
+    RackTemplate {
+        string name
+        int totalRU
+        string dept
+        string location
+    }
+    RackSlot {
+        int ruPosition
+        int ruSize
+        string side
+        string deviceType
+        string label
+        int equipmentId "nullable"
+    }
+    RackLooseItem {
+        string deviceType
+        string label
+        int equipmentId "nullable"
+    }
+    RackDevice {
+        string name
+        int ruSize
+        string category
+        string dept
+    }
+```
+
 ---
 
 ## Unique constraints
@@ -343,6 +406,7 @@ erDiagram
 | `RadioZone` | `(radioId, zoneId)` | A radio is tuned to a given zone at most once |
 | `Zone` | `(projectId, name)` | Zone names are unique within a project |
 | `PushSubscription` | `endpoint` | One subscription record per browser endpoint |
+| `RackSlot` | `(rackTemplateId, side, ruPosition)` (logical, enforced in code) | One slot per RU starting-position per side. Collision detection in the drag pipeline checks every RU the slot would span, not just `ruPosition`. |
 
 ---
 
@@ -354,4 +418,13 @@ erDiagram
 
 ### Phase 2-4 — Equipment / Assets / Racks / NFG
 
-`Equipment` (promoted into v2 — Equipment tab drives the app now), `Asset`, `RackTemplate`, `RackSlot`, `NfgReport` (schema present, no UI yet)
+| Model | Status |
+|---|---|
+| `Equipment` | **In use** (promoted into v2 — Equipment tab drives the app now) |
+| `RackTemplate` | **In use (v2.4)** — Racks tab + RackStudio + Preview |
+| `RackSlot` | **In use (v2.4)** — one slot per RU starting-position per face; optional `equipmentId` |
+| `RackLooseItem` | **In use (v2.4)** — non-RU devices tagged to a rack (chips above the chassis) |
+| `RackDevice` | **In use (v2.4)** — user-authored custom devices for the library |
+| `Asset` | Schema present, no UI |
+| `NfgReport` | Schema present, no UI |
+| `MultStrand` | Schema present (Phase 4), no UI |

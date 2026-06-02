@@ -240,3 +240,90 @@ The matching QR and Kiosk buttons that used to sit inside the Team-tab add card 
 The Tasks search and the Project list search both stay inline (no toggle) — they're already half-width or full-width depending on screen size.
 
 **Why:** Mobile horizontal space is the constraint. The type-filter dropdown next to the search input forced both to be narrow enough to be useless. Search-takes-over lets the user type a long enough query to actually filter, then collapse back to the dropdown when done. The pattern is consistent across the four list surfaces that have it; the two pages without it (Tasks search, Projects search) explicitly opted out per user feedback to stay simple.
+
+---
+
+## PD-024: Rack designer ships inline-first, with a dedicated Preview (v2.4)
+
+**Decision:** Build the Rack designer as an **inline expansion** under the Comms Racks tab — tapping Edit on a `RackTemplate` row uncollapses the row in place into the full RackStudio (chassis + library + slot editor). Every other rack row is hidden during expansion. A separate `/projects/[id]/racks/[rackId]/preview` route renders a chrome-free read-only view used by ops on the show floor.
+
+**Why:** Two distinct mental modes. **Editing** a rack is a focused task done by the designer ahead of the show — they want the chassis filling their viewport and zero noise. **Viewing** the rack at load-in is a glance ("does the FOH rack match the plan?") and benefits from no app chrome at all — just the rack on a black screen, the way a PDF or printed sheet would look. Two surfaces, one component (`rack-studio.tsx` has an `embedded` prop that drops the toolbar / project switcher when inline), one set of APIs.
+
+**Why inline, not a separate page:** A modal felt too small for the chassis (17 RU is already 800px tall); a dedicated page would force the operator out of the Racks list every time they wanted to edit. Inline expansion keeps the list visible in the URL (the operator can hit Close and resume scanning rows) while giving the chassis the full viewport.
+
+**Standalone deep-link still exists.** `/projects/[id]/racks/[rackId]` renders the same RackStudio with its own page chrome (back button + project switcher). It's there for shareable URLs and as a fallback when ops needs to skip past the project page entirely.
+
+**Half-RU deferred.** RTS PS21 is a real-world half-RU device but the chassis math models RU sizes as integers in v2.4. PS21 is in the 2-Wire category at `ruSize: 1` as a placeholder. Proper half-RU is a follow-up commit — needs a `slotPosition` column ('left'|'right'|'full'), drag-pipeline updates to detect which half of an RU the pointer is over, and chassis render to split rows into two half-width cards.
+
+---
+
+## PD-025: PointerEvents-based drag pipeline (no HTML5 DnD)
+
+**Decision:** The RackStudio's drag/drop uses raw `PointerEvent` listeners attached to `document` rather than HTML5 drag-and-drop. Library tiles capture `onPointerDown` into a `pendingDragRef`; a document-level `pointermove` watcher promotes to an active drag once the pointer crosses a 6px threshold from start. The cyan drag ghost renders via `createPortal` to `document.body` so it can escape the chassis's `overflow-hidden`. RU hover detection uses `document.elementsFromPoint(x, y)` scanning for a `data-rack-ru` attribute on row wrappers.
+
+**Why:** Three reasons HTML5 DnD wouldn't work:
+1. **Touch + mouse parity.** HTML5 DnD on iOS is broken in well-known ways (no support for `dragstart`, requires nonstandard touch shims). PointerEvents work identically across mouse, touch, and pen with no shims.
+2. **Tap vs drag distinction.** Library tiles double as tappable buttons ("arm device for pick" mode). HTML5 DnD captures every pointerdown as a drag-start candidate, fighting the click event. The 6px threshold lets us decide late.
+3. **Overflow-hidden parents.** HTML5 DnD's ghost is rendered by the browser at the OS level and ignores CSS — but our chassis sits inside `overflow-hidden` containers. Our portal-rendered ghost can hover anywhere on screen.
+
+**Mobile bottom-sheet behavior:** Library on mobile is a slide-up sheet. When a drag promotes, the sheet auto-closes (`sheetWasOpenBeforeDragRef` records original state) so the operator can see the chassis during the gesture; it reopens after drop.
+
+---
+
+## PD-026: Equipment-backed slots — switches + audio only
+
+**Decision:** `RackSlot.equipmentId` can optionally link to a real `Equipment` row. The rack page server-fetches equipment in the `switches` and `audio` categories only. **Panels are deliberately excluded** even though `Equipment.category === 'panels'` exists.
+
+**Why exclude panels:** Intercom keypanels live on desks (or beltpacks live on people), not in racks. Including them in the library would muddle the workflow — operators dragging "PNL 3" into a rack slot when PNL 3 actually belongs at FOH would create a confusing physical/logical mismatch. Switches and audio frames live in racks every show; that's the right set to surface.
+
+**Linked-slot UX consequences:**
+- Library tile shows three pieces in one row: `name (white) · location (cyan) · hardwareType (gray)`. Equipment tiles sort to the TOP of their category section above generic presets.
+- Dropping the tile creates a slot with `equipmentId` set; `rackedEquipmentIds` (computed across all racks in the project) filters that tile out of subsequent library renders so a unit can't be racked twice.
+- Slot edit form on a linked slot becomes a single "swap-to-equivalent" FilterDropdown filtered to the same `Equipment.category` AND not racked elsewhere (the current slot's own equipment stays in the list so the dropdown can render its current value).
+- Unlinked slots use the old two-field form (Device type picker + Label input).
+
+**Future:** A deploy-status pill on linked slot cards would let the rack double as a "what's broken / what's not deployed" surface. Easy add when the design calls for it.
+
+---
+
+## PD-027: Library category restructure — frames / 2-wire / ptp / patchbay / panels
+
+**Decision:** Reorganized the device library from the original catch-all `devices / switches / audio / drawers / power / loose` set into a more granular `frames / twoWire / ptp / switches / audio / patchbay / panels / drawers / power / loose`. Existing custom devices stored with `category='devices'` are migrated at load time via `coerceCategory()` (anything unrecognized → `frames`).
+
+**New categories:**
+- **Frames** — Artist-128/64/32/1024 + RTS-ODIN + RTS-OMS (everything that used to be lumped into "devices" except the 2-wire and clock bits)
+- **2-Wire** — IMF 102, ST Model 46/47, RTS PS31 (2U), RTS PS21 (1U placeholder, real device is half-RU)
+- **PTP Clock** — Brainstorm, Meinberg PTP
+- **Patchbay** — AIO, Fiber, Fiber+Ethercon, Ethercon (each 1U)
+- **Panels** — Blank panel (1U / 2U / 3U / 4U), Passthrough (1U) — replaces the "filler" half of the old Power+filler bucket
+
+**Why:** Operators don't think about "devices" — they think about "frames" (the Artist mainframe is a frame), "the 2-wire stack" (the boxes that interface party-line), "the PTP clock", "the patchbay panel", "the blank rack-filler". Lumping these into a generic "Devices" filter made the library a hunt-and-find. Purpose-built categories surface them by function.
+
+**Same-name presets coexist.** Two UPS sizes both named "UPS" (1U and 2U) sit in the Power section — the cyan size badge on the right of each tile distinguishes them. React keys include `ruSize` to keep identities distinct (`preset-UPS-1`, `preset-UPS-2`). Same pattern is used for Blank panel 1U/2U/3U/4U.
+
+**Backward compat:** The API POST/PATCH validators still accept `category: 'devices'` so a pre-restructure custom device that round-trips through Save doesn't reject. The load-time mapper transforms it to `frames` for display.
+
+---
+
+## PD-028: URL `?expand=<rackId>` in sync with inline expansion state
+
+**Decision:** The Comms Racks tab keeps a single `expandedRackId` in component state AND mirrors it into a `?expand=<id>` URL param via a `changeExpandedRack(next)` helper (mirrors the existing `changeTab` pattern). Two pieces work together: (1) a `restoredFromUrlRef` guards the URL→state effect to fire ONCE on first mount; (2) every set-site uses the helper, so closing the expansion strips `?expand=` from the URL.
+
+**Why:** Initial implementation had a bug — closing an expansion only cleared local state; the URL still carried `?expand=<id>`. Background data refreshes (which change the `commsRacks` array reference) re-fired the URL→state effect with the stale URL and re-opened the expansion 1-2 seconds after close. Operators saw "press Close, expansion closes, then comes back on its own".
+
+The fix had to address both directions:
+
+1. **One-shot URL restore** prevents the re-fire bug even if URL drift happens — the effect doesn't run after first mount.
+2. **State→URL sync** keeps the URL accurate so deep-link sharing works AND so the next page-load actually finds the right rack to restore.
+
+**Round-trip used by Rack Preview.** The eye icon on an expanded rack navigates to `/preview`. The X close button on the Preview page links back to `?tab=racks&expand=<rackId>`. The inline view sees the URL on mount, restores once, and the operator lands on the same rack they were previewing.
+
+---
+
+## PD-029: Loose-gear chip × removes instantly, no confirm modal
+
+**Decision:** Tapping the × on a loose-gear chip immediately fires `DELETE /api/racks/[rackId]/loose/[looseId]` — no confirmation modal. The × hovers white (not red) to signal the action is benign.
+
+**Why:** Loose items are quick-add / quick-remove by design — a chip with an × is the universal affordance for "tap to dismiss". A confirm modal between intent and action would slow ops down when they're sweeping the tray clean during teardown. Re-adding from the library is one tap if the operator changes their mind — the cost of an accidental removal is ~1 second.
+
+**Slot delete, custom-device delete, and rack delete still confirm** — those carry actual cost (lose layout, lose label, lose the entire rack and its slots). The dividing line is "what's the recovery cost if this was a mistake": single-tap re-add → no confirm; lose state that took minutes to build → confirm.
