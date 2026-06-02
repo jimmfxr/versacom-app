@@ -2293,34 +2293,35 @@ function SlotRow({
                 </>
               )
             })()}
-            {/* Action row */}
-            <div className="flex items-center justify-between pt-1">
+            {/* Action row — on desktop, all three buttons cluster
+                on the right (Delete · Cancel · Save) so the
+                destructive action sits next to its escape hatch.
+                On mobile they stack full-width. */}
+            <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
               <button
                 type="button"
                 onClick={handleDelete}
                 disabled={editSaving}
-                className="rounded-lg border border-red-500/40 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/[0.08] hover:border-red-500/60 disabled:opacity-50"
+                className="w-full rounded-lg border border-red-500/40 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/[0.08] hover:border-red-500/60 disabled:opacity-50 sm:w-auto"
               >
                 Delete
               </button>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  disabled={editSaving}
-                  className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={editSaving}
-                  className="rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {editSaving ? 'Saving…' : 'Save'}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={editSaving}
+                className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] disabled:opacity-50 sm:w-auto"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={editSaving}
+                className="w-full rounded-lg bg-[#0178a3] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#019bc7] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              >
+                {editSaving ? 'Saving…' : 'Save'}
+              </button>
             </div>
           </div>
         </div>
