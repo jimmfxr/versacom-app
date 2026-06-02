@@ -3974,7 +3974,7 @@ export function ProjectPage({
                         </div>
                         </AutoHideHeader>
                       ) : (
-                        <div className={`flex flex-row items-center gap-4 transition-colors sm:items-start ${isExpanded ? 'pt-3 pb-3' : 'py-3 hover:bg-white/[0.04]'}`}>
+                        <div className={`flex flex-row items-center gap-4 transition-colors sm:items-start ${isExpanded ? 'pb-3' : 'py-3 hover:bg-white/[0.04]'}`}>
                           <div className="min-w-0 flex-1 flex items-baseline gap-2">
                             {/* Rack name is clickable when expanded
                                 + the operator can edit — toggles
