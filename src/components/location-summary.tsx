@@ -252,7 +252,7 @@ export function LocationSummary({
   ) ?? null
 
   return (
-    <div className="mb-4 border-b border-white/10 py-4 sm:py-5">
+    <div className="mb-4 border-b-2 border-white/10 py-4 sm:py-5">
       {/* Header row — title block + (when renaming) inline editor +
           chevron. Mobile: editor bumps to its own basis-full row below
           the title. Desktop: editor sits inline between the title and

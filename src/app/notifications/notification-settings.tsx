@@ -47,7 +47,7 @@ export function NotificationSettings({
   )
 
   return (
-    <div className="border-b border-white/10 py-4 sm:py-5">
+    <div className="border-b-2 border-white/10 py-4 sm:py-5">
       <div className="flex w-full items-center justify-between gap-3">
         <button
           type="button"
