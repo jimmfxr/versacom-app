@@ -240,7 +240,7 @@ export function TasksClient({
                 </h3>
                 {/* h3 sits OUTSIDE the bordered wrapper so it doesn't
                     pick up a divider — only the cards below need lines. */}
-                <div className="[&>*]:border-b [&>*]:border-white/[0.06]">
+                <div className="[&>*]:border-b-2 [&>*]:border-white/[0.06]">
                 {filteredChangeRequestTasks.map((task) => (
                   <RowCard key={task.id}>
                     {/* Content */}
@@ -321,7 +321,7 @@ export function TasksClient({
                   Lockouts
                   <span className="ml-1.5 text-xs opacity-70">{filteredLockoutTasks.length}</span>
                 </h3>
-                <div className="[&>*]:border-b [&>*]:border-white/[0.06]">
+                <div className="[&>*]:border-b-2 [&>*]:border-white/[0.06]">
                 {filteredLockoutTasks.map((task) => (
                   <RowCard key={task.id}>
                     <div className={`flex size-10 shrink-0 items-center justify-center rounded-full ${

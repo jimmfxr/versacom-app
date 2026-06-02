@@ -419,7 +419,7 @@ function TaskSection({
                 closing line under the last card — matches the page-
                 header bottomBorder + first-card pattern other pages
                 rely on. */}
-            <div className="[&>*]:border-b [&>*]:border-white/[0.06]">
+            <div className="[&>*]:border-b-2 [&>*]:border-white/[0.06]">
               {items.map((task) => (
                 <TaskCardItem
                   key={task.id}
