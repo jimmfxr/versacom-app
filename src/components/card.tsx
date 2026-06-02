@@ -15,12 +15,12 @@ const paddings = {
 }
 
 export function Card({ children, className = '', padding = 'md' }: CardProps) {
+  // No bottom border — Cards are always rendered alone (Add / Edit
+  // forms in focus mode, settings panels). The previous border-b
+  // bled in below the card when nothing was beneath it, reading
+  // as a stray line under the form.
   return (
-    // Bottom-border-only separator — same line treatment as the
-    // page-header's bottomBorder + the [&>*]:border-b list pattern
-    // used elsewhere. Reads as "section divider under the card"
-    // rather than a fully boxed-in card.
-    <div className={`border-b border-white/10 ${paddings[padding]} ${className}`}>
+    <div className={`${paddings[padding]} ${className}`}>
       {children}
     </div>
   )

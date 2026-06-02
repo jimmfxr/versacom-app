@@ -25,6 +25,7 @@ import { PageLayout } from '@/components/page-layout'
 import { ProjectSwitcher } from '@/app/project-dashboard'
 import { Card } from '@/components/card'
 import { EmptyState } from '@/components/empty-state'
+import { FocusMode } from '@/components/focus-mode'
 import { IconButton } from '@/components/icon-button'
 import { Modal } from '@/components/modal'
 import { FormInput, FormSelect } from '@/components/form-field'
@@ -2249,12 +2250,15 @@ export function ProjectPage({
                   page root so the QR icon in the header opens it on
                   any tab (not just Equipment). The Card render here
                   is gone. */}
-              {/* Bulk add card lives INSIDE the scroll so the form
-                  doesn't pin above the list and steal vertical space —
-                  scrolls naturally with the rest of the tab content.
-                  Mode switch lives in a dropdown chip to the left of
-                  the close X — Equipment (default) vs Headsets & Misc. */}
-              {canAddEquipment && showAdd && (
+              {/* Single-task focus mode: while the add card is open
+                  the rest of the Equipment tab (LocationSummary +
+                  list / empty state) is hidden so the operator
+                  focuses on one thing. Mode switch (Equipment vs
+                  Headsets & Misc) lives in a dropdown chip inside
+                  the card header. */}
+              <FocusMode
+                open={canAddEquipment && showAdd}
+                focused={
                 <Card>
                   {/* Header row — on desktop the explanation text
                       sits to the LEFT of the dropdown + X. On mobile
@@ -2410,7 +2414,8 @@ export function ProjectPage({
                     </form>
                   )}
                 </Card>
-              )}
+                }
+              >
               {eqLocationFilter && (
                 <LocationSummary
                   location={eqLocationFilter}
@@ -2877,6 +2882,7 @@ export function ProjectPage({
                   })}
                 </div>
               )}
+              </FocusMode>
               </div>
             </div>
           )}
@@ -3000,7 +3006,14 @@ export function ProjectPage({
                   })()}
                 </Card>
               )}
-              {canEditTeam && showAddMember && (
+              {/* Single-task focus mode: while Add member is open the
+                  team list is hidden so the operator focuses on the
+                  one task. (Show-QR card above stays as-is — it's
+                  crew-only and showAddMember is admin/manager-only,
+                  so the two can't be visible simultaneously.) */}
+              <FocusMode
+                open={canEditTeam && showAddMember}
+                focused={
                 <Card>
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-white">Add Member</h3>
@@ -3167,7 +3180,8 @@ export function ProjectPage({
                     </div>
                   </form>
                 </Card>
-              )}
+                }
+              >
               {filteredMembers.length === 0 ? (
                 <EmptyState icon={<UsersIcon />} title={teamSearch ? 'No matches found' : 'No team members yet'} message={teamSearch ? 'Try a different search term.' : 'Members join via the project PIN.'} />
               ) : (
@@ -3318,6 +3332,7 @@ export function ProjectPage({
                   })}
                 </div>
               )}
+              </FocusMode>
               </div>
             </div>
           )}
@@ -3418,7 +3433,11 @@ export function ProjectPage({
               {/* Scrollable list region (desktop). Add Function card lives
                   INSIDE so it scrolls with the function list. */}
               <div data-scroll-container className="space-y-3 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto overscroll-none pt-2 pb-4 sm:pb-20">
-              {canEditPickList && showAddPl && (
+              {/* Single-task focus mode: hide the function list while
+                  the Add Function card is open. */}
+              <FocusMode
+                open={canEditPickList && showAddPl}
+                focused={
                 <Card>
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-white">Add Function</h3>
@@ -3459,7 +3478,8 @@ export function ProjectPage({
                     </div>
                   </form>
                 </Card>
-              )}
+                }
+              >
               {filteredPickList.length === 0 ? (
                 <EmptyState icon={<ListIcon />} title={plSearch ? 'No matches found' : 'No functions yet'} message={plSearch ? 'Try a different search term.' : 'Add communication functions using the button above.'} />
               ) : (
@@ -3525,6 +3545,7 @@ export function ProjectPage({
                   })}
                 </div>
               )}
+              </FocusMode>
               </div>
             </div>
           )}
@@ -3584,7 +3605,11 @@ export function ProjectPage({
                   INSIDE so it scrolls with the plot list. */}
               <div data-scroll-container className="space-y-3 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto overscroll-none pt-2 pb-4 sm:pb-20">
 
-              {isAdmin && showAddPlot && (
+              {/* Single-task focus mode: hide the plot list while the
+                  Add Stage Plot card is open. */}
+              <FocusMode
+                open={!!(isAdmin && showAddPlot)}
+                focused={
                 <Card>
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-white">Add Stage Plot</h3>
@@ -3637,7 +3662,8 @@ export function ProjectPage({
                     </Button>
                   </div>
                 </Card>
-              )}
+                }
+              >
               {filteredPlots.length === 0 ? (
                 <EmptyState
                   icon={<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>}
@@ -3742,6 +3768,7 @@ export function ProjectPage({
                   })}
                 </div>
               )}
+              </FocusMode>
               </div>
             </div>
           )}
@@ -3816,27 +3843,26 @@ export function ProjectPage({
                   that block's `activeTab === 'racks'` branches. No
                   per-tab mobile toolbar needed here. */}
 
-              {/* Inline Create-rack form. Opens when the + button in the
-                  page header is tapped. Minimal fields for now — name,
-                  location, RU height. Server action wires below. */}
-              {showAddRack && (isProjectAdmin || isManager) && (
-                <CreateRackForm
-                  projectId={project.id}
-                  onCancel={() => setShowAddRack(false)}
-                  onCreated={() => {
-                    setShowAddRack(false)
-                    router.refresh()
-                  }}
-                />
-              )}
-
-              {/* Rack list. Hidden entirely while the Create rack
-                  form is open so the operator's focus is on the
-                  single task (naming a new rack) without the
-                  existing list or its empty states competing for
-                  attention. Returns on cancel / submit. */}
-              {!showAddRack && (
-                commsRacks.length === 0 ? (
+              {/* Single-task focus mode: while the Create rack form is
+                  open, the rack list (including its empty states) is
+                  hidden entirely so the operator's attention is on the
+                  one task — naming the new rack. Returns on cancel /
+                  submit. Same pattern is now applied to every Add card
+                  on Comms / Radios / Projects via <FocusMode>. */}
+              <FocusMode
+                open={showAddRack && (isProjectAdmin || isManager)}
+                focused={
+                  <CreateRackForm
+                    projectId={project.id}
+                    onCancel={() => setShowAddRack(false)}
+                    onCreated={() => {
+                      setShowAddRack(false)
+                      router.refresh()
+                    }}
+                  />
+                }
+              >
+                {commsRacks.length === 0 ? (
                 <div className="flex flex-1 flex-col items-center justify-center gap-3 py-12 text-center">
                   <div className="text-sm text-gray-400">No racks yet on this show.</div>
                   {(isProjectAdmin || isManager) && (
@@ -4108,8 +4134,8 @@ export function ProjectPage({
                     )
                   })}
                 </div>
-                )
-              )}
+                )}
+              </FocusMode>
             </div>
             )
           })()}

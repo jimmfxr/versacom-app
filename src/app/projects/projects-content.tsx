@@ -7,6 +7,7 @@ import { showToast } from '@/components/toast'
 import { PageLayout } from '@/components/page-layout'
 import { AutoHideHeader } from '@/components/auto-hide-header'
 import { Card } from '@/components/card'
+import { FocusMode } from '@/components/focus-mode'
 import { RowCard } from '@/components/row-card'
 import { EmptyState } from '@/components/empty-state'
 import { IconButton } from '@/components/icon-button'
@@ -227,7 +228,15 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
                 toggle switches above the name, calling cloneProject
                 instead of createProject on submit. The "Clone from
                 existing" button toggles between the two. */}
-        {showForm && (
+        {/* Single-task focus mode: while the New / Clone Project card
+            is open, the mobile search bar AND the project list both
+            hide so the operator focuses on the one task. The
+            (!showForm)-gated desktop toolbar / + button above stays
+            outside this since it's the chrome operators need to
+            cancel back out. */}
+        <FocusMode
+          open={showForm}
+          focused={
           <Card className="mb-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-white">
@@ -354,7 +363,8 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
               </div>
             </form>
           </Card>
-        )}
+          }
+        >
 
         {/* Mobile-only search bar — wrapped in AutoHideHeader so it
             collapses on scroll-down + restores on scroll-up, matching
@@ -518,6 +528,7 @@ export function ProjectsContent({ projects, userName, isAdmin, isUserOnly, showM
             })}
           </div>
         )}
+        </FocusMode>
       </PageLayout>
   )
 }

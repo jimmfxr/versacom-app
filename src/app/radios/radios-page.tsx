@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { PageLayout } from '@/components/page-layout'
 import { AutoHideHeader } from '@/components/auto-hide-header'
 import { EmptyState } from '@/components/empty-state'
+import { FocusMode } from '@/components/focus-mode'
 import { ComboboxInput } from '@/components/combobox-input'
 import { IconButton } from '@/components/icon-button'
 import { ProjectSwitcher } from '@/app/project-dashboard'
@@ -468,7 +469,12 @@ export function RadiosPage({
             • "Inventory" → manage per-accessory "brought" counts
                             (renders RadioAccessoryInventoryEditor;
                             Save commits all 4 in a transaction). */}
-      {showAdd && (
+      {/* Single-task focus mode: while the BulkAddCard is open the
+          radio list is hidden so the operator focuses on one task —
+          bulk-create radios or update brought-inventory counts. */}
+      <FocusMode
+        open={showAdd}
+        focused={
         <BulkAddCard
           projectId={projectId}
           isPending={isPending}
@@ -491,7 +497,8 @@ export function RadiosPage({
             router.refresh()
           }}
         />
-      )}
+        }
+      >
 
       {visibleRadios.length === 0 ? (
         <EmptyState
@@ -570,6 +577,7 @@ export function RadiosPage({
           ))}
         </div>
       )}
+      </FocusMode>
       </>)}
 
       {/* ─── Radio channels tab ────────────────────────────────── */}
@@ -768,7 +776,7 @@ function BulkAddCard({
   const [mode, setMode] = useState<AddMode>('radios')
 
   return (
-    <div className="mb-3 border-b border-white/[0.06] px-2 py-4">
+    <div className="mb-3 px-2 py-4">
       {/* Mode header: pill switcher on the right (Radios | Inventory),
           dropdown-style chip. Same right-side header pattern Comms
           uses (AddTabSwitcher). Cancel X sits on the same row when
@@ -1349,10 +1357,13 @@ function ZonesEditor({
 
   return (
     <div className="pb-20">
-      {/* Inline add-zone form — toggled by the toolbar `+`. The form's
-          own X (far right of the "Add zone" header) closes it. */}
-      {showAdd && (
-        <div className="border-b border-white/[0.06] px-2 py-4">
+      {/* Single-task focus mode: while the add-zone form is open the
+          existing zones list is hidden so the operator focuses on
+          the one task. */}
+      <FocusMode
+        open={showAdd}
+        focused={
+        <div className="px-2 py-4">
           <div className="mb-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
               Add zone
@@ -1392,7 +1403,8 @@ function ZonesEditor({
             </div>
           </form>
         </div>
-      )}
+        }
+      >
 
       {zones.length === 0 ? (
         <EmptyState
@@ -1415,6 +1427,7 @@ function ZonesEditor({
           />
         ))
       )}
+      </FocusMode>
     </div>
   )
 }
