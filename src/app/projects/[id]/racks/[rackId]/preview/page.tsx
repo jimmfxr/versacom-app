@@ -55,7 +55,7 @@ export default async function RackPreviewPage({
           // in the preview, matching how the editable library tile
           // shows the same information.
           equipment: {
-            select: { location: true, category: true },
+            select: { location: true, category: true, hardwareType: true },
           },
         },
         orderBy: [{ side: 'asc' }, { ruPosition: 'asc' }],
@@ -77,11 +77,12 @@ export default async function RackPreviewPage({
             ruSize: s.ruSize,
             side: s.side,
             label: s.label,
-            // Flatten the linked-equipment location onto the slot
-            // so the client doesn't need to know about the Equipment
+            // Flatten the linked-equipment fields onto the slot so
+            // the client doesn't need to know about the Equipment
             // relation shape. null when the slot isn't equipment-
             // backed (preset / custom device).
             linkedLocation: s.equipment?.location ?? null,
+            linkedHardwareType: s.equipment?.hardwareType ?? null,
           }))}
         />
       </div>

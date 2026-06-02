@@ -35,6 +35,10 @@ type Slot = {
    *  Rendered in cyan next to the label so the operator can tell
    *  e.g. SW 1 (FOH) apart from SW 1 (Truss) at a glance. */
   linkedLocation?: string | null
+  /** Linked Equipment.hardwareType (model). Rendered in dim gray
+   *  next to the location, same color treatment as the library
+   *  tile in the editable rack studio. */
+  linkedHardwareType?: string | null
 }
 
 /**
@@ -126,6 +130,9 @@ function Chassis({
               <span className="truncate">{s.label}</span>
               {s.linkedLocation && (
                 <span className="truncate text-[#22a7d3]">{s.linkedLocation}</span>
+              )}
+              {s.linkedHardwareType && (
+                <span className="truncate text-[10px] text-gray-500">{s.linkedHardwareType}</span>
               )}
             </span>
             {/* Invisible spacer mirroring the RU number column width
