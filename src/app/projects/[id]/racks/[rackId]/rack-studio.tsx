@@ -1704,7 +1704,11 @@ function DeviceLibrary({
                     onPointerDown={onStartDrag ? (e) => onStartDrag(p, e) : undefined}
                     disabled={!canEdit || adding}
                     highlightTarget={false}
-                    isDragging={!!dragging && dragging.name === p.name}
+                    // Match on both name AND ruSize so when two
+                    // same-named presets exist (e.g. UPS 1U + UPS 2U),
+                    // only the actually-dragged tile lights up — not
+                    // both at once.
+                    isDragging={!!dragging && dragging.name === p.name && dragging.ruSize === p.ruSize}
                     onDelete={p.isCustom && p.id != null && canEdit
                       ? () => onCustomDelete(p.id as number, p.name)
                       : undefined}
