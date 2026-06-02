@@ -790,33 +790,26 @@ export function RackStudio({
     }
   }
 
-  function handleLooseDelete(looseId: number, label: string) {
+  async function handleLooseDelete(looseId: number, _label: string) {
+    // No confirm modal — loose items are quick-add / quick-remove
+    // by design (a chip with an × is the affordance for instant
+    // dismissal). Re-adding from the library is a single tap if
+    // the operator changes their mind.
     if (!canEdit) return
-    confirmDelete({
-      title: 'Remove loose item',
-      message: (
-        <>
-          Remove <span className="text-white font-medium">{label}</span> from the loose-gear tray?
-        </>
-      ),
-      confirmLabel: 'Remove',
-      onConfirm: async () => {
-        setError(null)
-        try {
-          const res = await fetch(`/api/racks/${rack.id}/loose/${looseId}`, {
-            method: 'DELETE',
-          })
-          if (!res.ok) {
-            const data = await res.json().catch(() => null)
-            setError((data as { error?: string } | null)?.error ?? 'Failed to remove')
-            return
-          }
-          router.refresh()
-        } catch {
-          setError('Network error')
-        }
-      },
-    })
+    setError(null)
+    try {
+      const res = await fetch(`/api/racks/${rack.id}/loose/${looseId}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        setError((data as { error?: string } | null)?.error ?? 'Failed to remove')
+        return
+      }
+      router.refresh()
+    } catch {
+      setError('Network error')
+    }
   }
 
   async function handleRackSave() {
