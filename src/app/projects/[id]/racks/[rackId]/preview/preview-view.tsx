@@ -31,6 +31,10 @@ type Slot = {
   ruSize: number
   side: string
   label: string
+  /** Linked Equipment.location, when the slot is equipment-backed.
+   *  Rendered in cyan next to the label so the operator can tell
+   *  e.g. SW 1 (FOH) apart from SW 1 (Truss) at a glance. */
+  linkedLocation?: string | null
 }
 
 /**
@@ -118,7 +122,12 @@ function Chassis({
                 <span key={i}>{s.ruPosition + i}</span>
               ))}
             </span>
-            <span className="min-w-0 flex-1 truncate text-center px-2">{s.label}</span>
+            <span className="min-w-0 flex-1 flex items-baseline justify-center gap-1.5 truncate px-2">
+              <span className="truncate">{s.label}</span>
+              {s.linkedLocation && (
+                <span className="truncate text-[#22a7d3]">{s.linkedLocation}</span>
+              )}
+            </span>
             {/* Invisible spacer mirroring the RU number column width
                 on the left so the centered label is truly centered
                 relative to the WHOLE card (not just the area to the

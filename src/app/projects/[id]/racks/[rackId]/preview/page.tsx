@@ -49,6 +49,14 @@ export default async function RackPreviewPage({
           ruSize: true,
           side: true,
           label: true,
+          deviceType: true,
+          // Pull the linked Equipment's location so switch (and any
+          // other equipment-backed) slots can render 'NAME · location'
+          // in the preview, matching how the editable library tile
+          // shows the same information.
+          equipment: {
+            select: { location: true, category: true },
+          },
         },
         orderBy: [{ side: 'asc' }, { ruPosition: 'asc' }],
       },
@@ -63,7 +71,18 @@ export default async function RackPreviewPage({
           projectId={projectId}
           rackTemplateId={rackTemplateId}
           rack={{ name: rack.name, location: rack.location, totalRU: rack.totalRU }}
-          slots={rack.slots}
+          slots={rack.slots.map((s) => ({
+            id: s.id,
+            ruPosition: s.ruPosition,
+            ruSize: s.ruSize,
+            side: s.side,
+            label: s.label,
+            // Flatten the linked-equipment location onto the slot
+            // so the client doesn't need to know about the Equipment
+            // relation shape. null when the slot isn't equipment-
+            // backed (preset / custom device).
+            linkedLocation: s.equipment?.location ?? null,
+          }))}
         />
       </div>
     </div>
