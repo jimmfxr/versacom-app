@@ -1698,7 +1698,7 @@ function DeviceLibrary({
               <Section key={cat} label={PRESET_CATEGORY_LABELS[cat]}>
                 {sectionItems.map((p) => (
                   <DeviceTile
-                    key={p.isCustom ? `custom-${p.id}` : `preset-${p.name}`}
+                    key={p.isCustom ? `custom-${p.id}` : `preset-${p.name}-${p.ruSize}`}
                     preset={p}
                     onClick={() => onPick(p)}
                     onPointerDown={onStartDrag ? (e) => onStartDrag(p, e) : undefined}
@@ -1718,7 +1718,7 @@ function DeviceLibrary({
           <Section label={PRESET_CATEGORY_LABELS[filter as PresetCategory]} hideLabel>
             {filtered.map((p) => (
               <DeviceTile
-                key={p.isCustom ? `custom-${p.id}` : `preset-${p.name}`}
+                key={p.isCustom ? `custom-${p.id}` : `preset-${p.name}-${p.ruSize}`}
                 preset={p}
                 onClick={() => onPick(p)}
                 disabled={!canEdit || adding}
