@@ -1725,8 +1725,10 @@ function DeviceLibrary({
                 key={p.isCustom ? `custom-${p.id}` : `preset-${p.name}-${p.ruSize}`}
                 preset={p}
                 onClick={() => onPick(p)}
+                onPointerDown={onStartDrag ? (e) => onStartDrag(p, e) : undefined}
                 disabled={!canEdit || adding}
                 highlightTarget={pendingRu != null && p.ruSize > 0}
+                isDragging={!!dragging && dragging.name === p.name && dragging.ruSize === p.ruSize}
                 onDelete={p.isCustom && p.id != null && canEdit
                   ? () => onCustomDelete(p.id as number, p.name)
                   : undefined}
