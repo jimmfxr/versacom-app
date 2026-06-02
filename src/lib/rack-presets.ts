@@ -80,6 +80,7 @@ export const COMMS_PRESETS: readonly RackDevicePreset[] = [
 
   // ── Power + filler ──
   { name: 'UPS',                    ruSize: 1, category: 'power' },
+  { name: 'UPS · 2U',               ruSize: 2, category: 'power' },
   { name: 'Power Conditioner',      ruSize: 1, category: 'power' },
   { name: 'Patchbay',               ruSize: 1, category: 'power' },
   { name: 'Blank panel',            ruSize: 1, category: 'power' },
