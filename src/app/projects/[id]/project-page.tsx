@@ -2450,7 +2450,7 @@ export function ProjectPage({
               {filteredEquipment.length === 0 ? (
                 <EmptyState icon={<WrenchIcon />} title={eqSearch ? 'No matches found' : 'No equipment yet'} message={eqSearch ? 'Try a different search term.' : 'Add equipment using the button above.'} />
               ) : (
-                <div className="divide-y divide-white/[0.06]">
+                <div className="divide-y-[2px] divide-white/[0.06]">
                   {/* Pre-compute the "gear already attached to another
                       mult's strand" set so each MultRow can hide those
                       from its attach dropdown (1:1 wiring rule). */}
@@ -3185,7 +3185,7 @@ export function ProjectPage({
               {filteredMembers.length === 0 ? (
                 <EmptyState icon={<UsersIcon />} title={teamSearch ? 'No matches found' : 'No team members yet'} message={teamSearch ? 'Try a different search term.' : 'Members join via the project PIN.'} />
               ) : (
-                <div className="divide-y divide-white/[0.06]">
+                <div className="divide-y-[2px] divide-white/[0.06]">
                   {filteredMembers.map((m) => {
                     const isEditing = editingMemberId === m.id
                     return (
@@ -3483,7 +3483,7 @@ export function ProjectPage({
               {filteredPickList.length === 0 ? (
                 <EmptyState icon={<ListIcon />} title={plSearch ? 'No matches found' : 'No functions yet'} message={plSearch ? 'Try a different search term.' : 'Add communication functions using the button above.'} />
               ) : (
-                <div className="divide-y divide-white/[0.06]">
+                <div className="divide-y-[2px] divide-white/[0.06]">
                   {filteredPickList.map((item) => {
                     const isEditing = editingPlId === item.id
                     return (
@@ -3671,7 +3671,7 @@ export function ProjectPage({
                   message={plotSearch ? 'Try a different search term.' : isAdmin ? 'Add a PDF link to share venue layouts with your crew.' : 'No stage plots have been added yet.'}
                 />
               ) : (
-                <div className="divide-y divide-white/[0.06]">
+                <div className="divide-y-[2px] divide-white/[0.06]">
                   {filteredPlots.map((plot) => {
                     const isEditingPlot = editingPlotId === plot.id
                     return (
@@ -3880,7 +3880,7 @@ export function ProjectPage({
                   No racks match &ldquo;{rackSearch}&rdquo;.
                 </div>
               ) : (
-                <div data-scroll-container className="flex min-h-0 flex-1 flex-col divide-y divide-white/[0.06] overflow-y-auto overscroll-none">
+                <div data-scroll-container className="flex min-h-0 flex-1 flex-col divide-y-[2px] divide-white/[0.06] overflow-y-auto overscroll-none">
                   {/* When a rack is expanded for editing, hide every
                       other rack row so the operator has a clean
                       single-rack workspace. Closing the expansion (×
@@ -4156,7 +4156,7 @@ export function ProjectPage({
                 {myEquipment.length === 0 ? (
                   <EmptyState icon={<WrenchIcon />} title="No equipment assigned" message="You don't have any equipment assigned to you yet." />
                 ) : (
-                  <div className="divide-y divide-white/[0.06]">
+                  <div className="divide-y-[2px] divide-white/[0.06]">
                     {myEquipment.map((item) => (
                       <div
                         key={item.id}
