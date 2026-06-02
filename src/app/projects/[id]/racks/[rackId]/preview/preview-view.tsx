@@ -1,8 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { FilterDropdown } from '@/components/filter-dropdown'
 
 // Smaller RU height than the editable studio (48px) so the entire
 // rack fits on screen at a glance without scroll on common rack
@@ -18,89 +17,41 @@ type Slot = {
 }
 
 /**
- * Client-side body of the Rack Preview page. Owns the Front/Rear
- * side toggle (FilterDropdown), filters slots by side, and renders
- * the read-only chassis. The server wrapper pre-fetches BOTH sides
- * of slots in one query so toggling sides is instant — no extra
- * round trip.
+ * Read-only chassis for a single side. Reused on both desktop
+ * (Front + Rear render side-by-side, sharing a row) and mobile
+ * (each side is a slide in the horizontal carousel). Same RU_PX
+ * math + slot card chrome as the editable studio, just no Edit
+ * affordances or drag handlers.
  */
-export function RackPreviewView({
-  projectId,
-  rackTemplateId,
-  rack,
+function Chassis({
+  side,
   slots,
+  totalRU,
 }: {
-  projectId: number
-  rackTemplateId: number
-  rack: {
-    name: string
-    location: string | null
-    totalRU: number
-  }
+  side: 'front' | 'rear'
   slots: Slot[]
+  totalRU: number
 }) {
-  const [side, setSide] = useState<'front' | 'rear'>('front')
   const sideSlots = slots.filter((s) => s.side === side)
   const occupied = new Set<number>()
   for (const s of sideSlots) {
     for (let i = 0; i < s.ruSize; i++) occupied.add(s.ruPosition + i)
   }
-  const containerHeight = rack.totalRU * RU_PX + 8
+  const containerHeight = totalRU * RU_PX + 8
 
   return (
-    <>
-      {/* Header: rack name + location + RU on the left;
-          Front/Rear dropdown + X close on the right. */}
-      <header className="flex items-center justify-between gap-3">
-        <div className="min-w-0 flex items-baseline gap-2">
-          <span className="text-sm font-semibold text-white truncate">{rack.name}</span>
-          {rack.location && (
-            <>
-              <span className="text-sm text-gray-600">·</span>
-              <span className="text-sm text-[#22a7d3] truncate">{rack.location}</span>
-            </>
-          )}
-          <span className="text-sm text-gray-600">·</span>
-          <span className="text-sm text-gray-500 font-mono tabular-nums">{rack.totalRU}RU</span>
-        </div>
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="w-32">
-            <FilterDropdown
-              ariaLabel="Rack side"
-              value={side}
-              onChange={(v) => setSide(v as 'front' | 'rear')}
-              widthClass="w-full"
-              options={[
-                { value: 'front', label: 'Front' },
-                { value: 'rear', label: 'Rear' },
-              ]}
-            />
-          </div>
-          <Link
-            href={`/projects/${projectId}?tab=racks&expand=${rackTemplateId}`}
-            aria-label="Close rack preview"
-            className="flex h-9 shrink-0 items-center text-gray-400 transition-colors hover:text-white"
-          >
-            <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-            </svg>
-          </Link>
-        </div>
-      </header>
-
-      {/* Chassis (read-only): same RU_PX math + slot card chrome
-          as the editable studio, just no Edit / drag handlers. */}
-      {/* Chassis area takes the remaining vertical space and
-          centers the rack frame inside it — page reads as a single
-          framed rack hovering in the viewport. max-w-xs narrows
-          the rack so it doesn't sprawl on wide screens. */}
-      <div className="flex flex-1 flex-col items-center justify-center py-6">
-      <div className="w-full max-w-md">
+    <div className="w-full max-w-md">
+      {/* Side label above the chassis so the operator can tell at a
+          glance which face they're looking at when both render
+          together on desktop. */}
+      <div className="mb-2 text-center text-[10px] uppercase tracking-wider text-gray-500">
+        {side}
+      </div>
       <div
         className="relative rounded-lg border border-white/10"
         style={{ height: `${containerHeight}px` }}
       >
-        {Array.from({ length: rack.totalRU }, (_, i) => {
+        {Array.from({ length: totalRU }, (_, i) => {
           const ru = i + 1
           const isEmpty = !occupied.has(ru)
           return (
@@ -163,7 +114,138 @@ export function RackPreviewView({
           <div className="size-6 rounded-full bg-[#0a0a0a] border border-white/10 shadow-[0_2px_4px_rgba(0,0,0,0.4)]" />
         </div>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Client body of the Rack Preview page.
+ *
+ * - Desktop (md+): Front + Rear chassis render side-by-side in a
+ *   single row. No toggle needed — operators see both faces at once.
+ * - Mobile (<md): horizontal scroll-snap carousel. Slide 0 = Front,
+ *   slide 1 = Rear. Two cyan dot indicators below the chassis show
+ *   which slide is visible; tapping a dot programmatically scrolls
+ *   to that slide. The active dot tracks the user's swipe via a
+ *   scroll listener on the carousel container.
+ *
+ * The server wrapper pre-fetches BOTH sides of slots in one query
+ * so the carousel / desktop pair has all the data it needs upfront
+ * — no extra round trips when switching faces.
+ */
+export function RackPreviewView({
+  projectId,
+  rackTemplateId,
+  rack,
+  slots,
+}: {
+  projectId: number
+  rackTemplateId: number
+  rack: {
+    name: string
+    location: string | null
+    totalRU: number
+  }
+  slots: Slot[]
+}) {
+  const [activeSide, setActiveSide] = useState<'front' | 'rear'>('front')
+  const carouselRef = useRef<HTMLDivElement>(null)
+
+  // Track which slide is currently snapped into view on mobile.
+  // The scroll-snap container is one viewport wide per slide, so
+  // round(scrollLeft / clientWidth) tells us the slide index.
+  useEffect(() => {
+    const el = carouselRef.current
+    if (!el) return
+    const onScroll = () => {
+      if (el.clientWidth === 0) return
+      const idx = Math.round(el.scrollLeft / el.clientWidth)
+      setActiveSide(idx === 0 ? 'front' : 'rear')
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [])
+
+  const scrollToSide = (side: 'front' | 'rear') => {
+    const el = carouselRef.current
+    if (!el) return
+    el.scrollTo({ left: side === 'front' ? 0 : el.clientWidth, behavior: 'smooth' })
+  }
+
+  return (
+    <>
+      {/* Header: rack name + location + RU on the left;
+          X close on the right. (Front/Rear dropdown removed —
+          desktop shows both faces, mobile uses a carousel.) */}
+      <header className="flex items-center justify-between gap-3">
+        <div className="min-w-0 flex items-baseline gap-2">
+          <span className="text-sm font-semibold text-white truncate">{rack.name}</span>
+          {rack.location && (
+            <>
+              <span className="text-sm text-gray-600">·</span>
+              <span className="text-sm text-[#22a7d3] truncate">{rack.location}</span>
+            </>
+          )}
+          <span className="text-sm text-gray-600">·</span>
+          <span className="text-sm text-gray-500 font-mono tabular-nums">{rack.totalRU}RU</span>
+        </div>
+        <Link
+          href={`/projects/${projectId}?tab=racks&expand=${rackTemplateId}`}
+          aria-label="Close rack preview"
+          className="flex h-9 shrink-0 items-center text-gray-400 transition-colors hover:text-white"
+        >
+          <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+          </svg>
+        </Link>
+      </header>
+
+      {/* DESKTOP: both faces side-by-side, sharing a row. The flex-1
+          parent vertically centers the pair in the viewport so the
+          chassis hovers in the middle of the page regardless of the
+          page's height. */}
+      <div className="hidden md:flex flex-1 items-center justify-center gap-8 py-6">
+        <Chassis side="front" slots={slots} totalRU={rack.totalRU} />
+        <Chassis side="rear" slots={slots} totalRU={rack.totalRU} />
       </div>
+
+      {/* MOBILE: horizontal scroll-snap carousel. Each slide is one
+          full container width wide, snap-mandatory locks it in
+          place. Cyan dot indicators below track + control the
+          active slide. */}
+      <div className="md:hidden flex flex-1 flex-col py-6">
+        <div
+          ref={carouselRef}
+          className="flex flex-1 snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        >
+          <div className="snap-center shrink-0 w-full flex items-center justify-center px-2">
+            <Chassis side="front" slots={slots} totalRU={rack.totalRU} />
+          </div>
+          <div className="snap-center shrink-0 w-full flex items-center justify-center px-2">
+            <Chassis side="rear" slots={slots} totalRU={rack.totalRU} />
+          </div>
+        </div>
+        {/* Cyan dot indicators. Active dot is solid cyan, inactive
+            is dim gray. Tapping a dot scrolls the carousel to that
+            slide — same target the swipe gesture lands on. */}
+        <div className="flex items-center justify-center gap-2 pt-4">
+          <button
+            type="button"
+            aria-label="Show front of rack"
+            onClick={() => scrollToSide('front')}
+            className={`size-2 rounded-full transition-colors ${
+              activeSide === 'front' ? 'bg-[#22a7d3]' : 'bg-gray-600'
+            }`}
+          />
+          <button
+            type="button"
+            aria-label="Show rear of rack"
+            onClick={() => scrollToSide('rear')}
+            className={`size-2 rounded-full transition-colors ${
+              activeSide === 'rear' ? 'bg-[#22a7d3]' : 'bg-gray-600'
+            }`}
+          />
+        </div>
       </div>
     </>
   )
