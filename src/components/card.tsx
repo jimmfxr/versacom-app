@@ -15,12 +15,13 @@ const paddings = {
 }
 
 export function Card({ children, className = '', padding = 'md' }: CardProps) {
-  // No bottom border — Cards are always rendered alone (Add / Edit
-  // forms in focus mode, settings panels). The previous border-b
-  // bled in below the card when nothing was beneath it, reading
-  // as a stray line under the form.
+  // Full perimeter border with rounded corners — Card is always
+  // rendered alone (Add / Edit forms in focus mode, settings panels)
+  // so the four-sided border reads as a contained surface, not a
+  // stray line. px-4 keeps content from kissing the border on
+  // narrow viewports.
   return (
-    <div className={`${paddings[padding]} ${className}`}>
+    <div className={`rounded-lg border border-white/10 px-4 ${paddings[padding]} ${className}`}>
       {children}
     </div>
   )

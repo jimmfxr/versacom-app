@@ -776,7 +776,7 @@ function BulkAddCard({
   const [mode, setMode] = useState<AddMode>('radios')
 
   return (
-    <div className="mb-3 px-2 py-4">
+    <div className="mb-3 rounded-lg border border-white/10 px-4 py-4">
       {/* Mode header: pill switcher on the right (Radios | Inventory),
           dropdown-style chip. Same right-side header pattern Comms
           uses (AddTabSwitcher). Cancel X sits on the same row when
@@ -1363,7 +1363,7 @@ function ZonesEditor({
       <FocusMode
         open={showAdd}
         focused={
-        <div className="px-2 py-4">
+        <div className="rounded-lg border border-white/10 px-4 py-4">
           <div className="mb-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
               Add zone
