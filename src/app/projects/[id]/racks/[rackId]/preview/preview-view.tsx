@@ -11,10 +11,11 @@ const RU_PX = 30
 // Internal chassis padding — slot cards inset from the rounded
 // border so they don't sit flush against the frame. Mirrors how a
 // real rack has rails inside the cabinet walls, not at them.
-// Bumped from 8/6 → 16/12 so the cards breathe inside the frame
-// rather than crowding the rounded corners.
-const PAD_X = 16
-const PAD_Y = 12
+// Bumped again (16/12 → 20/20) so the cards have generous
+// breathing room and top/bottom gaps read as visually equal even
+// with the caster wheels anchoring the bottom edge.
+const PAD_X = 20
+const PAD_Y = 20
 
 // Explicit chassis width. Two of these render side-by-side on
 // desktop and one fills the carousel slide on mobile — using a
