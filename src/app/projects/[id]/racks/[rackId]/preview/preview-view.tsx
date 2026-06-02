@@ -14,6 +14,14 @@ const RU_PX = 30
 const PAD_X = 8
 const PAD_Y = 6
 
+// Explicit chassis width. Two of these render side-by-side on
+// desktop and one fills the carousel slide on mobile — using a
+// fixed pixel width (instead of w-full + max-w) prevents flex
+// from over-allocating space and stretching the cards across the
+// viewport. 320px keeps each rack proportional to its 522px
+// height (17RU * 30px) so it reads as a rack, not a flat panel.
+const CHASSIS_W = 320
+
 type Slot = {
   id: number
   ruPosition: number
@@ -46,7 +54,7 @@ function Chassis({
   const containerHeight = totalRU * RU_PX + PAD_Y * 2
 
   return (
-    <div className="w-full max-w-md">
+    <div className="shrink-0" style={{ width: `${CHASSIS_W}px` }}>
       {/* Side label above the chassis so the operator can tell at a
           glance which face they're looking at when both render
           together on desktop. */}
