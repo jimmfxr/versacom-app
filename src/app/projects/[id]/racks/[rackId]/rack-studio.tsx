@@ -1142,7 +1142,7 @@ export function RackStudio({
                   type="button"
                   onClick={() => handleLooseDelete(g.id, g.label || g.deviceType)}
                   aria-label={`Remove ${g.label || g.deviceType}`}
-                  className="-mr-1 flex size-4 items-center justify-center rounded text-gray-500 transition-colors hover:bg-white/[0.06] hover:text-red-400"
+                  className="-mr-1 flex size-4 items-center justify-center rounded text-gray-500 transition-colors hover:bg-white/[0.06] hover:text-white"
                 >
                   <svg className="size-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
