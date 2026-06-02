@@ -1136,7 +1136,12 @@ export function RackStudio({
           {looseItems.map((g) => (
             <div
               key={g.id}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#2a2a2a] border border-white/10 text-xs text-gray-200"
+              // Sized + colored to match the rack header's Close /
+              // Edit button: rounded-lg, border-white/10, px-4 py-2,
+              // text-sm font-medium text-gray-200, transparent bg.
+              // Operator sees the same chrome on both surfaces and
+              // doesn't have to re-parse what a 'chip' is.
+              className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
             >
               <span>{g.label || g.deviceType}</span>
               {canEdit && (
