@@ -1013,14 +1013,42 @@ export function ProjectPage({
   // Rack Preview page's X button rounds-trips through this so the
   // operator lands back on the same rack they were viewing. Only
   // honors the param when it matches a real rack on this project.
+  //
+  // restoredFromUrlRef gates the effect to a SINGLE restoration:
+  // without it, background data refreshes that change the commsRacks
+  // reference would re-fire this effect, find ?expand still in the
+  // URL (we clear it via changeExpandedRack, but a stale URL during
+  // the window before that lands would re-set state), and yank the
+  // operator back into the expansion they just closed. One-shot
+  // restore is the right semantics — after first mount, the URL
+  // follows the operator's interactions, not the other way around.
+  const restoredFromUrlRef = useRef(false)
   useEffect(() => {
+    if (restoredFromUrlRef.current) return
     const exp = searchParams?.get('expand')
     if (!exp) return
     const id = parseInt(exp, 10)
     if (!Number.isFinite(id)) return
     if (!commsRacks.some((r) => r.id === id)) return
+    restoredFromUrlRef.current = true
     setExpandedRackId(id)
   }, [searchParams, commsRacks])
+  // Single entrypoint for expanding / collapsing a rack — mirrors
+  // the new value into the ?expand=<id> URL param (or strips it on
+  // collapse) so the URL stays the source of truth, just like
+  // changeTab. Without this, closing an expansion only clears
+  // local state while the stale ?expand sits in the URL — any
+  // subsequent re-render triggers the restore effect again and
+  // re-expands.
+  const changeExpandedRack = useCallback((next: number | null) => {
+    setExpandedRackId(next)
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (next == null) params.delete('expand')
+      else params.set('expand', String(next))
+      router.replace(`?${params.toString()}`, { scroll: false })
+    }
+  }, [router])
   // Front/Rear toggle for the embedded rack studio. Lifted up to this
   // level so the desktop toolbar row can host the Front/Rear control
   // on the far left of the tab+search row while the rack-studio body
@@ -4027,7 +4055,7 @@ export function ProjectPage({
                           )}
                           <button
                             type="button"
-                            onClick={() => setExpandedRackId(isExpanded ? null : r.id)}
+                            onClick={() => changeExpandedRack(isExpanded ? null : r.id)}
                             className="shrink-0 rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
                           >
                             {isExpanded ? 'Close' : 'Edit'}
@@ -4070,7 +4098,7 @@ export function ProjectPage({
                               // (the row will unmount on refresh too,
                               // but clearing state first prevents a
                               // flash of "expanded but empty").
-                              setExpandedRackId(null)
+                              changeExpandedRack(null)
                               router.refresh()
                             }}
                           />
@@ -4228,7 +4256,7 @@ export function ProjectPage({
                   }
                   setRackEditSaving(false)
                   setRackDeleteConfirm(null)
-                  setExpandedRackId(null)
+                  changeExpandedRack(null)
                   router.refresh()
                 } catch {
                   setRackEditError('Network error')
