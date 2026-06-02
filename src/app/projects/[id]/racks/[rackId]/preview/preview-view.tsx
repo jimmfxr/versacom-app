@@ -87,7 +87,12 @@ export function RackPreviewView({
 
       {/* Chassis (read-only): same RU_PX math + slot card chrome
           as the editable studio, just no Edit / drag handlers. */}
-      <div className="mx-auto max-w-md">
+      {/* Chassis area takes the remaining vertical space and
+          centers the rack frame inside it — page reads as a single
+          framed rack hovering in the viewport. max-w-xs narrows
+          the rack so it doesn't sprawl on wide screens. */}
+      <div className="flex flex-1 flex-col items-center justify-center py-6">
+      <div className="w-full max-w-xs">
       <div
         className="relative rounded-lg border border-white/10"
         style={{ height: `${containerHeight}px` }}
@@ -151,6 +156,7 @@ export function RackPreviewView({
           <div className="h-1 w-2 bg-white/10" />
           <div className="size-6 rounded-full bg-[#0a0a0a] border border-white/10 shadow-[0_2px_4px_rgba(0,0,0,0.4)]" />
         </div>
+      </div>
       </div>
       </div>
     </>

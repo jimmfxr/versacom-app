@@ -57,8 +57,8 @@ export default async function RackPreviewPage({
   if (!rack) notFound()
 
   return (
-    <div className="min-h-screen w-full bg-[#202020] py-5">
-      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen w-full bg-[#202020] flex flex-col py-5">
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-1 flex-col">
         <RackPreviewView
           projectId={projectId}
           rackTemplateId={rackTemplateId}
