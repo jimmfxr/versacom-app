@@ -20,7 +20,11 @@ export const dynamic = 'force-dynamic'
  *   - dept: 'comms' | 'radios' (required)
  *   - name: string (required) — display name in the library
  *   - ruSize: number (required) — 0 means loose, otherwise 1+
- *   - category: 'devices' | 'switches' | 'audio' | 'drawers' | 'power' | 'loose'
+ *   - category: 'frames' | 'twoWire' | 'ptp' | 'switches' | 'audio' |
+ *               'patchbay' | 'panels' | 'drawers' | 'power' | 'loose'
+ *               (legacy 'devices' still accepted for backward
+ *               compat — old custom devices may still POST it on
+ *               re-save before the UI migrates them on read)
  *
  * Auth: admin or manager on the project (same gating as rack
  * creation).
@@ -44,7 +48,9 @@ export async function POST(req: NextRequest) {
   const deptRaw = typeof b.dept === 'string' ? b.dept : ''
   const dept = deptRaw === 'comms' || deptRaw === 'radios' ? deptRaw : null
   const catRaw = typeof b.category === 'string' ? b.category : ''
-  const validCats = new Set(['devices', 'switches', 'audio', 'drawers', 'power', 'loose'])
+  // Accepts current categories + legacy 'devices' (pre-restructure
+  // rows may still re-POST it; read path migrates to 'frames').
+  const validCats = new Set(['frames', 'twoWire', 'ptp', 'switches', 'audio', 'patchbay', 'panels', 'drawers', 'power', 'loose', 'devices'])
   const category = validCats.has(catRaw) ? catRaw : null
 
   if (!Number.isFinite(projectId)) return NextResponse.json({ error: 'projectId required' }, { status: 400 })

@@ -11,6 +11,7 @@ import {
   PRESETS_BY_DEPT,
   PRESET_CATEGORY_LABELS,
   PRESET_CATEGORY_ORDER,
+  coerceCategory,
   type PresetCategory,
   type PresetDept,
   type RackDevicePreset,
@@ -357,7 +358,7 @@ export function RackStudio({
         const mappedCategory: PresetCategory =
           eq.category === 'switches' ? 'switches'
           : eq.category === 'audio' ? 'audio'
-          : 'devices'
+          : 'frames'
         // Equipment.name is the id-like label ('PNL 3' / 'SW 1');
         // the tile renders it white. Location + hardwareType ride
         // alongside in their own fields so the tile can color each
@@ -375,13 +376,13 @@ export function RackStudio({
     ...presets.map((p) => ({ ...p })),
     ...customDevices.map((d) => ({
       // PresetCategory string-matches the RackDevice.category column;
-      // anything outside the union falls back to 'devices' so a
-      // future schema drift doesn't break the render.
+      // coerceCategory migrates pre-restructure rows (e.g. the old
+      // 'devices' category that's no longer in the type union) onto
+      // a valid current category. Anything unrecognized falls back
+      // to 'frames' so the tile still renders somewhere.
       name: d.name,
       ruSize: d.ruSize,
-      category: (['devices', 'switches', 'audio', 'drawers', 'power', 'loose'] as const).includes(d.category as PresetCategory)
-        ? (d.category as PresetCategory)
-        : ('devices' as PresetCategory),
+      category: coerceCategory(d.category),
       id: d.id,
       isCustom: true as const,
     })),
@@ -620,7 +621,10 @@ export function RackStudio({
     const preset: RackDevicePreset = {
       name: slot.label,
       ruSize: slot.ruSize,
-      category: 'devices',
+      // Category here is only used to satisfy the type; the synthesized
+      // preset is for the drag UI's visual chrome (label + RU badge) —
+      // it never lands in the device library and isn't filterable.
+      category: 'frames',
     }
     setDragPreset(preset)
     setDragSlotId(slot.id)
@@ -2432,7 +2436,7 @@ function CustomDeviceForm({
 }) {
   const [name, setName] = useState('')
   const [ruSizeStr, setRuSizeStr] = useState('1')
-  const [category, setCategory] = useState<PresetCategory>('devices')
+  const [category, setCategory] = useState<PresetCategory>('frames')
   const [saving, setSaving] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
 
@@ -2451,7 +2455,7 @@ function CustomDeviceForm({
     if (ok) {
       setName('')
       setRuSizeStr('1')
-      setCategory('devices')
+      setCategory('frames')
     }
   }
 

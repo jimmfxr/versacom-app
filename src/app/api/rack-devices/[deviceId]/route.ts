@@ -76,7 +76,8 @@ export async function PATCH(
     data.ruSize = b.ruSize
   }
   if ('category' in b) {
-    const validCats = new Set(['devices', 'switches', 'audio', 'drawers', 'power', 'loose'])
+    // Current categories + legacy 'devices' for pre-restructure rows.
+    const validCats = new Set(['frames', 'twoWire', 'ptp', 'switches', 'audio', 'patchbay', 'panels', 'drawers', 'power', 'loose', 'devices'])
     if (typeof b.category !== 'string' || !validCats.has(b.category)) {
       return NextResponse.json({ error: 'category is invalid' }, { status: 400 })
     }
