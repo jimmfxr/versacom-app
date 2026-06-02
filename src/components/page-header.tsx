@@ -51,8 +51,8 @@ export function PageHeader({
   //    between the title and the action.
   const innerClass = bottomBorder
     ? inlineAction
-      ? `${innerBase} border-b border-white/20 pb-4`
-      : `${innerBase} sm:border-b sm:border-white/20 sm:pb-4`
+      ? `${innerBase} border-b-2 border-white/20 pb-4`
+      : `${innerBase} sm:border-b-2 sm:border-white/20 sm:pb-4`
     : innerBase
   // Mobile-only divider: always render under the title when
   // bottomBorder is on and the layout stacks (non-inlineAction). We
@@ -71,7 +71,7 @@ export function PageHeader({
             // and action so the border reads as "under the page
             // name". Hidden on sm+ where the layout collapses to a
             // single row and the row-bottom border kicks in.
-            <div className="w-full border-b border-white/20 sm:hidden" />
+            <div className="w-full border-b-2 border-white/20 sm:hidden" />
           )}
           {action}
         </div>

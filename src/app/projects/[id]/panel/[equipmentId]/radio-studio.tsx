@@ -103,7 +103,7 @@ export function RadioStudio({
                 <h1 className="text-2xl font-bold tracking-tight text-white">
                   My Equipment
                 </h1>
-                <div className="w-full border-b border-white/20" />
+                <div className="w-full border-b-2 border-white/20" />
                 <BrowseProjectDropdown project={project} browseProjects={browseProjects} />
                 <div className="pt-2">
                   <BrowseMemberSwitcher
@@ -137,7 +137,7 @@ export function RadioStudio({
               non-browse PageHeader already has bottomBorder). */}
           {isBrowseMode && (
             <div className="flex-shrink-0 mx-auto hidden w-full max-w-7xl px-4 pt-4 sm:block sm:px-6 lg:px-8">
-              <div className="border-b border-white/20" />
+              <div className="border-b-2 border-white/20" />
             </div>
           )}
 

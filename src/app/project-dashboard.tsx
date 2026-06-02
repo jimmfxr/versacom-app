@@ -865,7 +865,7 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
         <SectionHeader>Distribution</SectionHeader>
         {(() => {
           const cardClass =
-            'flex h-full flex-col rounded-lg border border-white/10 p-4 sm:p-5'
+            'flex h-full flex-col rounded-lg border-2 border-white/10 p-4 sm:p-5'
 
           const assignmentCard = (
             <div className={cardClass}>
@@ -1145,7 +1145,7 @@ export function ProjectDashboard({ projectId, equipment, headsetInventory, miscI
 
             <div className="mt-4">
               <SectionHeader>Radio inventory</SectionHeader>
-              <div className="flex flex-col rounded-lg border border-white/10 p-4 sm:p-5">
+              <div className="flex flex-col rounded-lg border-2 border-white/10 p-4 sm:p-5">
                 <CardHeader
                   title="Signed out"
                   tag={`${radioInventory.out} / ${radioInventory.total}`}

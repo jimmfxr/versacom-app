@@ -2359,7 +2359,7 @@ export function PanelStudio({
                     <BrowseProjectDropdown project={project} browseProjects={browseProjects} />
                   </div>
                 </div>
-                <div className="mt-2 w-full border-b border-white/20 sm:hidden" />
+                <div className="mt-2 w-full border-b-2 border-white/20 sm:hidden" />
               </div>
               </AutoHideHeader>
             )}
@@ -2387,7 +2387,7 @@ export function PanelStudio({
                       <BrowseProjectDropdown project={project} browseProjects={browseProjects} />
                     </div>
                   </div>
-                  <div className="w-full border-b border-white/20" />
+                  <div className="w-full border-b-2 border-white/20" />
                   <BrowseMemberSwitcher project={project} currentEquipmentId={equipment.id} browseMembers={browseMembers} />
                 </div>
                 {/* Desktop layout */}
@@ -2417,7 +2417,7 @@ export function PanelStudio({
                 that mode, so we don't end up with two stacked lines.*/}
             {!(pickerMode && canEditKeys) && (isBrowseMode || hasProjectOnlySwitcher) && (
               <div className="flex-shrink-0 mx-auto hidden w-full max-w-7xl px-4 pt-4 sm:block sm:px-6 lg:px-8">
-                <div className="border-b border-white/20" />
+                <div className="border-b-2 border-white/20" />
               </div>
             )}
 

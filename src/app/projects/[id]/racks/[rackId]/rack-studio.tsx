@@ -906,7 +906,7 @@ export function RackStudio({
           tab=racks (same shell, deeper view). Hidden in embedded
           mode — the host row provides the name + close affordance. */}
       {!embedded && (
-      <header className="flex flex-row items-center justify-between gap-3 border-b border-white/20 pb-4">
+      <header className="flex flex-row items-center justify-between gap-3 border-b-2 border-white/20 pb-4">
         <div className="min-w-0">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white truncate">
             {rack.name}
