@@ -85,11 +85,17 @@ function Chassis({
             >
               {isEmpty && (
                 <div
-                  className="flex w-full items-center pr-4 text-xs font-medium text-gray-600"
+                  className="flex w-full items-center text-xs font-medium text-gray-600"
                   style={{ height: `${RU_PX - 2}px` }}
                 >
                   <span className="w-9 shrink-0 text-center text-xs font-mono tabular-nums text-gray-400">{ru}</span>
                   <span className="min-w-0 flex-1 truncate text-center uppercase tracking-wider text-[10px]">Empty</span>
+                  {/* Invisible spacer mirroring the RU number column
+                      width on the left so the centered label is
+                      truly centered relative to the WHOLE card
+                      (not just the area to the right of the RU
+                      column). */}
+                  <span className="w-9 shrink-0" aria-hidden />
                 </div>
               )}
             </div>
@@ -105,14 +111,19 @@ function Chassis({
               right: `${PAD_X}px`,
               height: `${s.ruSize * RU_PX - 2}px`,
             }}
-            className="flex items-center gap-2 rounded-lg bg-[#2a2a2a] pr-3 text-xs font-medium text-white"
+            className="flex items-center rounded-lg bg-[#2a2a2a] text-xs font-medium text-white"
           >
             <span className="w-9 shrink-0 self-stretch flex flex-col items-center justify-around py-0.5 font-mono tabular-nums text-[10px] text-[#22a7d3]">
               {Array.from({ length: s.ruSize }, (_, i) => (
                 <span key={i}>{s.ruPosition + i}</span>
               ))}
             </span>
-            <span className="min-w-0 flex-1 truncate text-center">{s.label}</span>
+            <span className="min-w-0 flex-1 truncate text-center px-2">{s.label}</span>
+            {/* Invisible spacer mirroring the RU number column width
+                on the left so the centered label is truly centered
+                relative to the WHOLE card (not just the area to the
+                right of the RU column). */}
+            <span className="w-9 shrink-0" aria-hidden />
           </div>
         ))}
       </div>
