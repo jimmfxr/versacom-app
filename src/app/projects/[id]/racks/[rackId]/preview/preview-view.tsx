@@ -4,7 +4,10 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { FilterDropdown } from '@/components/filter-dropdown'
 
-const RU_PX = 48
+// Smaller RU height than the editable studio (48px) so the entire
+// rack fits on screen at a glance without scroll on common rack
+// sizes (17 RU * 30px = 510px → comfortably fits viewport).
+const RU_PX = 30
 
 type Slot = {
   id: number
@@ -92,7 +95,7 @@ export function RackPreviewView({
           framed rack hovering in the viewport. max-w-xs narrows
           the rack so it doesn't sprawl on wide screens. */}
       <div className="flex flex-1 flex-col items-center justify-center py-6">
-      <div className="w-full max-w-xs">
+      <div className="w-full max-w-md">
       <div
         className="relative rounded-lg border border-white/10"
         style={{ height: `${containerHeight}px` }}
@@ -113,9 +116,12 @@ export function RackPreviewView({
               }}
             >
               {isEmpty && (
-                <div className="flex h-[46px] w-full items-center pr-4 text-sm font-medium text-gray-600">
-                  <span className="w-9 shrink-0 text-center text-sm font-mono tabular-nums text-gray-400">{ru}</span>
-                  <span className="min-w-0 flex-1 truncate text-center uppercase tracking-wider text-xs">Empty</span>
+                <div
+                  className="flex w-full items-center pr-4 text-xs font-medium text-gray-600"
+                  style={{ height: `${RU_PX - 2}px` }}
+                >
+                  <span className="w-9 shrink-0 text-center text-xs font-mono tabular-nums text-gray-400">{ru}</span>
+                  <span className="min-w-0 flex-1 truncate text-center uppercase tracking-wider text-[10px]">Empty</span>
                 </div>
               )}
             </div>
@@ -131,9 +137,9 @@ export function RackPreviewView({
               right: 0,
               height: `${s.ruSize * RU_PX - 2}px`,
             }}
-            className="flex w-full items-center gap-2 rounded-lg bg-[#2a2a2a] pr-4 text-sm font-medium text-white"
+            className="flex w-full items-center gap-2 rounded-lg bg-[#2a2a2a] pr-3 text-xs font-medium text-white"
           >
-            <span className="w-9 shrink-0 self-stretch flex flex-col items-center justify-around py-1 font-mono tabular-nums text-sm text-[#22a7d3]">
+            <span className="w-9 shrink-0 self-stretch flex flex-col items-center justify-around py-0.5 font-mono tabular-nums text-[10px] text-[#22a7d3]">
               {Array.from({ length: s.ruSize }, (_, i) => (
                 <span key={i}>{s.ruPosition + i}</span>
               ))}
