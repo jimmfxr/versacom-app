@@ -18,10 +18,11 @@ export function Card({ children, className = '', padding = 'md' }: CardProps) {
   // Full perimeter border with rounded corners — Card is always
   // rendered alone (Add / Edit forms in focus mode, settings panels)
   // so the four-sided border reads as a contained surface, not a
-  // stray line. px-4 keeps content from kissing the border on
-  // narrow viewports.
+  // stray line. border-2 matches the dropdown / search input chrome
+  // elsewhere so the focused card reads at the same visual weight.
+  // px-4 keeps content from kissing the border on narrow viewports.
   return (
-    <div className={`rounded-lg border border-white/10 px-4 ${paddings[padding]} ${className}`}>
+    <div className={`rounded-lg border-2 border-white/10 px-4 ${paddings[padding]} ${className}`}>
       {children}
     </div>
   )
