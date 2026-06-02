@@ -102,7 +102,7 @@ function Chassis({
               right: `${PAD_X}px`,
               height: `${s.ruSize * RU_PX - 2}px`,
             }}
-            className="flex w-full items-center gap-2 rounded-lg bg-[#2a2a2a] pr-3 text-xs font-medium text-white"
+            className="flex items-center gap-2 rounded-lg bg-[#2a2a2a] pr-3 text-xs font-medium text-white"
           >
             <span className="w-9 shrink-0 self-stretch flex flex-col items-center justify-around py-0.5 font-mono tabular-nums text-[10px] text-[#22a7d3]">
               {Array.from({ length: s.ruSize }, (_, i) => (
