@@ -246,12 +246,18 @@ export function RackStudio({
     /** 'touch' uses a 400ms hold-timer + haptic; 'mouse'/'pen' uses
      *  the original 6px distance threshold. Lets desktop stay snappy
      *  while mobile gets the long-press-to-drag pattern needed for
-     *  scrolling a library tile without accidentally picking it up. */
+     *  scrolling without accidentally picking up a device. */
     pointerType: string
     /** Only set for touch — the setTimeout handle that fires
      *  promotion when the hold completes. Cleared on pointerup,
      *  pointercancel, or movement past the cancel threshold. */
     holdTimer: ReturnType<typeof setTimeout> | null
+    /** Set when the pending drag started from an EXISTING slot
+     *  card (reposition flow). On promotion, dragSlotId gets
+     *  assigned so handleUp PATCHes the slot's ruPosition rather
+     *  than POSTing a new slot. Null for library drags (new
+     *  device → slot). */
+    slotId?: number
   } | null>(null)
   /** Unified in-app confirm modal. Replaces window.confirm() for all
    *  destructive rack-related actions (slot delete, loose-gear ×,
@@ -603,8 +609,10 @@ export function RackStudio({
       // Mouse / pen: 6px distance threshold promotes immediately.
       if (dist <= MOUSE_PROMOTE_PX) return
       const preset = pending.preset
+      const slotId = pending.slotId
       pendingDragRef.current = null
       setDragPreset(preset)
+      if (slotId != null) setDragSlotId(slotId)
       setDragPos({ x: ev.clientX, y: ev.clientY })
       setDragHoverRu(null)
       dragStateRef.current = { preset, hoverRu: null }
@@ -686,7 +694,16 @@ export function RackStudio({
    *  Synthesizes a RackDevicePreset from the slot so the drag UI
    *  (ghost, overlay, hover detection) reuses the library-drag
    *  pipeline; dragSlotId tracks the source so handleUp PATCHes
-   *  the moved slot instead of POSTing a new one. */
+   *  the moved slot instead of POSTing a new one.
+   *
+   *  Promotion path mirrors startLibraryDrag:
+   *  - Mouse / pen: the maybePromote effect promotes once the
+   *    pointer travels past 6px from start (snappy desktop drag).
+   *  - Touch: a 400ms hold-timer promotes instead — same long-
+   *    press semantics the library uses. Without this, the
+   *    operator can't scroll the chassis vertically on mobile
+   *    without accidentally picking up the slot under their
+   *    finger. 25ms haptic pulse confirms arm (Android only). */
   function startSlotDrag(slot: Slot, e: React.PointerEvent) {
     if (!canEdit) return
     const preset: RackDevicePreset = {
@@ -697,15 +714,36 @@ export function RackStudio({
       // it never lands in the device library and isn't filterable.
       category: 'frames',
     }
-    setDragPreset(preset)
-    setDragSlotId(slot.id)
-    setDragPos({ x: e.clientX, y: e.clientY })
-    setDragHoverRu(null)
-    dragStateRef.current = { preset, hoverRu: null }
-    // Slot drags don't open the mobile library sheet; the operator
-    // is moving an existing slot, not picking a new device.
-    sheetWasOpenBeforeDragRef.current = sheetOpen
-    if (sheetOpen) setSheetOpen(false)
+    const isTouch = e.pointerType === 'touch'
+    let holdTimer: ReturnType<typeof setTimeout> | null = null
+    if (isTouch) {
+      holdTimer = setTimeout(() => {
+        const pending = pendingDragRef.current
+        if (!pending) return  // Cancelled (pointerup / scroll) before timer fired.
+        pendingDragRef.current = null
+        setDragPreset(pending.preset)
+        if (pending.slotId != null) setDragSlotId(pending.slotId)
+        setDragPos({ x: pending.startX, y: pending.startY })
+        setDragHoverRu(null)
+        dragStateRef.current = { preset: pending.preset, hoverRu: null }
+        // Slot drags don't open the mobile library sheet; operator
+        // is moving an existing slot, not picking a new device.
+        sheetWasOpenBeforeDragRef.current = sheetOpen
+        if (sheetOpen) setSheetOpen(false)
+        if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+          navigator.vibrate(25)
+        }
+      }, 400)
+    }
+    pendingDragRef.current = {
+      preset,
+      startX: e.clientX,
+      startY: e.clientY,
+      pointerId: e.pointerId,
+      pointerType: e.pointerType,
+      holdTimer,
+      slotId: slot.id,
+    }
   }
 
   /** PATCH a slot's ruPosition. Called from handleUp's drag-end
@@ -2420,7 +2458,16 @@ function SlotRow({
         // PATCHes ruPosition on release.
         <div
           onPointerDown={canEdit && onStartDrag ? (e) => onStartDrag(slot, e) : undefined}
-          style={canEdit && onStartDrag ? { touchAction: 'none', cursor: 'grab' } : undefined}
+          // touchAction: 'pan-y' lets the browser handle vertical
+          // chassis scroll natively — a quick swipe up/down on a
+          // slot card scrolls the chassis, the browser fires
+          // pointercancel, and the pending drag drops without
+          // promoting. The 400ms touch hold-timer (in startSlotDrag)
+          // is what arms a reposition drag. Was 'none' before, which
+          // froze the chassis scroll the moment a finger landed on a
+          // slot — every attempted scroll registered as 'start
+          // drag'.
+          style={canEdit && onStartDrag ? { touchAction: 'pan-y', cursor: 'grab' } : undefined}
           // Dim + dashed border while the card is the drag source.
           // On release, isDragging flips false; if the drop was
           // rejected (collision / out-of-bounds) the card snaps
