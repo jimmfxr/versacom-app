@@ -2288,19 +2288,15 @@ export function PanelStudio({
       <div className="flex flex-col" style={{ height: 'calc(100dvh - 56px)' }}>
         <div className="flex flex-1 overflow-hidden relative min-h-0">
 
-          {/* ─── Pick-list sidebar (desktop edit mode) ───
-              280px-wide left column on lg+, hidden on mobile (mobile
-              keeps the bottom-sheet inspector picker). Always visible
-              when canEditKeys regardless of pickerMode — operator
-              browses + drags chips onto keys without needing to click
-              a key first. Mirrors the rack studio's right device-
-              library layout pattern: sticky controls at the top,
-              chip list scrolls to fill the rest of the column height.
-              Trigger / Talk / Clear sit above search/filter and are
-              disabled until a key is selected (they only act on one
-              selected key). */}
-          {canEditKeys && (
-            <aside className="hidden lg:flex lg:w-[280px] lg:shrink-0 lg:flex-col lg:overflow-hidden lg:border-r-2 lg:border-white/10 lg:bg-[#202020]">
+          {/* The pick-list sidebar that used to live here (sibling of
+              the editor workspace) has been moved INSIDE the workspace
+              column — specifically, wrapped around the chassis area
+              only — so the sidebar starts BELOW the page header /
+              browse header / sibling-gear row instead of running
+              parallel to them. Search down for `Pick-list sidebar`
+              to see its new home. */}
+          {false && canEditKeys && (
+            <aside className="hidden lg:flex lg:w-[280px] lg:shrink-0 lg:flex-col lg:overflow-hidden lg:bg-[#202020]">
               {/* Top: trigger / talk / clear key for the currently
                   selected key. Disabled when nothing is selected. */}
               <div className="flex flex-col gap-2 border-b-2 border-white/10 p-3">
@@ -2586,6 +2582,157 @@ export function PanelStudio({
               />
             )}
 
+            {/* ─── Pick-list sidebar + chassis (flex-row) ───
+                Sidebar starts here, BELOW the page header / sibling-
+                gear row above (those still render in the workspace
+                column above this flex-row). Mirrors the rack-studio
+                pattern but flipped: 280px on the left, chassis fills
+                the right. The aside is gated on canEditKeys + lg+ —
+                mobile and read-only desktop don't get the sidebar
+                (mobile uses the bottom-sheet inspector, read-only
+                desktop uses the inspector overlay). */}
+            <div className="flex flex-1 min-h-0 overflow-hidden">
+              {canEditKeys && (
+                <aside className="hidden lg:flex lg:w-[280px] lg:shrink-0 lg:flex-col lg:overflow-hidden lg:bg-[#202020]">
+                  {/* Top: trigger / talk / clear key for the
+                      currently selected key. Disabled when nothing
+                      is selected. */}
+                  <div className="flex flex-col gap-2 p-3">
+                    <PickerSelect
+                      value={selectedKey?.triggerMode || 'latch'}
+                      onChange={(v) => { if (selectedKeyId) setTriggerMode(selectedKeyId, v) }}
+                      disabled={!selectedKeyId}
+                      options={[
+                        { value: 'auto', label: 'Auto' },
+                        { value: 'latch', label: 'Latching' },
+                        { value: 'momentary', label: 'Momentary' },
+                      ]}
+                    />
+                    <PickerSelect
+                      value={selectedKey?.talkMode || 'tl'}
+                      onChange={(v) => { if (selectedKeyId) setTalkMode(selectedKeyId, v) }}
+                      disabled={!selectedKeyId}
+                      options={[
+                        { value: 'tl', label: 'Talk / Listen' },
+                        { value: 't', label: 'Talk' },
+                        { value: 'l', label: 'Listen' },
+                      ]}
+                    />
+                    <button
+                      type="button"
+                      disabled={!selectedKeyId}
+                      onClick={() => {
+                        try { navigator.vibrate?.(15) } catch {}
+                        if (selectedKeyId) clearKey(selectedKeyId)
+                      }}
+                      className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 px-3.5 py-2 text-sm font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {selectedKey?.pickListItemId ? 'Clear Key' : 'Unassigned'}
+                    </button>
+                  </div>
+
+                  {/* Search + function-type filter. Always active —
+                      operator can browse without first selecting a
+                      key. */}
+                  <div className="flex flex-col gap-2 px-3 pb-3">
+                    <input
+                      type="text"
+                      placeholder="Search…"
+                      value={pickerSearch}
+                      onChange={(e) => setPickerSearch(e.target.value)}
+                      className="block w-full rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 outline-none transition-colors placeholder:text-gray-200 hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                      autoCapitalize="off"
+                      autoCorrect="off"
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                    <PickerSelect
+                      value={pickerFilter}
+                      onChange={setPickerFilter}
+                      options={filterTypes.map((t) => ({
+                        value: t,
+                        label: filterTypeLabel(t),
+                      }))}
+                    />
+                  </div>
+
+                  {/* Chip list — scrolls inside the sidebar to fill
+                      the rest of the column height. Tap a chip to
+                      assign to the selected key; drag a chip onto
+                      any key to assign without first clicking it. */}
+                  <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-3">
+                    {(() => {
+                      const renderChip = (item: PickerItem) => {
+                        const isActive = selectedKey?.pickListItemId === item.id
+                        let displayName = item.name
+                        let displayDetail: string | null = null
+                        if (item.type === 'PTP') {
+                          const parts = item.name.trim().split(/\s+/)
+                          const firstFull = parts[0] ?? ''
+                          const first = firstFull.length > 7 ? firstFull.slice(0, 7) : firstFull
+                          const last = parts.length > 1 ? parts[parts.length - 1] : ''
+                          displayName = last ? `${first} ${last.charAt(0).toUpperCase()}` : first
+                          if (item.position) {
+                            displayDetail = displayName.length > 8
+                              ? item.position.slice(0, 4)
+                              : item.position
+                          }
+                        } else if (item.code) {
+                          displayDetail = item.code
+                        }
+                        return (
+                          <PickerItemDraggable
+                            key={`${item.type}-${item.id}`}
+                            item={item}
+                            canDrag={canEditKeys}
+                            isActive={isActive}
+                            onClick={() => selectedKeyId && assignPickerItem(selectedKeyId, item)}
+                            className={`flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold transition-[colors,transform] active:scale-95 ${
+                              isActive
+                                ? 'border-[#0178a3] bg-[#0178a3] text-white'
+                                : 'border-white/10 bg-[#202020] text-gray-300 hover:border-white/20 hover:bg-[#2a2a2a] hover:text-white'
+                            }`}
+                          >
+                            <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{displayName}</span>
+                            {item.type === 'PTP' && displayDetail && (
+                              <span className={`overflow-hidden text-ellipsis whitespace-nowrap text-xs ${isActive ? 'text-white/85' : 'text-[#22a7d3]'}`}>
+                                {displayDetail}
+                              </span>
+                            )}
+                            {item.type !== 'PTP' && displayDetail && (
+                              <span className={`font-mono text-xs ${isActive ? 'text-white/85' : 'text-[#22a7d3]'}`}>{displayDetail}</span>
+                            )}
+                          </PickerItemDraggable>
+                        )
+                      }
+                      const renderGroup = (type: string, items: PickerItem[]) => (
+                        <div key={type} className="mb-3 flex flex-col gap-1.5 last:mb-0">
+                          {pickerFilter === 'All' && (
+                            <div className="px-1 text-[10px] font-extrabold uppercase tracking-wider text-gray-500">
+                              {typeLabels[type] || type} &middot; {items.length}
+                              {type === 'PTP' && (
+                                <span className="font-semibold normal-case opacity-60"> (panels & beltpacks)</span>
+                              )}
+                            </div>
+                          )}
+                          <div className="flex flex-col gap-1.5">
+                            {items.map(renderChip)}
+                          </div>
+                        </div>
+                      )
+                      const allEntries = Object.entries(groupedItems)
+                      if (allEntries.length === 0) {
+                        return (
+                          <div className="flex h-full items-center justify-center">
+                            <div className="text-sm text-gray-500">No items found</div>
+                          </div>
+                        )
+                      }
+                      return allEntries.map(([type, items]) => renderGroup(type, items))
+                    })()}
+                  </div>
+                </aside>
+              )}
             <div className={`relative flex flex-col items-center flex-1 min-h-0 ${(pickerMode && canEditKeys) ? 'justify-center sm:justify-start' : 'justify-center'}`}>
 
               {/* The desktop inline-picker card that used to live
@@ -3151,6 +3298,7 @@ export function PanelStudio({
                 )}
               </div>
             </div>
+            </div>{/* close flex-row wrapper that holds sidebar + chassis */}
           </div>
 
           {/* ─── Scrim (mobile bottom-sheet backdrop) ─── */}
