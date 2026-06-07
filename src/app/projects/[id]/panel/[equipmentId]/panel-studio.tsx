@@ -2559,10 +2559,12 @@ export function PanelStudio({
                 px-6 lg:px-8 padding) instead of the wider container
                 edge. Same look as the bottomBorder divider on the
                 Dashboard / Tasks / My Equipment / Projects pages.
-                Hidden when the picker card is open — the picker's
-                own controls border-b serves as the page divider in
-                that mode, so we don't end up with two stacked lines.*/}
-            {!(pickerMode && canEditKeys) && (isBrowseMode || hasProjectOnlySwitcher) && (
+                Previously hidden when pickerMode + canEditKeys —
+                that was a workaround for the (now-removed) inline
+                picker card whose own controls supplied the divider.
+                The sidebar layout doesn't have that conflict so the
+                line stays visible at all times. */}
+            {(isBrowseMode || hasProjectOnlySwitcher) && (
               <div className="flex-shrink-0 mx-auto hidden w-full max-w-7xl px-4 pt-4 sm:block sm:px-6 lg:px-8">
                 <div className="border-b-2 border-white/20" />
               </div>
