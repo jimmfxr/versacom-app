@@ -2288,6 +2288,157 @@ export function PanelStudio({
       <div className="flex flex-col" style={{ height: 'calc(100dvh - 56px)' }}>
         <div className="flex flex-1 overflow-hidden relative min-h-0">
 
+          {/* ─── Pick-list sidebar (desktop edit mode) ───
+              280px-wide left column on lg+, hidden on mobile (mobile
+              keeps the bottom-sheet inspector picker). Always visible
+              when canEditKeys regardless of pickerMode — operator
+              browses + drags chips onto keys without needing to click
+              a key first. Mirrors the rack studio's right device-
+              library layout pattern: sticky controls at the top,
+              chip list scrolls to fill the rest of the column height.
+              Trigger / Talk / Clear sit above search/filter and are
+              disabled until a key is selected (they only act on one
+              selected key). */}
+          {canEditKeys && (
+            <aside className="hidden lg:flex lg:w-[280px] lg:shrink-0 lg:flex-col lg:overflow-hidden lg:border-r-2 lg:border-white/10 lg:bg-[#202020]">
+              {/* Top: trigger / talk / clear key for the currently
+                  selected key. Disabled when nothing is selected. */}
+              <div className="flex flex-col gap-2 border-b-2 border-white/10 p-3">
+                <PickerSelect
+                  value={selectedKey?.triggerMode || 'latch'}
+                  onChange={(v) => { if (selectedKeyId) setTriggerMode(selectedKeyId, v) }}
+                  disabled={!selectedKeyId}
+                  options={[
+                    { value: 'auto', label: 'Auto' },
+                    { value: 'latch', label: 'Latching' },
+                    { value: 'momentary', label: 'Momentary' },
+                  ]}
+                />
+                <PickerSelect
+                  value={selectedKey?.talkMode || 'tl'}
+                  onChange={(v) => { if (selectedKeyId) setTalkMode(selectedKeyId, v) }}
+                  disabled={!selectedKeyId}
+                  options={[
+                    { value: 'tl', label: 'Talk / Listen' },
+                    { value: 't', label: 'Talk' },
+                    { value: 'l', label: 'Listen' },
+                  ]}
+                />
+                <button
+                  type="button"
+                  disabled={!selectedKeyId}
+                  onClick={() => {
+                    try { navigator.vibrate?.(15) } catch {}
+                    if (selectedKeyId) clearKey(selectedKeyId)
+                  }}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 px-3.5 py-2 text-sm font-semibold text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {selectedKey?.pickListItemId ? 'Clear Key' : 'Unassigned'}
+                </button>
+              </div>
+
+              {/* Middle: search + function-type filter. Always active
+                  — operator can browse without first selecting a key. */}
+              <div className="flex flex-col gap-2 border-b-2 border-white/10 p-3">
+                <input
+                  type="text"
+                  placeholder="Search…"
+                  value={pickerSearch}
+                  onChange={(e) => setPickerSearch(e.target.value)}
+                  className="block w-full rounded-lg border border-white/10 px-3.5 py-2 text-sm text-gray-200 outline-none transition-colors placeholder:text-gray-200 hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                <PickerSelect
+                  value={pickerFilter}
+                  onChange={setPickerFilter}
+                  options={filterTypes.map((t) => ({
+                    value: t,
+                    label: filterTypeLabel(t),
+                  }))}
+                />
+              </div>
+
+              {/* Bottom: chip list — single column (narrower than
+                  the inline card's grid), scrolls to fill the rest of
+                  the sidebar height. Tap a chip to assign to selected
+                  key; drag a chip onto any key to assign. */}
+              <div className="flex-1 min-h-0 overflow-y-auto p-3">
+                {(() => {
+                  const renderChip = (item: PickerItem) => {
+                    const isActive = selectedKey?.pickListItemId === item.id
+                    let displayName = item.name
+                    let displayDetail: string | null = null
+                    if (item.type === 'PTP') {
+                      const parts = item.name.trim().split(/\s+/)
+                      const firstFull = parts[0] ?? ''
+                      const first = firstFull.length > 7 ? firstFull.slice(0, 7) : firstFull
+                      const last = parts.length > 1 ? parts[parts.length - 1] : ''
+                      displayName = last ? `${first} ${last.charAt(0).toUpperCase()}` : first
+                      if (item.position) {
+                        displayDetail = displayName.length > 8
+                          ? item.position.slice(0, 4)
+                          : item.position
+                      }
+                    } else if (item.code) {
+                      displayDetail = item.code
+                    }
+                    return (
+                      <PickerItemDraggable
+                        key={`${item.type}-${item.id}`}
+                        item={item}
+                        canDrag={canEditKeys}
+                        isActive={isActive}
+                        onClick={() => selectedKeyId && assignPickerItem(selectedKeyId, item)}
+                        className={`flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold transition-[colors,transform] active:scale-95 ${
+                          isActive
+                            ? 'border-[#0178a3] bg-[#0178a3] text-white'
+                            : 'border-white/10 bg-[#202020] text-gray-300 hover:border-white/20 hover:bg-[#2a2a2a] hover:text-white'
+                        }`}
+                      >
+                        <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{displayName}</span>
+                        {item.type === 'PTP' && displayDetail && (
+                          <span className={`overflow-hidden text-ellipsis whitespace-nowrap text-xs ${isActive ? 'text-white/85' : 'text-[#22a7d3]'}`}>
+                            {displayDetail}
+                          </span>
+                        )}
+                        {item.type !== 'PTP' && displayDetail && (
+                          <span className={`font-mono text-xs ${isActive ? 'text-white/85' : 'text-[#22a7d3]'}`}>{displayDetail}</span>
+                        )}
+                      </PickerItemDraggable>
+                    )
+                  }
+                  const renderGroup = (type: string, items: PickerItem[]) => (
+                    <div key={type} className="mb-3 flex flex-col gap-1.5 last:mb-0">
+                      {pickerFilter === 'All' && (
+                        <div className="px-1 text-[10px] font-extrabold uppercase tracking-wider text-gray-500">
+                          {typeLabels[type] || type} &middot; {items.length}
+                          {type === 'PTP' && (
+                            <span className="font-semibold normal-case opacity-60"> (panels & beltpacks)</span>
+                          )}
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-1.5">
+                        {items.map(renderChip)}
+                      </div>
+                    </div>
+                  )
+                  const allEntries = Object.entries(groupedItems)
+                  if (allEntries.length === 0) {
+                    return (
+                      <div className="flex h-full items-center justify-center">
+                        <div className="text-sm text-gray-500">No items found</div>
+                      </div>
+                    )
+                  }
+                  return allEntries.map(([type, items]) => renderGroup(type, items))
+                })()}
+              </div>
+            </aside>
+          )}
+
           {/* ─── Editor workspace ─── */}
           <div className={`flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden relative ${inspectorOpen ? 'lg:pr-0' : ''}`}>
             {/* Back link — pinned to the very top of the workspace.
@@ -2437,24 +2588,15 @@ export function PanelStudio({
 
             <div className={`relative flex flex-col items-center flex-1 min-h-0 ${(pickerMode && canEditKeys) ? 'justify-center sm:justify-start' : 'justify-center'}`}>
 
-              {/* ─── Inline picker card (desktop only) ───
-                  Sits at the very top of the studio workspace, between
-                  the project/member dropdown row above and the user-
-                  name strip below. Houses everything the picker needs:
-                  function-type filter, trigger-mode for the selected
-                  key, an Unassign button, search, and pick-list items
-                  rendered as tab-style chips that wrap so many fit per
-                  row. Function-type filter dictates which chips appear.
-                  A close X in the top-right collapses the card. The
-                  right-side inspector picker is hidden on desktop so
-                  this card is the only picker UI; mobile keeps the
-                  inspector picker untouched. */}
-              {/* Paste preview now renders inline on the chassis
-                  itself (green border + green incoming name on each
-                  changed key) — no separate preview card / sheet. The
-                  picker stays available during preview so the user
-                  can compare without UI shuffling. */}
-              {pickerMode && canEditKeys && (
+              {/* The desktop inline-picker card that used to live
+                  here has been replaced by the left sidebar above
+                  (see the <aside> rendered before this workspace
+                  column). The sidebar is always visible on lg+ when
+                  canEditKeys, so the chassis area no longer needs to
+                  budget vertical space for a picker card at the top.
+                  Mobile still uses the bottom-sheet inspector picker
+                  (rendered below) untouched. */}
+              {pickerMode && canEditKeys && false && (
                 // Outer wrapper matches the chassis scrollable's
                 // padding so vertical alignment looks right. Inner
                 // wrapper sets its width to the measured chassis
@@ -2740,7 +2882,7 @@ export function PanelStudio({
                       }
                     : undefined
                 }
-                className={`flex-1 min-h-0 w-full overflow-auto p-4 sm:px-6 sm:pb-4 lg:p-5 lg:px-8 flex transition-[padding-right] duration-300 ${inspectorOpen && !(pickerMode && canEditKeys) ? 'xl:pr-[420px] 2xl:pr-10' : ''}`}
+                className={`flex-1 min-h-0 w-full overflow-auto p-4 sm:px-6 sm:pb-4 lg:p-5 lg:px-8 flex transition-[padding-right] duration-300 ${inspectorOpen && !canEditKeys ? 'xl:pr-[420px] 2xl:pr-10' : ''}`}
               >
                 {/* m-auto: centers the chassis BOTH horizontally and
                     vertically inside the scroll-container. When the
@@ -3039,7 +3181,7 @@ export function PanelStudio({
               while picker+edit is active so the whole sub-tree (incl.
               the aside) is hidden on lg. Below lg the bottom-sheet
               inspector is still the picker UI on mobile/tablet. */}
-          <div className={`contents ${(pickerMode && canEditKeys) ? 'lg:hidden' : ''}`}>
+          <div className={`contents ${canEditKeys ? 'lg:hidden' : ''}`}>
           <aside
             ref={inspectorRef}
             // Mobile-only inline height: explicit pixel height driven
@@ -3434,10 +3576,15 @@ function PickerSelect({
   value,
   options,
   onChange,
+  disabled = false,
 }: {
   value: string
   options: Array<{ value: string; label: string }>
   onChange: (v: string) => void
+  /** Greys out the trigger + ignores clicks. Used by the Panel
+   *  Studio sidebar to lock trigger/talk dropdowns until the
+   *  operator selects a key. */
+  disabled?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [highlight, setHighlight] = useState(-1)
@@ -3554,9 +3701,10 @@ function PickerSelect({
       <button
         ref={buttonRef}
         type="button"
+        disabled={disabled}
         onClick={() => setOpen((o) => !o)}
         // Close-on-focus-out is handled by the focusin listener above.
-        className={`flex w-full items-center justify-between gap-2 rounded-lg border px-4 py-3 text-left text-sm text-gray-200 outline-none transition-colors ${
+        className={`flex w-full items-center justify-between gap-2 rounded-lg border px-4 py-3 text-left text-sm text-gray-200 outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
           open ? 'border-[#22a7d3]/50 bg-white/[0.04]' : 'border-white/10 hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white'
         }`}
       >
