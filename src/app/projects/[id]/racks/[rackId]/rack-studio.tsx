@@ -243,6 +243,15 @@ export function RackStudio({
     startX: number
     startY: number
     pointerId: number
+    /** 'touch' uses a 400ms hold-timer + haptic; 'mouse'/'pen' uses
+     *  the original 6px distance threshold. Lets desktop stay snappy
+     *  while mobile gets the long-press-to-drag pattern needed for
+     *  scrolling a library tile without accidentally picking it up. */
+    pointerType: string
+    /** Only set for touch — the setTimeout handle that fires
+     *  promotion when the hold completes. Cleared on pointerup,
+     *  pointercancel, or movement past the cancel threshold. */
+    holdTimer: ReturnType<typeof setTimeout> | null
   } | null>(null)
   /** Unified in-app confirm modal. Replaces window.confirm() for all
    *  destructive rack-related actions (slot delete, loose-gear ×,
@@ -505,34 +514,94 @@ export function RackStudio({
   }
 
   /** Records a pointerdown on a library tile without starting an
-   *  actual drag. The drag promotes to "active" only after the
-   *  pointer moves past a small distance threshold (handled in the
-   *  always-on pointermove effect below). Pointerup before move →
-   *  click fires naturally → handleDevicePick arms the device. */
+   *  actual drag.
+   *
+   *  Promotion path depends on pointer type:
+   *  - Mouse / pen: the always-on pointermove effect below promotes
+   *    once the pointer travels 6px from start (existing behavior).
+   *  - Touch: a 400ms hold-timer fires the promotion instead. This
+   *    lets the operator scroll the library naturally — a quick
+   *    swipe never crosses the hold threshold, so it falls through
+   *    to the browser's native scroll. Only a deliberate press-and-
+   *    hold arms the drag. The browser fires pointercancel when it
+   *    starts handling a swipe as scroll, which clearPending() turns
+   *    into a cancel. A 25ms haptic pulse on promotion confirms the
+   *    arm (Android only — iOS Safari ignores navigator.vibrate).
+   *
+   *  Pointerup before either threshold = tap = click event fires
+   *  naturally → handleDevicePick arms the device for pick mode. */
   function startLibraryDrag(preset: LibraryItem, e: React.PointerEvent) {
     if (!canEdit) return
     if (preset.ruSize === 0) return  // Loose gear: click-to-add only.
+    const isTouch = e.pointerType === 'touch'
+    let holdTimer: ReturnType<typeof setTimeout> | null = null
+    if (isTouch) {
+      holdTimer = setTimeout(() => {
+        const pending = pendingDragRef.current
+        if (!pending) return  // Was cancelled (pointerup / scroll) before timer fired.
+        pendingDragRef.current = null
+        setDragPreset(pending.preset)
+        setDragPos({ x: pending.startX, y: pending.startY })
+        setDragHoverRu(null)
+        dragStateRef.current = { preset: pending.preset, hoverRu: null }
+        sheetWasOpenBeforeDragRef.current = sheetOpen
+        if (sheetOpen) setSheetOpen(false)
+        // 25ms pulse — barely perceptible "thump" that signals
+        // "drag is armed, you can move now". No-op on iOS.
+        if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+          navigator.vibrate(25)
+        }
+      }, 400)
+    }
     pendingDragRef.current = {
       preset,
       startX: e.clientX,
       startY: e.clientY,
       pointerId: e.pointerId,
+      pointerType: e.pointerType,
+      holdTimer,
     }
   }
 
   // Pre-drag listener (always on): converts a pending library
-  // pointerdown into an active drag once the pointer moves past a
-  // threshold. Pointerup with no movement → tap → handleDevicePick
-  // runs via the button's natural onClick path.
+  // pointerdown into an active drag.
+  //
+  // Behavior splits on pointer type so each input feels native:
+  // - Mouse / pen: promote once the pointer travels past 6px (snappy,
+  //   matches the original behavior — desktop users don't scroll over
+  //   library tiles, so a quick mouse-down + drag should arm
+  //   immediately).
+  // - Touch: never promote on movement. Movement past TOUCH_CANCEL_PX
+  //   instead CANCELS the pending — the operator is trying to scroll
+  //   the library, not pick up a device. The 400ms hold-timer set up
+  //   in startLibraryDrag is what promotes touch drags.
+  //
+  // Pointerup with no promotion → tap → handleDevicePick runs via
+  // the button's natural onClick path.
   useEffect(() => {
-    const THRESHOLD = 6  // px; ignores accidental finger jitter on tap
+    const MOUSE_PROMOTE_PX = 6      // mouse / pen: distance to promote
+    const TOUCH_CANCEL_PX = 10      // touch: distance that cancels the hold (operator is scrolling)
     function maybePromote(ev: PointerEvent) {
       const pending = pendingDragRef.current
       if (!pending || pending.pointerId !== ev.pointerId) return
       const dx = ev.clientX - pending.startX
       const dy = ev.clientY - pending.startY
-      if (Math.hypot(dx, dy) <= THRESHOLD) return
-      // Promote to active drag.
+      const dist = Math.hypot(dx, dy)
+      if (pending.pointerType === 'touch') {
+        // Touch: the hold timer is the only thing that promotes.
+        // Movement before it fires means a scroll attempt — cancel
+        // so the gesture passes through to the library's native
+        // scroll handler. Defensive — the browser usually also
+        // dispatches pointercancel when it takes over for scroll,
+        // and clearPending() catches that too.
+        if (dist > TOUCH_CANCEL_PX) {
+          if (pending.holdTimer) clearTimeout(pending.holdTimer)
+          pendingDragRef.current = null
+        }
+        return
+      }
+      // Mouse / pen: 6px distance threshold promotes immediately.
+      if (dist <= MOUSE_PROMOTE_PX) return
       const preset = pending.preset
       pendingDragRef.current = null
       setDragPreset(preset)
@@ -543,6 +612,8 @@ export function RackStudio({
       if (sheetOpen) setSheetOpen(false)
     }
     function clearPending() {
+      const pending = pendingDragRef.current
+      if (pending?.holdTimer) clearTimeout(pending.holdTimer)
       pendingDragRef.current = null
     }
     document.addEventListener('pointermove', maybePromote)
@@ -1802,11 +1873,17 @@ function DeviceTile({
         onClick={onClick}
         onPointerDown={onPointerDown}
         disabled={disabled}
-        // touch-none disables the browser's default touch-scroll on
-        // the tile so pointermove events get delivered cleanly on
-        // mobile; without it the gesture scrolls the library instead
-        // of dragging.
-        style={onPointerDown ? { touchAction: 'none' } : undefined}
+        // touchAction: 'pan-y' lets the browser handle vertical
+        // scroll of the library natively — a quick swipe down on a
+        // tile scrolls the list, the browser fires pointercancel,
+        // and the pending drag is dropped without ever promoting.
+        // The 400ms touch hold-timer (in startLibraryDrag) is what
+        // arms a drag — and once it fires, document-level pointermove
+        // listeners track the gesture, not the tile, so the browser's
+        // pan-y permission stops mattering. Was 'none' before, which
+        // suppressed scroll entirely and made scrolling-from-a-tile
+        // impossible on mobile.
+        style={onPointerDown ? { touchAction: 'pan-y' } : undefined}
         // Same row geometry as PanelStudio's pick-list cards
         // (rounded-[10px], px-3.5 py-3, text-sm, gap-3,
         // border-white/[0.08]) — but the fill is the panel CHASSIS
