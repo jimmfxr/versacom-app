@@ -256,22 +256,38 @@ export function RackPreviewView({
           <button
             type="button"
             onClick={() => {
-              // iOS PWA mode (page added to home screen) BLOCKS
-              // window.print() entirely — the API silently no-ops
-              // inside standalone mode. Detect standalone via the
-              // display-mode media query (modern) AND the legacy
-              // navigator.standalone iOS-only flag; if standalone,
-              // open the current URL in the system browser (Safari)
-              // where print() does work. Otherwise call print()
-              // synchronously inside the click handler — iPadOS
-              // is strict about user-gesture context and deferred
-              // calls silently drop. try/catch silences any other
-              // blocked-context (in-app webview, etc).
+              // iOS PWA mode (page installed to home screen) BLOCKS
+              // window.print() — the API silently no-ops in
+              // standalone display-mode. Previous attempt to detour
+              // via window.open(url, '_blank') failed too because
+              // the PWA's manifest scope covers this URL, so the
+              // "new tab" immediately routes back into the PWA
+              // (which is what the operator saw: a brief white
+              // flash then back to the same page).
+              //
+              // Final workaround: use the iOS share sheet via
+              // navigator.share(). From there the operator can pick
+              // "Print" (AirPrint) directly, "Open in Safari" (where
+              // print works), or "Save to Files" (PDF). Falls back
+              // to an instructional alert if share isn't available.
               const isStandalone =
                 window.matchMedia?.('(display-mode: standalone)').matches ||
                 (navigator as Navigator & { standalone?: boolean }).standalone === true
               if (isStandalone) {
-                window.open(window.location.href, '_blank')
+                if (typeof navigator.share === 'function') {
+                  navigator
+                    .share({
+                      title: 'Rack — print',
+                      url: window.location.href,
+                    })
+                    .catch(() => {
+                      // User cancelled the share sheet — no-op.
+                    })
+                } else {
+                  alert(
+                    'Printing is not supported in the installed app. Open this page in Safari to print.',
+                  )
+                }
                 return
               }
               try {
