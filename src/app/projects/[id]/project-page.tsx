@@ -2320,30 +2320,46 @@ export function ProjectPage({
                             label="Category"
                             value={addCategory}
                             placeholder="Select..."
-                            options={CATEGORIES.map((c) => ({ value: c.value, label: c.label }))}
+                            // 'mults' is intentionally filtered out — the
+                            // operator should use the dedicated 'Add Mults'
+                            // mode from the AddTabSwitcher above to get
+                            // proper letter-based IDs (FBR A / ETH B / etc)
+                            // + the strand-list child cards.
+                            options={CATEGORIES.filter((c) => c.value !== 'mults').map((c) => ({ value: c.value, label: c.label }))}
                             onChange={(v) => setAddCategory(v)}
                           />
-                          <SearchableSelect
-                            label="Hardware type"
-                            value={addHardwareType}
-                            placeholder="None"
-                            options={[{ value: '', label: 'None' }, ...(HARDWARE_TYPES[addCategory] || []).map((ht) => ({ value: ht, label: ht }))]}
-                            onChange={(v) => setAddHardwareType(v)}
-                          />
+                          {/* Hardware type — hidden when the selected
+                              category doesn't have a hardware-type list to
+                              offer (e.g. Audio). Otherwise the operator
+                              sees a useless single-option ('None') dropdown
+                              that does nothing. */}
+                          {(HARDWARE_TYPES[addCategory] ?? []).length > 0 && (
+                            <SearchableSelect
+                              label="Hardware type"
+                              value={addHardwareType}
+                              placeholder="None"
+                              options={[{ value: '', label: 'None' }, ...HARDWARE_TYPES[addCategory].map((ht) => ({ value: ht, label: ht }))]}
+                              onChange={(v) => setAddHardwareType(v)}
+                            />
+                          )}
                           <FormInput label="Quantity" type="text" inputMode="numeric" pattern="[0-9]*" value={addQuantity}
                             onChange={(e) => { const val = e.target.value.replace(/\D/g, ''); setAddQuantity(val) }} />
-                          <SearchableSelect
-                            label="Auto Team Assign"
-                            // Auto-creating a placeholder team member only
-                            // makes sense for categories that can have a
-                            // person assigned (panels, beltpacks). Lock
-                            // the field for chargers / switches / etc.
-                            disabled={!isAssignable(addCategory)}
-                            value={!isAssignable(addCategory) ? 'no' : (addAutoAssign ? 'yes' : 'no')}
-                            placeholder="Select..."
-                            options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]}
-                            onChange={(v) => setAddAutoAssign(v === 'yes')}
-                          />
+                          {/* Auto Team Assign — hidden entirely when the
+                              category can't have a person assigned (chargers,
+                              switches, antennas, audio). Previously this
+                              field showed as 'disabled' which still occupied
+                              a grid cell + read as 'I could configure this
+                              if I wanted'. Hiding it lets the grid reflow
+                              tighter for non-assignable categories. */}
+                          {isAssignable(addCategory) && (
+                            <SearchableSelect
+                              label="Auto Team Assign"
+                              value={addAutoAssign ? 'yes' : 'no'}
+                              placeholder="Select..."
+                              options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]}
+                              onChange={(v) => setAddAutoAssign(v === 'yes')}
+                            />
+                          )}
                         </div>
                         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
                           <button type="button" onClick={() => { setShowAdd(false); setAddError('') }} disabled={isPending} className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">Cancel</button>
