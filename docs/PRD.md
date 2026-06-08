@@ -1,7 +1,7 @@
 # Nodal Control — Product Requirements Document
 
-**Version:** 2.4 (Rack designer — inline RackStudio + chrome-free Preview + drag/drop library + equipment linking + loose tray)
-**Updated:** 2026-06-02
+**Version:** 2.5 (Switch Studio — per-switch chassis with port-level VLAN profile assignment)
+**Updated:** 2026-06-08
 **Author:** Jimmy Xiloj / Versacom (ATK / Clair Global)
 **Status:** Living document — describes what is actually built and shipping, not future phases.
 
@@ -36,7 +36,8 @@ Nodal Control is a web-based intercom management platform for live production sh
 - **Comms + Radios header chrome** — QR + Kiosk on Comms, QR + Scanner on Radios, all to the left of the project dropdown (PD-019)
 - **Location rename** on the Pick List — tapping a location chip renames every row in that location at once
 - **Mobile UI sweep** — bigger buttons, full-width stacks on small screens, project row chip on the left, half-row project dropdowns. See PD-022 + PD-023.
-- **Rack designer (NEW in v2.4)** — Comms project gets a Racks tab. Each `RackTemplate` row expands inline into a full "RackStudio" (chassis + device library + slot editor). Drag/drop a preset onto an RU to place it; drag an existing slot to reposition; tap an empty RU to arm-then-pick. Slots can be linked to a real `Equipment` row (switches + audio) so deploy status, location, model, and IP flow through. A chrome-free `/preview` page renders both faces side-by-side on desktop or as a carousel on mobile — kiosk-style, no nav, just the rack. See PD-024 through PD-029.
+- **Rack designer (v2.4)** — Comms project gets a Racks tab. Each `RackTemplate` row expands inline into a full "RackStudio" (chassis + device library + slot editor). Drag/drop a preset onto an RU to place it; drag an existing slot to reposition; tap an empty RU to arm-then-pick. Slots can be linked to a real `Equipment` row (switches + audio) so deploy status, location, model, and IP flow through. A chrome-free `/preview` page renders both faces side-by-side on desktop or as a carousel on mobile — operator-facing view, with a labeled Close button matching the rest of the studios. See PD-024 through PD-030.
+- **Switch Studio (NEW in v2.5)** — Tapping a NETGEAR M4250-family switch ID on the Equipment card opens a dedicated chassis visualization at `/projects/[id]/switch/[equipmentId]`. Renders all RJ45 + SFP ports laid out on a real chassis (2 rows for 26P+4F / 40P+4F / 24X8F8V; 1 row for 9P+1F + 16F), each port colored by its assigned VLAN profile and stamped with its VLAN ID. Tap a port → popover with the global VLAN profile pool (Comms Dante, AES67, Management, VPN Transfer, etc.) + Trunk toggle + Unassign. Admin + crew can edit; manager view-only; user blocked. VLAN profiles live in a global `VlanProfile` pool seeded from the company-wide hex chart; per-switch state lives in `SwitchPort` rows lazily seeded on first open from the model's default convention (1–12 CommsDante1, 13–24 AES67_1, top trunks Management). See PD-031, PD-032.
 
 **What's not built:**
 
@@ -66,7 +67,8 @@ Nodal Control consolidates all of it:
 | Add crew to the show quickly | **Project PIN** + **Join QR code** |
 | Lock out someone who forgot their PIN | **Admin Tasks → Lockouts** |
 | Plan rack layouts before truck-pack | **Racks tab → RackStudio** (drag/drop on chassis) |
-| Show ops the rack at a glance | **Rack Preview** (chrome-free, both faces) |
+| Show ops the rack at a glance | **Rack Preview** (operator-facing, both faces) |
+| Plan switch VLAN port assignments | **Switch Studio** (per-switch chassis + port-level VLAN picker) |
 
 ### 1.2 Target users
 
@@ -184,7 +186,8 @@ Every authenticated page is wrapped by `AppShell` (navbar + toast container). No
 | `/projects/[id]` | **Comms** — project detail with tabs (Equipment / Team / Pick List / Plots / Racks / My Equipment). Header exposes QR + Kiosk icon buttons to the left of the project dropdown. The Racks tab can deep-link to a specific rack via `?tab=racks&expand=<rackId>` — the URL stays in sync as the operator opens / closes inline rack expansions (PD-028). | Any member of the project; global admins also allowed |
 | `/projects/[id]/panel/[equipmentId]` | Panel Studio — key editor for a specific panel; `?from=my-equipment` puts it in browse mode | Members per role rules |
 | `/projects/[id]/racks/[rackId]` | Standalone Rack Studio page (deep link). Same component as the inline expansion under `?tab=racks` but with its own page chrome (back button + project switcher in the header). | Members per role rules |
-| `/projects/[id]/racks/[rackId]/preview` | Chrome-free read-only Rack Preview. Renders both Front + Rear chassis side-by-side on desktop or as a horizontal scroll-snap carousel with cyan dot indicators on mobile. AppShell suppresses navbar + bottom-nav on this route (same treatment as `/kiosk` and `/zones`). X button returns to `?tab=racks&expand=<rackId>`. | Members per role rules |
+| `/projects/[id]/racks/[rackId]/preview` | Operator-facing Rack Preview. Renders both Front + Rear chassis side-by-side on desktop or as a horizontal scroll-snap carousel with cyan dot indicators on mobile. AppShell suppresses navbar + bottom-nav on this route (same treatment as `/kiosk` and `/zones`). Labeled **Close** button (matches Rack Studio / Panel Studio / Switch Studio chrome) returns to `?tab=racks&expand=<rackId>`. | Members per role rules |
+| `/projects/[id]/switch/[equipmentId]` | **Switch Studio (v2.5)** — per-switch chassis with port-level VLAN profile assignment. Standard `Comms` page header + ProjectSwitcher up top (auto-hides on scroll-down on mobile via `AutoHideHeader`), then the switch identity strip (`name · model · IP (cyan link) · port count` + Close). The chassis below renders all RJ45 + SFP ports in a 1- or 2-row grid based on the model, each colored by its assigned VLAN profile and stamped with its VLAN ID; tapping a port opens a portaled popover with the profile picker + Trunk toggle. | Members per role rules; admin + crew edit, manager view-only, user **blocked at the proxy** (404) |
 | `/projects/[id]/kiosk` | Self-serve "join the show" page for a roving tablet (admins/managers print the QR) | Open per project PIN |
 | `/radios` | Radio fleet for the active project — two tabs: **Radio Equipment** (per-radio rows with status dropdown) and **Radio Channels** (zones + tunings). Header exposes QR + Scanner icon buttons. | admin / manager / crew |
 | `/radios/scan` | Continuous barcode-scan loop powered by `@zxing/browser`; branches on radio status (unknown / auto-return / prompt). See §5.7. | admin / manager |
@@ -466,13 +469,67 @@ The eye icon next to the Close button on an expanded rack opens `/projects/[id]/
 
 Slots in the preview show `label (white) · linkedLocation (cyan) · linkedHardwareType (gray)` for equipment-backed slots. Empty rows show `RU number · "Empty"`. Layout uses an explicit `CHASSIS_W = 320px` width with inner `PAD_X = PAD_Y = 20` so cards inset from the rounded chassis border on all four sides (preserves the "rails inside the cabinet" visual metaphor). Caster wheels render under the chassis as two dark circles connected via thin mounting brackets.
 
-The X close button returns to `?tab=racks&expand=<rackId>` so the operator lands back on the same rack they were previewing. The URL→state restore is one-shot-on-mount (guarded by `restoredFromUrlRef`) and the `changeExpandedRack()` helper mirrors state into the URL on every toggle — so closing the expansion doesn't leave a stale `?expand=` that would re-open later (PD-028).
+The Close button (labeled, matching Rack Studio / Panel Studio / Switch Studio chrome — `rounded-lg border border-white/10 px-4 py-2 text-sm font-medium`) returns to `?tab=racks&expand=<rackId>` so the operator lands back on the same rack they were previewing. The URL→state restore is one-shot-on-mount (guarded by `restoredFromUrlRef`) and the `changeExpandedRack()` helper mirrors state into the URL on every toggle — so closing the expansion doesn't leave a stale `?expand=` that would re-open later (PD-028).
+
+### 5.10 Switch Studio (v2.5)
+
+Per-switch chassis visualization with port-level VLAN profile assignment. Lives at `/projects/[id]/switch/[equipmentId]`. Reached by tapping the switch ID text (`SW 1`, `SW 2`, …) on a switch's Equipment card — only switches whose `hardwareType` resolves to a registered NETGEAR M4250 model get a clickable link.
+
+#### Chassis layout
+
+| Model | Port mix | Rows | Notes |
+|---|---|---|---|
+| `9P+1F` | 9 RJ45 + 1 SFP | **1** | Small breakout switch — operator wants the 10 ports in a single strip |
+| `26P+4F` | 26 RJ45 + 4 SFP | 2 | Bread-and-butter house switch (M4250-26G4F-PoE+) |
+| `40P+4F` | 40 RJ45 + 4 SFP | 2 | Bigger version; defaults to 20 Dante / 20 AES67 / 4 SFP trunk uplinks |
+| `24X8F8V` | 24 RJ45 + 16 SFP | 2 | Breakout-heavy variant |
+| `16F` | 16 SFP (all fiber) | **1** | Fiber backbone — single horizontal strip |
+
+The grid uses `gridTemplateRows: repeat(N, auto)` + `gridAutoFlow: column` so iterating ports 1..N in order automatically lays out as NETGEAR's odd-top / even-bottom convention (2-row) or a single strip (1-row). Each cell is a fixed `48x48` (RJ45 + SFP same size — operator preference; the size mismatch read as "broken" rather than "two port banks"). Cells stamp the port number (small, top) + VLAN ID (centered, dominant). Trunk ports render gray (Management profile color) with a small white "T" badge bottom-right matching NETGEAR ProAV Engage. Unassigned ports show `—`.
+
+#### Mobile scroll behavior
+
+The chassis is wrapped in `overflow-x-auto pb-2` so a wide switch (15-column 26P+4F = ~832px) scrolls horizontally. The chassis bezel uses `mx-auto w-fit` so it centers when it fits and anchors to the left edge when it doesn't — operator can scroll right to reach the end and the scroll origin is always at port 1 (PD-031).
+
+The page header (`Comms` + ProjectSwitcher + bottom border) is wrapped in `AutoHideHeader` so it slides up on scroll-down on mobile, same behavior as Project Detail, Panel Studio, My Equipment, Tasks. The switch identity strip + Close button stay put so the operator can always dismiss.
+
+#### Port-edit flow
+
+1. Tap a port → portaled popover anchors to the cell via `getBoundingClientRect` (the popover lives at `document.body` z-100, escaping the `overflow-x-auto` scroll region that would otherwise clip it). Clamped 8px from the viewport edges.
+2. Popover groups VLAN profiles by `profileType` (Data, Audio Dante, Audio AES67, Management, Transfer, …). A Trunk toggle + Unassign row sit at the bottom.
+3. Picking a profile or toggling Trunk fires the `updateSwitchPort` server action; the client optimistically updates the cell fill color + VLAN ID. `router.refresh()` pulls fresh state on success; rollback on server error.
+4. Trunk ports always render with the **Management** color regardless of the underlying profile — matches NETGEAR ProAV Engage. The underlying `profileId` is preserved for round-tripping (toggling Trunk off restores the profile color).
+
+#### Lazy seeding
+
+On first open of a switch in Switch Studio, the page server-checks `equipment.switchPorts.length`. If 0, it reads the model's `defaultFor(portIndex, portKind)` table:
+
+| Model | Default RJ45 1..rj45Count | Default SFP |
+|---|---|---|
+| `9P+1F` | 1–4 CommsDante1, 5–8 AES67_1, 9 Management trunk | 1 SFP Management trunk |
+| `26P+4F` | 1–12 CommsDante1, 13–24 AES67_1, 25–26 Management trunk | 4 SFP Management trunk |
+| `40P+4F` | 1–20 CommsDante1, 21–40 AES67_1 | 4 SFP Management trunk |
+| `24X8F8V` | 1–12 CommsDante1, 13–24 AES67_1 | 16 SFP Management trunk |
+| `16F` | (no RJ45) | 16 SFP Management trunk |
+
+VLAN profile IDs are resolved at runtime by `vlanId` so renames of the global VLAN list don't break the seed math. Bulk-inserts via `prisma.switchPort.createMany()`, then re-fetches and renders. Subsequent opens skip the seed and just read.
+
+#### Role gating
+
+| Role | Switch Studio access |
+|---|---|
+| admin / global admin | Full edit |
+| crew | Full edit |
+| manager | View-only (cells render but don't open the popover; server action rejects with "Read-only role") |
+| user | **Hard blocked** — proxy + server page both 404 |
+
+Belt-and-suspenders: the proxy blocks user role at the URL level, and the server action `updateSwitchPort` re-checks role before any write.
 
 ---
 
 ## 6. Data Model Summary
 
-20 models total (RackLooseItem and RackDevice added in v2.4 alongside RackTemplate / RackSlot being promoted from "no UI" to in-use). See `uml-erd.md` for the diagram.
+22 models total (VlanProfile + SwitchPort added in v2.5 for Switch Studio; RackLooseItem and RackDevice added in v2.4 alongside RackTemplate / RackSlot being promoted from "no UI" to in-use). See `uml-erd.md` for the diagram.
 
 ### Phase 1 models (built + in use)
 
@@ -504,10 +561,12 @@ The X close button returns to `?tab=racks&expand=<rackId>` so the operator lands
 | `RackSlot` | **Used (v2.4)** — single slot at an RU position on one face of the rack. `equipmentId` (optional) links to a real Equipment row; `deviceType` + `label` carry display info either way. |
 | `RackLooseItem` | **Used (v2.4)** — non-RU devices tagged to a rack (velcro/drawer gear). Renders as chips above the chassis. |
 | `RackDevice` | **Used (v2.4)** — user-authored custom devices added via "+ Custom device". Project-scoped, reusable across racks. Built-in presets stay in code (`src/lib/rack-presets.ts`). |
+| `VlanProfile` | **Used (v2.5)** — global pool of VLAN profiles (Comms Dante 1/2, AES67 1/2, Management, VPN Transfer, Production, OOB, …). Seeded from the company-wide hex chart. Fields: `name`, `vlanId` (unique), `color` (hex), `profileType` (Data/AudioDante/AudioAES67/Management/Transfer), `description`, `sortOrder`. Shared by every project. |
+| `SwitchPort` | **Used (v2.5)** — per-`Equipment` port state for switches. One row per physical port. `(equipmentId, portIndex)` unique. Fields: `portIndex`, `portKind` ('rj45'\|'sfp'), `profileId` (FK to VlanProfile, nullable for unassigned), `isTrunk` (independent of profile). Lazy-seeded on first Switch Studio open from `SwitchModel.defaultFor()`. |
 | `NfgReport` | "Not Functioning" reports for damaged gear |
 | `MultStrand` | Wiring-strand tracking (Phase 4) |
 
-`Equipment` was originally slated for Phase 2 but ended up being central to v2 — the Equipment tab, auto-generated names, deploy status tracking all live on this model. `Radio` followed the same path in v2.3. `RackTemplate` / `RackSlot` were schema-only until v2.4 — the Racks tab + drag/drop RackStudio promoted them into active surfaces.
+`Equipment` was originally slated for Phase 2 but ended up being central to v2 — the Equipment tab, auto-generated names, deploy status tracking all live on this model. `Radio` followed the same path in v2.3. `RackTemplate` / `RackSlot` were schema-only until v2.4 — the Racks tab + drag/drop RackStudio promoted them into active surfaces. `VlanProfile` + `SwitchPort` were added fresh in v2.5 to back Switch Studio (migration `20260608000000_switch_studio` seeds the global VLAN pool from the operator's hex chart in one shot).
 
 ### Radio status enum
 

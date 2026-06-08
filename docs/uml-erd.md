@@ -1,6 +1,6 @@
 # Nodal Control — Entity Relationship Diagram
 
-**Updated:** 2026-06-02
+**Updated:** 2026-06-08
 **Source of truth:** `prisma/schema.prisma`. Regenerate this diagram when the schema changes.
 
 ---
@@ -60,6 +60,9 @@ erDiagram
     Equipment ||--o{ RackSlot : "linked from"
     Equipment ||--o{ RackLooseItem : "linked from"
     Project ||--o{ RackDevice : "custom library"
+
+    Equipment ||--o{ SwitchPort : "has switch ports"
+    VlanProfile ||--o{ SwitchPort : "assigned to ports"
 
     User {
         int id PK
@@ -326,6 +329,25 @@ erDiagram
         int equipmentId FK
         datetime seenAt
     }
+
+    VlanProfile {
+        int id PK
+        string name "CommsDante1 AES67_1 Management VPN_Transfer etc"
+        int vlanId UK "1331 1341 4000 etc"
+        string color "hex e.g. #3174c2"
+        string profileType "Data AudioDante AudioAES67 Management Transfer"
+        string description "optional"
+        int sortOrder "stable display order in picker"
+    }
+
+    SwitchPort {
+        int id PK
+        int equipmentId FK
+        int portIndex "1-based, RJ45 then SFP"
+        string portKind "rj45 or sfp"
+        int profileId FK "optional VlanProfile link"
+        boolean isTrunk "independent of profileId"
+    }
 ```
 
 ---
@@ -391,6 +413,36 @@ erDiagram
     }
 ```
 
+### Switch Studio subset (v2.5)
+
+```mermaid
+erDiagram
+    Project ||--o{ Equipment : "owns"
+    Equipment ||--o{ SwitchPort : "physical port state"
+    VlanProfile ||--o{ SwitchPort : "assigned to ports"
+
+    Equipment {
+        string name "SW 1 SW 2 etc"
+        string hardwareType "9P+1F 26P+4F 40P+4F 24X8F8V 16F"
+        string ipAddress
+    }
+    SwitchPort {
+        int portIndex "1..rj45Count then SFP"
+        string portKind "rj45 or sfp"
+        int profileId "nullable - unassigned"
+        boolean isTrunk "Management trunk flag"
+    }
+    VlanProfile {
+        string name "global pool no projectId"
+        int vlanId UK
+        string color "hex"
+        string profileType "Data AudioDante AudioAES67 Management Transfer"
+        int sortOrder
+    }
+```
+
+VlanProfile is **global** (no `projectId`) — one pool of company-wide VLAN definitions. SwitchPort is per-Equipment (per physical switch). Lazy seeding on first Switch Studio open populates `SwitchPort` rows from the model's `defaultFor()` table (see `src/lib/switch-models.ts`).
+
 ---
 
 ## Unique constraints
@@ -407,6 +459,8 @@ erDiagram
 | `Zone` | `(projectId, name)` | Zone names are unique within a project |
 | `PushSubscription` | `endpoint` | One subscription record per browser endpoint |
 | `RackSlot` | `(rackTemplateId, side, ruPosition)` (logical, enforced in code) | One slot per RU starting-position per side. Collision detection in the drag pipeline checks every RU the slot would span, not just `ruPosition`. |
+| `VlanProfile` | `vlanId` | No two profiles share a VLAN ID (1331, 1341, 4000, …). Names + colors can repeat across types but the numeric ID is unique. |
+| `SwitchPort` | `(equipmentId, portIndex)` | One row per physical port per switch. Lazy-seeded on first Switch Studio open. |
 
 ---
 
@@ -425,6 +479,8 @@ erDiagram
 | `RackSlot` | **In use (v2.4)** — one slot per RU starting-position per face; optional `equipmentId` |
 | `RackLooseItem` | **In use (v2.4)** — non-RU devices tagged to a rack (chips above the chassis) |
 | `RackDevice` | **In use (v2.4)** — user-authored custom devices for the library |
+| `VlanProfile` | **In use (v2.5)** — global VLAN pool, seeded from the company hex chart, shared by every project's switches |
+| `SwitchPort` | **In use (v2.5)** — per-Equipment port state, lazy-seeded on first Switch Studio open |
 | `Asset` | Schema present, no UI |
 | `NfgReport` | Schema present, no UI |
 | `MultStrand` | Schema present (Phase 4), no UI |

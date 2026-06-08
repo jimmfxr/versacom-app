@@ -1,6 +1,6 @@
 # Nodal Control — Use Cases by Role
 
-**Updated:** 2026-05-03
+**Updated:** 2026-06-08
 
 What each role can actually do in the current build. Roles are per-project (`ProjectMember.role`), but a user with `admin` on **any** project is promoted to "global admin" for the whole app.
 
@@ -58,6 +58,17 @@ flowchart LR
         UC25[Crew tasks: deploy + return queue]
     end
 
+    subgraph RackDesigner [Rack designer v2.4]
+        UC26[Design rack inline RackStudio]
+        UC27[Open rack Preview both faces]
+    end
+
+    subgraph SwitchStudio [Switch Studio v2.5]
+        UC28[View switch chassis with port colors]
+        UC29[Assign VLAN profile to a port]
+        UC30[Toggle Trunk on a port]
+    end
+
     Admin --> UC1
     Admin --> UC2
     Admin --> UC3
@@ -80,6 +91,11 @@ flowchart LR
     Admin --> UC19
     Admin --> UC20
     Admin --> UC21
+    Admin --> UC26
+    Admin --> UC27
+    Admin --> UC28
+    Admin --> UC29
+    Admin --> UC30
 
     Manager --> UC3
     Manager --> UC4
@@ -93,6 +109,9 @@ flowchart LR
     Manager --> UC17
     Manager --> UC23
     Manager --> UC24
+    Manager --> UC26
+    Manager --> UC27
+    Manager --> UC28
 
     Crew --> UC7
     Crew --> UC8
@@ -102,6 +121,11 @@ flowchart LR
     Crew --> UC16
     Crew --> UC17
     Crew --> UC25
+    Crew --> UC26
+    Crew --> UC27
+    Crew --> UC28
+    Crew --> UC29
+    Crew --> UC30
 
     User --> UC16
     User --> UC17
@@ -137,6 +161,10 @@ Legend: ✅ can do · 👁 view only · ❌ cannot
 | Unlock a locked-out account | ✅ | ❌ | ❌ | ❌ |
 | See Show QR / Kiosk button | ✅ | ✅ | ✅ | ❌ |
 | See Add Member button | ✅ | ✅ | ❌ | ❌ |
+| Open Rack Studio + Preview | ✅ | ✅ | ✅ | ❌ |
+| **Open Switch Studio (v2.5)** | ✅ | 👁 view-only | ✅ | ❌ (proxy 404) |
+| **Assign VLAN profile to a switch port** | ✅ | ❌ | ✅ | ❌ |
+| **Toggle Trunk on a switch port** | ✅ | ❌ | ✅ | ❌ |
 
 ### Note on global admin
 

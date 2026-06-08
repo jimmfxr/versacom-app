@@ -1,6 +1,6 @@
 # Nodal Control — User Flow
 
-**Updated:** 2026-06-02
+**Updated:** 2026-06-08
 
 End-user navigation and action flows for the current app. Each role starts at a different landing and unlocks different paths.
 
@@ -67,10 +67,12 @@ flowchart LR
     TABS --> MYEQ_TAB[My Equipment<br/>crew only]
 
     EQ_TAB -->|click panel card| PS[/projects/ID/panel/EQID/]
+    EQ_TAB -->|click switch ID e.g. SW 1<br/>NETGEAR M4250 models only| SWITCH_STUDIO[/projects/ID/switch/EQID/<br/>Switch Studio v2.5]
+    SWITCH_STUDIO -->|Close button| EQ_TAB
     PL_TAB -->|tap location chip| LOC_RENAME[Rename location modal<br/>updates all rows in that loc]
     RACKS_TAB -->|click Edit on a rack| RACK_INLINE[Inline RackStudio<br/>?expand=rackId in URL]
-    RACK_INLINE -->|eye icon| RACK_PREVIEW[/projects/ID/racks/RID/preview/<br/>chrome-free, both faces]
-    RACK_PREVIEW -->|X close| RACKS_TAB
+    RACK_INLINE -->|eye icon| RACK_PREVIEW[/projects/ID/racks/RID/preview/<br/>operator-facing, both faces]
+    RACK_PREVIEW -->|Close button| RACKS_TAB
 
     RADIOS --> RADHDR{Header icons}
     RADHDR --> RQR[QR icon → join QR modal]
@@ -550,3 +552,74 @@ to the URL on every toggle. Together these prevent the "press Close
 → expansion re-opens 1-2 seconds later" bug that would otherwise
 happen when a background data refresh re-fired the URL effect with a
 stale `?expand=` still in the URL (PD-028).
+
+---
+
+## 13. Switch Studio — assign VLAN profiles to switch ports (v2.5)
+
+Entry point lives on the Comms Equipment tab: the switch ID text
+(`SW 1`, `SW 2`, …) on each NETGEAR M4250 card is a Link to
+`/projects/[id]/switch/[equipmentId]`. Only switches whose
+`hardwareType` resolves to a registered model (9P+1F, 26P+4F, 40P+4F,
+24X8F8V, 16F) get a clickable ID — unmanaged switches (Antaira, TP
+Link, Pliant Hub) don't have a VLAN config UI.
+
+```mermaid
+flowchart TD
+    EQ[Equipment tab on Comms] -->|tap switch ID SW 1| GUARD{Role check}
+    GUARD -->|admin or crew or manager| LOAD[/projects/ID/switch/EQID/]
+    GUARD -->|user| BLOCK[Proxy 404 - never reaches page]
+
+    LOAD --> SEED{First open?}
+    SEED -->|yes - 0 SwitchPort rows| LAZY[Seed defaults<br/>1-12 CommsDante1<br/>13-24 AES67_1<br/>last RJ45 plus SFP Mgmt trunk]
+    SEED -->|no| READ[Read existing SwitchPort rows]
+    LAZY --> READ
+
+    READ --> RENDER[Chassis grid<br/>1 or 2 rows per model<br/>colored by VLAN profile<br/>port number + VLAN ID stamped]
+
+    RENDER --> EDIT{User role}
+    EDIT -->|admin or crew| TAP_PORT[Tap a port]
+    EDIT -->|manager| RO[Cells render<br/>tap does nothing]
+
+    TAP_PORT --> POPOVER[Portaled popover anchored to cell<br/>profiles grouped by type<br/>Trunk toggle + Unassign]
+    POPOVER --> PICK{Choose}
+    PICK -->|pick a profile| PATCH1[updateSwitchPort action<br/>set profileId clear isTrunk if explicit]
+    PICK -->|toggle Trunk| PATCH2[updateSwitchPort action<br/>isTrunk=true profile preserved]
+    PICK -->|Unassign| PATCH3[updateSwitchPort action<br/>profileId=null isTrunk=false]
+    PICK -->|tap outside| CLOSE_POP[Popover dismissed]
+
+    PATCH1 --> OPTIMISTIC[Cell repaints immediately]
+    PATCH2 --> OPTIMISTIC
+    PATCH3 --> OPTIMISTIC
+    OPTIMISTIC --> REFRESH[router.refresh<br/>pull fresh state on success]
+
+    RENDER -.->|Close button top-right| EQ
+
+    classDef blocked fill:#ef4444,stroke:#ef4444,color:#fff
+    class BLOCK blocked
+```
+
+**Chassis grid layout:**
+- 1 row: 9P+1F (10 ports linear) · 16F (16 SFP linear)
+- 2 rows: 26P+4F (15×2) · 40P+4F (22×2) · 24X8F8V (20×2)
+- Port number is small at the top of each cell; VLAN ID is the
+  dominant value centered/lower
+- Trunk ports always render gray (Management color) + small white
+  "T" badge bottom-right, matching NETGEAR ProAV Engage
+
+**Mobile UX:**
+- Chassis wider than the viewport scrolls horizontally; chassis
+  bezel uses `mx-auto w-fit` so it centers when it fits and anchors
+  to the left edge when it doesn't (scroll reaches both ends, PD-031)
+- Page header (`Comms` + ProjectSwitcher + bottom border) wraps in
+  `AutoHideHeader` — slides up on scroll-down, same behavior as the
+  rest of the app
+- Identity strip below the header wraps into 2 rows on small screens
+  (`SW 1 · model` + Close on row 1, `IP · port count` on row 2)
+- IP renders as a cyan link → `http://<ip>` opens NETGEAR's web
+  management UI in a new tab (`target="_blank"`)
+
+**Server action gate:** `updateSwitchPort` re-checks role before any
+write. Manager hitting the endpoint directly returns
+`{ error: 'Read-only role' }`; user is already blocked at the
+proxy.

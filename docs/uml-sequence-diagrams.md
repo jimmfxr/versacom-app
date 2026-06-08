@@ -1,6 +1,6 @@
 # Nodal Control — Sequence Diagrams
 
-**Updated:** 2026-05-26
+**Updated:** 2026-06-08
 
 ## Change Request Flow (current implementation)
 
@@ -239,3 +239,93 @@ sequenceDiagram
         UI->>UI: 2s cooldown (suppress same-barcode re-trigger)
     end
 ```
+
+---
+
+## Switch Studio — open + lazy-seed + port edit (v2.5)
+
+The page loader handles three things in one server request: role gate
+(404 for user), lazy-seed of SwitchPort rows on first open, and fetch
+of everything the client needs. The client then becomes interactive
+without further round-trips until an edit.
+
+```mermaid
+sequenceDiagram
+    actor Operator as Operator (admin/crew/manager)
+    participant Card as Equipment card (Comms)
+    participant Proxy as src/proxy.ts
+    participant Page as switch-studio page.tsx
+    participant Model as src/lib/switch-models.ts
+    participant DB as Database
+    participant Studio as switch-studio.tsx (client)
+    participant Action as updateSwitchPort server action
+
+    Operator->>Card: Tap "SW 1"
+    Card->>Card: getSwitchModel(hardwareType) returns model?
+    Note over Card: Only NETGEAR M4250 models<br/>get a clickable Link
+
+    Card->>Proxy: Navigate /projects/X/switch/Y
+    Proxy->>Proxy: session role check
+    alt user-only
+        Proxy-->>Operator: 404
+    else admin / crew / manager
+        Proxy->>Page: forward
+    end
+
+    Page->>DB: SELECT Equipment + switchPorts
+    Page->>Model: getSwitchModel(hardwareType)
+    Model-->>Page: { rj45Count, sfpCount, chassisRows, defaultFor }
+
+    alt switchPorts.length == 0  (first open)
+        Page->>DB: SELECT VlanProfile (id, vlanId)
+        DB-->>Page: profile list
+        loop for each port 1..rj45Count+sfpCount
+            Page->>Model: defaultFor(portIndex, portKind)
+            Model-->>Page: { vlanId, isTrunk }
+        end
+        Page->>DB: INSERT switchPort.createMany (10..44 rows)
+        Page->>DB: SELECT switchPort (re-fetch with IDs)
+    end
+
+    Page->>DB: SELECT VlanProfile (full row for picker)
+    Page->>DB: SELECT Project + userProjects (for header switcher)
+
+    Page-->>Studio: render with ports, profiles, project, canEdit
+
+    Note over Studio: Cells render with VLAN colors + IDs<br/>Trunk ports gray + T badge<br/>Tap opens portaled popover
+
+    alt canEdit && Operator taps a port
+        Operator->>Studio: tap PortCell
+        Studio->>Studio: setOpenPortId(port.id)
+        Studio->>Studio: portal popover via createPortal,<br/>anchored by getBoundingClientRect
+
+        Operator->>Studio: pick a profile / toggle Trunk / Unassign
+        Studio->>Studio: optimistic update (setPorts)
+        Studio->>Action: updateSwitchPort({projectId, equipmentId, portId, profileId, isTrunk})
+        Action->>DB: role re-check via session + membership
+        alt role in [admin, crew]
+            Action->>DB: UPDATE SwitchPort SET profileId, isTrunk
+            Action->>Action: revalidatePath()
+            Action-->>Studio: { ok: true }
+            Studio->>Studio: router.refresh()
+        else manager (or unauthorized retry)
+            Action-->>Studio: { error: "Read-only role" }
+            Studio->>Studio: rollback optimistic update
+        end
+    else !canEdit (manager view-only)
+        Operator->>Studio: tap a cell
+        Studio->>Studio: no-op (cursor stays default)
+    end
+```
+
+Notes:
+- The lazy-seed branch only fires on the FIRST open of a specific
+  switch. The data is durable from then on — every subsequent visit
+  skips the seed entirely.
+- `VlanProfile` IDs are resolved by `vlanId` during the seed pass, so
+  renames or color tweaks to the global VLAN pool don't break the
+  seed math (the numeric ID is the stable handle).
+- Trunk ports preserve their underlying `profileId` so the operator
+  can flip Trunk on/off without losing the VLAN assignment.
+- Manager role is rejected by the server action even if they manage
+  to call it (e.g. via dev tools) — proxy gate + server gate.

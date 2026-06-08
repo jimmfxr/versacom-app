@@ -349,3 +349,67 @@ The fix had to address both directions:
 **Why deferred:** Database migration takes priority. The print API change might be easier to slot in alongside other server-side work that comes with the migration (new ORM, new endpoints, etc.). No production users are blocked — PWA operators can long-press the URL, copy it, and paste into Safari as a manual workaround in the meantime.
 
 **Tracked in:** TODO comment at `preview-view.tsx` print-button onClick. References this entry by ID (PD-030).
+
+---
+
+## PD-031: Switch Studio — global VLAN pool, per-switch port state, lazy seeding
+
+**Decision (v2.5):** Switch Studio (`/projects/[id]/switch/[equipmentId]`) backs port state with two new models:
+
+- `VlanProfile` — **global** pool (no `projectId`). One row per VLAN the operator uses across the company (Comms Dante 1/2, AES67 1/2, Management, VPN Transfer, Production, OOB, Cameras, …). Seeded in one migration from the company-wide hex chart. Renames + color changes propagate to every project's switches automatically.
+- `SwitchPort` — **per-Equipment**, per-port row. `(equipmentId, portIndex)` unique. Stores `profileId` (FK or null) + `isTrunk` (independent flag).
+
+**Why global VLANs:** Every show uses the same VLAN scheme. CommsDante1 is `#3174c2 / vlan 1331` on every switch in the company. Scoping VLANs per-project would force the operator to re-enter the same 25 profiles on every new show — wasted work, plus drift (two projects' "Management" diverging in hex). One global pool, one seed file, every project reads from it.
+
+**Why per-Equipment SwitchPorts:** The state that *does* vary per show is which VLAN each port carries. Crew 1 wires switch SW 1 with ports 1–12 on Dante1; crew 2 might re-assign port 9 to AES67 for this specific gig. That's per-physical-switch state — belongs on `Equipment` (via FK).
+
+**Lazy seeding:** Inserting `rj45Count + sfpCount` rows for every switch the moment the Equipment record is created would waste DB writes on switches that never get opened in Switch Studio. Instead, the page loader checks `equipment.switchPorts.length === 0` and seeds on demand using `SwitchModel.defaultFor(portIndex, portKind)` — the operator's conventional defaults (1–12 CommsDante1, 13–24 AES67_1, last RJ45 + SFP Management trunk). One round-trip to fetch VLAN profile IDs, one `createMany`, done. Subsequent opens skip the seed.
+
+**Trunk + profile coexist:** `isTrunk` is independent of `profileId`. A trunk port renders gray (Management color) with a T badge regardless of which underlying profile sits on it — matches NETGEAR ProAV Engage's UI. Toggling Trunk off restores the profile color without losing the assignment.
+
+**Mobile chassis scroll fix:** The chassis is wider than the viewport on small screens. Previous attempts to center it with `flex justify-center overflow-x-auto` failed on iOS because half the centered chassis sat in negative-x scroll space — `overflow-x: auto` only scrolls positive-x, so ports 1–8 were unreachable. Final pattern: `mx-auto w-fit` on a block-level chassis bezel inside an `overflow-x-auto` parent. When the chassis fits, auto-margins center it; when it doesn't, the margins collapse to 0 and the chassis anchors to the left edge — scroll reaches both ends naturally.
+
+**Role gating:** admin + crew edit; manager view-only; user role hard-blocked at the proxy + server page (404). Belt-and-suspenders matches Equipment-tab gating. The `updateSwitchPort` server action re-checks role server-side independent of the proxy.
+
+**Equipment-card link policy:** Only switches whose `hardwareType` resolves to a registered NETGEAR M4250 model get a clickable `SW N` text on their Equipment card. Unmanaged switches (Antaira, TP Link, Pliant Hub) return null from `getSwitchModel()` → no link rendered → tap on the ID does nothing. No UI to configure them; they're plug-and-play.
+
+---
+
+## PD-032: Switch Studio per-model chassis row count
+
+**Decision (v2.5):** `SwitchModel.chassisRows: 1 | 2` controls how the chassis grid lays out. Two of the five M4250 models render as a single horizontal strip:
+
+| Model | Rows | Why 1 row |
+|---|---|---|
+| `9P+1F` | 1 | Small breakout — 10 ports fit a single line comfortably; operator finds it easier to read than 5×2 |
+| `16F` | 1 | Fiber backbone — all SFP, single port bank, no top/bottom split needed |
+| `26P+4F` | 2 | Standard NETGEAR odd-top / even-bottom |
+| `40P+4F` | 2 | Same |
+| `24X8F8V` | 2 | Same |
+
+**Why per-model rather than auto:** Tried "always 2 rows" first → operator pushed back on 9P+1F and 16F specifically, wanted those flat. Auto-detect ("1 row when total ≤ 10") would be fragile — `24X8F8V` is 40 ports but breaks into RJ45 (24) + SFP (16) which arguably could be split. Per-model declaration is explicit and one-line-to-change.
+
+**Implementation:** `gridTemplateRows: repeat(${chassisRows}, auto)` + `gridAutoFlow: column`. The grid does the placement — iterate ports 1..N in order, no per-cell positioning needed. Robust across both 1-row and 2-row variants.
+
+**Why inline CSS instead of Tailwind classes:** Tried `grid-rows-2 grid-flow-col` first → the classes weren't applying in this Tailwind v4 build (the cells rendered in one long row regardless of the class). Inline `style={{ gridTemplateRows: ..., gridAutoFlow: 'column' }}` guarantees the layout. Cost of a few extra characters; benefit of "always works."
+
+---
+
+## PD-033: Studio chrome convention — labeled "Close" button everywhere
+
+**Decision (v2.5):** Every studio surface (Rack Studio, Rack Preview, Panel Studio, Switch Studio) uses the same labeled Close button:
+
+```
+shrink-0 inline-flex rounded-lg border border-white/10 px-4 py-2
+text-sm font-medium text-gray-200
+hover: border-white/20 + bg-white/[0.04]
+active: border-[#0178a3] + bg-[#0178a3] + text-white
+```
+
+**Why labeled, not icon:** Originally Rack Preview used a circular X icon-button. Operator wanted consistent chrome — having one studio with an X icon and three with "Close" text read as inconsistent. Labeled buttons also win on operator readability ("what does this do?" vs guessing at glyphs) and on tappable area in a glove-on-the-job-site scenario.
+
+**Why this exact style:** Matches the existing Back / Cancel / Save buttons throughout the app. Already shipped on Panel Studio + Rack Studio; v2.5 extended it to Switch Studio (which started life with this style) and Rack Preview (which got migrated from the X icon).
+
+**Touch behavior:** `style={{ touchAction: 'manipulation' }}` on every Close button — kills the iOS 300ms double-tap delay so the button feels instantaneous. Same pattern used on the navbar Link migrations earlier in v2.4.
+
+**Tracked in:** Used consistently across `rack-studio.tsx`, `preview-view.tsx`, `panel-studio.tsx`, `switch-studio.tsx`.

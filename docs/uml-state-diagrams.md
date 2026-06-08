@@ -1,6 +1,6 @@
 # Nodal Control — State Diagrams
 
-**Updated:** 2026-05-26
+**Updated:** 2026-06-08
 
 Describes the state machines driving the app's key workflows: panel-key editing, change-request resolution, and equipment deploy status. The **Panel key** states below are the client-side visual states used in Panel Studio; the actual DB model is `PanelKey` + `KeyDraft`.
 
@@ -275,3 +275,85 @@ recognized: a radio in `out` status triggers a silent
 `returnRadioByBarcode` call; any other status (including `na`,
 `returned`, `damaged`, `lost`) opens the assignment modal pre-filled,
 letting the admin pick a target member + status manually.
+
+---
+
+## 7. SwitchPort visual state (Switch Studio, v2.5)
+
+Each port on a switch's chassis has one of three visual states. Plus
+an orthogonal **Trunk** flag that overrides the cell color (gray +
+T badge) while preserving the underlying profile assignment.
+
+```mermaid
+stateDiagram-v2
+    direction LR
+
+    [*] --> unseeded : Equipment created
+    unseeded --> assigned : First Switch Studio open\n(lazy-seed: defaultFor(portIndex, kind))
+    unseeded --> unassigned : (rare — defaultFor returns vlanId=null)
+
+    assigned --> unassigned : User picks "Unassign"
+    unassigned --> assigned : User picks any profile
+
+    assigned --> assigned : User picks a different profile
+
+    note right of unseeded
+        No SwitchPort row exists yet.
+        Page loader detects 0 rows and seeds.
+        Never reached by an end user — invisible.
+    end note
+
+    note right of unassigned
+        profileId = null + isTrunk = false.
+        Visual: empty outlined cell with "—" centered.
+    end note
+
+    note right of assigned
+        profileId points at a VlanProfile row.
+        Visual: cell filled with profile.color,
+        port number small at top, VLAN ID centered.
+    end note
+```
+
+### Trunk flag (orthogonal)
+
+```mermaid
+stateDiagram-v2
+    direction LR
+
+    [*] --> not_trunk
+
+    not_trunk --> trunk : User toggles Trunk on
+    trunk --> not_trunk : User toggles Trunk off
+
+    note right of not_trunk
+        isTrunk = false.
+        Cell renders using profile.color
+        (or empty if profileId is null).
+    end note
+
+    note right of trunk
+        isTrunk = true.
+        Cell renders gray (Management color)
+        regardless of underlying profile.
+        Small white "T" badge bottom-right.
+        Underlying profileId preserved —
+        toggling off restores the color.
+    end note
+```
+
+**Why orthogonal:** A trunk port still has a "primary" VLAN at the
+hardware layer — the operator wants to see what that is when planning,
+but the chassis at-a-glance reads better when every trunk is uniformly
+gray (matches NETGEAR ProAV Engage's UI). Toggling Trunk off restores
+the colored fill without re-picking the profile.
+
+**Default seed conventions** (see PD-031 and `src/lib/switch-models.ts`):
+
+| Model | RJ45 1..rj45Count default | SFP default |
+|---|---|---|
+| 9P+1F | 1–4 CommsDante1, 5–8 AES67_1, 9 Mgmt trunk | 1 SFP Mgmt trunk |
+| 26P+4F | 1–12 CommsDante1, 13–24 AES67_1, 25–26 Mgmt trunk | 4 SFP Mgmt trunk |
+| 40P+4F | 1–20 CommsDante1, 21–40 AES67_1 | 4 SFP Mgmt trunk |
+| 24X8F8V | 1–12 CommsDante1, 13–24 AES67_1 | 16 SFP Mgmt trunk |
+| 16F | (no RJ45) | 16 SFP Mgmt trunk |
