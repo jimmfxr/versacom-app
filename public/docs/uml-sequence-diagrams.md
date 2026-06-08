@@ -242,6 +242,94 @@ sequenceDiagram
 
 ---
 
+## Panel Studio — Browse mode loop (admin/manager via My Equipment)
+
+Admin or manager arriving at `/my-equipment` never sees a cards-list — they're redirected directly into Panel Studio with `?from=my-equipment`, with the Browse Header sitting above the chassis (show ▼ · user ▼ · ◄ ►). Cookies remember the last viewed combination so the next visit lands on the same panel.
+
+```mermaid
+sequenceDiagram
+    actor Admin as Admin / Manager
+    participant MyEq as /my-equipment server route
+    participant Cookies as Cookie store
+    participant DB as Database
+    participant Page as panel page.tsx (server)
+    participant Studio as panel-studio.tsx (client)
+
+    Admin->>MyEq: Navigate /my-equipment
+    MyEq->>Cookies: read lastBrowseProject + lastBrowseMember
+    MyEq->>DB: SELECT memberships WHERE userId=session.user.id AND role IN admin manager
+    DB-->>MyEq: project list
+
+    alt URL has ?project= AND ?member=
+        MyEq->>MyEq: use URL values
+    else cookies present and still valid
+        MyEq->>MyEq: use cookie values
+    else
+        MyEq->>DB: SELECT first project with at least one member with gear
+        DB-->>MyEq: fallback project + member
+    end
+
+    MyEq->>DB: SELECT first Equipment for resolved (project, member)
+    DB-->>MyEq: equipment row
+    MyEq-->>Admin: server redirect /projects/X/panel/Y?from=my-equipment
+
+    Admin->>Page: GET /projects/X/panel/Y?from=my-equipment
+    Page->>Page: detect browse mode from URL
+    Page->>DB: SELECT Project + members + equipment + PickListItem
+    Page-->>Studio: render with browseProjects + browseMembers props
+
+    Studio->>Studio: render Browse Header above chassis<br/>show ▼ user ▼ chevrons
+
+    Note over Admin,Studio: Adjacent user navigation
+    alt Admin clicks ▶ (next user)
+        Admin->>Studio: tap ▶
+        Studio->>Cookies: set lastBrowseMember = next.id
+        Studio->>Studio: router.push /projects/X/panel/NextEqId?from=my-equipment
+        Studio->>Page: server re-fetch for next member's equipment
+    else Admin types user name + Enter
+        Admin->>Studio: type in user dropdown
+        Studio->>Studio: setQuery (client-side filter)
+        Admin->>Studio: Enter
+        Studio->>Studio: pick first match → router.push same shape
+    else Admin picks different project
+        Admin->>Studio: open show ▼ dropdown
+        Admin->>Studio: pick another project
+        Studio->>Cookies: set lastBrowseProject
+        Studio->>Studio: router.push /projects/X2/panel/FirstMemberEqId?from=my-equipment
+    end
+
+    Note over Admin,DB: Editing in browse mode
+    alt Admin edits keys
+        Admin->>Studio: tap key + pick item
+        alt Admin is global admin or admin on this project
+            Studio->>Studio: setLocalState (yellow)
+            Admin->>Studio: click Save
+            Studio->>DB: savePanel - direct UPSERT on PanelKey
+        else Admin is manager on this project
+            Studio->>Studio: setLocalState (yellow)
+            Admin->>Studio: click Submit changes
+            Studio->>DB: INSERT ChangeRequest mgr_endorsed
+        end
+    end
+
+    Note over Admin,Studio: Sibling-gear row
+    alt Current user has multiple Equipment rows
+        Studio->>Studio: render row of sibling cards below header
+        Admin->>Studio: tap sibling card
+        Studio->>Studio: router.push /projects/X/panel/SiblingEqId?from=my-equipment
+        Note over Studio: Same user different piece - skip Browse Header re-resolve
+    end
+```
+
+**Cookie behavior:**
+- `lastBrowseProject` set every time a project switches in the Browse Header (or any redirect through `/my-equipment` lands on a different project).
+- `lastBrowseMember` set every time a user switches via ◄ ▶ or dropdown.
+- Cookies are `httpOnly: false` so client-side router pushes can update them via `document.cookie`.
+
+**Sibling-gear row** appears only when the current member has 2+ Equipment rows in this project. Tapping a sibling card stays on the same member but swaps the equipment — Browse Header doesn't re-flash.
+
+---
+
 ## Rack Studio — drag a preset onto an RU (v2.4)
 
 PointerEvents-based drag pipeline (no HTML5 DnD — see PD-025). Touching a library tile arms a `pendingDragRef`; once the pointer moves past a 6px threshold the drag promotes to active, the library bottom sheet (mobile) auto-closes so the operator can see the chassis, and the chassis lights up cyan as droppable. Releasing on an RU calls the server action; out-of-bounds and collisions snap back.

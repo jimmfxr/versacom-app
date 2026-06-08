@@ -278,6 +278,87 @@ letting the admin pick a target member + status manually.
 
 ---
 
+## 5a. Panel Studio session mode
+
+Same route (`/projects/[id]/panel/[equipmentId]`) renders in different modes depending on who is viewing, who the panel belongs to, and how the operator arrived. Mode determines whether save is direct (admin) vs change-request (everyone else), whether Copy/Paste appears, whether the Browse Header sits above the chassis, and whether per-key Approve/Deny toggles render.
+
+```mermaid
+stateDiagram-v2
+    direction TB
+
+    [*] --> own_panel : Viewer = panel's assigned member
+    [*] --> others_panel : Viewer != assigned member\n(admin/manager/global admin only)
+
+    own_panel --> own_admin_direct : Viewer is admin
+    own_panel --> own_request : Viewer is manager/crew/user
+
+    others_panel --> others_admin_direct : Viewer is admin (global or scoped)
+    others_panel --> others_request : Viewer is manager (sends as endorsement)
+
+    own_admin_direct --> browse_layer : URL has ?from=my-equipment
+    others_admin_direct --> browse_layer : URL has ?from=my-equipment
+    others_request --> browse_layer : URL has ?from=my-equipment
+
+    browse_layer --> review_mode : URL has ?review=memberId\n(admin clicked Review in Tasks)
+
+    review_mode --> applied : Admin Resolves with at least one approval
+    review_mode --> rejected : Admin Resolves with all denied
+    applied --> [*] : router.replace /admin
+    rejected --> [*] : router.replace /admin
+
+    note right of own_admin_direct
+        Edit → saved immediately.
+        No change-request created.
+        Copy + Paste buttons hidden
+        (no one else to paste FROM).
+    end note
+
+    note right of others_admin_direct
+        Edit → saved immediately (global admin override).
+        Copy + Paste buttons shown.
+        Browse Header above if ?from=my-equipment.
+    end note
+
+    note right of own_request
+        Edit → ChangeRequest(submitted)
+        green highlight on key.
+        No Copy/Paste.
+    end note
+
+    note right of others_request
+        Edit → ChangeRequest(submitted)
+        marked mgr_endorsed if viewer is manager.
+        Copy + Paste shown.
+    end note
+
+    note right of browse_layer
+        Adds Browse Header to top:
+        show ▼  · user ▼ · ◄ ►
+        Nav highlight flips to My Equipment.
+        Cookies remember last project + last member.
+    end note
+
+    note right of review_mode
+        Per-key Approve/Deny toggles
+        replace the picker.
+        Resolve button replaces Save.
+        Submitted-green keys are read-only
+        until per-key choice made.
+    end note
+```
+
+**Mode-determining inputs:**
+
+| Input | Source |
+|---|---|
+| Is panel mine? | `equipment.assignedToId === session.member.id` |
+| Am I admin? | `session.memberships.some(m => m.role === 'admin')` (global) OR `currentMembership.role === 'admin'` |
+| Am I manager on this project? | `currentMembership.role === 'manager'` |
+| Browse mode? | URL `?from=my-equipment` is present |
+| Review mode? | URL `?review={memberId}` is present (only admin gets the route here from Tasks) |
+
+---
+
 ## 6a. RackSlot lifecycle (Rack Studio, v2.4)
 
 The slot moves through a small state machine driven by drag-and-tap operator actions. Library tiles + chassis rows act together as the placement target. A slot can be linked to an `Equipment` row (`equipmentId IS NOT NULL`) or stand-alone — the link is set at creation and can be swapped via the slot's edit form but the slot itself stays the same row.

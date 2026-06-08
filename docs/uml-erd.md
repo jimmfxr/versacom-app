@@ -374,6 +374,58 @@ erDiagram
     ChangeRequest }o--|| User : "submittedBy"
 ```
 
+### Panel Studio subset (core since Phase 1)
+
+Six-entity slice driving the key-editor surface — the central feature of the app. `PanelKey` is the durable assignment (one row per physical key position on a specific piece of gear). `KeyDraft` holds in-flight edits before they're submitted. `ChangeRequest` + `ChangeRequestItem` carry the approval bundle. `PickListItem` is the comm function being assigned. `Equipment` scopes everything to a specific physical device (PanelKey was scoped by member historically; promoted to equipment-scoped 2026-05-08 so multi-device members can have separate state per device).
+
+```mermaid
+erDiagram
+    Project ||--o{ Equipment : ""
+    Project ||--o{ PickListItem : ""
+    Project ||--o{ ProjectMember : ""
+    ProjectMember ||--o{ Equipment : "assigned to"
+    Equipment ||--o{ PanelKey : "scoped to"
+    Equipment ||--o{ ChangeRequest : "scoped to"
+    ProjectMember ||--o{ PanelKey : "owned by member"
+    PickListItem ||--o{ PanelKey : "current value"
+    PanelKey ||--o{ KeyDraft : "in-flight edits"
+    PanelKey ||--o{ ChangeRequestItem : "referenced"
+    ChangeRequest ||--o{ ChangeRequestItem : "contains"
+
+    PanelKey {
+        int equipmentId FK
+        int projectMemberId FK
+        int keyIndex "1..N physical position"
+        string page "main or shift"
+        int expansion "0..N for expansion panels"
+        int pickListItemId FK "nullable"
+        string triggerMode
+        string talkMode
+    }
+    KeyDraft {
+        int panelKeyId FK
+        int editedById FK
+        int pickListItemId FK
+        string status "draft or submitted"
+    }
+    ChangeRequest {
+        int equipmentId FK
+        int submittedById FK
+        int targetMemberId FK
+        string status "draft submitted mgr_endorsed applied rejected discarded"
+        datetime resolvedAt
+    }
+    ChangeRequestItem {
+        int changeRequestId FK
+        int panelKeyId FK
+        string fieldChanged
+        string previousValue
+        string newValue
+    }
+```
+
+**Why equipment-scoped (not member-scoped) PanelKey:** A crew member assigned both an HWBP-1 and a PNL-3 has TWO physical panels — their key state on each should be independent. Old schema scoped PanelKey by `projectMemberId` only; that meant editing HWBP-1's keys also moved PNL-3's keys. Migration `(equipmentId, keyIndex, page, expansion)` unique constraint isolates per-device state. ChangeRequest moved with it — admin reviews are split per device.
+
 ### Rack designer subset (v2.4)
 
 ```mermaid
