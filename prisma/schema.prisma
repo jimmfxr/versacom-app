@@ -557,6 +557,11 @@ model Equipment {
   // asset all flow through to the rack visualization.
   rackSlots       RackSlot[]      @relation("RackSlotEquipment")
   rackLooseItems  RackLooseItem[] @relation("RackLooseEquipment")
+  // Switch Studio — when this Equipment row is a switch (category=
+  // 'switches' + a NETGEAR M4250 hardwareType), it has one SwitchPort
+  // row per physical port on the chassis. Cascade-delete with the
+  // equipment so a deleted switch removes its port config too.
+  switchPorts     SwitchPort[]
 }
 
 // One row per strand/pair on a mult. The mult itself lives in
@@ -693,4 +698,76 @@ model NfgReport {
   equipment  Equipment @relation(fields: [equipmentId], references: [id])
   asset      Asset?    @relation(fields: [assetId], references: [id])
   reportedBy User      @relation(fields: [reportedById], references: [id])
+}
+
+/// VLAN profile — the global, company-wide pool of VLAN configurations
+/// every show's switch fleet draws from. Seeded once on migration with
+/// the 25 standard profiles (Default / Reserved / Program / Secondary /
+/// V-CommsDante1+2 / V-AES67_1+2 / Lighting1-5 / Video1-2 /
+/// Automation1-2 / VLAN7-9 / WAN1+2 / VPN Transfer / Null/Blackhole /
+/// Management). No projectId — same profile list applies everywhere.
+///
+/// Editing this list is an admin-only operation handled via direct DB
+/// access for now; a /admin/vlans editor is a follow-up.
+model VlanProfile {
+  id          Int     @id @default(autoincrement())
+  /// Operator-facing name. Convention: 'V-CommsDante1', 'V-AES67_1',
+  /// 'Program', etc.
+  name        String
+  /// 802.1Q VLAN ID. Unique because the protocol requires it — two
+  /// profiles can never share the same VLAN ID on the wire.
+  vlanId      Int     @unique
+  /// Hex color including the leading '#'. Drives port-cell fill on the
+  /// Switch Studio chassis visualization.
+  color       String
+  /// 'Data' | 'Audio Dante' | 'Audio AES67' — used to group profiles
+  /// in the port edit popover.
+  profileType String
+  /// Short description shown in the popover row + as an aria-label on
+  /// port cells for screen readers.
+  description String?
+  /// Stable display order in the popover. Hardcoded sort_order keeps
+  /// the list predictable across renders + matches the order
+  /// operators see in NETGEAR ProAV Engage.
+  sortOrder   Int
+
+  // Relations
+  switchPorts SwitchPort[]
+}
+
+/// One row per physical port on a switch Equipment row. Created lazily
+/// the first time the switch is opened in Switch Studio — the server
+/// page reads switchModelLayout(hardwareType) from src/lib/switch-models
+/// to know how many ports of each kind (rj45/sfp) to create + which
+/// default VLAN profile each port lands on (e.g. ports 1-12 = CommsDante1
+/// on a 26P+4F).
+///
+/// profileId is the UNTAGGED / primary VLAN on this port. When
+/// isTrunk=true the port renders gray (Management color) with a 'T'
+/// badge regardless of profileId — matches NETGEAR Engage's trunk
+/// visualization. Tagged-VLAN enumeration on trunk ports is deferred
+/// (no model for it yet).
+model SwitchPort {
+  id          Int     @id @default(autoincrement())
+  equipmentId Int
+  /// 1-based physical port number on the chassis. RJ45 ports first
+  /// (1..rj45Count), then SFP ports continue (rj45Count+1 .. total).
+  /// Matches the NETGEAR-printed labels on the switch face.
+  portIndex   Int
+  /// 'rj45' | 'sfp'. Drives the visual cell shape on the chassis
+  /// (rj45 = square, sfp = slimmer rectangle).
+  portKind    String
+  /// Untagged / primary VLAN. Nullable — an unassigned port renders as
+  /// an empty outlined cell.
+  profileId   Int?
+  /// Operator-flagged trunk port. Visual flips to gray + T badge
+  /// regardless of profileId.
+  isTrunk     Boolean @default(false)
+
+  // Relations
+  equipment Equipment    @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  profile   VlanProfile? @relation(fields: [profileId], references: [id])
+
+  @@unique([equipmentId, portIndex])
+  @@index([equipmentId])
 }

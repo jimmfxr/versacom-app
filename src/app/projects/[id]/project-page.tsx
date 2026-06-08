@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useTransition, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
+import { getSwitchModel } from '@/lib/switch-models'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { PencilIcon, XMarkIcon, ChevronLeftIcon } from '@heroicons/react/24/outline'
 import { QRCodeSVG } from 'qrcode.react'
@@ -2750,12 +2751,30 @@ export function ProjectPage({
                                   </button>
                                 ) : (
                                   <>
-                                    <span
-                                      className={`transition-colors duration-500 ${item.ipAddress && reachable[item.id] ? 'text-green-400' : 'text-white'}`}
-                                      title={item.ipAddress && reachable[item.id] ? `${item.ipAddress} — reachable` : undefined}
-                                    >
-                                      {item.name}
-                                    </span>
+                                    {/* Switches with a registered NETGEAR M4250
+                                        model get their ID wrapped in a Link to
+                                        Switch Studio — same gesture as panels'
+                                        Panel Studio open. Unmanaged switches
+                                        (Antaira / TP Link / Pliant Hub etc.)
+                                        and non-switch categories render the
+                                        plain span fallback. */}
+                                    {item.category === 'switches' && getSwitchModel(item.hardwareType) ? (
+                                      <Link
+                                        href={`/projects/${project.id}/switch/${item.id}`}
+                                        style={{ touchAction: 'manipulation' }}
+                                        className={`transition-colors duration-500 hover:underline decoration-current/30 hover:decoration-current ${item.ipAddress && reachable[item.id] ? 'text-green-400' : 'text-white'}`}
+                                        title={item.ipAddress && reachable[item.id] ? `${item.ipAddress} — reachable · Click to open Switch Studio` : 'Click to open Switch Studio'}
+                                      >
+                                        {item.name}
+                                      </Link>
+                                    ) : (
+                                      <span
+                                        className={`transition-colors duration-500 ${item.ipAddress && reachable[item.id] ? 'text-green-400' : 'text-white'}`}
+                                        title={item.ipAddress && reachable[item.id] ? `${item.ipAddress} — reachable` : undefined}
+                                      >
+                                        {item.name}
+                                      </span>
+                                    )}
                                     {/* Antennas: free-form "Name"
                                         (position field) sits to the
                                         right of the ANT N ID in cyan
