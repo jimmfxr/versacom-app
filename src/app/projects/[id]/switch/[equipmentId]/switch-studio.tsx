@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { ProjectSwitcher } from '@/app/project-dashboard'
 import { updateSwitchPort } from './actions'
@@ -102,25 +103,18 @@ export function SwitchStudio({
   return (
     <>
       {/* ─── Page header ───
-          Switch name + model meta on the left, Close button +
-          ProjectSwitcher on the right. Mirrors the Rack Studio
-          standalone header pattern, with bottom-border-2 white/20 to
-          match the rest of the project chrome. */}
+          'Comms' as the page-level title (same chrome as the Project
+          Detail / Equipment page operators are coming from), Close
+          button + ProjectSwitcher on the right. The switch identity
+          (name · model · port count) lives BELOW the border, not
+          inside the header — matches what the operator asked for
+          and mirrors how Panel Studio puts the user identity strip
+          under its own page header. */}
       <header className="flex flex-row items-center justify-between gap-3 border-b-2 border-white/20 pb-4">
-        <div className="min-w-0">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white truncate">
-            {equipment.name}
-          </h1>
-          <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
-            <span className="text-gray-300">{equipment.modelLabel}</span>
-            <span className="text-gray-600">·</span>
-            <span>{equipment.rj45Count + equipment.sfpCount} ports</span>
-          </div>
-        </div>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white truncate">
+          Comms
+        </h1>
         <div className="flex items-center gap-2 shrink-0">
-          {/* Close — bordered text button like the rest of the studio
-              pages (Rack Studio Back / Panel Studio Back). Sends the
-              operator back to Comms with the Equipment tab active. */}
           <button
             type="button"
             onClick={() => router.push(`/projects/${project.id}?tab=equipment`)}
@@ -129,10 +123,6 @@ export function SwitchStudio({
           >
             Close
           </button>
-          {/* ProjectSwitcher — switching projects sends the user to
-              the new project's main page (we can't deep-link to an
-              equivalent switch there). Mobile half-row to match the
-              rest of the project chrome. */}
           <div className="w-[calc(50vw-1rem)] sm:w-auto">
             <ProjectSwitcher
               projectId={project.id}
@@ -144,11 +134,25 @@ export function SwitchStudio({
         </div>
       </header>
 
+      {/* Switch identity strip — name + model + port count, lives
+          under the page header border. Centered on the page so the
+          operator's eye lands here before the chassis below. */}
+      <div className="flex flex-col items-center gap-1 pt-4 sm:pt-6">
+        <div className="text-xl font-semibold text-white">{equipment.name}</div>
+        <div className="flex items-center gap-2 text-xs text-gray-500">
+          <span className="text-gray-300">{equipment.modelLabel}</span>
+          <span className="text-gray-600">·</span>
+          <span>{equipment.rj45Count + equipment.sfpCount} ports</span>
+        </div>
+      </div>
+
       {/* Chassis — flex-1 vertically centers it on tall viewports.
           Padding gives the chassis breathing room on both axes; on
           large displays the chassis hovers in the middle of the
-          workspace like Panel Studio's panel. */}
-      <div className="flex flex-1 items-center justify-center py-10">
+          workspace like Panel Studio's panel. The flex layout
+          horizontally centers the chassis at all viewport widths
+          (text-align-based mx-auto wasn't reliable on inline-block). */}
+      <div className="flex flex-1 items-center justify-center py-8">
         <Chassis
           rj45Count={equipment.rj45Count}
           sfpCount={equipment.sfpCount}
@@ -207,14 +211,18 @@ function Chassis({
 
   return (
     <div className="relative w-full">
-      <div className="overflow-x-auto pb-2">
+      {/* Horizontal scroll container — flex justify-center centers
+          the chassis when it fits, falls back to natural left-
+          aligned scroll when the chassis is wider than the viewport
+          (e.g. a 40-port switch on mobile). The flex wrapper is
+          what actually centers — the chassis itself is inline-block
+          so mx-auto wouldn't work. */}
+      <div className="flex justify-center overflow-x-auto pb-2">
         <div
           // Chassis bezel — matches Panel Studio's panel-chassis chrome
           // (bg-[#2a2a2a] · border-white/[0.06] · rounded-[14px] ·
-          // padded) so the two studios read as siblings. mx-auto +
-          // inline-block keeps the chassis centered in the workspace
-          // while shrinking to its actual port-grid width.
-          className="mx-auto inline-block rounded-[14px] border border-white/[0.06] bg-[#2a2a2a] p-6 sm:p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+          // padded) so the two studios read as siblings.
+          className="inline-block shrink-0 rounded-[14px] border border-white/[0.06] bg-[#2a2a2a] p-6 sm:p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
         >
           <div
             className="grid gap-2"
@@ -309,10 +317,17 @@ function PortCell({
   // size-9 to size-12 so the switch reads as a real chassis at
   // arm's length rather than a tiny grid.
   const aspectClass = port.portKind === 'sfp' ? 'h-12 w-10' : 'h-12 w-12'
+  // Anchor for the portaled popover. Measured on open via
+  // getBoundingClientRect so the popover sits below the cell even
+  // when the chassis is inside an overflow-x-auto scroll container
+  // (which would otherwise clip a same-DOM absolutely-positioned
+  // popover).
+  const cellRef = useRef<HTMLButtonElement>(null)
 
   return (
     <div className="relative" style={style}>
       <button
+        ref={cellRef}
         type="button"
         onClick={() => canEdit && onOpen()}
         disabled={!canEdit}
@@ -346,8 +361,10 @@ function PortCell({
         )}
       </button>
 
-      {/* Popover — absolutely positioned below the cell. z-50 so it
-          rides above sibling port cells. */}
+      {/* Popover renders via createPortal to escape the chassis's
+          overflow-x-auto scroller (which was clipping the popover
+          for cells near the chassis edge). Position is computed
+          from the cell's bounding rect on open. */}
       {isOpen && canEdit && (
         <PortEditPopover
           port={port}
@@ -355,6 +372,7 @@ function PortCell({
           profiles={profiles}
           onPatch={onPatch}
           onClose={onClose}
+          anchorRef={cellRef}
         />
       )}
     </div>
@@ -374,16 +392,18 @@ function PortCell({
  */
 function PortEditPopover({
   port,
-  profile,
+  profile: _profile,
   profiles,
   onPatch,
   onClose,
+  anchorRef,
 }: {
   port: Port
   profile: Profile | null
   profiles: Profile[]
   onPatch: (next: { profileId: number | null; isTrunk: boolean }) => void
   onClose: () => void
+  anchorRef: React.RefObject<HTMLButtonElement | null>
 }) {
   // Group profiles by type for the section headers. Map preserves
   // insertion order, which already matches sortOrder from the DB.
@@ -394,14 +414,47 @@ function PortEditPopover({
     grouped.set(p.profileType, arr)
   }
 
-  return (
+  // Position the popover anchored to the cell. Measured via
+  // getBoundingClientRect on mount + re-measured on viewport
+  // scroll/resize so the popover stays glued to the cell if the
+  // chassis horizontal-scrolls underneath it. Clamped to viewport
+  // edges so the popover never spills off-screen for the leftmost
+  // / rightmost ports.
+  const POPOVER_WIDTH = 288 // matches w-72
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
+  useEffect(() => {
+    function update() {
+      const el = anchorRef.current
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      let left = rect.left + rect.width / 2 - POPOVER_WIDTH / 2
+      // Clamp so the popover never spills past the viewport edge —
+      // important for port 1 (leftmost) and the last SFP port
+      // (rightmost) on a chassis that's wider than the viewport.
+      const maxLeft = window.innerWidth - POPOVER_WIDTH - 8
+      left = Math.max(8, Math.min(left, maxLeft))
+      const top = rect.bottom + 8
+      setPos({ left, top })
+    }
+    update()
+    window.addEventListener('scroll', update, true)
+    window.addEventListener('resize', update)
+    return () => {
+      window.removeEventListener('scroll', update, true)
+      window.removeEventListener('resize', update)
+    }
+  }, [anchorRef])
+
+  if (typeof document === 'undefined' || !pos) return null
+  return createPortal(
     <>
       {/* Click-outside backdrop — full-viewport transparent overlay
           that closes the popover on tap. Below the popover's z-index
           so the popover itself stays interactive. */}
-      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div className="fixed inset-0 z-[100]" onClick={onClose} />
       <div
-        className="absolute left-1/2 top-full z-50 mt-2 w-72 -translate-x-1/2 overflow-hidden rounded-lg border-2 border-white/10 bg-[#2a2a2a] shadow-2xl"
+        style={{ position: 'fixed', left: pos.left, top: pos.top, width: POPOVER_WIDTH }}
+        className="z-[110] overflow-hidden rounded-lg border-2 border-white/10 bg-[#2a2a2a] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-label={`Port ${port.portIndex} VLAN picker`}
@@ -468,7 +521,8 @@ function PortEditPopover({
           </label>
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   )
 }
 
