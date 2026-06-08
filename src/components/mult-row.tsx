@@ -239,7 +239,16 @@ function StrandRow({
     <div className="flex flex-col gap-2 border-b border-white/[0.04] pb-3 last:border-b-0 last:pb-0 sm:flex-row sm:items-center sm:gap-2 sm:border-b-0 sm:pb-0">
       <div className="flex items-center gap-2 sm:flex-1">
         <span
-          className={`flex size-7 shrink-0 items-center justify-center rounded-md text-[10px] font-bold ${color.tw} ${color.tw.includes('bg-gray-100') || color.tw.includes('bg-yellow-400') || color.tw.includes('bg-cyan-300') || color.tw.includes('bg-orange-500') || color.tw.includes('bg-pink-400') ? 'text-black' : 'text-white'}`}
+          // Inline width/height pins each swatch to a hard 28x28 so
+          // none of them can be shrunk by the flex parent regardless
+          // of Tailwind class resolution. size-7 + shrink-0 should
+          // do the same thing but the Black swatch kept rendering
+          // smaller than its siblings in practice — possibly a
+          // box-sizing / contained-content effect specific to pure
+          // black on the dark page bg. The inline style is the
+          // belt-and-suspenders fix.
+          style={{ width: 28, height: 28, minWidth: 28, minHeight: 28 }}
+          className={`flex shrink-0 items-center justify-center rounded-md text-[10px] font-bold ${color.tw} ${color.tw.includes('bg-gray-100') || color.tw.includes('bg-yellow-400') || color.tw.includes('bg-cyan-300') || color.tw.includes('bg-orange-500') || color.tw.includes('bg-pink-400') ? 'text-black' : 'text-white'}`}
           title={color.label}
         >
           {strand.index}

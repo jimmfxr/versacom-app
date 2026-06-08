@@ -77,7 +77,7 @@ const FIBER_COLORS_BASE = [
   { label: 'Slate', tw: 'bg-slate-400' },
   { label: 'White', tw: 'bg-gray-100' },
   { label: 'Red', tw: 'bg-red-500' },
-  { label: 'Black', tw: 'bg-black border border-white/20' },
+  { label: 'Black', tw: 'bg-black' },
   { label: 'Yellow', tw: 'bg-yellow-400' },
   { label: 'Violet', tw: 'bg-violet-500' },
   { label: 'Rose', tw: 'bg-pink-400' },
@@ -98,7 +98,7 @@ const RESISTOR_COLORS_BASE = [
   { label: 'Violet', tw: 'bg-violet-500' },
   { label: 'Gray', tw: 'bg-gray-400' },
   { label: 'White', tw: 'bg-gray-100' },
-  { label: 'Black', tw: 'bg-black border border-white/20' },
+  { label: 'Black', tw: 'bg-black' },
 ]
 
 export type StrandColor = { label: string; tw: string }
