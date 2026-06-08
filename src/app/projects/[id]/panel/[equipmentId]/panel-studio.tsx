@@ -2127,10 +2127,10 @@ export function PanelStudio({
           )}
           <div className={`flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 justify-center ${stackHeader ? 'sm:max-lg:justify-start' : 'sm:justify-start'}`}>
             {equipment.name && (
-              <span className="text-[18px] font-bold text-[#22a7d3] font-mono lg:text-[22px]">{equipment.name}</span>
+              <span className="text-[18px] font-bold text-white font-mono lg:text-[22px]">{equipment.name}</span>
             )}
             {equipment.name && <span className="text-xs text-[#3a3a3a]">&middot;</span>}
-            <span className="text-[18px] font-bold text-white truncate lg:text-[22px]">{memberName}</span>
+            <span className="text-[18px] font-bold text-[#22a7d3] truncate lg:text-[22px]">{memberName}</span>
             {memberMeta && (
               <>
                 <span className="text-xs text-[#3a3a3a]">&middot;</span>
