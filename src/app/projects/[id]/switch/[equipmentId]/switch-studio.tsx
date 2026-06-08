@@ -62,6 +62,10 @@ export function SwitchStudio({
     id: number
     name: string
     modelLabel: string
+    /** Equipment.ipAddress — rendered cyan after the model label in
+     *  the identity strip so the operator can see at a glance which
+     *  IP this switch is reachable at. */
+    ipAddress: string | null
     rj45Count: number
     sfpCount: number
   }
@@ -104,46 +108,50 @@ export function SwitchStudio({
     <>
       {/* ─── Page header ───
           'Comms' as the page-level title (same chrome as the Project
-          Detail / Equipment page operators are coming from), Close
-          button + ProjectSwitcher on the right. The switch identity
-          (name · model · port count) lives BELOW the border, not
-          inside the header — matches what the operator asked for
-          and mirrors how Panel Studio puts the user identity strip
-          under its own page header. */}
+          Detail / Equipment page operators are coming from). Only the
+          ProjectSwitcher rides up here; Close moved down to the
+          switch-identity row per operator request. */}
       <header className="flex flex-row items-center justify-between gap-3 border-b-2 border-white/20 pb-4">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white truncate">
           Comms
         </h1>
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => router.push(`/projects/${project.id}?tab=equipment`)}
-            style={{ touchAction: 'manipulation' }}
-            className="inline-flex rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
-          >
-            Close
-          </button>
-          <div className="w-[calc(50vw-1rem)] sm:w-auto">
-            <ProjectSwitcher
-              projectId={project.id}
-              projectName={project.name}
-              userProjects={userProjects}
-              basePath="/projects/:id"
-            />
-          </div>
+        <div className="w-[calc(50vw-1rem)] sm:w-auto shrink-0">
+          <ProjectSwitcher
+            projectId={project.id}
+            projectName={project.name}
+            userProjects={userProjects}
+            basePath="/projects/:id"
+          />
         </div>
       </header>
 
-      {/* Switch identity strip — name + model + port count, lives
-          under the page header border. Centered on the page so the
-          operator's eye lands here before the chassis below. */}
-      <div className="flex flex-col items-center gap-1 pt-4 sm:pt-6">
-        <div className="text-xl font-semibold text-white">{equipment.name}</div>
-        <div className="flex items-center gap-2 text-xs text-gray-500">
-          <span className="text-gray-300">{equipment.modelLabel}</span>
-          <span className="text-gray-600">·</span>
-          <span>{equipment.rj45Count + equipment.sfpCount} ports</span>
+      {/* Switch identity strip — single row, name · model · ip · port
+          count on the FAR LEFT, Close button on the FAR RIGHT. Sits
+          directly under the page header border, before the chassis.
+          IP renders in cyan (same accent the equipment list / library
+          tile use elsewhere). */}
+      <div className="flex flex-row items-baseline justify-between gap-3 pt-4 sm:pt-6">
+        <div className="min-w-0 flex items-baseline gap-2 truncate">
+          <span className="text-xl font-semibold text-white truncate">{equipment.name}</span>
+          <span className="shrink-0 text-sm text-gray-600">·</span>
+          <span className="shrink-0 text-sm text-gray-300">{equipment.modelLabel}</span>
+          {equipment.ipAddress && (
+            <>
+              <span className="shrink-0 text-sm text-gray-600">·</span>
+              <span className="shrink-0 truncate text-sm font-mono text-[#22a7d3]">{equipment.ipAddress}</span>
+            </>
+          )}
+          <span className="shrink-0 text-sm text-gray-600">·</span>
+          <span className="shrink-0 text-sm text-gray-500">{equipment.rj45Count + equipment.sfpCount} ports</span>
         </div>
+        <button
+          type="button"
+          onClick={() => router.push(`/projects/${project.id}?tab=equipment`)}
+          style={{ touchAction: 'manipulation' }}
+          className="shrink-0 inline-flex rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+        >
+          Close
+        </button>
       </div>
 
       {/* Chassis — flex-1 vertically centers it on tall viewports.

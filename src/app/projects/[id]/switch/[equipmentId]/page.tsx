@@ -61,6 +61,7 @@ export default async function SwitchStudioPage({
       id: true,
       name: true,
       hardwareType: true,
+      ipAddress: true,
       switchPorts: {
         select: {
           id: true,
@@ -179,6 +180,7 @@ export default async function SwitchStudioPage({
           id: equipment.id,
           name: equipment.name,
           modelLabel: model.label,
+          ipAddress: equipment.ipAddress,
           rj45Count: model.rj45Count,
           sfpCount: model.sfpCount,
         }}
