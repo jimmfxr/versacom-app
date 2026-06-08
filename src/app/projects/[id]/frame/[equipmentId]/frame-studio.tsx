@@ -361,12 +361,15 @@ function BayCell({
         disabled={!canEdit}
         aria-label={`Bay ${bay.key} — ${getCardLabel(slot.cardType)}`}
         title={`Bay ${bay.key} · ${getCardLabel(slot.cardType)}`}
-        // Wider cells so each bay reads like a horizontal Riedel card
-        // module — h-14 (56px) × w-36 (144px) is roughly a 2.5:1
-        // landscape rectangle, matching how the physical bays look on
-        // the Artist chassis. Previous h-16 w-20 (4:5 portrait) read
-        // too much like NETGEAR Switch Studio's port-key cells.
-        className={`relative flex h-14 w-36 flex-col items-center justify-between rounded-md border ${accentBorder} ${baseBg} px-3 py-1.5 text-xs font-bold transition-transform ${
+        // Compact landscape cells so the operator can see more bays
+        // on screen — especially relevant for MFR 128's single-row
+        // 20-bay chassis (was overflowing way past the viewport at
+        // h-14 w-36 = 56×144 = 2880px wide). h-11 w-20 (44×80) cuts
+        // each cell to ~30% of its old footprint while keeping the
+        // bay key (top) + card short label (bottom) readable. The
+        // landscape Riedel-card aspect ratio is preserved (1.8:1 vs
+        // the previous 2.6:1).
+        className={`relative flex h-11 w-20 flex-col items-center justify-between rounded-md border ${accentBorder} ${baseBg} px-1.5 py-1 text-[11px] font-bold transition-transform ${
           canEdit ? 'cursor-pointer active:scale-95' : 'cursor-default'
         } ${isOpen ? 'outline outline-2 outline-[#22a7d3]' : ''}`}
       >
