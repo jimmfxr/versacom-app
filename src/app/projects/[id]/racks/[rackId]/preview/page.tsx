@@ -64,7 +64,7 @@ export default async function RackPreviewPage({
           // in the preview, matching how the editable library tile
           // shows the same information.
           equipment: {
-            select: { location: true, category: true, hardwareType: true },
+            select: { location: true, category: true, hardwareType: true, ipAddress: true },
           },
         },
         orderBy: [{ side: 'asc' }, { ruPosition: 'asc' }],
@@ -93,6 +93,7 @@ export default async function RackPreviewPage({
             // backed (preset / custom device).
             linkedLocation: s.equipment?.location ?? null,
             linkedHardwareType: s.equipment?.hardwareType ?? null,
+            linkedIpAddress: s.equipment?.ipAddress ?? null,
           }))}
         />
       </div>

@@ -75,6 +75,10 @@ type LibraryItem = RackDevicePreset & {
   /** Equipment.location — rendered cyan between the white id name
    *  and the gray model on equipment-backed tiles. */
   location?: string | null
+  /** Equipment.ipAddress — rendered in mono gray after the model
+   *  on equipment-backed tiles so operators can see at a glance
+   *  which switch is which IP. */
+  ipAddress?: string | null
 }
 
 /** Pared-down Equipment shape for the slot edit form's link picker.
@@ -386,6 +390,7 @@ export function RackStudio({
           isEquipment: true as const,
           hardwareType: eq.hardwareType,
           location: eq.location,
+          ipAddress: eq.ipAddress,
         }
       }),
     ...presets.map((p) => ({ ...p })),
@@ -1941,11 +1946,11 @@ function DeviceTile({
                 : 'border-white/[0.08] text-gray-300 hover:border-[rgba(34,167,211,0.5)] hover:bg-white/[0.03]'
         }`}
       >
-        {/* Equipment-backed tile: three pieces on one row,
-            colored independently — id (white) · location (cyan) ·
-            model (gray). Each segment truncates so the row
-            doesn't blow out the tile width. Presets just render
-            their single name in default text color. */}
+        {/* Equipment-backed tile: four pieces on one row, colored
+            independently — id (white) · location (cyan) · model
+            (gray) · ip (mono gray). Each segment truncates so the
+            row doesn't blow out the tile width. Presets just
+            render their single name in default text color. */}
         {preset.isEquipment ? (
           <span className="min-w-0 flex items-baseline gap-2">
             <span className="truncate text-white">{preset.name}</span>
@@ -1954,6 +1959,9 @@ function DeviceTile({
             )}
             {preset.hardwareType && (
               <span className="truncate text-[11px] text-gray-500">{preset.hardwareType}</span>
+            )}
+            {preset.ipAddress && (
+              <span className="truncate text-[11px] font-mono text-gray-400">{preset.ipAddress}</span>
             )}
           </span>
         ) : (
@@ -2511,6 +2519,9 @@ function SlotRow({
                   )}
                   {linkedEq.hardwareType && (
                     <span className="truncate text-[11px] text-gray-500">{linkedEq.hardwareType}</span>
+                  )}
+                  {linkedEq.ipAddress && (
+                    <span className="truncate text-[11px] font-mono text-gray-400">{linkedEq.ipAddress}</span>
                   )}
                 </span>
               )

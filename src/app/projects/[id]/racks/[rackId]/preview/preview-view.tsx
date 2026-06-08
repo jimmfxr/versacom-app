@@ -39,6 +39,11 @@ type Slot = {
    *  next to the location, same color treatment as the library
    *  tile in the editable rack studio. */
   linkedHardwareType?: string | null
+  /** Linked Equipment.ipAddress. Rendered in mono gray after the
+   *  model so operators can see at a glance which switch lives at
+   *  which IP. Same treatment as the library tile + slot card in
+   *  the editable rack studio. */
+  linkedIpAddress?: string | null
 }
 
 /**
@@ -133,6 +138,9 @@ function Chassis({
               )}
               {s.linkedHardwareType && (
                 <span className="truncate text-[10px] text-gray-500 print:text-black">{s.linkedHardwareType}</span>
+              )}
+              {s.linkedIpAddress && (
+                <span className="truncate text-[10px] font-mono text-gray-400 print:text-black">{s.linkedIpAddress}</span>
               )}
             </span>
             {/* Invisible spacer mirroring the RU number column width
