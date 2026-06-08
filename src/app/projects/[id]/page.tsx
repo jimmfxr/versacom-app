@@ -424,8 +424,10 @@ export default async function ProjectDetailPage({
       rackEquipment={equipment
         // Rack-eligible categories. Panels sit on desks, not in
         // racks, so they're excluded. Add categories here when a
-        // new kind of gear becomes rack-mountable.
-        .filter((e) => ['switches', 'audio'].includes(e.category))
+        // new kind of gear becomes rack-mountable. Frames joined
+        // the list in v2.6 — they're rack-mounted hardware just
+        // like switches and audio.
+        .filter((e) => ['switches', 'audio', 'frames'].includes(e.category))
         .map((e) => ({
           id: e.id,
           name: e.name,
