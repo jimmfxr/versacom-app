@@ -157,8 +157,16 @@ export function SwitchStudio({
       <div className="flex items-baseline justify-between gap-3 pt-4 sm:pt-6">
         <div className="min-w-0 flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className="text-xl font-semibold text-white">{equipment.name}</span>
-          <span className="text-sm text-gray-600">·</span>
-          <span className="truncate text-sm text-gray-300">{equipment.modelLabel}</span>
+          {/* Model moved onto the chassis bezel itself (cyan label in
+              the top-right of the chassis card). Keeping it here too
+              would just repeat the same string — but we still need
+              a separator dot before IP on desktop so the inline row
+              reads as 'SW 1 · 10.249.96.54 · 30 ports'. Hidden on
+              mobile (sm:inline only) so the wrap-break starts the
+              next line cleanly without a leading dot. */}
+          {equipment.ipAddress && (
+            <span className="hidden text-sm text-gray-600 sm:inline">·</span>
+          )}
           {/* Forced wrap on mobile — empty full-width flex item
               breaks the line before IP. sm:hidden removes it on
               desktop so the row stays single. aria-hidden because
@@ -200,6 +208,7 @@ export function SwitchStudio({
           rj45Count={equipment.rj45Count}
           sfpCount={equipment.sfpCount}
           chassisRows={equipment.chassisRows}
+          modelLabel={equipment.modelLabel}
           ports={ports}
           profileById={profileById}
           managementColor={managementProfile?.color ?? '#808080'}
@@ -228,6 +237,7 @@ function Chassis({
   rj45Count,
   sfpCount,
   chassisRows,
+  modelLabel,
   ports,
   profileById,
   managementColor,
@@ -241,6 +251,10 @@ function Chassis({
   rj45Count: number
   sfpCount: number
   chassisRows: 1 | 2
+  /** NETGEAR model label (e.g. 'M4250-26G4F-PoE+') — rendered in
+   *  cyan at the top-right of the chassis bezel as a chassis-printed
+   *  manufacturer plate. */
+  modelLabel: string
   ports: Port[]
   profileById: Map<number, Profile>
   managementColor: string
@@ -279,6 +293,14 @@ function Chassis({
           // padded) so the two studios read as siblings.
           className="mx-auto w-fit rounded-[14px] border border-white/[0.06] bg-[#2a2a2a] p-6 sm:p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
         >
+          {/* Chassis-printed model label — sits inside the bezel,
+              top-right, in cyan. Reads like a NETGEAR manufacturer
+              plate stamped on the physical chassis face. Replaces
+              the model in the identity strip above (otherwise it
+              repeated). */}
+          <div className="mb-3 text-right text-[10px] font-bold uppercase tracking-wider text-[#22a7d3]">
+            {modelLabel}
+          </div>
           {/* Grid row count is per-model. 2 rows (NETGEAR's odd-top /
               even-bottom convention) for the larger switches —
               26P+4F, 40P+4F, 24X8F8V. 1 row for the small / single-
