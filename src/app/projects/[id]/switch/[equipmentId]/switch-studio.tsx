@@ -4,6 +4,7 @@ import { useState, useTransition, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { ProjectSwitcher } from '@/app/project-dashboard'
+import { AutoHideHeader } from '@/components/auto-hide-header'
 import { updateSwitchPort } from './actions'
 
 /**
@@ -110,20 +111,28 @@ export function SwitchStudio({
           'Comms' as the page-level title (same chrome as the Project
           Detail / Equipment page operators are coming from). Only the
           ProjectSwitcher rides up here; Close moved down to the
-          switch-identity row per operator request. */}
-      <header className="flex flex-row items-center justify-between gap-3 border-b-2 border-white/20 pb-4">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white truncate">
-          Comms
-        </h1>
-        <div className="w-[calc(50vw-1rem)] sm:w-auto shrink-0">
-          <ProjectSwitcher
-            projectId={project.id}
-            projectName={project.name}
-            userProjects={userProjects}
-            basePath="/projects/:id"
-          />
-        </div>
-      </header>
+          switch-identity row per operator request.
+
+          Wrapped in AutoHideHeader so the whole title row + project
+          switcher + bottom border slides up out of view on scroll-
+          down (matches Project Detail, Panel Studio, My Equipment,
+          Tasks — every page chrome behaves the same way on mobile).
+          Desktop bypasses the hide automatically. */}
+      <AutoHideHeader>
+        <header className="flex flex-row items-center justify-between gap-3 border-b-2 border-white/20 pb-4">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white truncate">
+            Comms
+          </h1>
+          <div className="w-[calc(50vw-1rem)] sm:w-auto shrink-0">
+            <ProjectSwitcher
+              projectId={project.id}
+              projectName={project.name}
+              userProjects={userProjects}
+              basePath="/projects/:id"
+            />
+          </div>
+        </header>
+      </AutoHideHeader>
 
       {/* Switch identity strip.
           Mobile (two rows, fits the viewport cleanly):
