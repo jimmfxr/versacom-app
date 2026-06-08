@@ -242,10 +242,6 @@ function Chassis({
 }) {
   const portByIndex = new Map(ports.map((p) => [p.portIndex, p]))
   const totalCount = rj45Count + sfpCount
-  // Column count = ceil(total/2) so the grid is symmetric across two
-  // rows. Port columns: column 1 holds ports 1 (top) + 2 (bottom),
-  // column 2 holds 3 + 4, etc.
-  const columnCount = Math.ceil(totalCount / 2)
 
   return (
     <div className="relative w-full">
@@ -272,31 +268,26 @@ function Chassis({
           // padded) so the two studios read as siblings.
           className="mx-auto w-fit rounded-[14px] border border-white/[0.06] bg-[#2a2a2a] p-6 sm:p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
         >
-          <div
-            className="grid gap-2"
-            style={{
-              // `auto` columns size to each cell's natural width
-              // (w-12 = 48px) instead of dividing viewport width
-              // evenly. Without this, repeat(N, 1fr) forced every
-              // column to share the viewport — on mobile the cells
-              // collapsed to ~25px each, port numbers got clipped,
-              // and there was nothing to scroll. With `auto`, the
-              // grid grows to its real content width (N*48 + gaps)
-              // and the parent overflow-x-auto + w-fit chassis
-              // bezel handle the horizontal scrolling cleanly.
-              gridTemplateColumns: `repeat(${columnCount}, auto)`,
-              gridAutoRows: 'auto',
-            }}
-          >
-            {/* Two rows × columnCount columns. Each cell positioned
-                via gridRow/gridColumn so odd ports always top, even
-                always bottom regardless of RJ45/SFP breakpoint. */}
+          {/* Fixed 2 rows, columns flow naturally.
+              `grid-rows-2 grid-flow-col` means: explicit 2 rows,
+              auto-fill by column (top cell first, then bottom cell,
+              then next column). Iterate ports 1..N in order and they
+              land in NETGEAR's odd-top / even-bottom layout for free:
+
+                port 1 → row 1 col 1     port 3 → row 1 col 2
+                port 2 → row 2 col 1     port 4 → row 2 col 2
+
+              No per-cell explicit gridColumn/gridRow needed —
+              previous attempt set them inline but the 9P+1F (10
+              ports / 5 cols) was rendering as one long row.
+              Replacing with grid-rows-2 grid-flow-col is more
+              robust and matches the layout shape regardless of
+              port count. */}
+          <div className="grid grid-rows-2 grid-flow-col gap-2">
             {Array.from({ length: totalCount }, (_, i) => {
               const portIndex = i + 1
               const port = portByIndex.get(portIndex)
               if (!port) return null
-              const col = Math.ceil(portIndex / 2)
-              const row = portIndex % 2 === 1 ? 1 : 2
               return (
                 <PortCell
                   key={port.id}
@@ -309,7 +300,6 @@ function Chassis({
                   onClose={onClosePort}
                   onPatch={(next) => onPatch(port, next)}
                   profiles={profiles}
-                  style={{ gridColumn: col, gridRow: row }}
                 />
               )
             })}
@@ -340,7 +330,6 @@ function PortCell({
   onClose,
   onPatch,
   profiles,
-  style,
 }: {
   port: Port
   profile: Profile | null
@@ -351,7 +340,6 @@ function PortCell({
   onClose: () => void
   onPatch: (next: { profileId: number | null; isTrunk: boolean }) => void
   profiles: Profile[]
-  style: React.CSSProperties
 }) {
   // Trunk ports always render gray (Management color) regardless of
   // which profile sits on them — matches NETGEAR ProAV Engage. The
@@ -383,7 +371,7 @@ function PortCell({
   const cellRef = useRef<HTMLButtonElement>(null)
 
   return (
-    <div className="relative" style={style}>
+    <div className="relative">
       <button
         ref={cellRef}
         type="button"
