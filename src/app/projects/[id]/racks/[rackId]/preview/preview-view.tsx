@@ -256,21 +256,18 @@ export function RackPreviewView({
           <button
             type="button"
             onClick={() => {
-              // Defer to next tick so the click event finishes
-              // propagating before window.print() opens the modal
-              // dialog. iOS Safari is picky here — calling print()
-              // synchronously inside the click handler sometimes
-              // does nothing on iPad/iPhone because the gesture
-              // hasn't fully resolved yet. setTimeout(0) waits one
-              // microtask which is enough.
-              setTimeout(() => {
-                try {
-                  window.print()
-                } catch {
-                  // PWA / webview contexts may block print —
-                  // silently no-op rather than crash the page.
-                }
-              }, 0)
+              // iPadOS Safari is stricter about user-gesture context
+              // than iPhone — deferring window.print() via setTimeout
+              // breaks the gesture chain on iPad (silently no-ops).
+              // Call SYNCHRONOUSLY inside the click handler so the
+              // gesture is still considered live when print() fires.
+              // try/catch handles PWA / webview contexts where the
+              // print API may be blocked entirely.
+              try {
+                window.print()
+              } catch {
+                // ignore
+              }
             }}
             aria-label="Print rack"
             title="Print rack"
