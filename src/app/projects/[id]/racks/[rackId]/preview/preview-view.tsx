@@ -73,7 +73,7 @@ function Chassis({
         {side}
       </div>
       <div
-        className="relative rounded-lg border border-white/10 print:border-black"
+        className="relative rounded-lg border border-white/10 print:border-2 print:border-black"
         style={{ height: `${containerHeight}px` }}
       >
         {Array.from({ length: totalRU }, (_, i) => {
@@ -119,7 +119,7 @@ function Chassis({
               right: `${PAD_X}px`,
               height: `${s.ruSize * RU_PX - 2}px`,
             }}
-            className="flex items-center rounded-lg bg-[#2a2a2a] text-xs font-medium text-white print:bg-transparent print:border print:border-black print:text-black"
+            className="flex items-center rounded-lg bg-[#2a2a2a] text-xs font-medium text-white print:bg-transparent print:border-2 print:border-black print:text-black"
           >
             <span className="w-9 shrink-0 self-stretch flex flex-col items-center justify-around py-0.5 font-mono tabular-nums text-[10px] text-[#22a7d3] print:text-black">
               {Array.from({ length: s.ruSize }, (_, i) => (
@@ -277,7 +277,7 @@ export function RackPreviewView({
           regardless of the page's height. print:flex forces this
           layout even on mobile printers — paper always gets both
           faces visible at once. */}
-      <div className="hidden md:flex flex-1 items-center justify-center gap-8 py-6 print:!flex">
+      <div className="hidden md:flex flex-1 items-center justify-center gap-8 py-6 print:flex!">
         <Chassis side="front" slots={slots} totalRU={rack.totalRU} />
         <Chassis side="rear" slots={slots} totalRU={rack.totalRU} />
       </div>
