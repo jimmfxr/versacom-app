@@ -94,6 +94,10 @@ export default async function RackPreviewPage({
             linkedLocation: s.equipment?.location ?? null,
             linkedHardwareType: s.equipment?.hardwareType ?? null,
             linkedIpAddress: s.equipment?.ipAddress ?? null,
+            // category drives layout in the preview — frames render IP
+            // on its own row under the FRM id + model (per operator
+            // PD-036); everything else keeps the single-row layout.
+            linkedCategory: s.equipment?.category ?? null,
           }))}
         />
       </div>

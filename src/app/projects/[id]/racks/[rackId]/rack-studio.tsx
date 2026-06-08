@@ -1958,23 +1958,37 @@ function DeviceTile({
                 : 'border-white/[0.08] text-gray-300 hover:border-[rgba(34,167,211,0.5)] hover:bg-white/[0.03]'
         }`}
       >
-        {/* Equipment-backed tile: three pieces on one row, colored
-            independently — id (white) · model (gray) · ip (mono
-            gray). Location dropped per operator feedback (the IP
-            address already disambiguates which switch is which).
-            Each segment truncates so the row doesn't blow out the
-            tile width. Presets just render their single name in
-            default text color. */}
+        {/* Equipment-backed tile: id (white) · model (gray) · ip
+            (cyan, no mono — matches Equipment tab + Switch Studio
+            identity strip per operator feedback). Frames split into
+            two rows — id + model on row 1, IP on row 2 — since
+            frames are typically 2U+ and have visual room for it.
+            Switches + audio keep the single-row layout. Presets
+            just render their single name in default text color. */}
         {preset.isEquipment ? (
-          <span className="min-w-0 flex items-baseline gap-2">
-            <span className="truncate text-white">{preset.name}</span>
-            {preset.hardwareType && (
-              <span className="truncate text-[11px] text-gray-500">{preset.hardwareType}</span>
-            )}
-            {preset.ipAddress && (
-              <span className="truncate text-[11px] font-mono text-[#22a7d3]">{preset.ipAddress}</span>
-            )}
-          </span>
+          preset.category === 'frames' ? (
+            <span className="min-w-0 flex flex-col gap-0.5">
+              <span className="flex items-baseline gap-2 truncate">
+                <span className="truncate text-white">{preset.name}</span>
+                {preset.hardwareType && (
+                  <span className="truncate text-[11px] text-gray-500">{preset.hardwareType}</span>
+                )}
+              </span>
+              {preset.ipAddress && (
+                <span className="truncate text-[11px] text-[#22a7d3]">{preset.ipAddress}</span>
+              )}
+            </span>
+          ) : (
+            <span className="min-w-0 flex items-baseline gap-2">
+              <span className="truncate text-white">{preset.name}</span>
+              {preset.hardwareType && (
+                <span className="truncate text-[11px] text-gray-500">{preset.hardwareType}</span>
+              )}
+              {preset.ipAddress && (
+                <span className="truncate text-[11px] text-[#22a7d3]">{preset.ipAddress}</span>
+              )}
+            </span>
+          )
         ) : (
           <span className="truncate">{preset.name}</span>
         )}
@@ -2521,7 +2535,32 @@ function SlotRow({
             // flex-1 + justify-center centers the device label
             // between the RU column on the left and the Edit
             // button on the right.
+            //
+            // Frames render with IP on its own row beneath the id +
+            // model — they're typically 2U+ so the card has the
+            // height to accommodate two text rows, and the operator
+            // wanted the IP to read clearly on the chassis at a
+            // glance. Switches + audio keep the single-row layout.
+            //
+            // IP color matches the Equipment tab + Switch Studio
+            // identity strip (text-[#22a7d3], no font-mono) for a
+            // consistent IP-rendering style across the app.
             if (linkedEq) {
+              if (linkedEq.category === 'frames') {
+                return (
+                  <span className="min-w-0 flex-1 flex flex-col items-center justify-center gap-0.5">
+                    <span className="flex items-baseline gap-2 truncate">
+                      <span className="truncate text-white">{linkedEq.name}</span>
+                      {linkedEq.hardwareType && (
+                        <span className="truncate text-[11px] text-gray-500">{linkedEq.hardwareType}</span>
+                      )}
+                    </span>
+                    {linkedEq.ipAddress && (
+                      <span className="truncate text-[11px] text-[#22a7d3]">{linkedEq.ipAddress}</span>
+                    )}
+                  </span>
+                )
+              }
               return (
                 <span className="min-w-0 flex-1 flex items-baseline justify-center gap-2">
                   <span className="truncate text-white">{linkedEq.name}</span>
@@ -2529,7 +2568,7 @@ function SlotRow({
                     <span className="truncate text-[11px] text-gray-500">{linkedEq.hardwareType}</span>
                   )}
                   {linkedEq.ipAddress && (
-                    <span className="truncate text-[11px] font-mono text-[#22a7d3]">{linkedEq.ipAddress}</span>
+                    <span className="truncate text-[11px] text-[#22a7d3]">{linkedEq.ipAddress}</span>
                   )}
                 </span>
               )

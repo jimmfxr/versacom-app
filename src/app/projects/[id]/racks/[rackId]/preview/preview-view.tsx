@@ -39,11 +39,18 @@ type Slot = {
    *  next to the location, same color treatment as the library
    *  tile in the editable rack studio. */
   linkedHardwareType?: string | null
-  /** Linked Equipment.ipAddress. Rendered in mono gray after the
-   *  model so operators can see at a glance which switch lives at
-   *  which IP. Same treatment as the library tile + slot card in
-   *  the editable rack studio. */
+  /** Linked Equipment.ipAddress. Rendered in cyan after the model
+   *  (or on its own row beneath the id/model for frames). Same
+   *  treatment as the IP link on the Equipment tab + Switch Studio
+   *  identity strip — drops the previous font-mono per operator
+   *  feedback that all IPs should read with the same text style
+   *  across the app. */
   linkedIpAddress?: string | null
+  /** Linked Equipment.category. Drives the slot layout for frames
+   *  specifically: a frame slot puts the IP on its own row below the
+   *  id + model so the chassis card has a place to breathe. Switches
+   *  + audio keep the inline single-row layout. */
+  linkedCategory?: string | null
 }
 
 /**
@@ -131,15 +138,37 @@ function Chassis({
                 <span key={i}>{s.ruPosition + i}</span>
               ))}
             </span>
-            <span className="min-w-0 flex-1 flex items-baseline justify-center gap-1.5 truncate px-2">
-              <span className="truncate print:text-black">{s.label}</span>
-              {s.linkedHardwareType && (
-                <span className="truncate text-[10px] text-gray-500 print:text-black">{s.linkedHardwareType}</span>
-              )}
-              {s.linkedIpAddress && (
-                <span className="truncate text-[10px] font-mono text-[#22a7d3] print:text-black">{s.linkedIpAddress}</span>
-              )}
-            </span>
+            {/* Frame layout: id + model on row 1, IP on row 2. Gives
+                the frame card more breathing room since frames are
+                typically 2U+ and have room for stacked text. Every
+                other category keeps the inline single-row layout. */}
+            {s.linkedCategory === 'frames' ? (
+              <span className="min-w-0 flex-1 flex flex-col items-center justify-center gap-0.5 truncate px-2">
+                <span className="flex items-baseline gap-1.5 truncate">
+                  <span className="truncate print:text-black">{s.label}</span>
+                  {s.linkedHardwareType && (
+                    <span className="truncate text-[10px] text-gray-500 print:text-black">{s.linkedHardwareType}</span>
+                  )}
+                </span>
+                {s.linkedIpAddress && (
+                  <span className="truncate text-[10px] text-[#22a7d3] print:text-black">{s.linkedIpAddress}</span>
+                )}
+              </span>
+            ) : (
+              <span className="min-w-0 flex-1 flex items-baseline justify-center gap-1.5 truncate px-2">
+                <span className="truncate print:text-black">{s.label}</span>
+                {s.linkedHardwareType && (
+                  <span className="truncate text-[10px] text-gray-500 print:text-black">{s.linkedHardwareType}</span>
+                )}
+                {s.linkedIpAddress && (
+                  // IP uses the same color as the Equipment tab + Switch
+                  // Studio identity strip — text-[#22a7d3], no font-
+                  // mono. Operator wanted all IP rendering to read
+                  // identically across the app.
+                  <span className="truncate text-[10px] text-[#22a7d3] print:text-black">{s.linkedIpAddress}</span>
+                )}
+              </span>
+            )}
             {/* Invisible spacer mirroring the RU number column width
                 on the left so the centered label is truly centered
                 relative to the WHOLE card (not just the area to the
