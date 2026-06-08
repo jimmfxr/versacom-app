@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import {
   Disclosure,
   DisclosureButton,
@@ -390,12 +391,13 @@ export function Navbar({
                   {navigation.map((item) => {
                     const pressed = pressedHref === item.href
                     return (
-                    <a
+                    <Link
                       key={item.name}
                       href={item.href}
                       aria-current={item.current ? 'page' : undefined}
                       onMouseDown={() => markPressed(item.href)}
                       onTouchStart={() => markPressed(item.href)}
+                      style={{ touchAction: 'manipulation' }}
                       className={classNames(
                         // Pressed state takes priority: a solid cyan
                         // chip wraps the text + icon for ~1s so the tap
@@ -439,7 +441,7 @@ export function Navbar({
                           className="pointer-events-none absolute inset-x-4 -bottom-px h-0.5 bg-[#0178a3]"
                         />
                       )}
-                    </a>
+                    </Link>
                     )
                   })}
                 </div>

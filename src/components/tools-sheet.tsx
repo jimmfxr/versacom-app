@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import type { NavItem } from '@/components/navbar'
 import { JoinQrModal } from '@/components/join-qr-modal'
@@ -134,14 +135,23 @@ export function ToolsSheet({
         </div>
 
         {/* Nav items as cards — same chrome as the legacy mobile
-            disclosure panel. */}
+            disclosure panel.
+            Using next/link so navigation is client-side + prefetched
+            (sidesteps the "double-tap on slow connection" issue plain
+            <a> + onClick={setState} caused). touchAction: manipulation
+            opts out of iOS' 300ms tap delay AND the hover-first-tap
+            dance. onClose is deferred via setTimeout(0) so the click
+            + Next.js route transition complete before the sheet
+            re-renders, eliminating the React state-update-vs-
+            navigation race. */}
         <div className="flex flex-col gap-2 px-4 pb-4">
           {items.map((item) => (
-            <a
+            <Link
               key={item.href}
               href={item.href}
-              onClick={onClose}
+              onClick={() => setTimeout(onClose, 0)}
               aria-current={item.current ? 'page' : undefined}
+              style={{ touchAction: 'manipulation' }}
               className={`flex items-center justify-center gap-2 rounded-lg border px-5 py-4 text-base font-medium transition-[colors,transform] duration-100 active:scale-[0.98] active:border-[#0178a3] active:bg-[#0178a3] active:text-white ${
                 item.current
                   ? 'border-[#0178a3] text-[#22a7d3]'
@@ -154,7 +164,7 @@ export function ToolsSheet({
                   {item.badge > 99 ? '99+' : item.badge}
                 </span>
               )}
-            </a>
+            </Link>
           ))}
         </div>
 
@@ -168,16 +178,17 @@ export function ToolsSheet({
                 so the 3-up shortcut grid flows straight from the
                 nav cards. */}
             <div className="grid grid-cols-3 gap-2">
-              <a
+              <Link
                 href={`/radios/scan?project=${currentProjectId}`}
-                onClick={onClose}
+                onClick={() => setTimeout(onClose, 0)}
                 aria-label="Scan radio barcode"
+                style={{ touchAction: 'manipulation' }}
                 className="flex items-center justify-center rounded-lg border border-white/10 px-5 py-4 text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
               >
                 <svg className="size-7" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 3.75H6A2.25 2.25 0 0 0 3.75 6v1.5M16.5 3.75H18A2.25 2.25 0 0 1 20.25 6v1.5m0 9V18A2.25 2.25 0 0 1 18 20.25h-1.5m-9 0H6A2.25 2.25 0 0 1 3.75 18v-1.5M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                 </svg>
-              </a>
+              </Link>
               <button
                 type="button"
                 onClick={() => {
@@ -188,6 +199,7 @@ export function ToolsSheet({
                   setQrOpen(true)
                 }}
                 aria-label="Show join QR"
+                style={{ touchAction: 'manipulation' }}
                 className="flex items-center justify-center rounded-lg border border-white/10 px-5 py-4 text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
               >
                 <svg className="size-7" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
@@ -195,17 +207,18 @@ export function ToolsSheet({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75ZM6.75 16.5h.75v.75h-.75v-.75ZM16.5 6.75h.75v.75h-.75v-.75ZM13.5 13.5h.75v.75h-.75v-.75ZM13.5 19.5h.75v.75h-.75v-.75ZM19.5 13.5h.75v.75h-.75v-.75ZM19.5 19.5h.75v.75h-.75v-.75ZM16.5 16.5h.75v.75h-.75v-.75Z" />
                 </svg>
               </button>
-              <a
+              <Link
                 href={`/projects/${currentProjectId}/kiosk`}
-                onClick={onClose}
+                onClick={() => setTimeout(onClose, 0)}
                 aria-label="Open kiosk"
+                style={{ touchAction: 'manipulation' }}
                 className="flex items-center justify-center rounded-lg border border-white/10 px-5 py-4 text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] hover:text-white active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
               >
                 <svg className="size-7" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6a3 3 0 0 1 3-3h13.5a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V6Z" />
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21h7.5M12 18v3" />
                 </svg>
-              </a>
+              </Link>
             </div>
           </div>
         )}

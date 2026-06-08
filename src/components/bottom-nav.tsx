@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   HomeIcon,
@@ -157,21 +158,23 @@ export function BottomNav({ notificationUnread, onOpenTools, toolsActive, isUser
         // covers both color (active swap) and transform (press).
         const base = `relative flex items-center justify-center transition-[colors,transform] duration-150 ease-out active:scale-90 active:bg-white/[0.05] ${color}`
         return 'href' in item ? (
-          <a
+          <Link
             key={item.key}
             href={item.href}
             aria-label={item.label}
             aria-current={item.active ? 'page' : undefined}
+            style={{ touchAction: 'manipulation' }}
             className={base}
           >
             {inner}
-          </a>
+          </Link>
         ) : (
           <button
             key={item.key}
             type="button"
             onClick={item.onClick}
             aria-label={item.label}
+            style={{ touchAction: 'manipulation' }}
             className={base}
           >
             {inner}
