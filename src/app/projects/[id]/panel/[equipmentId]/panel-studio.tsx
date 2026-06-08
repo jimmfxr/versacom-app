@@ -2094,7 +2094,14 @@ export function PanelStudio({
   const studioHeader = (
     <div className="w-full pt-4 lg:pt-3 lg:pb-3">
       <div
-        className={`mx-auto flex w-full max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8 ${stackHeader ? 'flex-col sm:max-lg:flex-row sm:max-lg:flex-nowrap sm:max-lg:justify-between' : 'flex-nowrap justify-between'}`}
+        // No internal horizontal padding on the strip when it's capped
+        // to chassisWidth (desktop) — px-X was offsetting the identity
+        // text 32px to the right of the chassis bezel border, breaking
+        // the operator's expectation that 'PNL 1' should sit flush with
+        // the chassis edge. On mobile (stackHeader), the strip keeps
+        // its own px so it has breathing room from the page edge since
+        // the chassis is offscreen-wide anyway.
+        className={`mx-auto flex w-full max-w-7xl items-center gap-3 ${stackHeader ? 'flex-col px-4 sm:px-6 sm:max-lg:flex-row sm:max-lg:flex-nowrap sm:max-lg:justify-between' : 'flex-nowrap justify-between'}`}
         // Desktop small-panel polish: cap the strip's max-width to the
         // chassis card's measured width (when known) so the identity
         // (left) and controls (right) cluster closer to the chassis
