@@ -149,29 +149,49 @@ export default async function SwitchStudioPage({
     orderBy: { sortOrder: 'asc' },
   })
 
+  // Project record + userProjects list — feed the ProjectSwitcher in
+  // the studio header (same pattern as Rack Studio + Panel Studio).
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { id: true, name: true },
+  })
+  if (!project) notFound()
+  const userProjectMemberships = await prisma.projectMember.findMany({
+    where: { userId: session.user.id },
+    select: { project: { select: { id: true, name: true } } },
+  })
+  const userProjectsMap = new Map<number, { id: number; name: string }>()
+  for (const m of userProjectMemberships) {
+    if (!userProjectsMap.has(m.project.id)) {
+      userProjectsMap.set(m.project.id, { id: m.project.id, name: m.project.name })
+    }
+  }
+  const userProjects = Array.from(userProjectsMap.values()).sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+  )
+
   return (
-    <div className="min-h-screen w-full bg-[#202020] flex flex-col py-5">
-      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-1 flex-col">
-        <SwitchStudio
-          projectId={projectId}
-          equipment={{
-            id: equipment.id,
-            name: equipment.name,
-            modelLabel: model.label,
-            rj45Count: model.rj45Count,
-            sfpCount: model.sfpCount,
-          }}
-          ports={equipment.switchPorts.map((p) => ({
-            id: p.id,
-            portIndex: p.portIndex,
-            portKind: p.portKind as 'rj45' | 'sfp',
-            profileId: p.profileId,
-            isTrunk: p.isTrunk,
-          }))}
-          profiles={profiles}
-          canEdit={canEdit}
-        />
-      </div>
+    <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-1 flex-col py-5">
+      <SwitchStudio
+        project={{ id: project.id, name: project.name }}
+        userProjects={userProjects}
+        equipment={{
+          id: equipment.id,
+          name: equipment.name,
+          modelLabel: model.label,
+          rj45Count: model.rj45Count,
+          sfpCount: model.sfpCount,
+        }}
+        ports={equipment.switchPorts.map((p) => ({
+          id: p.id,
+          portIndex: p.portIndex,
+          portKind: p.portKind as 'rj45' | 'sfp',
+          profileId: p.profileId,
+          isTrunk: p.isTrunk,
+        }))}
+        profiles={profiles}
+        canEdit={canEdit}
+      />
     </div>
   )
 }

@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { ProjectSwitcher } from '@/app/project-dashboard'
 import { updateSwitchPort } from './actions'
 
 /**
@@ -48,13 +48,15 @@ type Profile = {
 }
 
 export function SwitchStudio({
-  projectId,
+  project,
+  userProjects,
   equipment,
   ports: initialPorts,
   profiles,
   canEdit,
 }: {
-  projectId: number
+  project: { id: number; name: string }
+  userProjects: Array<{ id: number; name: string }>
   equipment: {
     id: number
     name: string
@@ -82,7 +84,7 @@ export function SwitchStudio({
     setPorts((prev) => prev.map((p) => (p.id === port.id ? { ...p, ...next } : p)))
     startTransition(async () => {
       const result = await updateSwitchPort({
-        projectId,
+        projectId: project.id,
         equipmentId: equipment.id,
         portId: port.id,
         profileId: next.profileId,
@@ -99,32 +101,54 @@ export function SwitchStudio({
 
   return (
     <>
-      {/* Header — model label · switch name · X close. Chrome matches
-          Rack Preview: name on the left, single naked icon button on
-          the right with the cyan press-feedback the rest of the rack-
-          studio nav icons use. */}
-      <header className="flex items-center justify-between gap-3">
-        <div className="min-w-0 flex items-baseline gap-2">
-          <span className="text-sm font-semibold text-white truncate">{equipment.modelLabel}</span>
-          <span className="text-sm text-gray-600">·</span>
-          <span className="text-sm text-[#22a7d3] truncate">{equipment.name}</span>
+      {/* ─── Page header ───
+          Switch name + model meta on the left, Close button +
+          ProjectSwitcher on the right. Mirrors the Rack Studio
+          standalone header pattern, with bottom-border-2 white/20 to
+          match the rest of the project chrome. */}
+      <header className="flex flex-row items-center justify-between gap-3 border-b-2 border-white/20 pb-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white truncate">
+            {equipment.name}
+          </h1>
+          <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+            <span className="text-gray-300">{equipment.modelLabel}</span>
+            <span className="text-gray-600">·</span>
+            <span>{equipment.rj45Count + equipment.sfpCount} ports</span>
+          </div>
         </div>
-        <Link
-          href={`/projects/${projectId}?tab=equipment`}
-          aria-label="Close switch studio"
-          style={{ touchAction: 'manipulation' }}
-          className="flex size-9 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:text-white active:bg-[#0178a3] active:text-white"
-        >
-          <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-          </svg>
-        </Link>
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Close — bordered text button like the rest of the studio
+              pages (Rack Studio Back / Panel Studio Back). Sends the
+              operator back to Comms with the Equipment tab active. */}
+          <button
+            type="button"
+            onClick={() => router.push(`/projects/${project.id}?tab=equipment`)}
+            style={{ touchAction: 'manipulation' }}
+            className="inline-flex rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+          >
+            Close
+          </button>
+          {/* ProjectSwitcher — switching projects sends the user to
+              the new project's main page (we can't deep-link to an
+              equivalent switch there). Mobile half-row to match the
+              rest of the project chrome. */}
+          <div className="w-[calc(50vw-1rem)] sm:w-auto">
+            <ProjectSwitcher
+              projectId={project.id}
+              projectName={project.name}
+              userProjects={userProjects}
+              basePath="/projects/:id"
+            />
+          </div>
+        </div>
       </header>
 
       {/* Chassis — flex-1 vertically centers it on tall viewports.
-          The chassis itself is one wide panel with the two-row port
-          grid inside. */}
-      <div className="flex flex-1 items-center justify-center py-8">
+          Padding gives the chassis breathing room on both axes; on
+          large displays the chassis hovers in the middle of the
+          workspace like Panel Studio's panel. */}
+      <div className="flex flex-1 items-center justify-center py-10">
         <Chassis
           rj45Count={equipment.rj45Count}
           sfpCount={equipment.sfpCount}
@@ -185,12 +209,15 @@ function Chassis({
     <div className="relative w-full">
       <div className="overflow-x-auto pb-2">
         <div
-          // Chassis bezel — dark frame around the port grid mirrors
-          // the actual NETGEAR M4250 chassis chrome.
-          className="mx-auto inline-block rounded-lg border border-white/10 bg-[#0a0a0a] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+          // Chassis bezel — matches Panel Studio's panel-chassis chrome
+          // (bg-[#2a2a2a] · border-white/[0.06] · rounded-[14px] ·
+          // padded) so the two studios read as siblings. mx-auto +
+          // inline-block keeps the chassis centered in the workspace
+          // while shrinking to its actual port-grid width.
+          className="mx-auto inline-block rounded-[14px] border border-white/[0.06] bg-[#2a2a2a] p-6 sm:p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
         >
           <div
-            className="grid gap-1.5"
+            className="grid gap-2"
             style={{
               gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
               gridAutoRows: 'auto',
@@ -276,10 +303,12 @@ function PortCell({
     : textOnLight
       ? 'text-black'
       : 'text-white'
-  // SFP cells render slightly slimmer (8:5 aspect) so the chassis
+  // SFP cells render slightly slimmer (5:6 aspect) so the chassis
   // reads as two distinct port banks — RJ45 squares + SFP slim
-  // rectangles. Matches the physical M4250 face.
-  const aspectClass = port.portKind === 'sfp' ? 'h-9 w-8' : 'h-9 w-9'
+  // rectangles. Matches the physical M4250 face. Sizes bumped from
+  // size-9 to size-12 so the switch reads as a real chassis at
+  // arm's length rather than a tiny grid.
+  const aspectClass = port.portKind === 'sfp' ? 'h-12 w-10' : 'h-12 w-12'
 
   return (
     <div className="relative" style={style}>
@@ -300,7 +329,7 @@ function PortCell({
         style={{
           backgroundColor: fillColor === 'transparent' ? undefined : fillColor,
         }}
-        className={`relative ${aspectClass} flex flex-col items-center justify-start gap-0.5 rounded-md border border-white/10 pt-1 text-[10px] font-bold transition-transform ${
+        className={`relative ${aspectClass} flex flex-col items-center justify-start gap-0.5 rounded-md border border-white/10 pt-1.5 text-xs font-bold transition-transform ${
           fillColor === 'transparent' ? 'bg-[#1a1a1a]' : ''
         } ${canEdit ? 'cursor-pointer active:scale-95' : 'cursor-default'} ${
           isOpen ? 'outline outline-2 outline-[#22a7d3]' : ''
@@ -309,9 +338,9 @@ function PortCell({
         <span className={`${portNumberColor} leading-none`}>{port.portIndex}</span>
         {port.isTrunk && (
           // White-circle "T" badge bottom-right, mirroring NETGEAR
-          // ProAV Engage's trunk indicator. size-3 keeps it visually
-          // proportional to the size-9 cell.
-          <span className="absolute -bottom-1 -right-1 flex size-3.5 items-center justify-center rounded-full bg-white text-[7px] font-extrabold text-black shadow-sm">
+          // ProAV Engage's trunk indicator. Scaled with the larger
+          // cell so the badge still reads proportional.
+          <span className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-white text-[9px] font-extrabold text-black shadow-sm">
             T
           </span>
         )}
