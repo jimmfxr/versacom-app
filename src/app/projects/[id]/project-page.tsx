@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useTransition, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { getSwitchModel } from '@/lib/switch-models'
+import { getFrameModel } from '@/lib/frame-models'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { PencilIcon, XMarkIcon, ChevronLeftIcon } from '@heroicons/react/24/outline'
 import { QRCodeSVG } from 'qrcode.react'
@@ -53,6 +54,7 @@ const CATEGORIES = [
   { value: 'wireless_bp', label: 'Wireless BP', prefix: 'WLBP', assignable: true },
   { value: 'hardwire_bp', label: 'Hardwire BP', prefix: 'HWBP', assignable: true },
   { value: 'switches', label: 'Switches', prefix: 'SW', assignable: false },
+  { value: 'frames', label: 'Frames', prefix: 'FRM', assignable: false },
   { value: 'antennas', label: 'Antennas', prefix: 'ANT', assignable: false },
   { value: 'audio', label: 'Audio', prefix: 'AUD', assignable: false },
   // Mults — cable multipliers. Auto-IDs use a LETTER suffix per
@@ -66,6 +68,9 @@ const HARDWARE_TYPES: Record<string, string[]> = {
   wireless_bp: ['Bolero 1.9', 'Bolero 2.4', 'Freespeak', 'Pliant'],
   hardwire_bp: ['Helixnet', 'DBP4', 'DBP5', 'ST-374', 'ST370', 'C3', 'BP325'],
   switches: ['26P+4F', '40P+4F', '24X8F8V', '16F', '9P+1F', 'Intellanet Old', 'Intellanet New', 'Media', 'Antaira', 'TP Link', 'Pliant Copper Hub', 'Pliant Fiber Hub'],
+  // Riedel Artist family — keys match FRAME_MODELS in
+  // src/lib/frame-models.ts so getFrameModel(hardwareType) resolves.
+  frames: ['ARTIST_32', 'ARTIST_MRF_64', 'ARTIST_MRF_128', 'ARTIST_1024'],
   antennas: ['Bolero 1.9', 'Bolero 2.4', 'Pliant', 'Freespeak 1.9', 'Freespeak 2.4'],
   audio: ['NA2', 'A16r', 'Dark88'],
   mults: ['Fiber', 'Ethernet', 'W1', 'CPC'],
@@ -205,6 +210,9 @@ type EquipmentItem = {
   // Reverse — every mult strand that points AT this row. Switches +
   // Pliant antennas show this list inline; everywhere else it's empty.
   attachedStrands: AttachedStrandItem[]
+  // Frame-only (category='frames'): the Riedel node ID programmed into
+  // the physical frame. Null for non-frames.
+  frameNodeId: string | null
 }
 
 type AssignableMember = { id: number; name: string }
@@ -321,6 +329,13 @@ function hasField(category: string, field: string, hardwareType?: string | null)
     ? ['location', 'ipAddress', 'position', 'patch']
     : ['location', 'ipAddress', 'position']
   const audioFields = ['location']
+  // Frames (Riedel Artist): location, IP for the management Ethernet
+  // port, and frameNodeId — the Riedel-programmed node identifier
+  // that decides which part of the project config file applies to
+  // this frame. Auto-name (FRM 1, FRM 2…) is just our ordering label;
+  // the Node ID is what the hardware sees. Per PD-034 conditional
+  // visibility — the field only shows when category === 'frames'.
+  const frameFields = ['location', 'ipAddress', 'frameNodeId']
   // Mults: location + physical length. Wiring is recorded at the
   // strand level (MultStrand rows + attach dropdowns), not at the
   // mult level — there's no "trunk parent" concept. `strandCount` is
@@ -351,6 +366,7 @@ function hasField(category: string, field: string, hardwareType?: string | null)
   if (category === 'antennas') return antennaFields.includes(field)
   if (category === 'audio') return audioFields.includes(field)
   if (category === 'mults') return multFields.includes(field)
+  if (category === 'frames') return frameFields.includes(field)
   return false
 }
 
@@ -1360,6 +1376,11 @@ export function ProjectPage({
         // categories / hardware types so the column isn't touched.
         strandCount: hasField(item.category, 'strandCount', editEqData.hardwareType as string | null)
           ? ((editEqData.strandCount as number | null | undefined) ?? null)
+          : undefined,
+        // Frame-only: Riedel-programmed node identifier. Skipped on
+        // every other category so we don't clobber the column.
+        frameNodeId: hasField(item.category, 'frameNodeId')
+          ? ((editEqData.frameNodeId as string | null | undefined)?.trim() || null)
           : undefined,
       })
       if (result.error) { showToast('error', result.error); return }
@@ -2608,6 +2629,21 @@ export function ProjectPage({
                                 {hasField(item.category, 'patch') && (
                                   <FormInput compact label="Patch" type="text" value={(editEqData.patch as string) || ''} onChange={(e) => setEditEqData({ ...editEqData, patch: e.target.value })} />
                                 )}
+                                {/* Frame-only: Riedel-programmed Node
+                                    ID. Free-form text — operator
+                                    types whatever the frame's
+                                    Director config has set. Hidden on
+                                    every other category. */}
+                                {hasField(item.category, 'frameNodeId') && (
+                                  <FormInput
+                                    compact
+                                    label="Node ID"
+                                    type="text"
+                                    autoComplete="off"
+                                    value={(editEqData.frameNodeId as string) || ''}
+                                    onChange={(e) => setEditEqData({ ...editEqData, frameNodeId: e.target.value })}
+                                  />
+                                )}
                                 {/* Mult-only strand count — Fiber only.
                                     Ethernet/W1/CPC have fixed strand
                                     counts per their hardware spec, so
@@ -2767,6 +2803,21 @@ export function ProjectPage({
                                       >
                                         {item.name}
                                       </Link>
+                                    ) : item.category === 'frames' && getFrameModel(item.hardwareType) ? (
+                                      // Frames whose hardwareType is one of the
+                                      // registered Riedel Artist models get the
+                                      // ID wrapped in a Link to Frame Studio —
+                                      // same gesture as Switch Studio's SW N
+                                      // link. Reachability tint reuses the
+                                      // existing probe results.
+                                      <Link
+                                        href={`/projects/${project.id}/frame/${item.id}`}
+                                        style={{ touchAction: 'manipulation' }}
+                                        className={`transition-colors duration-500 hover:underline decoration-current/30 hover:decoration-current ${item.ipAddress && reachable[item.id] ? 'text-green-400' : 'text-white'}`}
+                                        title={item.ipAddress && reachable[item.id] ? `${item.ipAddress} — reachable · Click to open Frame Studio` : 'Click to open Frame Studio'}
+                                      >
+                                        {item.name}
+                                      </Link>
                                     ) : (
                                       <span
                                         className={`transition-colors duration-500 ${item.ipAddress && reachable[item.id] ? 'text-green-400' : 'text-white'}`}
@@ -2835,6 +2886,20 @@ export function ProjectPage({
                                   {item.hardwareType && <span className="whitespace-nowrap"><span className="text-xs text-gray-500">Hardware: </span>{item.hardwareType}</span>}
                                   {item.headsetType && <span className="whitespace-nowrap"><span className="text-gray-500">· </span><span className="text-xs text-gray-500">Headset: </span>{item.headsetType}</span>}
                                   {item.ipAddress && <span className="whitespace-nowrap"><span className="text-gray-500">· </span><span className="text-xs text-gray-500">IP: </span><a href={`http://${item.ipAddress}${item.category === 'panels' ? '/remote-control/' : ''}`} target="_blank" rel="noopener noreferrer" className="text-[#22a7d3] hover:text-[#019bc7]">{item.ipAddress}</a></span>}
+                                  {item.category === 'frames' && item.frameNodeId && (
+                                    /* Frame Node ID chip — sits right
+                                       after IP for frames. The auto-
+                                       name (FRM 1) is just for our
+                                       ordering; the Node ID is what
+                                       the Riedel hardware uses to know
+                                       which config-file partition
+                                       applies to it. */
+                                    <span className="whitespace-nowrap">
+                                      <span className="text-gray-500">· </span>
+                                      <span className="text-xs text-gray-500">Node: </span>
+                                      <span className="font-mono text-white">{item.frameNodeId}</span>
+                                    </span>
+                                  )}
                                   {item.patch && item.category !== 'switches' && <span className="whitespace-nowrap"><span className="text-gray-500">· </span><span className="text-xs text-gray-500">Patch: </span><span className="font-mono">{item.patch}</span></span>}
                                   {item.gooseneck && <span className="whitespace-nowrap"><span className="text-gray-500">· </span>Gooseneck</span>}
                                   {item.footswitches > 0 && <span className="whitespace-nowrap"><span className="text-gray-500">· </span><span className="text-xs text-gray-500">FS: </span>{item.footswitches}</span>}

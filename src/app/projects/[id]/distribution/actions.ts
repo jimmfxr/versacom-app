@@ -323,6 +323,10 @@ export async function updateEquipment(
     // shrinking the count deletes strands beyond the new index
     // (channel names + attachments on those rows are lost).
     strandCount?: number | null
+    // Frame-only: Riedel-programmed Node ID. Free-form string —
+    // operator types whatever Director has set on the frame. Used by
+    // Frame Studio purely for display; no validation here.
+    frameNodeId?: string | null
   }
 ) {
   const session = await getSession()

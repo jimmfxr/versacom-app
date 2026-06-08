@@ -536,6 +536,12 @@ model Equipment {
   // 500 / 1000). Stored as an int so we can sort + filter; rendered
   // with a trailing apostrophe in the UI.
   lengthFeet       Int?
+  // Frame-only (category='frames'): the Riedel node ID programmed
+  // into the physical frame. The auto-name (e.g. FRM 1) is just our
+  // ordering label; this is the identifier the frame uses to know
+  // which part of the project config file applies to it. Free-form
+  // string so any Riedel naming convention works.
+  frameNodeId      String?
 
   // Relations
   project         Project         @relation(fields: [projectId], references: [id])
@@ -562,6 +568,10 @@ model Equipment {
   // row per physical port on the chassis. Cascade-delete with the
   // equipment so a deleted switch removes its port config too.
   switchPorts     SwitchPort[]
+  // Frame Studio — when this Equipment row is a Riedel Artist frame
+  // (category='frames'), it has one FrameSlot row per editable bay
+  // on the chassis. Cascade-delete keeps slot config with the frame.
+  frameSlots      FrameSlot[]
 }
 
 // One row per strand/pair on a mult. The mult itself lives in
@@ -769,5 +779,26 @@ model SwitchPort {
   profile   VlanProfile? @relation(fields: [profileId], references: [id])
 
   @@unique([equipmentId, portIndex])
+  @@index([equipmentId])
+}
+
+/// Per-bay state on a Riedel Artist frame (category='frames'). One row
+/// per editable bay on the chassis (e.g. Artist 32 = 6 bays, MFR 64 =
+/// 10 bays, MFR 128 = 20 bays, Artist 1024 = 10 bays). bayKey is the
+/// chassis-printed label ("1", "2", ..., "A", "B", "X", "Y") so the
+/// same model can be re-rendered without index-juggling. cardType is
+/// a string token from FRAME_CARD_TYPES (see src/lib/frame-models.ts)
+/// that maps to a label in the picker. Lazy-seeded on first Frame
+/// Studio open from FrameModel.bays[].defaultCard.
+model FrameSlot {
+  id          Int     @id @default(autoincrement())
+  equipmentId Int
+  bayKey      String
+  cardType    String  @default("unused")
+  notes       String?
+
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@unique([equipmentId, bayKey])
   @@index([equipmentId])
 }

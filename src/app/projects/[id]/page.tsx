@@ -73,6 +73,8 @@ export default async function ProjectDetailPage({
         trunkEquipmentId: true,
         strandCount: true,
         lengthFeet: true,
+        // Frame-specific column. Null on non-frame rows.
+        frameNodeId: true,
         assignedTo: {
           select: {
             id: true,
@@ -376,6 +378,7 @@ export default async function ProjectDetailPage({
         trunkEquipmentId: e.trunkEquipmentId,
         strandCount: e.strandCount,
         lengthFeet: e.lengthFeet,
+        frameNodeId: e.frameNodeId,
         strands: e.strands,
         attachedStrands: e.attachedStrands.map((s) => ({
           id: s.id,

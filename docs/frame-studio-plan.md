@@ -1,8 +1,24 @@
 # Frame Studio — Implementation Plan (v2.6 draft)
 
-**Status:** Plan — not built yet. Awaiting operator answers on the open questions below.
+**Status:** Operator answers locked 2026-06-08. Build in progress.
 **Started:** 2026-06-08
 **Author:** Jimmy + Claude
+
+## Operator answers (locked)
+
+1. **Allowed cards on 32 / 64 / 128 regular bays:** full list — `AIO`, `CAT5`, `AES`, `COAX`, `VoIP`, `GPI`, `MADI`, `AVB`.
+2. **Red bays (per attached Riedel tables):**
+   - Bay **A** on every frame → `CPU (S G2)` OR `CPU (F G2)` only
+   - Bay **B** on every frame → `CPU (S G2)` OR `CPU (F G2)` OR `GPI`
+   - Bay **X** + Bay **Y** on MFR 128 → `GPI` only
+3. **Artist 1024 bays 3 + 8 = CPU bays** (operator override — original "NIC only" superseded). Same allowed set as Bay A on the older frames PLUS the legacy `NIC` option as the lazy-seed default per answer #9.
+4. **Node ID:** operator-typed string — whatever the frame is programmed with. `FRM 1` stays the friendly auto-name for ordering; the Node ID is the actual hardware identifier.
+5. **No colors per card type.** Cells just show the card-type label as text. Selected state via an outline + filled neutral background; chassis is plain.
+6. **CAT5 vs AES are TWO separate cards** in the picker (not one card with a mode toggle).
+7. **Render only the editable bays.** Skip Fan / PSU / SyncModule / PSU Alarm visuals. Cell label = bay key (`Bay 1`, `Bay A`, …) at the top.
+8. **MFR 128 = front view only**, but keep per-model orientation (1024 = horizontal 2×5, 32 = vertical 3×2, etc.).
+9. **Lazy-seed defaults:** all bays `<unused>`, except Artist 1024 bays 3 + 8 default to `NIC`.
+10. **Node ID field shows on the Equipment Add/Edit form only when `category === 'frames'`** (same conditional pattern as the other categories).
 
 > Sibling feature to Switch Studio (v2.5). Same chrome, same role gating, same lazy-seed pattern, different domain — Riedel Artist frames instead of NETGEAR switches.
 
