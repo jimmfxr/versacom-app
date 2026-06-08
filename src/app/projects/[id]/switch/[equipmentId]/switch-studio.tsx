@@ -138,7 +138,19 @@ export function SwitchStudio({
           {equipment.ipAddress && (
             <>
               <span className="shrink-0 text-sm text-gray-600">·</span>
-              <span className="shrink-0 truncate text-sm font-mono text-[#22a7d3]">{equipment.ipAddress}</span>
+              {/* IP renders as a clickable link to the switch's web
+                  management UI — matches the Equipment card's IP link
+                  treatment (target=_blank, cyan / brighter-cyan hover).
+                  Switches don't need the /remote-control/ suffix the
+                  panels use; bare http://IP lands on NETGEAR's login. */}
+              <a
+                href={`http://${equipment.ipAddress}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 truncate text-sm font-mono text-[#22a7d3] hover:text-[#019bc7]"
+              >
+                {equipment.ipAddress}
+              </a>
             </>
           )}
           <span className="shrink-0 text-sm text-gray-600">·</span>
