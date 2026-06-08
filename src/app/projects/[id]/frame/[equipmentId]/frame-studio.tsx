@@ -131,70 +131,68 @@ export function FrameStudio({
         </header>
       </AutoHideHeader>
 
-      {/* Frame identity strip — name · model on row 1, IP · Node ·
-          bay count on row 2 (mobile) / single-row (desktop). Same
-          forced-wrap pattern as Switch Studio: flex-wrap on the
-          identity group plus a mobile-only basis-full sm:hidden
-          break element. Close button is a sibling outside the wrap
-          group so the outer justify-between always pins it right. */}
-      {/* Frame identity strip — matches Panel Studio's two-row
-          pattern (panel-studio.tsx ~line 2128) for consistency
-          across the three studios. Row 1 = FRM N in cyan font-
-          mono. Row 2 = IP · Node ID · bay count in smaller text
-          with Panel-Studio gray-600 ('#3a3a3a') separator dots.
-          Close button pinned top-right via items-start on the
-          outer flex. */}
-      <div className="flex items-start justify-between gap-3 pt-4 sm:pt-6">
-        <div className="min-w-0 flex-1">
-          {/* FRM N is the primary identifier — rendered in white bold
-              like Panel Studio's member-name styling (text-[18px]
-              lg:text-[22px], no mono). Panel Studio uses cyan-mono
-              for PNL N because it pairs with a white member name on
-              the same row; Frame Studio has no second person to
-              render so the equipment name itself owns the primary
-              slot. */}
-          <div className="text-[18px] font-bold text-white lg:text-[22px] truncate">
-            {equipment.name}
-          </div>
-          <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            {equipment.ipAddress && (
-              <>
-                <a
-                  href={`http://${equipment.ipAddress}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="truncate text-[13px] text-[#22a7d3] hover:text-[#019bc7]"
-                >
-                  {equipment.ipAddress}
-                </a>
-                <span className="text-xs text-[#3a3a3a]">·</span>
-              </>
-            )}
-            {equipment.frameNodeId && (
-              <>
-                <span className="text-[13px] text-gray-400">
-                  Node <span className="text-white">{equipment.frameNodeId}</span>
-                </span>
-                <span className="text-xs text-[#3a3a3a]">·</span>
-              </>
-            )}
-            <span className="text-[13px] text-gray-500">{equipment.bayCount} bays</span>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => router.push(`/projects/${project.id}?tab=equipment`)}
-          style={{ touchAction: 'manipulation' }}
-          className="shrink-0 inline-flex rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
-        >
-          Close
-        </button>
-      </div>
+      {/* ─── Centered chassis group ───
+          Identity strip + chassis live inside a single flex-1
+          column that vertically centers the whole group on tall
+          viewports. Previously the identity strip pinned to the
+          top of the page and the chassis floated way below with a
+          big gap — operator wanted them tightly grouped (the id
+          should sit *right above* the chassis, not at the top of
+          the page).
 
-      {/* Chassis — vertically centered on tall viewports, breathing
-          room on both axes, horizontal scroll if the model's column
-          count blows past the viewport. */}
-      <div className="flex flex-1 items-center justify-center py-8">
+          Layout per row:
+            Row 1: FRM N (white bold, left)    [Close] (top-right)
+            Row 2: IP · Node ID · bay count (smaller, left)
+            Row 3: chassis (centered horizontally via mx-auto on
+                   the bezel itself)
+       */}
+      <div className="flex flex-1 flex-col justify-center gap-3 py-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            {/* FRM N — primary identifier in white bold, matches
+                Panel Studio's member-name styling. text-[18px]
+                lg:text-[22px], no font-mono (panel studio reserves
+                font-mono + cyan for the PNL-N sub-identifier that
+                pairs with a member name; we have no such pairing). */}
+            <div className="text-[18px] font-bold text-white lg:text-[22px] truncate">
+              {equipment.name}
+            </div>
+            {/* Row 2 — IP · Node ID · bay count, smaller, Panel-Studio
+                gray-600 ('#3a3a3a') separator dots. */}
+            <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              {equipment.ipAddress && (
+                <>
+                  <a
+                    href={`http://${equipment.ipAddress}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="truncate text-[13px] text-[#22a7d3] hover:text-[#019bc7]"
+                  >
+                    {equipment.ipAddress}
+                  </a>
+                  <span className="text-xs text-[#3a3a3a]">·</span>
+                </>
+              )}
+              {equipment.frameNodeId && (
+                <>
+                  <span className="text-[13px] text-gray-400">
+                    Node <span className="text-white">{equipment.frameNodeId}</span>
+                  </span>
+                  <span className="text-xs text-[#3a3a3a]">·</span>
+                </>
+              )}
+              <span className="text-[13px] text-gray-500">{equipment.bayCount} bays</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => router.push(`/projects/${project.id}?tab=equipment`)}
+            style={{ touchAction: 'manipulation' }}
+            className="shrink-0 inline-flex rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+          >
+            Close
+          </button>
+        </div>
         <Chassis
           model={model}
           slots={slots}
