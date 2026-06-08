@@ -38,7 +38,7 @@
 
 <a class="back" href="index.html">‹ Docs</a>
 <h1><img src="/clair_logo_white.png" alt="Clair" class="logo" /> Nodal Control — Entity Relationship Diagram</h1>
-<p class="note">Updated 2026-05-03. Source of truth: <code>prisma/schema.prisma</code>.</p>
+<p class="note">Updated 2026-06-08 (v2.5 — VlanProfile + SwitchPort added for Switch Studio). Source of truth: <code>prisma/schema.prisma</code>.</p>
 
 <h2>1. Full schema</h2>
 <div class="diagram">
@@ -76,6 +76,9 @@ erDiagram
     Equipment ||--o{ NfgReport : subject
 
     RackTemplate ||--o{ RackSlot : slots
+
+    Equipment ||--o{ SwitchPort : "physical port state"
+    VlanProfile ||--o{ SwitchPort : "assigned to"
 
     User {
       int id PK
@@ -210,6 +213,55 @@ erDiagram
       int projectId FK
       string status
     }
+
+    VlanProfile {
+      int id PK
+      string name "CommsDante1 AES67_1 Management VPN_Transfer"
+      int vlanId UK "1331 1341 4000"
+      string color "hex e.g. #3174c2"
+      string profileType "Data AudioDante AudioAES67 Management Transfer"
+      string description
+      int sortOrder
+    }
+
+    SwitchPort {
+      int id PK
+      int equipmentId FK
+      int portIndex "1-based RJ45 then SFP"
+      string portKind "rj45 or sfp"
+      int profileId FK "nullable - unassigned"
+      boolean isTrunk "independent of profileId"
+    }
+</pre>
+</div>
+
+<h2>2a. Switch Studio subset (v2.5)</h2>
+<p>VlanProfile is <strong>global</strong> (no projectId) — one company-wide pool seeded from the operator's hex chart. SwitchPort is per-Equipment, lazy-seeded on first Switch Studio open from <code>SwitchModel.defaultFor()</code>.</p>
+<div class="diagram">
+<pre class="mermaid">
+erDiagram
+    Project ||--o{ Equipment : owns
+    Equipment ||--o{ SwitchPort : "physical port state"
+    VlanProfile ||--o{ SwitchPort : "assigned to ports"
+
+    Equipment {
+      string name "SW 1 SW 2"
+      string hardwareType "9P+1F 26P+4F 40P+4F 24X8F8V 16F"
+      string ipAddress
+    }
+    SwitchPort {
+      int portIndex
+      string portKind
+      int profileId "nullable"
+      boolean isTrunk
+    }
+    VlanProfile {
+      string name
+      int vlanId UK
+      string color "hex"
+      string profileType
+      int sortOrder
+    }
 </pre>
 </div>
 
@@ -240,6 +292,8 @@ erDiagram
     <tr><td><code>PanelKey</code></td><td><code>(projectMemberId, keyIndex, page, expansion)</code></td><td>One physical key position per member</td></tr>
     <tr><td><code>Asset</code></td><td><code>qrCode</code></td><td>Every physical asset has a unique QR</td></tr>
     <tr><td><code>ProjectHeadsetInventory</code></td><td><code>(projectId, headsetType)</code></td><td>One brought-total row per headset type per project</td></tr>
+    <tr><td><code>VlanProfile</code></td><td><code>vlanId</code></td><td>No two profiles share a VLAN ID (1331, 1341, 4000…). Names can repeat but the numeric ID is unique.</td></tr>
+    <tr><td><code>SwitchPort</code></td><td><code>(equipmentId, portIndex)</code></td><td>One row per physical port per switch — lazy-seeded on first Switch Studio open</td></tr>
   </tbody>
 </table>
 

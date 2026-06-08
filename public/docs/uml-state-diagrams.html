@@ -35,7 +35,7 @@
 
 <a class="back" href="index.html">‹ Docs</a>
 <h1><img src="/clair_logo_white.png" alt="Clair" class="logo" /> Nodal Control — State Diagrams</h1>
-<p class="note">Updated 2026-05-03.</p>
+<p class="note">Updated 2026-06-08 (v2.5 — Switch Studio + VLAN profiles).</p>
 
 <h2>1. Panel Key (client-side visual state)</h2>
 <p>The state a key can be in while the crew is editing Panel Studio.</p>
@@ -162,6 +162,56 @@ stateDiagram-v2
     note right of locked : lockedUntil = now + 15min - appears in Tasks
 </pre>
 </div>
+
+<h2>7. SwitchPort visual state (Switch Studio, v2.5)</h2>
+<p>Each port on a switch's chassis has one of three visual states. Plus an orthogonal <strong>Trunk</strong> flag that overrides the cell color (gray + T badge) while preserving the underlying profile assignment.</p>
+<div class="diagram">
+<pre class="mermaid">
+stateDiagram-v2
+    direction LR
+
+    [*] --> unseeded : Equipment created
+    unseeded --> assigned : First Switch Studio open\n(lazy-seed defaultFor(portIndex, kind))
+    unseeded --> unassigned : (rare - defaultFor returns vlanId=null)
+
+    assigned --> unassigned : User picks "Unassign"
+    unassigned --> assigned : User picks any profile
+    assigned --> assigned : User picks a different profile
+
+    note right of unseeded : No SwitchPort row exists. Loader detects 0 rows and seeds. Invisible to user.
+    note right of unassigned : profileId=null + isTrunk=false. Empty outlined cell with em-dash centered.
+    note right of assigned : profileId points at VlanProfile row. Cell filled with profile.color, port number small at top, VLAN ID centered.
+</pre>
+</div>
+
+<h3>Trunk flag (orthogonal)</h3>
+<div class="diagram">
+<pre class="mermaid">
+stateDiagram-v2
+    direction LR
+
+    [*] --> not_trunk
+    not_trunk --> trunk : User toggles Trunk on
+    trunk --> not_trunk : User toggles Trunk off
+
+    note right of not_trunk : isTrunk=false. Cell renders using profile.color (or empty if profileId null).
+    note right of trunk : isTrunk=true. Cell renders gray (Management color) regardless of underlying profile. White T badge bottom-right. profileId preserved.
+</pre>
+</div>
+
+<p class="note">Trunk is independent of profile assignment — a trunk port still has a "primary" VLAN at the hardware layer, but the chassis at-a-glance reads better when every trunk is uniformly gray (matches NETGEAR ProAV Engage UI). Toggling Trunk off restores the colored fill without re-picking the profile.</p>
+
+<h3>Default seed conventions</h3>
+<table>
+  <thead><tr><th>Model</th><th>RJ45 1..rj45Count default</th><th>SFP default</th></tr></thead>
+  <tbody>
+    <tr><td><code>9P+1F</code></td><td>1–4 CommsDante1, 5–8 AES67_1, 9 Mgmt trunk</td><td>1 SFP Mgmt trunk</td></tr>
+    <tr><td><code>26P+4F</code></td><td>1–12 CommsDante1, 13–24 AES67_1, 25–26 Mgmt trunk</td><td>4 SFP Mgmt trunk</td></tr>
+    <tr><td><code>40P+4F</code></td><td>1–20 CommsDante1, 21–40 AES67_1</td><td>4 SFP Mgmt trunk</td></tr>
+    <tr><td><code>24X8F8V</code></td><td>1–12 CommsDante1, 13–24 AES67_1</td><td>16 SFP Mgmt trunk</td></tr>
+    <tr><td><code>16F</code></td><td>(no RJ45)</td><td>16 SFP Mgmt trunk</td></tr>
+  </tbody>
+</table>
 
 <script>
   mermaid.initialize({

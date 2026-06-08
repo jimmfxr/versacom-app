@@ -35,7 +35,7 @@
 
 <a class="back" href="index.html">‹ Docs</a>
 <h1><img src="/clair_logo_white.png" alt="Clair" class="logo" /> Nodal Control — User Flow</h1>
-<p class="note">Updated 2026-05-03. End-user navigation and action flows for the current app.</p>
+<p class="note">Updated 2026-06-08 (v2.5 — Switch Studio + VLAN profiles). End-user navigation and action flows for the current app.</p>
 
 <h2>1. Top-level entry + landing by role</h2>
 <div class="diagram">
@@ -295,6 +295,60 @@ flowchart TD
     BC[Other tab broadcasts] -.->|skip own probe| SAVE
 </pre>
 </div>
+
+<h2>Switch Studio — assign VLAN profiles to switch ports (v2.5)</h2>
+<p>Entry point lives on the Comms Equipment tab: the switch ID text (<code>SW 1</code>, <code>SW 2</code>, …) on each NETGEAR M4250 card is a Link to <code>/projects/[id]/switch/[equipmentId]</code>. Only switches whose <code>hardwareType</code> resolves to a registered model (9P+1F, 26P+4F, 40P+4F, 24X8F8V, 16F) get a clickable ID — unmanaged switches don't have a VLAN config UI.</p>
+<div class="diagram">
+<pre class="mermaid">
+flowchart TD
+    EQ[Equipment tab on Comms] -->|tap switch ID SW 1| GUARD{Role check}
+    GUARD -->|admin or crew or manager| LOAD[/projects/ID/switch/EQID/]
+    GUARD -->|user| BLOCK[Proxy 404 - never reaches page]
+
+    LOAD --> SEED{First open?}
+    SEED -->|yes - 0 SwitchPort rows| LAZY[Seed defaults<br/>1-12 CommsDante1<br/>13-24 AES67_1<br/>last RJ45 plus SFP Mgmt trunk]
+    SEED -->|no| READ[Read existing SwitchPort rows]
+    LAZY --> READ
+
+    READ --> RENDER[Chassis grid<br/>1 or 2 rows per model<br/>colored by VLAN profile<br/>port number plus VLAN ID stamped]
+
+    RENDER --> EDIT{User role}
+    EDIT -->|admin or crew| TAP_PORT[Tap a port]
+    EDIT -->|manager| RO[Cells render<br/>tap does nothing]
+
+    TAP_PORT --> POPOVER[Portaled popover anchored to cell<br/>profiles grouped by type<br/>Trunk toggle plus Unassign]
+    POPOVER --> PICK{Choose}
+    PICK -->|pick a profile| PATCH1[updateSwitchPort action<br/>set profileId clear isTrunk if explicit]
+    PICK -->|toggle Trunk| PATCH2[updateSwitchPort action<br/>isTrunk=true profile preserved]
+    PICK -->|Unassign| PATCH3[updateSwitchPort action<br/>profileId=null isTrunk=false]
+    PICK -->|tap outside| CLOSE_POP[Popover dismissed]
+
+    PATCH1 --> OPTIMISTIC[Cell repaints immediately]
+    PATCH2 --> OPTIMISTIC
+    PATCH3 --> OPTIMISTIC
+    OPTIMISTIC --> REFRESH[router.refresh - pull fresh state on success]
+
+    RENDER -.->|Close button top-right| EQ
+</pre>
+</div>
+
+<p><strong>Chassis grid layout:</strong></p>
+<ul>
+  <li><strong>1 row:</strong> 9P+1F (10 ports linear) · 16F (16 SFP linear)</li>
+  <li><strong>2 rows:</strong> 26P+4F (15×2) · 40P+4F (22×2) · 24X8F8V (20×2)</li>
+  <li>Port number small at the top of each cell; VLAN ID dominant, centered/lower</li>
+  <li>Trunk ports render gray (Management color) + white "T" badge bottom-right, matching NETGEAR ProAV Engage</li>
+</ul>
+
+<p><strong>Mobile UX:</strong></p>
+<ul>
+  <li>Chassis wider than viewport scrolls horizontally; bezel uses <code>mx-auto w-fit</code> so it centers when it fits and anchors to the LEFT edge when it doesn't (scroll reaches both ends — PD-031)</li>
+  <li>Page header (<code>Comms</code> + ProjectSwitcher + bottom border) wraps in <code>AutoHideHeader</code> — slides up on scroll-down, same as the rest of the app</li>
+  <li>Identity strip wraps into 2 rows on small screens (<code>SW 1 · model</code> + Close on row 1, <code>IP · port count</code> on row 2)</li>
+  <li>IP renders as a cyan link → <code>http://&lt;ip&gt;</code> opens NETGEAR's web management UI in a new tab</li>
+</ul>
+
+<p class="note"><strong>Server action gate:</strong> <code>updateSwitchPort</code> re-checks role before any write. Manager hitting the endpoint directly returns <code>{ error: 'Read-only role' }</code>; user is already blocked at the proxy.</p>
 
 <script>
   mermaid.initialize({
