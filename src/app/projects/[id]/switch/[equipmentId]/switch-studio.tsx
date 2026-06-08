@@ -126,26 +126,32 @@ export function SwitchStudio({
       </header>
 
       {/* Switch identity strip.
-          Desktop (sm+): single row — name · model · ip · port count
-          on the FAR LEFT, Close button on the FAR RIGHT.
-          Mobile: each item on its own row (the line was overflowing
-          the viewport when crammed into one row). Close button stays
-          pinned to the top-right so it's reachable without scrolling
-          past the stacked identity rows. IP renders in cyan (same
-          accent the equipment list / library tile use). */}
-      <div className="flex flex-row items-start justify-between gap-3 pt-4 sm:items-baseline sm:pt-6">
-        <div className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-2">
-          <span className="text-xl font-semibold text-white truncate">{equipment.name}</span>
+          Mobile (two rows, fits the viewport cleanly):
+            Row 1:  SW 1 · M4250-26G4F-PoE+          [ Close ]
+            Row 2:  10.249.96.54 · 30 ports
+          Desktop (sm+): single row with everything inline and Close
+          pinned to the far right.
+
+          Implementation — flex-wrap on the identity group plus a
+          mobile-only zero-width "break" element (basis-full sm:hidden)
+          that forces a wrap before the IP. Close button is a sibling
+          outside the wrap group so the outer justify-between always
+          pins it to the right, regardless of how many rows the
+          identity group wraps to. IP renders in cyan (matches the
+          Equipment card treatment); link target is bare http://IP
+          which lands on the NETGEAR switch's web login. */}
+      <div className="flex items-baseline justify-between gap-3 pt-4 sm:pt-6">
+        <div className="min-w-0 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <span className="text-xl font-semibold text-white">{equipment.name}</span>
           <span className="text-sm text-gray-600">·</span>
-          <span className="text-sm text-gray-300">{equipment.modelLabel}</span>
+          <span className="truncate text-sm text-gray-300">{equipment.modelLabel}</span>
+          {/* Forced wrap on mobile — empty full-width flex item
+              breaks the line before IP. sm:hidden removes it on
+              desktop so the row stays single. aria-hidden because
+              it's purely visual layout glue. */}
+          <span aria-hidden className="basis-full sm:hidden" />
           {equipment.ipAddress && (
             <>
-              <span className="text-sm text-gray-600">·</span>
-              {/* IP renders as a clickable link to the switch's web
-                  management UI — matches the Equipment card's IP link
-                  treatment (target=_blank, cyan / brighter-cyan hover).
-                  Switches don't need the /remote-control/ suffix the
-                  panels use; bare http://IP lands on NETGEAR's login. */}
               <a
                 href={`http://${equipment.ipAddress}`}
                 target="_blank"
@@ -154,9 +160,9 @@ export function SwitchStudio({
               >
                 {equipment.ipAddress}
               </a>
+              <span className="text-sm text-gray-600">·</span>
             </>
           )}
-          <span className="text-sm text-gray-600">·</span>
           <span className="text-sm text-gray-500">{equipment.rj45Count + equipment.sfpCount} ports</span>
         </div>
         <button
