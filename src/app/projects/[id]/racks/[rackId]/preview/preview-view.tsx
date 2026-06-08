@@ -261,15 +261,24 @@ export function RackPreviewView({
               // standalone display-mode. Previous attempt to detour
               // via window.open(url, '_blank') failed too because
               // the PWA's manifest scope covers this URL, so the
-              // "new tab" immediately routes back into the PWA
-              // (which is what the operator saw: a brief white
-              // flash then back to the same page).
+              // "new tab" immediately routes back into the PWA.
               //
-              // Final workaround: use the iOS share sheet via
-              // navigator.share(). From there the operator can pick
-              // "Print" (AirPrint) directly, "Open in Safari" (where
-              // print works), or "Save to Files" (PDF). Falls back
-              // to an instructional alert if share isn't available.
+              // Current workaround: navigator.share() with the page
+              // URL. KNOWN LIMITATION: iOS share sheet for a URL
+              // does NOT include AirPrint — the Print option only
+              // appears when sharing a FILE (PDF / image), not a
+              // URL. So PWA operators get a share sheet without a
+              // direct Print action; they have to pick "Open in
+              // Safari" from it and re-tap Print there.
+              //
+              // TODO (post-DB-migration): replace this with a
+              // proper PDF generation flow — server-side endpoint
+              // (pdfkit or similar — Puppeteer is too heavy on
+              // Vercel cold starts) that returns a vector PDF for
+              // the rack. Single-tap → download PDF → AirPrint.
+              // Works identically on PWA, Safari, desktop. Drops
+              // the platform-detection logic below. Tracked in
+              // product-decisions.md PD-030.
               const isStandalone =
                 window.matchMedia?.('(display-mode: standalone)').matches ||
                 (navigator as Navigator & { standalone?: boolean }).standalone === true

@@ -327,3 +327,25 @@ The fix had to address both directions:
 **Why:** Loose items are quick-add / quick-remove by design — a chip with an × is the universal affordance for "tap to dismiss". A confirm modal between intent and action would slow ops down when they're sweeping the tray clean during teardown. Re-adding from the library is one tap if the operator changes their mind — the cost of an accidental removal is ~1 second.
 
 **Slot delete, custom-device delete, and rack delete still confirm** — those carry actual cost (lose layout, lose label, lose the entire rack and its slots). The dividing line is "what's the recovery cost if this was a mistake": single-tap re-add → no confirm; lose state that took minutes to build → confirm.
+
+---
+
+## PD-030: Rack print on iPad PWA — deferred to post-DB-migration
+
+**Decision (parked):** Rack Preview's Print button works on regular Safari + desktop browsers (calls `window.print()` synchronously inside the click handler). On iPad in **PWA standalone mode** (page installed to home screen) it's broken — operator gets the iOS share sheet without an AirPrint option. **Park the proper fix until after the upcoming database migration.**
+
+**Why broken:** Two iOS platform constraints stack:
+1. `window.print()` silently no-ops in PWA standalone display-mode. iOS doesn't expose the print API to installed web apps.
+2. `window.open(url, '_blank')` from a PWA can't detour to Safari either — the PWA's manifest scope covers the URL, so the new "tab" routes right back into the PWA (operator sees a white flash and bounces home).
+3. `navigator.share({url})` opens the iOS share sheet but AirPrint only appears when sharing a **file** (PDF / image), not a URL. Current button uses navigator.share — share sheet pops but has no Print row.
+
+**Proper fix when we come back to it:** Server-side PDF generation. Add a Next.js API route that returns a vector PDF of the rack (server-rendered, no Puppeteer — pdfkit or similar to avoid Vercel cold-start cost). Print button on every platform downloads the PDF. From there:
+- Desktop / Safari: PDF opens, native browser print.
+- iPad PWA: PDF saves to Files, operator AirPrints from there.
+- iPhone Safari: same as desktop.
+
+**Drops the platform-detection branch** in `preview-view.tsx` entirely — one happy path on every surface. Real vector output also prints sharper than rasterized PNG.
+
+**Why deferred:** Database migration takes priority. The print API change might be easier to slot in alongside other server-side work that comes with the migration (new ORM, new endpoints, etc.). No production users are blocked — PWA operators can long-press the URL, copy it, and paste into Safari as a manual workaround in the meantime.
+
+**Tracked in:** TODO comment at `preview-view.tsx` print-button onClick. References this entry by ID (PD-030).
