@@ -316,12 +316,9 @@ export const FRAME_MODELS: Record<string, FrameModel> = {
 
   /**
    * Artist MFR 128 (rear-view layout per Riedel Figure 4). 20 editable
-   * bays in a 4-row × 5-column grid:
+   * bays in ONE horizontal row, left to right:
    *
-   *   Row 1:  [A] [B] [1] [2] [3]
-   *   Row 2:  [4] [5] [6] [7] [8]
-   *   Row 3:  [9] [10][11][12][13]
-   *   Row 4:  [14][15][16][X] [Y]
+   *   [A] [B] [1] [2] [3] [4] [5] [6] [7] [8] [9] [10] [11] [12] [13] [14] [15] [16] [X] [Y]
    *
    * Operator-stated card sets:
    *   Bay 1..16 — full data list (AIO/CAT5/AES/COAX/VoIP/GPI/MADI/AVB)
@@ -336,46 +333,29 @@ export const FRAME_MODELS: Record<string, FrameModel> = {
    */
   ARTIST_MRF_128: {
     label: 'Artist MFR 128',
-    cols: 5,
-    rows: 4,
+    cols: 20,
+    rows: 1,
     ruSize: 6,
     bays: (() => {
-      // Numbered data bays 1..16 — same allowed-cards + default for
-      // all of them. Build once + spread, avoids 16 near-identical
-      // bay literals.
-      const dataBay = (key: string, column: number, row: number): FrameBay => ({
+      // 20 bays left→right: A, B, 1..16, X, Y. Numbered bays share
+      // allowed cards + default, build once for brevity.
+      const dataBay = (key: string, column: number): FrameBay => ({
         key,
         column,
-        row,
+        row: 1,
         accent: 'gray',
         allowedCards: DATA_BAY_CARDS,
         defaultCard: 'unused',
       })
       return [
-        // Row 1: A, B, 1, 2, 3.
+        // Columns 1 and 2: A, B (CPU + GPI).
         { key: 'A', column: 1, row: 1, accent: 'red' as const, allowedCards: BAY_A_CARDS, defaultCard: 'unused' as CardType },
         { key: 'B', column: 2, row: 1, accent: 'red' as const, allowedCards: BAY_B_CARDS, defaultCard: 'unused' as CardType },
-        dataBay('1', 3, 1),
-        dataBay('2', 4, 1),
-        dataBay('3', 5, 1),
-        // Row 2: 4, 5, 6, 7, 8.
-        dataBay('4', 1, 2),
-        dataBay('5', 2, 2),
-        dataBay('6', 3, 2),
-        dataBay('7', 4, 2),
-        dataBay('8', 5, 2),
-        // Row 3: 9, 10, 11, 12, 13.
-        dataBay('9', 1, 3),
-        dataBay('10', 2, 3),
-        dataBay('11', 3, 3),
-        dataBay('12', 4, 3),
-        dataBay('13', 5, 3),
-        // Row 4: 14, 15, 16, X, Y.
-        dataBay('14', 1, 4),
-        dataBay('15', 2, 4),
-        dataBay('16', 3, 4),
-        { key: 'X', column: 4, row: 4, accent: 'red' as const, allowedCards: BAY_XY_CARDS, defaultCard: 'unused' as CardType },
-        { key: 'Y', column: 5, row: 4, accent: 'red' as const, allowedCards: BAY_XY_CARDS, defaultCard: 'unused' as CardType },
+        // Columns 3..18: numbered bays 1..16.
+        ...Array.from({ length: 16 }, (_, i) => dataBay(String(i + 1), i + 3)),
+        // Columns 19 and 20: X, Y (GPI).
+        { key: 'X', column: 19, row: 1, accent: 'red' as const, allowedCards: BAY_XY_CARDS, defaultCard: 'unused' as CardType },
+        { key: 'Y', column: 20, row: 1, accent: 'red' as const, allowedCards: BAY_XY_CARDS, defaultCard: 'unused' as CardType },
       ]
     })(),
   },
