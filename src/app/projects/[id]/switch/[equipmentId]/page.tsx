@@ -183,6 +183,7 @@ export default async function SwitchStudioPage({
           ipAddress: equipment.ipAddress,
           rj45Count: model.rj45Count,
           sfpCount: model.sfpCount,
+          chassisRows: model.chassisRows,
         }}
         ports={equipment.switchPorts.map((p) => ({
           id: p.id,

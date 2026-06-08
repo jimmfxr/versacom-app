@@ -69,6 +69,11 @@ export function SwitchStudio({
     ipAddress: string | null
     rj45Count: number
     sfpCount: number
+    /** Whether the chassis renders as 1 row (small switches like
+     *  9P+1F + 16F where all ports fit a single strip) or 2 rows
+     *  (NETGEAR odd-top / even-bottom convention for the bigger
+     *  models). Sourced from SwitchModel.chassisRows. */
+    chassisRows: 1 | 2
   }
   ports: Port[]
   profiles: Profile[]
@@ -194,6 +199,7 @@ export function SwitchStudio({
         <Chassis
           rj45Count={equipment.rj45Count}
           sfpCount={equipment.sfpCount}
+          chassisRows={equipment.chassisRows}
           ports={ports}
           profileById={profileById}
           managementColor={managementProfile?.color ?? '#808080'}
@@ -210,14 +216,18 @@ export function SwitchStudio({
 }
 
 /**
- * Two-row chassis grid. RJ45 cells fill columns 1..rj45Count then SFP
- * cells continue rj45Count+1..total. Within each column the odd-
- * numbered port sits on top, even on bottom — matches NETGEAR's
- * physical numbering on the chassis face.
+ * Chassis grid. RJ45 cells fill columns 1..rj45Count then SFP cells
+ * continue rj45Count+1..total. Row layout depends on the model's
+ * `chassisRows`:
+ *  - 2 rows (default): NETGEAR odd-top / even-bottom convention,
+ *    used for 26P+4F, 40P+4F, 24X8F8V.
+ *  - 1 row: small / single-bank switches — 9P+1F, 16F — render every
+ *    port in a single horizontal strip per operator preference.
  */
 function Chassis({
   rj45Count,
   sfpCount,
+  chassisRows,
   ports,
   profileById,
   managementColor,
@@ -230,6 +240,7 @@ function Chassis({
 }: {
   rj45Count: number
   sfpCount: number
+  chassisRows: 1 | 2
   ports: Port[]
   profileById: Map<number, Profile>
   managementColor: string
@@ -268,29 +279,24 @@ function Chassis({
           // padded) so the two studios read as siblings.
           className="mx-auto w-fit rounded-[14px] border border-white/[0.06] bg-[#2a2a2a] p-6 sm:p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
         >
-          {/* Fixed 2 rows, columns flow naturally. Inline-styled
-              instead of `grid-rows-2 grid-flow-col` Tailwind classes
-              because those weren't applying in Tailwind v4 here
-              (9P+1F and 16F were rendering as one long row of all
-              ports). Inline styles guarantee the layout:
+          {/* Grid row count is per-model. 2 rows (NETGEAR's odd-top /
+              even-bottom convention) for the larger switches —
+              26P+4F, 40P+4F, 24X8F8V. 1 row for the small / single-
+              bank switches — 9P+1F, 16F — where the operator wants
+              every port in a single horizontal strip. Both modes
+              flow column-first so iterating ports 1..N in order
+              just works:
 
-                grid-template-rows: repeat(2, auto)   → 2 explicit
-                                                        rows
-                grid-auto-flow: column                → fill cells
-                                                        column-first
+                2-row: port 1→r1c1, port 2→r2c1, port 3→r1c2, ...
+                1-row: port 1→r1c1, port 2→r1c2, port 3→r1c3, ...
 
-              Iterate ports 1..N in order and they land in NETGEAR's
-              odd-top / even-bottom layout naturally:
-
-                port 1 → row 1 col 1     port 3 → row 1 col 2
-                port 2 → row 2 col 1     port 4 → row 2 col 2
-
-              Robust across every model (9P+1F, 16F, 24X8F8V,
-              26P+4F, 40P+4F) regardless of port count. */}
+              Inline styled because the equivalent Tailwind v4
+              classes (grid-rows-1 / grid-rows-2 grid-flow-col)
+              weren't applying for some reason in this codebase. */}
           <div
             className="grid gap-2"
             style={{
-              gridTemplateRows: 'repeat(2, auto)',
+              gridTemplateRows: `repeat(${chassisRows}, auto)`,
               gridAutoFlow: 'column',
             }}
           >

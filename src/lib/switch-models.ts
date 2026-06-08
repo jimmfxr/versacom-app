@@ -46,6 +46,11 @@ export type SwitchModel = {
   label: string
   rj45Count: number
   sfpCount: number
+  /** Chassis row count for the Switch Studio grid. Defaults to 2
+   *  (odd-top / even-bottom NETGEAR convention). Small / single-row
+   *  models (9P+1F, 16F) set this to 1 so all ports render in a
+   *  single horizontal strip. */
+  chassisRows: 1 | 2
   /** Returns the default VLAN assignment for a given 1-based port
    *  index. Implemented as a function so larger models can describe
    *  the pattern in code instead of listing every port individually. */
@@ -69,6 +74,9 @@ export const SWITCH_MODELS: Record<string, SwitchModel> = {
     label: 'M4250-9G1F',
     rj45Count: 9,
     sfpCount: 1,
+    // Small switch — operator wants all 10 ports in a single row
+    // instead of the standard odd-top / even-bottom split.
+    chassisRows: 1,
     defaultFor: (portIndex, portKind) => {
       if (portKind === 'sfp') return { vlanId: VLAN_IDS.Management, isTrunk: true }
       if (portIndex === 9) return { vlanId: VLAN_IDS.Management, isTrunk: true }
@@ -87,6 +95,7 @@ export const SWITCH_MODELS: Record<string, SwitchModel> = {
     label: 'M4250-26G4F-PoE+',
     rj45Count: 26,
     sfpCount: 4,
+    chassisRows: 2,
     defaultFor: (portIndex, portKind) => {
       if (portKind === 'sfp') return { vlanId: VLAN_IDS.Management, isTrunk: true }
       if (portIndex >= 25) return { vlanId: VLAN_IDS.Management, isTrunk: true }
@@ -105,6 +114,7 @@ export const SWITCH_MODELS: Record<string, SwitchModel> = {
     label: 'M4250-40G4F-PoE+',
     rj45Count: 40,
     sfpCount: 4,
+    chassisRows: 2,
     defaultFor: (portIndex, portKind) => {
       if (portKind === 'sfp') return { vlanId: VLAN_IDS.Management, isTrunk: true }
       if (portIndex <= 20) return { vlanId: VLAN_IDS.CommsDante1, isTrunk: false }
@@ -120,6 +130,7 @@ export const SWITCH_MODELS: Record<string, SwitchModel> = {
     label: 'M4250-24X8F8V',
     rj45Count: 24,
     sfpCount: 16,
+    chassisRows: 2,
     defaultFor: (portIndex, portKind) => {
       if (portKind === 'sfp') return { vlanId: VLAN_IDS.Management, isTrunk: true }
       if (portIndex <= 12) return { vlanId: VLAN_IDS.CommsDante1, isTrunk: false }
@@ -135,6 +146,9 @@ export const SWITCH_MODELS: Record<string, SwitchModel> = {
     label: 'M4250-16F',
     rj45Count: 0,
     sfpCount: 16,
+    // Fiber backbone — operator wants all 16 SFPs in a single row
+    // (single port bank, no top/bottom split needed).
+    chassisRows: 1,
     defaultFor: (_portIndex, _portKind) => ({
       vlanId: VLAN_IDS.Management,
       isTrunk: true,
