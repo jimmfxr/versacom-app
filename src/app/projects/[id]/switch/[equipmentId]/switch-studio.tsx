@@ -147,7 +147,10 @@ export function SwitchStudio({
                 href={`http://${equipment.ipAddress}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="shrink-0 truncate text-sm font-mono text-[#22a7d3] hover:text-[#019bc7]"
+                // Same text treatment as the Equipment card's IP link
+                // (project-page.tsx ~line 4319) — text-sm, NO font-mono.
+                // Cyan / brighter-cyan hover unchanged.
+                className="shrink-0 truncate text-sm text-[#22a7d3] hover:text-[#019bc7]"
               >
                 {equipment.ipAddress}
               </a>
