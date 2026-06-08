@@ -170,32 +170,60 @@ stateDiagram-v2
 stateDiagram-v2
     direction TB
 
-    [*] --> own_panel : Viewer = panel's assigned member
-    [*] --> others_panel : Viewer != assigned member\n(admin manager global admin only)
+    [*] --> own_panel : Viewer is assigned member
+    [*] --> others_panel : Viewer is admin manager or global admin
 
     own_panel --> own_admin_direct : Viewer is admin
     own_panel --> own_request : Viewer is manager crew user
 
-    others_panel --> others_admin_direct : Viewer is admin (global or scoped)
-    others_panel --> others_request : Viewer is manager (sends as endorsement)
+    others_panel --> others_admin_direct : Viewer is admin
+    others_panel --> others_request : Viewer is manager
 
-    own_admin_direct --> browse_layer : URL has ?from=my-equipment
-    others_admin_direct --> browse_layer : URL has ?from=my-equipment
-    others_request --> browse_layer : URL has ?from=my-equipment
+    own_admin_direct --> browse_layer : URL has from my-equipment
+    others_admin_direct --> browse_layer : URL has from my-equipment
+    others_request --> browse_layer : URL has from my-equipment
 
-    browse_layer --> review_mode : URL has ?review=memberId\n(admin clicked Review in Tasks)
+    browse_layer --> review_mode : URL has review memberId
 
-    review_mode --> applied : Admin Resolves with at least one approval
+    review_mode --> applied : Admin Resolves with one or more approvals
     review_mode --> rejected : Admin Resolves with all denied
-    applied --> [*] : router.replace /admin
-    rejected --> [*] : router.replace /admin
+    applied --> [*] : router replace admin
+    rejected --> [*] : router replace admin
 
-    note right of own_admin_direct : Edit then saved immediately. No change-request. Copy + Paste hidden.
-    note right of others_admin_direct : Edit then saved immediately (global admin override). Copy + Paste shown. Browse Header above if ?from=my-equipment.
-    note right of own_request : Edit then ChangeRequest(submitted). Green highlight on key. No Copy/Paste.
-    note right of others_request : Edit then ChangeRequest(submitted) marked mgr_endorsed if viewer is manager. Copy + Paste shown.
-    note right of browse_layer : Adds Browse Header: show user chevrons. Nav highlight flips to My Equipment. Cookies remember last project and member.
-    note right of review_mode : Per-key Approve/Deny toggles replace picker. Resolve button replaces Save. Submitted-green keys read-only until per-key choice made.
+    note right of own_admin_direct
+        Edit saved immediately.
+        No change-request.
+        Copy and Paste hidden.
+    end note
+
+    note right of others_admin_direct
+        Edit saved immediately (global admin override).
+        Copy and Paste shown.
+        Browse Header above if from my-equipment.
+    end note
+
+    note right of own_request
+        Edit becomes ChangeRequest submitted.
+        Green highlight on key.
+        No Copy or Paste.
+    end note
+
+    note right of others_request
+        Edit becomes ChangeRequest submitted, mgr_endorsed if manager.
+        Copy and Paste shown.
+    end note
+
+    note right of browse_layer
+        Adds Browse Header: show, user, chevrons.
+        Nav highlight flips to My Equipment.
+        Cookies remember last project and last member.
+    end note
+
+    note right of review_mode
+        Per-key Approve and Deny toggles replace picker.
+        Resolve button replaces Save.
+        Submitted-green keys read-only until per-key choice made.
+    end note
 </pre>
 </div>
 
