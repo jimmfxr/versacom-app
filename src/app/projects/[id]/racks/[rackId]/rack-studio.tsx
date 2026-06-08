@@ -1960,7 +1960,7 @@ function DeviceTile({
               <span className="truncate text-[11px] text-gray-500">{preset.hardwareType}</span>
             )}
             {preset.ipAddress && (
-              <span className="truncate text-[11px] font-mono text-gray-400">{preset.ipAddress}</span>
+              <span className="truncate text-[11px] font-mono text-[#22a7d3]">{preset.ipAddress}</span>
             )}
           </span>
         ) : (
@@ -2517,7 +2517,7 @@ function SlotRow({
                     <span className="truncate text-[11px] text-gray-500">{linkedEq.hardwareType}</span>
                   )}
                   {linkedEq.ipAddress && (
-                    <span className="truncate text-[11px] font-mono text-gray-400">{linkedEq.ipAddress}</span>
+                    <span className="truncate text-[11px] font-mono text-[#22a7d3]">{linkedEq.ipAddress}</span>
                   )}
                 </span>
               )

@@ -137,7 +137,7 @@ function Chassis({
                 <span className="truncate text-[10px] text-gray-500 print:text-black">{s.linkedHardwareType}</span>
               )}
               {s.linkedIpAddress && (
-                <span className="truncate text-[10px] font-mono text-gray-400 print:text-black">{s.linkedIpAddress}</span>
+                <span className="truncate text-[10px] font-mono text-[#22a7d3] print:text-black">{s.linkedIpAddress}</span>
               )}
             </span>
             {/* Invisible spacer mirroring the RU number column width
