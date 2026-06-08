@@ -362,21 +362,20 @@ The slot moves through a small state machine driven by drag-and-tap operator act
 stateDiagram-v2
     direction LR
 
-    [*] --> picked : Operator drags a library tile<br/>OR taps a free RU then a tile
+    [*] --> picked : Operator drags a library tile or taps a free RU then a tile
 
-    picked --> placed : Drop on free RU range\n(server collision check passes)
-    picked --> [*] : Drop outside chassis\nOR drop on occupied range (snap-back)
+    picked --> placed : Drop on free RU range and server collision check passes
+    picked --> [*] : Drop outside chassis or on occupied range so snap-back
 
-    placed --> placed_repositioned : Operator drags slot card to a new RU\n(server collision check passes)
-    placed --> placed : Operator edits label / deviceType / ruSize\n(same row, different fields)
-    placed --> placed : Operator swaps equipmentId\n(linked slot variant only)
-    placed --> [*] : Operator deletes slot (confirm modal)
+    placed --> placed_repositioned : Operator drags slot card to a new RU
+    placed --> placed : Operator edits label deviceType or ruSize
+    placed --> placed : Operator swaps equipmentId on a linked slot
+    placed --> [*] : Operator deletes slot via confirm modal
 
-    placed_repositioned --> placed : (alias - same DB state)
+    placed_repositioned --> placed : alias - same DB state
 
     note right of picked
-        Client-only ghost state.
-        No DB row yet.
+        Client-only ghost state. No DB row yet.
         pendingDragRef OR armedRu set in client.
     end note
 
@@ -394,14 +393,14 @@ stateDiagram-v2
 stateDiagram-v2
     direction LR
 
-    [*] --> unlinked : Slot created from a generic preset\n(deviceType from library, label hand-entered)
+    [*] --> unlinked : Slot created from a generic preset
 
     unlinked --> linked : Slot edit form picks an Equipment row
-    linked --> unlinked : Slot edit form picks "no equipment"
-    linked --> linked : Swap to another Equipment\n(same category, same rack only)
+    linked --> unlinked : Slot edit form picks no equipment
+    linked --> linked : Swap to another Equipment same category same rack
 
     note right of unlinked
-        equipmentId = null.
+        equipmentId is null.
         Slot label is hand-typed.
         Renders as plain card.
     end note
@@ -409,9 +408,9 @@ stateDiagram-v2
     note right of linked
         equipmentId points at Equipment row.
         Label uses equipment.name.
-        Card surfaces equipment.location (cyan),
-        hardwareType (gray), deploy status badge,
-        IP (cyan link on screen).
+        Card surfaces equipment.location in cyan,
+        hardwareType in gray, deploy status badge,
+        IP as cyan link on screen.
     end note
 ```
 
@@ -447,29 +446,29 @@ stateDiagram-v2
     direction LR
 
     [*] --> unseeded : Equipment created
-    unseeded --> assigned : First Switch Studio open\n(lazy-seed: defaultFor(portIndex, kind))
-    unseeded --> unassigned : (rare — defaultFor returns vlanId=null)
+    unseeded --> assigned : First Switch Studio open seeds defaults
+    unseeded --> unassigned : Rare branch when defaultFor returns null vlanId
 
-    assigned --> unassigned : User picks "Unassign"
+    assigned --> unassigned : User picks Unassign
     unassigned --> assigned : User picks any profile
 
     assigned --> assigned : User picks a different profile
 
     note right of unseeded
         No SwitchPort row exists yet.
-        Page loader detects 0 rows and seeds.
-        Never reached by an end user — invisible.
+        Page loader detects zero rows and seeds.
+        Never reached by an end user.
     end note
 
     note right of unassigned
-        profileId = null + isTrunk = false.
-        Visual: empty outlined cell with "—" centered.
+        profileId is null and isTrunk is false.
+        Visual: empty outlined cell with em-dash centered.
     end note
 
     note right of assigned
         profileId points at a VlanProfile row.
-        Visual: cell filled with profile.color,
-        port number small at top, VLAN ID centered.
+        Cell filled with profile color.
+        Port number small at top, VLAN ID centered.
     end note
 ```
 
@@ -485,18 +484,17 @@ stateDiagram-v2
     trunk --> not_trunk : User toggles Trunk off
 
     note right of not_trunk
-        isTrunk = false.
-        Cell renders using profile.color
-        (or empty if profileId is null).
+        isTrunk is false.
+        Cell renders using profile color
+        or empty if profileId is null.
     end note
 
     note right of trunk
-        isTrunk = true.
-        Cell renders gray (Management color)
+        isTrunk is true.
+        Cell renders gray with Management color
         regardless of underlying profile.
-        Small white "T" badge bottom-right.
-        Underlying profileId preserved —
-        toggling off restores the color.
+        White T badge bottom-right.
+        profileId preserved so toggling off restores the color.
     end note
 ```
 

@@ -246,20 +246,29 @@ stateDiagram-v2
 stateDiagram-v2
     direction LR
 
-    [*] --> picked : Operator drags a library tile\nOR taps a free RU then a tile
+    [*] --> picked : Operator drags a library tile or taps a free RU then a tile
 
-    picked --> placed : Drop on free RU range\n(server collision check passes)
-    picked --> [*] : Drop outside chassis\nOR drop on occupied range (snap-back)
+    picked --> placed : Drop on free RU range and server collision check passes
+    picked --> [*] : Drop outside chassis or on occupied range so snap-back
 
-    placed --> placed_repositioned : Operator drags slot card to a new RU\n(server collision check passes)
-    placed --> placed : Operator edits label deviceType ruSize\n(same row different fields)
-    placed --> placed : Operator swaps equipmentId\n(linked slot variant only)
-    placed --> [*] : Operator deletes slot (confirm modal)
+    placed --> placed_repositioned : Operator drags slot card to a new RU
+    placed --> placed : Operator edits label deviceType or ruSize
+    placed --> placed : Operator swaps equipmentId on a linked slot
+    placed --> [*] : Operator deletes slot via confirm modal
 
-    placed_repositioned --> placed : (alias - same DB state)
+    placed_repositioned --> placed : alias - same DB state
 
-    note right of picked : Client-only ghost state. No DB row yet. pendingDragRef OR armedRu set in client.
-    note right of placed : RackSlot row exists in DB. Visual: card on the chassis with label, RU numbers stacked in cyan, deploy badge if linked to Equipment.
+    note right of picked
+        Client-only ghost state. No DB row yet.
+        pendingDragRef OR armedRu set in client.
+    end note
+
+    note right of placed
+        RackSlot row exists in DB.
+        Visual: card on the chassis with label,
+        RU numbers stacked in cyan,
+        deploy badge if linked to Equipment.
+    end note
 </pre>
 </div>
 
@@ -269,14 +278,25 @@ stateDiagram-v2
 stateDiagram-v2
     direction LR
 
-    [*] --> unlinked : Slot created from a generic preset\n(deviceType from library, label hand-entered)
+    [*] --> unlinked : Slot created from a generic preset
 
     unlinked --> linked : Slot edit form picks an Equipment row
-    linked --> unlinked : Slot edit form picks "no equipment"
-    linked --> linked : Swap to another Equipment\n(same category same rack only)
+    linked --> unlinked : Slot edit form picks no equipment
+    linked --> linked : Swap to another Equipment same category same rack
 
-    note right of unlinked : equipmentId=null. Slot label is hand-typed. Renders as plain card.
-    note right of linked : equipmentId points at Equipment row. Label uses equipment.name. Card surfaces equipment.location (cyan), hardwareType (gray), deploy status badge, IP (cyan link on screen).
+    note right of unlinked
+        equipmentId is null.
+        Slot label is hand-typed.
+        Renders as plain card.
+    end note
+
+    note right of linked
+        equipmentId points at Equipment row.
+        Label uses equipment.name.
+        Card surfaces equipment.location in cyan,
+        hardwareType in gray, deploy status badge,
+        IP as cyan link on screen.
+    end note
 </pre>
 </div>
 
@@ -305,16 +325,29 @@ stateDiagram-v2
     direction LR
 
     [*] --> unseeded : Equipment created
-    unseeded --> assigned : First Switch Studio open\n(lazy-seed defaultFor(portIndex, kind))
-    unseeded --> unassigned : (rare - defaultFor returns vlanId=null)
+    unseeded --> assigned : First Switch Studio open seeds defaults
+    unseeded --> unassigned : Rare branch when defaultFor returns null vlanId
 
-    assigned --> unassigned : User picks "Unassign"
+    assigned --> unassigned : User picks Unassign
     unassigned --> assigned : User picks any profile
     assigned --> assigned : User picks a different profile
 
-    note right of unseeded : No SwitchPort row exists. Loader detects 0 rows and seeds. Invisible to user.
-    note right of unassigned : profileId=null + isTrunk=false. Empty outlined cell with em-dash centered.
-    note right of assigned : profileId points at VlanProfile row. Cell filled with profile.color, port number small at top, VLAN ID centered.
+    note right of unseeded
+        No SwitchPort row exists.
+        Loader detects zero rows and seeds.
+        Invisible to user.
+    end note
+
+    note right of unassigned
+        profileId is null and isTrunk is false.
+        Empty outlined cell with em-dash centered.
+    end note
+
+    note right of assigned
+        profileId points at VlanProfile row.
+        Cell filled with profile color.
+        Port number small at top, VLAN ID centered.
+    end note
 </pre>
 </div>
 
@@ -328,8 +361,19 @@ stateDiagram-v2
     not_trunk --> trunk : User toggles Trunk on
     trunk --> not_trunk : User toggles Trunk off
 
-    note right of not_trunk : isTrunk=false. Cell renders using profile.color (or empty if profileId null).
-    note right of trunk : isTrunk=true. Cell renders gray (Management color) regardless of underlying profile. White T badge bottom-right. profileId preserved.
+    note right of not_trunk
+        isTrunk is false.
+        Cell renders using profile color
+        or empty if profileId is null.
+    end note
+
+    note right of trunk
+        isTrunk is true.
+        Cell renders gray with Management color
+        regardless of underlying profile.
+        White T badge bottom-right.
+        profileId preserved.
+    end note
 </pre>
 </div>
 
