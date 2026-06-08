@@ -35,6 +35,15 @@ export default async function RackPreviewPage({
   })
   if (!membership) notFound()
 
+  // Project name for the print header — the operator wanted the
+  // printed sheet to identify which show this rack belongs to so a
+  // crew handling racks for multiple projects can sort the pages.
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { name: true },
+  })
+  if (!project) notFound()
+
   const rack = await prisma.rackTemplate.findFirst({
     where: { id: rackTemplateId, projectId },
     select: {
@@ -65,11 +74,12 @@ export default async function RackPreviewPage({
   if (!rack) notFound()
 
   return (
-    <div className="min-h-screen w-full bg-[#202020] flex flex-col py-5">
-      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-1 flex-col">
+    <div className="min-h-screen w-full bg-[#202020] flex flex-col py-5 print:bg-white print:text-black print:py-2 print:min-h-0">
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-1 flex-col print:px-4">
         <RackPreviewView
           projectId={projectId}
           rackTemplateId={rackTemplateId}
+          projectName={project.name}
           rack={{ name: rack.name, location: rack.location, totalRU: rack.totalRU }}
           slots={rack.slots.map((s) => ({
             id: s.id,
