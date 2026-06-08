@@ -290,15 +290,16 @@ function Chassis({
         <div
           // Chassis bezel — matches Panel Studio's panel-chassis chrome
           // (bg-[#2a2a2a] · border-white/[0.06] · rounded-[14px] ·
-          // padded) so the two studios read as siblings.
-          className="mx-auto w-fit rounded-[14px] border border-white/[0.06] bg-[#2a2a2a] p-6 sm:p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+          // p-8 · relative for the absolute model label) so the three
+          // studios read uniform.
+          className="relative mx-auto w-fit rounded-[14px] border border-white/[0.06] bg-[#2a2a2a] p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
         >
-          {/* Chassis-printed model label — sits inside the bezel,
-              top-right, in cyan. Reads like a NETGEAR manufacturer
-              plate stamped on the physical chassis face. Replaces
-              the model in the identity strip above (otherwise it
-              repeated). */}
-          <div className="mb-3 text-right text-[10px] font-bold uppercase tracking-wider text-[#22a7d3]">
+          {/* Chassis-printed model label — same treatment Panel
+              Studio uses (absolute right-4 top-3, text-sm + wide
+              tracking + tabular-nums = engraved-silkscreen plate
+              look). pointer-events-none so it never intercepts
+              clicks on the cells. */}
+          <div className="pointer-events-none absolute right-4 top-3 text-sm font-bold uppercase tracking-[0.18em] tabular-nums leading-none text-[#22a7d3]">
             {modelLabel}
           </div>
           {/* Grid row count is per-model. 2 rows (NETGEAR's odd-top /
