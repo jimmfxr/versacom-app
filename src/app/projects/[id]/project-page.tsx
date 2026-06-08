@@ -1536,6 +1536,24 @@ export function ProjectPage({
       const key = trimmed.toLowerCase()
       if (!seen.has(key)) seen.set(key, trimmed)
     }
+    // Also pull from rack + member locations so the autocomplete
+    // covers everything in the project, not just equipment. Operator
+    // editing a rack's location should see e.g. "FOH" even if it was
+    // first typed on a rack rather than a piece of gear.
+    for (const r of commsRacks) {
+      if (!r.location) continue
+      const trimmed = r.location.trim()
+      if (!trimmed) continue
+      const key = trimmed.toLowerCase()
+      if (!seen.has(key)) seen.set(key, trimmed)
+    }
+    for (const m of project.members) {
+      if (!m.location) continue
+      const trimmed = m.location.trim()
+      if (!trimmed) continue
+      const key = trimmed.toLowerCase()
+      if (!seen.has(key)) seen.set(key, trimmed)
+    }
     return Array.from(seen.values())
   })()
 
@@ -3799,6 +3817,19 @@ export function ProjectPage({
               : null
             return (
             <div className="flex min-h-0 flex-1 flex-col">
+              {/* Shared datalist for the Location input on the Create
+                  rack form AND the Edit rack metadata form. Native
+                  <datalist> means the iPad keyboard + every desktop
+                  browser shows existing locations as autocomplete
+                  suggestions when the operator focuses the Location
+                  field — no extra JS, no styling pain. The list is
+                  pulled from allLocations which now spans equipment +
+                  racks + members. */}
+              <datalist id="rack-locations">
+                {allLocations.map((loc) => (
+                  <option key={loc} value={loc} />
+                ))}
+              </datalist>
               {/* Desktop toolbar — tab dropdown + collapsible search on
                   the right. Mirrors the Plots / Comms pattern: search
                   icon expands into an input that replaces the dropdown
@@ -4005,6 +4036,8 @@ export function ProjectPage({
                               disabled={rackEditSaving}
                               placeholder="Location"
                               aria-label="Rack location"
+                              list="rack-locations"
+                              autoComplete="off"
                               className="min-w-0 w-full sm:flex-1 rounded-lg border border-white/10 bg-[#202020] px-3 py-2 text-sm text-gray-200 placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
                             />
                             <input
@@ -4445,6 +4478,8 @@ function CreateRackForm({
             value={location}
             onChange={(e) => setLocation(e.target.value)}
             placeholder="FOH, MON, STAGE…"
+            list="rack-locations"
+            autoComplete="off"
             className="w-full rounded-lg border border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 placeholder-gray-500 outline-none transition-colors hover:border-white/20 focus:border-[#0178a3]"
           />
         </div>
