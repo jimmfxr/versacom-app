@@ -230,10 +230,10 @@ export function RackPreviewView({
   return (
     <>
       {/* Header: show · rack name · location · RU on the left;
-          Print + X close on the right. Show name was added so
+          Print + Close on the right. Show name was added so
           printed sheets identify the project. Print button left
-          of X triggers window.print(); the print styles strip
-          colors / fills + hide chrome (X, dots, wheels) so the
+          of Close triggers window.print(); the print styles strip
+          colors / fills + hide chrome (Close, dots, wheels) so the
           paper output is just lines + black text. */}
       <header className="flex items-center justify-between gap-3 print:text-black">
         <div className="min-w-0 flex items-baseline gap-2">
@@ -251,8 +251,8 @@ export function RackPreviewView({
         </div>
         <div className="flex items-center gap-3 shrink-0 print:hidden">
           {/* Print button — fires window.print(); the @media print
-              styles handle the rest. Sits left of the X close per
-              operator request. */}
+              styles handle the rest. Sits left of the Close button
+              per operator request. */}
           <button
             type="button"
             onClick={() => {
@@ -314,15 +314,18 @@ export function RackPreviewView({
               <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-3 0h.008v.008H15V10.5Z" />
             </svg>
           </button>
+          {/* Close button — replaced the X icon-button with a labeled
+              text button to match the close pattern used in Rack
+              Studio, Panel Studio, and Switch Studio (consistent
+              chrome across the studios). Returns to the project
+              detail page with the racks tab open and the originating
+              rack expanded. */}
           <Link
             href={`/projects/${projectId}?tab=racks&expand=${rackTemplateId}`}
-            aria-label="Close rack preview"
             style={{ touchAction: 'manipulation' }}
-            className="flex size-9 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:text-white active:bg-[#0178a3] active:text-white"
+            className="shrink-0 inline-flex rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
           >
-            <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-            </svg>
+            Close
           </Link>
         </div>
       </header>
