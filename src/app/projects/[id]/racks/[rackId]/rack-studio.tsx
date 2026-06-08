@@ -1946,17 +1946,16 @@ function DeviceTile({
                 : 'border-white/[0.08] text-gray-300 hover:border-[rgba(34,167,211,0.5)] hover:bg-white/[0.03]'
         }`}
       >
-        {/* Equipment-backed tile: four pieces on one row, colored
-            independently — id (white) · location (cyan) · model
-            (gray) · ip (mono gray). Each segment truncates so the
-            row doesn't blow out the tile width. Presets just
-            render their single name in default text color. */}
+        {/* Equipment-backed tile: three pieces on one row, colored
+            independently — id (white) · model (gray) · ip (mono
+            gray). Location dropped per operator feedback (the IP
+            address already disambiguates which switch is which).
+            Each segment truncates so the row doesn't blow out the
+            tile width. Presets just render their single name in
+            default text color. */}
         {preset.isEquipment ? (
           <span className="min-w-0 flex items-baseline gap-2">
             <span className="truncate text-white">{preset.name}</span>
-            {preset.location && (
-              <span className="truncate text-[#22a7d3]">{preset.location}</span>
-            )}
             {preset.hardwareType && (
               <span className="truncate text-[11px] text-gray-500">{preset.hardwareType}</span>
             )}
@@ -2514,9 +2513,6 @@ function SlotRow({
               return (
                 <span className="min-w-0 flex-1 flex items-baseline justify-center gap-2">
                   <span className="truncate text-white">{linkedEq.name}</span>
-                  {linkedEq.location && (
-                    <span className="truncate text-[#22a7d3]">{linkedEq.location}</span>
-                  )}
                   {linkedEq.hardwareType && (
                     <span className="truncate text-[11px] text-gray-500">{linkedEq.hardwareType}</span>
                   )}

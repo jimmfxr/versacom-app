@@ -133,9 +133,6 @@ function Chassis({
             </span>
             <span className="min-w-0 flex-1 flex items-baseline justify-center gap-1.5 truncate px-2">
               <span className="truncate print:text-black">{s.label}</span>
-              {s.linkedLocation && (
-                <span className="truncate text-[#22a7d3] print:text-black">{s.linkedLocation}</span>
-              )}
               {s.linkedHardwareType && (
                 <span className="truncate text-[10px] text-gray-500 print:text-black">{s.linkedHardwareType}</span>
               )}
