@@ -2515,8 +2515,21 @@ export function ProjectPage({
                       )
                     }
 
+                    // When a mult is being edited, the whole row (form
+                    // fields + strand list + Cancel/Delete/Save buttons)
+                    // gets wrapped in Card chrome — bordered, padded, my-3
+                    // breathing room from neighbour rows — so the edit
+                    // workspace reads as one contained surface, same as
+                    // the Add Equipment / Add Member / Add Function cards.
+                    // Non-mult edits + read-only rows keep the flat flex
+                    // layout the rest of the list uses.
+                    const isMultEdit = item.category === 'mults' && isEditing
                     return (
-                      <div key={item.id} className={`flex flex-col items-stretch gap-4 py-3 transition-colors sm:flex-row sm:items-start sm:gap-4 ${isEditing ? '' : 'hover:bg-white/[0.04]'}`}>
+                      <div key={item.id} className={
+                        isMultEdit
+                          ? 'my-3 flex flex-col items-stretch gap-4 rounded-lg border-2 border-white/10 px-4 py-5 sm:flex-row sm:items-start sm:gap-4'
+                          : `flex flex-col items-stretch gap-4 py-3 transition-colors sm:flex-row sm:items-start sm:gap-4 ${isEditing ? '' : 'hover:bg-white/[0.04]'}`
+                      }>
                         {/* Content */}
                         <div className="min-w-0 flex-1">
                           {isEditing ? (
