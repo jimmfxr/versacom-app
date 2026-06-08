@@ -256,17 +256,28 @@ export function RackPreviewView({
           <button
             type="button"
             onClick={() => {
-              // iPadOS Safari is stricter about user-gesture context
-              // than iPhone — deferring window.print() via setTimeout
-              // breaks the gesture chain on iPad (silently no-ops).
-              // Call SYNCHRONOUSLY inside the click handler so the
-              // gesture is still considered live when print() fires.
-              // try/catch handles PWA / webview contexts where the
-              // print API may be blocked entirely.
+              // iOS PWA mode (page added to home screen) BLOCKS
+              // window.print() entirely — the API silently no-ops
+              // inside standalone mode. Detect standalone via the
+              // display-mode media query (modern) AND the legacy
+              // navigator.standalone iOS-only flag; if standalone,
+              // open the current URL in the system browser (Safari)
+              // where print() does work. Otherwise call print()
+              // synchronously inside the click handler — iPadOS
+              // is strict about user-gesture context and deferred
+              // calls silently drop. try/catch silences any other
+              // blocked-context (in-app webview, etc).
+              const isStandalone =
+                window.matchMedia?.('(display-mode: standalone)').matches ||
+                (navigator as Navigator & { standalone?: boolean }).standalone === true
+              if (isStandalone) {
+                window.open(window.location.href, '_blank')
+                return
+              }
               try {
                 window.print()
               } catch {
-                // ignore
+                // ignore — webview / blocked context
               }
             }}
             aria-label="Print rack"
