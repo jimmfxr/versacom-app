@@ -156,11 +156,30 @@ export function FrameStudio({
           slots={slots}
           identityStrip={
             <div className="min-w-0">
-              {/* FRM N — white bold, Panel-Studio member-name styling. */}
-              <div className="text-[18px] font-bold text-white lg:text-[22px] truncate">
-                {equipment.name}
+              {/* Row 1 — FRM N (white bold) · Node ID (cyan bold).
+                  Pair pattern matches Panel Studio's 'PNL 1 ·
+                  Jack Lord' identity row: white equipment id +
+                  cyan-emphasized 'who/what this frame is'. The
+                  Node ID is the Riedel-programmed hardware
+                  identifier — that's the meaningful Director-side
+                  name, so it earns the cyan emphasis the same way
+                  a member name does on Panel Studio. */}
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <span className="text-[18px] font-bold text-white lg:text-[22px] truncate">
+                  {equipment.name}
+                </span>
+                {equipment.frameNodeId && (
+                  <>
+                    <span className="text-xs text-[#3a3a3a]">·</span>
+                    <span className="text-[18px] font-bold text-[#22a7d3] truncate lg:text-[22px]">
+                      {equipment.frameNodeId}
+                    </span>
+                  </>
+                )}
               </div>
-              {/* Row 2 — IP · Node ID · bay count, smaller, gray-600 dots. */}
+              {/* Row 2 — IP · bay count, smaller, gray-600 dots.
+                  Node ID moved up to row 1 (the cyan
+                  emphasis-slot) so it's gone from this row. */}
               <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                 {equipment.ipAddress && (
                   <>
@@ -172,14 +191,6 @@ export function FrameStudio({
                     >
                       {equipment.ipAddress}
                     </a>
-                    <span className="text-xs text-[#3a3a3a]">·</span>
-                  </>
-                )}
-                {equipment.frameNodeId && (
-                  <>
-                    <span className="text-[13px] text-gray-400">
-                      Node <span className="text-white">{equipment.frameNodeId}</span>
-                    </span>
                     <span className="text-xs text-[#3a3a3a]">·</span>
                   </>
                 )}
