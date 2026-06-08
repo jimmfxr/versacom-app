@@ -248,6 +248,7 @@ function Chassis({
                   key={slot.id}
                   bay={bay}
                   slot={slot}
+                  model={model}
                   canEdit={canEdit}
                   isOpen={openSlotId === slot.id}
                   onOpen={() => onOpenSlot(slot.id)}
@@ -275,6 +276,7 @@ function Chassis({
 function BayCell({
   bay,
   slot,
+  model,
   canEdit,
   isOpen,
   onOpen,
@@ -283,6 +285,10 @@ function BayCell({
 }: {
   bay: FrameBay
   slot: Slot
+  /** Owning frame model — passed down so the popover can pick the
+   *  right card-label convention (full -108 G2 names for older
+   *  frames, short names for the 1024). */
+  model: FrameModel
   canEdit: boolean
   isOpen: boolean
   onOpen: () => void
@@ -336,6 +342,7 @@ function BayCell({
         <BayEditPopover
           bay={bay}
           slot={slot}
+          model={model}
           onPatch={onPatch}
           onClose={onClose}
           anchorRef={cellRef}
@@ -357,12 +364,17 @@ function BayCell({
 function BayEditPopover({
   bay,
   slot,
+  model,
   onPatch,
   onClose,
   anchorRef,
 }: {
   bay: FrameBay
   slot: Slot
+  /** Owning frame model — drives which card-label convention to use
+   *  in the picker (short for 1024, long with -108 G2 for older
+   *  frames). */
+  model: FrameModel
   onPatch: (next: { cardType: string }) => void
   onClose: () => void
   anchorRef: React.RefObject<HTMLButtonElement | null>
@@ -442,7 +454,7 @@ function BayEditPopover({
                 }`}
               >
                 <span className="min-w-0 flex-1 truncate">
-                  {getCardLabel(card as CardType)}
+                  {getCardLabel(card as CardType, model)}
                 </span>
               </button>
             )

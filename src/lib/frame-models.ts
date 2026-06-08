@@ -215,6 +215,13 @@ export type FrameModel = {
    *  correctly on drop. Matches the Riedel-published spec sheets:
    *  Artist 32 = 2U, MRF 64 = 3U, MFR 128 = 6U, Artist 1024 = 2U. */
   ruSize: number
+  /** When true, the bay-edit popover uses CardTypeMeta.shortLabel
+   *  ('AIO', 'DANTE', 'MADI', etc.) instead of CardTypeMeta.label
+   *  ('AIO-108 G2', 'DANTE-108 G2', ...). The '-108 G2' / '-116 G2'
+   *  Riedel naming convention is specific to the older 32 / MRF 64 /
+   *  MFR 128 frames; the 1024 uses unsuffixed card names in Director,
+   *  so the picker labels follow suit. */
+  useShortCardLabels?: boolean
   /** All editable bays in this model. Iterated by the page loader for
    *  lazy-seed; iterated by the client for rendering. */
   bays: readonly FrameBay[]
@@ -396,6 +403,10 @@ export const FRAME_MODELS: Record<string, FrameModel> = {
     cols: 5,
     rows: 2,
     ruSize: 2,
+    // 1024 cards use the short Riedel-Director names (AES67, DANTE,
+    // MADI, NIC) — the -108 G2 / -116 G2 suffix is older-frame
+    // terminology (32 / MRF 64 / MFR 128).
+    useShortCardLabels: true,
     bays: [
       // Row 1: bays 1, 2, 3, 4, 5.
       { key: '1', column: 1, row: 1, accent: 'gray', allowedCards: ['unused', 'aes67', 'dante', 'madi'], defaultCard: 'unused' },
@@ -424,9 +435,17 @@ export function getFrameModel(hardwareType: string | null | undefined): FrameMod
 
 /** Display label for a card-type token. Falls back to the token
  *  itself for unknown values (defensive — should never happen in
- *  practice since updateFrameSlot validates against allowedCards). */
-export function getCardLabel(cardType: string): string {
-  return CARD_TYPES[cardType as CardType]?.label ?? cardType
+ *  practice since updateFrameSlot validates against allowedCards).
+ *
+ *  When a FrameModel is provided AND that model has
+ *  `useShortCardLabels: true` (the 1024 case), returns the short
+ *  label instead. Lets the bay-edit popover pick the right
+ *  Riedel naming convention per frame model. */
+export function getCardLabel(cardType: string, model?: FrameModel | null): string {
+  const meta = CARD_TYPES[cardType as CardType]
+  if (!meta) return cardType
+  if (model?.useShortCardLabels) return meta.shortLabel
+  return meta.label
 }
 
 /** Short label stamped on the bay cell in the chassis grid. */
