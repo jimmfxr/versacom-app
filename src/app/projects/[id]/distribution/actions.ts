@@ -37,6 +37,9 @@ const CATEGORY_PREFIXES: Record<string, string> = {
   wireless_bp: 'WLBP',
   hardwire_bp: 'HWBP',
   switches: 'SW',
+  // Riedel Artist frames — auto-name FRM 1, FRM 2, … (number suffix
+  // per-project, same scheme as the other numbered categories).
+  frames: 'FRM',
   antennas: 'ANT',
   audio: 'AUD',
   // Mults use a different naming scheme — letter suffix per hardware
