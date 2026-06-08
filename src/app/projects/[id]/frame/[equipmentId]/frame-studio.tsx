@@ -416,16 +416,20 @@ function BayEditPopover({
               <button
                 key={card}
                 type="button"
-                onClick={() => onPatch({ cardType: card })}
-                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-white/[0.04] ${
+                // Picking a card patches AND closes the popover —
+                // operator preference, no need to keep it open since
+                // there's only one knob per bay (no trunk-flag-style
+                // secondary control like Switch Studio has). The
+                // dropdown closing on selection matches every other
+                // dropdown in the app (FilterDropdown / Listbox).
+                onClick={() => {
+                  onPatch({ cardType: card })
+                  onClose()
+                }}
+                className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-white/[0.04] ${
                   selected ? 'bg-white/[0.06]' : ''
                 }`}
               >
-                <span
-                  className={`size-4 shrink-0 rounded border ${
-                    card === 'unused' ? 'border-dashed border-white/30' : 'border-white/20 bg-white/10'
-                  }`}
-                />
                 <span className="min-w-0 flex-1 truncate text-white">
                   {getCardLabel(card as CardType)}
                 </span>

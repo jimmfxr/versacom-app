@@ -531,15 +531,20 @@ function PortEditPopover({
         aria-label={`Port ${port.portIndex} VLAN picker`}
       >
         <div className="max-h-72 overflow-y-auto">
-          {/* Unassigned row at the top — null profile / non-trunk. */}
+          {/* Unassigned row at the top — null profile / non-trunk.
+              Picking it closes the popover (operator wanted dropdown
+              behavior consistent across studios; the swatch box on
+              the left was redundant). */}
           <button
             type="button"
-            onClick={() => onPatch({ profileId: null, isTrunk: false })}
+            onClick={() => {
+              onPatch({ profileId: null, isTrunk: false })
+              onClose()
+            }}
             className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-white/[0.04] ${
               port.profileId == null && !port.isTrunk ? 'bg-white/[0.06]' : ''
             }`}
           >
-            <span className="size-4 shrink-0 rounded border border-dashed border-white/30" />
             <span className="flex-1 truncate text-gray-300">Unassigned</span>
           </button>
 
@@ -554,15 +559,19 @@ function PortEditPopover({
                   <button
                     key={p.id}
                     type="button"
-                    onClick={() => onPatch({ profileId: p.id, isTrunk: false })}
+                    // Picking a profile patches AND closes — same
+                    // dropdown-style convention. VLAN ID still
+                    // visible on the right in dim mono so the
+                    // operator can scan the list without the
+                    // colored swatch on the left.
+                    onClick={() => {
+                      onPatch({ profileId: p.id, isTrunk: false })
+                      onClose()
+                    }}
                     className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-white/[0.04] ${
                       selected ? 'bg-white/[0.06]' : ''
                     }`}
                   >
-                    <span
-                      style={{ backgroundColor: p.color }}
-                      className="size-4 shrink-0 rounded border border-white/10"
-                    />
                     <span className="min-w-0 flex-1 flex items-baseline gap-2">
                       <span className="truncate text-white">{p.name}</span>
                       <span className="shrink-0 text-[10px] font-mono text-gray-500">v{p.vlanId}</span>
