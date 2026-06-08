@@ -268,22 +268,32 @@ function Chassis({
           // padded) so the two studios read as siblings.
           className="mx-auto w-fit rounded-[14px] border border-white/[0.06] bg-[#2a2a2a] p-6 sm:p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
         >
-          {/* Fixed 2 rows, columns flow naturally.
-              `grid-rows-2 grid-flow-col` means: explicit 2 rows,
-              auto-fill by column (top cell first, then bottom cell,
-              then next column). Iterate ports 1..N in order and they
-              land in NETGEAR's odd-top / even-bottom layout for free:
+          {/* Fixed 2 rows, columns flow naturally. Inline-styled
+              instead of `grid-rows-2 grid-flow-col` Tailwind classes
+              because those weren't applying in Tailwind v4 here
+              (9P+1F and 16F were rendering as one long row of all
+              ports). Inline styles guarantee the layout:
+
+                grid-template-rows: repeat(2, auto)   → 2 explicit
+                                                        rows
+                grid-auto-flow: column                → fill cells
+                                                        column-first
+
+              Iterate ports 1..N in order and they land in NETGEAR's
+              odd-top / even-bottom layout naturally:
 
                 port 1 → row 1 col 1     port 3 → row 1 col 2
                 port 2 → row 2 col 1     port 4 → row 2 col 2
 
-              No per-cell explicit gridColumn/gridRow needed —
-              previous attempt set them inline but the 9P+1F (10
-              ports / 5 cols) was rendering as one long row.
-              Replacing with grid-rows-2 grid-flow-col is more
-              robust and matches the layout shape regardless of
-              port count. */}
-          <div className="grid grid-rows-2 grid-flow-col gap-2">
+              Robust across every model (9P+1F, 16F, 24X8F8V,
+              26P+4F, 40P+4F) regardless of port count. */}
+          <div
+            className="grid gap-2"
+            style={{
+              gridTemplateRows: 'repeat(2, auto)',
+              gridAutoFlow: 'column',
+            }}
+          >
             {Array.from({ length: totalCount }, (_, i) => {
               const portIndex = i + 1
               const port = portByIndex.get(portIndex)
