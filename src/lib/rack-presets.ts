@@ -50,10 +50,13 @@ export type RackDevicePreset = {
  */
 export const COMMS_PRESETS: readonly RackDevicePreset[] = [
   // ── Frames (Artist + TRS) ──
-  { name: 'Artist-128 Frame',       ruSize: 6, category: 'frames' },
-  { name: 'Artist-64 Frame',        ruSize: 3, category: 'frames' },
-  { name: 'Artist-32 Frame',        ruSize: 2, category: 'frames' },
-  { name: 'Artist-1024 Frame',      ruSize: 2, category: 'frames' },
+  // Tile labels drop the redundant "Frame" suffix — the section
+  // header already says "Frames", so "Artist-128 Frame" was
+  // doubling the category word on every chip (operator feedback).
+  { name: 'Artist-128',             ruSize: 6, category: 'frames' },
+  { name: 'Artist-64',              ruSize: 3, category: 'frames' },
+  { name: 'Artist-32',              ruSize: 2, category: 'frames' },
+  { name: 'Artist-1024',            ruSize: 2, category: 'frames' },
   { name: 'RTS-ODIN',               ruSize: 1, category: 'frames' },
   { name: 'RTS-OMS',                ruSize: 1, category: 'frames' },
 
