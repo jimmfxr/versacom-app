@@ -163,6 +163,64 @@ stateDiagram-v2
 </pre>
 </div>
 
+<h2>6a. RackSlot lifecycle (Rack Studio, v2.4)</h2>
+<p>The slot moves through a small state machine driven by drag-and-tap operator actions. Library tiles + chassis rows act together as the placement target. A slot can be linked to an Equipment row (<code>equipmentId IS NOT NULL</code>) or stand-alone — the link is set at creation and can be swapped via the slot's edit form, but the slot itself stays the same row.</p>
+<div class="diagram">
+<pre class="mermaid">
+stateDiagram-v2
+    direction LR
+
+    [*] --> picked : Operator drags a library tile\nOR taps a free RU then a tile
+
+    picked --> placed : Drop on free RU range\n(server collision check passes)
+    picked --> [*] : Drop outside chassis\nOR drop on occupied range (snap-back)
+
+    placed --> placed_repositioned : Operator drags slot card to a new RU\n(server collision check passes)
+    placed --> placed : Operator edits label deviceType ruSize\n(same row different fields)
+    placed --> placed : Operator swaps equipmentId\n(linked slot variant only)
+    placed --> [*] : Operator deletes slot (confirm modal)
+
+    placed_repositioned --> placed : (alias - same DB state)
+
+    note right of picked : Client-only ghost state. No DB row yet. pendingDragRef OR armedRu set in client.
+    note right of placed : RackSlot row exists in DB. Visual: card on the chassis with label, RU numbers stacked in cyan, deploy badge if linked to Equipment.
+</pre>
+</div>
+
+<h3>Linked vs unlinked slot variants</h3>
+<div class="diagram">
+<pre class="mermaid">
+stateDiagram-v2
+    direction LR
+
+    [*] --> unlinked : Slot created from a generic preset\n(deviceType from library, label hand-entered)
+
+    unlinked --> linked : Slot edit form picks an Equipment row
+    linked --> unlinked : Slot edit form picks "no equipment"
+    linked --> linked : Swap to another Equipment\n(same category same rack only)
+
+    note right of unlinked : equipmentId=null. Slot label is hand-typed. Renders as plain card.
+    note right of linked : equipmentId points at Equipment row. Label uses equipment.name. Card surfaces equipment.location (cyan), hardwareType (gray), deploy status badge, IP (cyan link on screen).
+</pre>
+</div>
+
+<h2>6b. RackTemplate department (Rack Studio, v2.4)</h2>
+<p><code>RackTemplate.dept</code> decides which side of the company the rack belongs to — affects library default category filter, which presets show up, and where the rack is grouped on the Racks tab. Today the Racks tab is only Comms-scoped — <code>radios</code> dept is reserved for the future Radio rack designer.</p>
+<div class="diagram">
+<pre class="mermaid">
+stateDiagram-v2
+    direction LR
+
+    [*] --> comms : Created from the Comms project Racks tab (default)
+    [*] --> radios : Created from a radio-focused workflow (field set explicitly)
+
+    comms --> comms : (no transitions in current build)
+    radios --> radios : (no transitions in current build)
+</pre>
+</div>
+
+<p class="note">No UI to flip dept after creation; if you need to move a rack between departments, delete + recreate.</p>
+
 <h2>7. SwitchPort visual state (Switch Studio, v2.5)</h2>
 <p>Each port on a switch's chassis has one of three visual states. Plus an orthogonal <strong>Trunk</strong> flag that overrides the cell color (gray + T badge) while preserving the underlying profile assignment.</p>
 <div class="diagram">

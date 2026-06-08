@@ -76,6 +76,10 @@ erDiagram
     Equipment ||--o{ NfgReport : subject
 
     RackTemplate ||--o{ RackSlot : slots
+    RackTemplate ||--o{ RackLooseItem : "loose chips"
+    Equipment ||--o| RackSlot : "optional link"
+    Equipment ||--o| RackLooseItem : "optional link"
+    Project ||--o{ RackDevice : "custom library"
 
     Equipment ||--o{ SwitchPort : "physical port state"
     VlanProfile ||--o{ SwitchPort : "assigned to"
@@ -188,15 +192,41 @@ erDiagram
     RackTemplate {
       int id PK
       string name
+      string description
       int totalRU
+      string type "standard or custom"
+      string dept "comms or radios"
+      string location "FOH MON STAGE Studio A Truck 1"
       int projectId FK
     }
 
     RackSlot {
       int id PK
       int rackTemplateId FK
-      int ruPosition
-      int ruSize
+      int ruPosition "top = 1"
+      int ruSize "1+ used for slot height"
+      string side "front or rear"
+      string deviceType "preset name or custom"
+      string label "free-form or eq.name"
+      string color
+      int equipmentId FK "optional - links Equipment row"
+    }
+
+    RackLooseItem {
+      int id PK
+      int rackTemplateId FK
+      string deviceType "Antaira Intellanet Bolero AM etc"
+      string label "optional"
+      int equipmentId FK "optional Equipment link"
+    }
+
+    RackDevice {
+      int id PK
+      string name "displayed in library"
+      int ruSize "0 = loose otherwise 1+"
+      string category "frames twoWire ptp switches audio patchbay panels drawers power loose"
+      string dept "comms or radios"
+      int projectId FK "nullable for global library"
     }
 
     NfgReport {
@@ -235,7 +265,48 @@ erDiagram
 </pre>
 </div>
 
-<h2>2a. Switch Studio subset (v2.5)</h2>
+<h2>2a. Rack designer subset (v2.4)</h2>
+<p>Four-entity slice used by the Racks tab + RackStudio + RackPreview. <code>RackTemplate</code> is the rack (one per row on the Racks tab). <code>RackSlot</code> is one rack-unit slot at a given position on one face; <code>equipmentId</code> optionally links it to a real Equipment row so deploy status + location + IP flow through. <code>RackLooseItem</code> is a non-RU device tagged to the rack (chips above the chassis). <code>RackDevice</code> is a project-authored custom device that joins the library (built-in presets live in code).</p>
+<div class="diagram">
+<pre class="mermaid">
+erDiagram
+    Project ||--o{ RackTemplate : "owns"
+    Project ||--o{ RackDevice : "custom library"
+    Project ||--o{ Equipment : ""
+    RackTemplate ||--o{ RackSlot : "RU slots"
+    RackTemplate ||--o{ RackLooseItem : "loose chips"
+    Equipment ||--o| RackSlot : "optional link"
+    Equipment ||--o| RackLooseItem : "optional link"
+
+    RackTemplate {
+        string name
+        int totalRU
+        string dept "comms or radios"
+        string location
+    }
+    RackSlot {
+        int ruPosition
+        int ruSize
+        string side "front or rear"
+        string deviceType
+        string label
+        int equipmentId "nullable"
+    }
+    RackLooseItem {
+        string deviceType
+        string label
+        int equipmentId "nullable"
+    }
+    RackDevice {
+        string name
+        int ruSize "0 = loose"
+        string category
+        string dept
+    }
+</pre>
+</div>
+
+<h2>2b. Switch Studio subset (v2.5)</h2>
 <p>VlanProfile is <strong>global</strong> (no projectId) — one company-wide pool seeded from the operator's hex chart. SwitchPort is per-Equipment, lazy-seeded on first Switch Studio open from <code>SwitchModel.defaultFor()</code>.</p>
 <div class="diagram">
 <pre class="mermaid">
@@ -292,6 +363,7 @@ erDiagram
     <tr><td><code>PanelKey</code></td><td><code>(projectMemberId, keyIndex, page, expansion)</code></td><td>One physical key position per member</td></tr>
     <tr><td><code>Asset</code></td><td><code>qrCode</code></td><td>Every physical asset has a unique QR</td></tr>
     <tr><td><code>ProjectHeadsetInventory</code></td><td><code>(projectId, headsetType)</code></td><td>One brought-total row per headset type per project</td></tr>
+    <tr><td><code>RackSlot</code></td><td><code>(rackTemplateId, side, ruPosition)</code> (logical, enforced in code)</td><td>One slot per RU starting-position per side. Collision detection in the drag pipeline checks every RU the slot would span, not just <code>ruPosition</code>.</td></tr>
     <tr><td><code>VlanProfile</code></td><td><code>vlanId</code></td><td>No two profiles share a VLAN ID (1331, 1341, 4000…). Names can repeat but the numeric ID is unique.</td></tr>
     <tr><td><code>SwitchPort</code></td><td><code>(equipmentId, portIndex)</code></td><td>One row per physical port per switch — lazy-seeded on first Switch Studio open</td></tr>
   </tbody>

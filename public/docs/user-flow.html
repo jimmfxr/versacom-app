@@ -296,6 +296,58 @@ flowchart TD
 </pre>
 </div>
 
+<h2>Rack Studio — design + edit a rack (v2.4)</h2>
+<p>The Racks tab under Comms lists every <code>RackTemplate</code> as a single row. Tapping <strong>Edit</strong> expands the row in place into the full RackStudio (chassis + device library + slot editor + loose-gear tray). All other rows collapse — single-rack focus. The URL stays in sync via <code>?tab=racks&amp;expand=&lt;rackId&gt;</code> so refreshing or sharing a link lands on the same expansion.</p>
+
+<div class="diagram">
+<pre class="mermaid">
+flowchart TD
+    RACKS_TAB[Racks tab in Comms] -->|tap Edit on a row| EXPAND[Inline RackStudio<br/>?expand=rackId mirrored to URL]
+
+    EXPAND --> CHASSIS[Chassis - totalRU rows<br/>front or rear side toggle<br/>loose-gear chips above]
+    EXPAND --> LIBRARY[Device library<br/>filter dropdown<br/>10 categories]
+
+    LIBRARY --> EQ_TILES[Equipment tiles at top of<br/>Switches and Audio categories<br/>show unracked Equipment rows only]
+    LIBRARY --> PRESET_TILES[Preset tiles from rack-presets.ts<br/>+ project-scoped RackDevice custom devices]
+
+    EXPAND --> PLACE{Place a slot}
+    PLACE -->|drag tile onto RU| DROP[6px threshold then active drag<br/>collision check on every RU spanned]
+    PLACE -->|tap empty RU then tap tile| ARM_RU[Arm RU then place by tile tap]
+    PLACE -->|tap tile then tap RU| ARM_TILE[Arm tile then place by RU tap]
+
+    DROP --> SLOT_CREATED[RackSlot row created<br/>linked to Equipment if from equipment tile]
+    ARM_RU --> SLOT_CREATED
+    ARM_TILE --> SLOT_CREATED
+
+    SLOT_CREATED --> CARD[Slot card on chassis<br/>label white · linkedLocation cyan · model gray<br/>deploy status badge if linked]
+
+    CARD -->|drag slot card| MOVE[Reposition to free RU<br/>same collision check]
+    CARD -->|tap Edit on card| EDIT_FORM[Edit form replaces card in place<br/>ResizeObserver tracks form height]
+
+    EDIT_FORM -->|linked slot| SWAP[Swap to equivalent Equipment dropdown<br/>same category same rack only]
+    EDIT_FORM -->|unlinked slot| FIELDS[Device type + Label + RU size]
+
+    EXPAND -->|eye icon| PREVIEW[/projects/ID/racks/RID/preview/]
+    EXPAND -->|Close on expanded header| RACKS_TAB
+    PREVIEW -->|Close button| RACKS_TAB
+</pre>
+</div>
+
+<p><strong>Three placement modes</strong> (all routed through the same <code>createRackSlot</code> server action — operator picks whichever feels right):</p>
+<ol>
+  <li><strong>Drag from library → drop on RU.</strong> PointerEvents-based; 6px movement threshold so a tap is still a tap. During drag the bottom sheet (mobile) closes so the chassis is fully visible; reopens after drop.</li>
+  <li><strong>Tap empty RU → arm-then-pick a tile.</strong> Tap RU first; library tiles light cyan as droppable; tap a tile to place at the armed RU.</li>
+  <li><strong>Tap library tile → arm-then-place on RU.</strong> Reverse of (2). Tap tile first; chassis empty rows highlight; tap one to place.</li>
+</ol>
+
+<p><strong>Equipment-backed slots</strong> (PD-026): only <code>switches</code> + <code>audio</code> category equipment surface as library tiles. Panels are excluded — they sit on desks, not in racks. Once an equipment row is linked to a slot in any rack on this project, its tile disappears from the library to prevent double-placement. The slot card pulls deploy status, location, model, and IP from the linked Equipment row at server-render time.</p>
+
+<p><strong>Loose-gear tray</strong> (PD-029): devices with <code>ruSize === 0</code> (Antaira, Intellanet, TP Link, Bolero Antenna Master, …) render as chips above the chassis. Adding is tap-to-add (no drag). The × removes <strong>instantly</strong> — no confirmation modal. Re-adding is one tap.</p>
+
+<p><strong>Rack Preview</strong> (operator-facing): the eye icon next to Edit opens <code>/projects/[id]/racks/[rackId]/preview</code> — read-only, no navbar, no bottom-nav. Renders both Front + Rear chassis side-by-side on desktop, or as a horizontal scroll-snap carousel with cyan dot indicators on mobile. Slots in the preview show <code>label (white) · linkedLocation (cyan) · linkedHardwareType (gray)</code> for equipment-backed slots; empty rows show RU number + "Empty". Labeled <strong>Close</strong> button (matches Switch Studio + Panel Studio chrome — PD-033) returns to <code>?tab=racks&amp;expand=&lt;rackId&gt;</code>.</p>
+
+<p class="note">URL → state restore is one-shot-on-mount (guarded by <code>restoredFromUrlRef</code>); the <code>changeExpandedRack()</code> helper mirrors state to the URL on every toggle. Together these prevent the "press Close → expansion re-opens 1-2 seconds later" bug a background data refresh would otherwise cause with a stale <code>?expand=</code> still in the URL (PD-028).</p>
+
 <h2>Switch Studio — assign VLAN profiles to switch ports (v2.5)</h2>
 <p>Entry point lives on the Comms Equipment tab: the switch ID text (<code>SW 1</code>, <code>SW 2</code>, …) on each NETGEAR M4250 card is a Link to <code>/projects/[id]/switch/[equipmentId]</code>. Only switches whose <code>hardwareType</code> resolves to a registered model (9P+1F, 26P+4F, 40P+4F, 24X8F8V, 16F) get a clickable ID — unmanaged switches don't have a VLAN config UI.</p>
 <div class="diagram">

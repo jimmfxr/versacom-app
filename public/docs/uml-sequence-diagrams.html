@@ -207,6 +207,120 @@ sequenceDiagram
 </pre>
 </div>
 
+<h2>Rack Studio — drag a preset onto an RU (v2.4)</h2>
+<p>PointerEvents-based drag pipeline (no HTML5 DnD — see PD-025). Touching a library tile arms a <code>pendingDragRef</code>; once the pointer moves past a 6px threshold the drag promotes to active, the library bottom sheet (mobile) auto-closes so the operator can see the chassis, and the chassis lights up cyan as droppable. Releasing on an RU calls the server action; out-of-bounds and collisions snap back.</p>
+<div class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+    actor Operator as Crew/Admin
+    participant Tile as Library tile (preset or equipment)
+    participant Drag as Drag pipeline (pointer events)
+    participant Chassis as Chassis rows
+    participant SA as Server actions
+    participant DB as Database
+
+    Operator->>Tile: pointerdown
+    Tile->>Drag: setPendingDragRef preset startX startY
+    Note over Drag: NOT a drag yet - could still be a tap
+
+    alt pointer moves < 6px then releases
+        Operator->>Tile: pointerup
+        Tile->>Drag: clear pendingDragRef
+        Note over Tile,Drag: Treated as tap then arms tile for tap-to-place
+    else pointer moves > 6px
+        Drag->>Drag: promote to ACTIVE drag
+        Drag->>Drag: hide library sheet (mobile)
+        Drag->>Chassis: render droppable cyan glow on free rows
+        Drag-->>Operator: ghost element follows finger
+
+        Operator->>Chassis: pointermove over RU N
+        Chassis->>Drag: hover hint - green if free red if collide
+
+        alt drop on free RU range
+            Operator->>Chassis: pointerup on RU N
+            Drag->>SA: createRackSlot rackTemplateId side ruPosition=N deviceType label ruSize equipmentId
+            SA->>DB: check no slot overlaps ruPosition..ruPosition+ruSize-1 on this side
+            alt collision detected
+                SA-->>Drag: error occupied
+                Drag->>Drag: snap back to tile no DB write
+            else free
+                SA->>DB: INSERT RackSlot
+                SA->>DB: revalidatePath /projects/X/racks/Y
+                SA-->>Drag: ok true slot
+                Drag->>Chassis: render new slot card
+                Drag->>Drag: reopen library sheet (mobile)
+            end
+        else drop outside chassis OR on occupied range
+            Operator->>Chassis: pointerup
+            Drag->>Drag: snap back to tile
+            Drag->>Drag: reopen library sheet (mobile)
+        end
+    end
+</pre>
+</div>
+<p class="note">Collision check runs against EVERY RU the slot would span, not just <code>ruPosition</code>. A 4U Artist frame dropped at RU 6 occupies 6, 7, 8, 9 — if any of those are taken, the drop is rejected. Same logic applies to drag-repositioning an existing slot.</p>
+
+<h2>Rack Studio — tap empty RU then arm-then-pick (v2.4)</h2>
+<p>Single-tap workflow optimized for mobile: tap an empty RU, then tap a library tile. Avoids the drag gesture entirely. Mirror of the reverse flow (tap tile to arm, tap chassis to place).</p>
+<div class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+    actor Operator as Crew/Admin
+    participant Chassis as Empty RU row
+    participant Lib as Library tiles
+    participant SA as Server actions
+    participant DB as Database
+
+    Operator->>Chassis: tap empty RU N
+    Chassis->>Chassis: setArmedRu N - cyan highlight
+    Chassis->>Lib: light up free-RU-fits tiles as cyan-bordered
+
+    alt operator taps a tile
+        Operator->>Lib: tap preset / equipment tile
+        Lib->>SA: createRackSlot rackTemplateId side ruPosition=N
+        SA->>DB: collision check + INSERT
+        SA-->>Lib: ok true slot
+        Lib->>Chassis: clear armedRu render slot
+    else operator taps another RU
+        Operator->>Chassis: tap empty RU M
+        Chassis->>Chassis: setArmedRu M - switches arm
+    else operator taps anywhere else
+        Operator->>Chassis: tap outside RU or tile
+        Chassis->>Chassis: clear armedRu - back to neutral
+    end
+</pre>
+</div>
+
+<h2>Rack Studio — equipment-backed slot creation (v2.4)</h2>
+<p>When the dragged tile represents an actual <code>Equipment</code> row (from the Switches / Audio sections of the library at the top), the created RackSlot is linked via <code>equipmentId</code>. The slot card then renders deploy status, location, model, and IP pulled from the Equipment row at server-side render time. Subsequent equipment-tile renders filter out any unracked-then-now-racked rows so the same switch can't be dropped twice.</p>
+<div class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+    participant Page as racks page.tsx (server)
+    participant DB as Database
+    participant Studio as rack-studio.tsx
+    participant Tile as Equipment tile
+    actor Operator as Crew/Admin
+    participant SA as createRackSlot action
+
+    Page->>DB: SELECT Equipment WHERE projectId AND category IN switches audio
+    DB-->>Page: equipment list
+    Page->>DB: SELECT RackSlot WHERE rackTemplateId AND equipmentId IS NOT NULL
+    DB-->>Page: linked slots
+    Page->>Page: filter - only show equipment NOT already linked to a slot in THIS rack
+    Page-->>Studio: render library with equipment tiles at top of each category
+
+    Operator->>Tile: drag SW 1 onto RU 12
+    Tile->>SA: createRackSlot equipmentId=42 side=front ruPosition=12 ruSize=1 deviceType=26P+4F label=SW 1
+    SA->>DB: collision + INSERT
+    SA->>DB: revalidatePath
+    SA-->>Studio: ok true
+    Studio->>Studio: server re-fetch - equipment 42 now filtered out of library
+
+    Note over Studio,Page: Slot card now displays equipment.name (white) + equipment.location (cyan) + equipment.hardwareType (gray) + deploy status badge - values pulled from Equipment row at render
+</pre>
+</div>
+
 <h2>Switch Studio — open + lazy-seed + port edit (v2.5)</h2>
 <p>The page loader handles three things in one server request: role gate (404 for user), lazy-seed of SwitchPort rows on first open, and fetch of everything the client needs. The client then becomes interactive without further round-trips until an edit.</p>
 <div class="diagram">
