@@ -170,7 +170,12 @@ export function FrameStudio({
                 </span>
                 {equipment.frameNodeId && (
                   <>
-                    <span className="text-xs text-[#3a3a3a]">·</span>
+                    {/* Middot separator — bumped to text-sm + lighter
+                        gray so it's actually visible between the two
+                        18-22px id pieces. Panel Studio uses text-xs
+                        text-[#3a3a3a] but the operator wanted a more
+                        prominent dot here. */}
+                    <span className="text-sm text-gray-500">·</span>
                     <span className="text-[18px] font-bold text-[#22a7d3] truncate lg:text-[22px]">
                       {equipment.frameNodeId}
                     </span>
