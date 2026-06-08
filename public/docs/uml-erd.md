@@ -1,6 +1,6 @@
 # Nodal Control — Entity Relationship Diagram
 
-**Updated:** 2026-06-08
+**Updated:** 2026-06-08 (v2.6 — FrameSlot + Equipment.frameNodeId added for Frame Studio)
 **Source of truth:** `prisma/schema.prisma`. Regenerate this diagram when the schema changes.
 
 ---
@@ -63,6 +63,8 @@ erDiagram
 
     Equipment ||--o{ SwitchPort : "has switch ports"
     VlanProfile ||--o{ SwitchPort : "assigned to ports"
+
+    Equipment ||--o{ FrameSlot : "has frame bays"
 
     User {
         int id PK
@@ -179,9 +181,9 @@ erDiagram
         int id PK
         int projectId FK
         int assignedToId FK
-        string name "PNL 1 WLBP 3 etc"
-        string category "panels wireless_bp hardwire_bp switches antennas audio"
-        string hardwareType "KP-5032 Bolero etc"
+        string name "PNL 1 WLBP 3 SW 1 FRM 1 etc"
+        string category "panels wireless_bp hardwire_bp switches frames antennas audio mults"
+        string hardwareType "KP-5032 Bolero ARTIST_1024 26P+4F etc"
         string position
         string location
         string headsetType
@@ -193,6 +195,7 @@ erDiagram
         boolean gooseneck "panel misc accessory"
         int footswitches
         int speakers
+        string frameNodeId "frames only - Riedel-programmed node ID"
     }
 
     Asset {
@@ -348,6 +351,14 @@ erDiagram
         int profileId FK "optional VlanProfile link"
         boolean isTrunk "independent of profileId"
     }
+
+    FrameSlot {
+        int id PK
+        int equipmentId FK
+        string bayKey "chassis label: 1 2 A B X Y"
+        string cardType "unused aio cat5 aes coax voip gpi madi avb aes67 dante cpu_s_g2 cpu_f_g2 nic"
+        string notes "optional"
+    }
 ```
 
 ---
@@ -495,6 +506,28 @@ erDiagram
 
 VlanProfile is **global** (no `projectId`) — one pool of company-wide VLAN definitions. SwitchPort is per-Equipment (per physical switch). Lazy seeding on first Switch Studio open populates `SwitchPort` rows from the model's `defaultFor()` table (see `src/lib/switch-models.ts`).
 
+### Frame Studio subset (v2.6)
+
+```mermaid
+erDiagram
+    Project ||--o{ Equipment : "owns"
+    Equipment ||--o{ FrameSlot : "physical bay state"
+
+    Equipment {
+        string name "FRM 1 FRM 2 etc"
+        string hardwareType "ARTIST_32 ARTIST_MRF_64 ARTIST_MRF_128 ARTIST_1024"
+        string ipAddress
+        string frameNodeId "Riedel-programmed Node ID"
+    }
+    FrameSlot {
+        string bayKey "1 2 ... A B X Y"
+        string cardType "unused aio cat5 aes coax voip gpi madi avb aes67 dante cpu_s_g2 cpu_f_g2 nic"
+        string notes
+    }
+```
+
+Frame Studio has no global pool counterpart to VlanProfile — the card-type catalogue + per-model bay layouts + per-bay allow-lists all live in `src/lib/frame-models.ts` (PD-034). FrameSlot is per-Equipment (per physical frame). Lazy seeding on first Frame Studio open populates `FrameSlot` rows from each bay's `defaultCard` (`<unused>` for everything except Artist 1024 bays 3+8 which default to `NIC`).
+
 ---
 
 ## Unique constraints
@@ -513,6 +546,7 @@ VlanProfile is **global** (no `projectId`) — one pool of company-wide VLAN def
 | `RackSlot` | `(rackTemplateId, side, ruPosition)` (logical, enforced in code) | One slot per RU starting-position per side. Collision detection in the drag pipeline checks every RU the slot would span, not just `ruPosition`. |
 | `VlanProfile` | `vlanId` | No two profiles share a VLAN ID (1331, 1341, 4000, …). Names + colors can repeat across types but the numeric ID is unique. |
 | `SwitchPort` | `(equipmentId, portIndex)` | One row per physical port per switch. Lazy-seeded on first Switch Studio open. |
+| `FrameSlot` | `(equipmentId, bayKey)` | One row per editable bay per Riedel Artist frame. Lazy-seeded on first Frame Studio open. `bayKey` is the chassis-printed label (`"1"`, …, `"A"`, `"B"`, `"X"`, `"Y"`). |
 
 ---
 
@@ -533,6 +567,7 @@ VlanProfile is **global** (no `projectId`) — one pool of company-wide VLAN def
 | `RackDevice` | **In use (v2.4)** — user-authored custom devices for the library |
 | `VlanProfile` | **In use (v2.5)** — global VLAN pool, seeded from the company hex chart, shared by every project's switches |
 | `SwitchPort` | **In use (v2.5)** — per-Equipment port state, lazy-seeded on first Switch Studio open |
+| `FrameSlot` | **In use (v2.6)** — per-Equipment bay state for Riedel Artist frames, lazy-seeded on first Frame Studio open |
 | `Asset` | Schema present, no UI |
 | `NfgReport` | Schema present, no UI |
 | `MultStrand` | Schema present (Phase 4), no UI |

@@ -1,6 +1,6 @@
 # Nodal Control — State Diagrams
 
-**Updated:** 2026-06-08
+**Updated:** 2026-06-08 (v2.6 — FrameSlot state diagram added)
 
 Describes the state machines driving the app's key workflows: panel-key editing, change-request resolution, and equipment deploy status. The **Panel key** states below are the client-side visual states used in Panel Studio; the actual DB model is `PanelKey` + `KeyDraft`.
 
@@ -513,3 +513,100 @@ the colored fill without re-picking the profile.
 | 40P+4F | 1–20 CommsDante1, 21–40 AES67_1 | 4 SFP Mgmt trunk |
 | 24X8F8V | 1–12 CommsDante1, 13–24 AES67_1 | 16 SFP Mgmt trunk |
 | 16F | (no RJ45) | 16 SFP Mgmt trunk |
+
+---
+
+## 8. FrameSlot card-type state (Frame Studio, v2.6)
+
+Each bay on a frame's chassis holds one of the card-type tokens
+listed in `src/lib/frame-models.ts`. Only the bay's `allowedCards`
+whitelist is reachable from the picker — server action re-validates
+on every write (PD-035).
+
+```mermaid
+stateDiagram-v2
+    direction LR
+
+    [*] --> unseeded : Equipment created
+    unseeded --> seeded_default : First Frame Studio open seeds defaults
+    unseeded --> unused : Rare branch defaultCard is null
+
+    seeded_default --> populated : Operator picks a different card
+    populated --> populated : Operator picks another allowed card
+    populated --> unused : Operator picks Unused
+
+    unused --> populated : Operator picks any allowed card
+
+    note right of unseeded
+        No FrameSlot row exists yet.
+        Loader detects zero rows and seeds one row per bay.
+        Invisible to user.
+    end note
+
+    note right of seeded_default
+        cardType = bay.defaultCard.
+        For most bays this is unused.
+        For Artist 1024 bays 3 + 8 this is nic.
+    end note
+
+    note right of unused
+        cardType = unused.
+        Cell renders with em-dash centered, gray text.
+    end note
+
+    note right of populated
+        cardType = one of bay.allowedCards.
+        Cell renders with short card label centered, white text.
+    end note
+```
+
+### Per-bay allowed-card classes
+
+```mermaid
+stateDiagram-v2
+    direction TB
+
+    [*] --> data_bay : Numbered bays on 32 64 128
+    [*] --> bay_A : Bay A on every frame
+    [*] --> bay_B : Bay B on every frame
+    [*] --> bay_XY : Bay X or Y on MFR 128
+    [*] --> bay_1024_data : 1024 bays 1 2 4 5 6 7 9 10
+    [*] --> bay_1024_nic : 1024 bays 3 and 8
+
+    note right of data_bay
+        Accepts AIO CAT5 AES COAX VoIP GPI MADI AVB.
+        Plus unused.
+    end note
+
+    note right of bay_A
+        Accepts CPU S G2 or CPU F G2.
+        Plus unused. No other cards fit Bay A.
+    end note
+
+    note right of bay_B
+        Accepts CPU S G2 CPU F G2 or GPI.
+        Plus unused.
+    end note
+
+    note right of bay_XY
+        Accepts GPI only.
+        Plus unused.
+    end note
+
+    note right of bay_1024_data
+        Accepts AES67 DANTE or MADI.
+        Plus unused. Subset per operator typical use.
+    end note
+
+    note right of bay_1024_nic
+        Accepts NIC only.
+        Plus unused. CPU cards don't fit this bay
+        position on the 1024 chassis.
+    end note
+```
+
+Each bay's class is determined at model definition time
+(`src/lib/frame-models.ts`) — operator's allow-list per the Riedel
+Possible-Card-Types tables. The picker UI surfaces only the
+allowed tokens for the tapped bay, and the server re-validates so a
+crafted request from dev tools still bounces off the whitelist.

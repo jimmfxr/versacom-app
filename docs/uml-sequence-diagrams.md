@@ -1,6 +1,6 @@
 # Nodal Control — Sequence Diagrams
 
-**Updated:** 2026-06-08
+**Updated:** 2026-06-08 (v2.6 — Frame Studio sequence added)
 
 ## Change Request Flow (current implementation)
 
@@ -538,3 +538,99 @@ Notes:
   can flip Trunk on/off without losing the VLAN assignment.
 - Manager role is rejected by the server action even if they manage
   to call it (e.g. via dev tools) — proxy gate + server gate.
+
+---
+
+## Frame Studio — open + lazy-seed + bay edit (v2.6)
+
+Same shape as Switch Studio's sequence (role gate, lazy seed, client
+optimistic update + rollback, server action role re-check) — different
+domain (Riedel Artist frames instead of NETGEAR switches) and one
+extra server-side guard: the picked card-type is validated against the
+bay's `allowedCards` whitelist so a crafted request can't put a CPU
+card in a data bay.
+
+```mermaid
+sequenceDiagram
+    actor Operator as Operator (admin/crew/manager)
+    participant Card as Equipment card (Comms)
+    participant Proxy as src/proxy.ts
+    participant Page as frame-studio page.tsx
+    participant Model as src/lib/frame-models.ts
+    participant DB as Database
+    participant Studio as frame-studio.tsx (client)
+    participant Action as updateFrameSlot server action
+
+    Operator->>Card: Tap FRM 1
+    Card->>Card: getFrameModel(hardwareType) returns model?
+    Note over Card: Only Riedel Artist models<br/>get a clickable Link
+
+    Card->>Proxy: Navigate /projects/X/frame/Y
+    Proxy->>Proxy: session role check
+    alt user-only
+        Proxy-->>Operator: 404
+    else admin / crew / manager
+        Proxy->>Page: forward
+    end
+
+    Page->>DB: SELECT Equipment + frameSlots
+    Page->>Model: getFrameModel(hardwareType)
+    Model-->>Page: { label, cols, rows, ruSize, bays }
+
+    alt frameSlots.length == 0  (first open)
+        loop for each bay in model.bays
+            Page->>Model: read bay.defaultCard
+            Model-->>Page: defaultCard token (unused | nic | ...)
+        end
+        Page->>DB: INSERT frameSlot.createMany (one row per bay)
+        Page->>DB: SELECT frameSlot (re-fetch with IDs)
+    end
+
+    Page->>DB: SELECT Project + userProjects (for header switcher)
+    Page-->>Studio: render with slots, model, project, canEdit
+
+    Note over Studio: Cells render with card shortLabel.<br/>Red border accent on CPU + GPI bays.<br/>Tap opens portaled popover.
+
+    alt canEdit && Operator taps a bay
+        Operator->>Studio: tap BayCell
+        Studio->>Studio: setOpenSlotId(slot.id)
+        Studio->>Studio: portal popover via createPortal,<br/>anchored by getBoundingClientRect
+
+        Operator->>Studio: pick a card from allowedCards
+        Studio->>Studio: optimistic update (setSlots)
+        Studio->>Studio: onClose() — popover auto-dismisses (PD-037)
+        Studio->>Action: updateFrameSlot({projectId, equipmentId, slotId, cardType})
+        Action->>DB: role re-check via session + membership
+        alt role in [admin, crew]
+            Action->>Model: getFrameModel(hardwareType)
+            Action->>Model: bay = model.bays.find(b => b.key === slot.bayKey)
+            Action->>Action: validate cardType in bay.allowedCards
+            alt cardType allowed
+                Action->>DB: UPDATE FrameSlot SET cardType
+                Action->>Action: revalidatePath()
+                Action-->>Studio: { ok: true }
+                Studio->>Studio: router.refresh()
+            else cardType not allowed
+                Action-->>Studio: { error: 'Card type not allowed in this bay' }
+                Studio->>Studio: rollback optimistic update
+            end
+        else manager (or unauthorized retry)
+            Action-->>Studio: { error: 'Read-only role' }
+            Studio->>Studio: rollback optimistic update
+        end
+    else !canEdit (manager view-only)
+        Operator->>Studio: tap a cell
+        Studio->>Studio: no-op (cursor stays default)
+    end
+```
+
+Notes:
+- The card-type catalogue is in code (`src/lib/frame-models.ts`) —
+  no VlanProfile-style DB table for it (PD-034).
+- Lazy-seed defaults: every bay defaults to `<unused>` except Artist
+  1024 bays 3 + 8 which default to `NIC` (typical population).
+- Per-bay `allowedCards` whitelist enforced server-side — even if
+  the client somehow surfaces a forbidden card type, the server
+  action rejects it (PD-035).
+- Per-model card labels: Artist 1024 picker uses short labels (no
+  `-108 G2` suffix) via `FrameModel.useShortCardLabels`.

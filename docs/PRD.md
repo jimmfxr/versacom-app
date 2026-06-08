@@ -1,6 +1,6 @@
 # Nodal Control — Product Requirements Document
 
-**Version:** 2.5 (Switch Studio — per-switch chassis with port-level VLAN profile assignment)
+**Version:** 2.6 (Frame Studio — Riedel Artist chassis with bay-level card-type assignment; studio chrome unified across Panel + Switch + Frame Studio)
 **Updated:** 2026-06-08
 **Author:** Jimmy Xiloj / Versacom (ATK / Clair Global)
 **Status:** Living document — describes what is actually built and shipping, not future phases.
@@ -37,7 +37,9 @@ Nodal Control is a web-based intercom management platform for live production sh
 - **Location rename** on the Pick List — tapping a location chip renames every row in that location at once
 - **Mobile UI sweep** — bigger buttons, full-width stacks on small screens, project row chip on the left, half-row project dropdowns. See PD-022 + PD-023.
 - **Rack designer (v2.4)** — Comms project gets a Racks tab. Each `RackTemplate` row expands inline into a full "RackStudio" (chassis + device library + slot editor). Drag/drop a preset onto an RU to place it; drag an existing slot to reposition; tap an empty RU to arm-then-pick. Slots can be linked to a real `Equipment` row (switches + audio) so deploy status, location, model, and IP flow through. A chrome-free `/preview` page renders both faces side-by-side on desktop or as a carousel on mobile — operator-facing view, with a labeled Close button matching the rest of the studios. See PD-024 through PD-030.
-- **Switch Studio (NEW in v2.5)** — Tapping a NETGEAR M4250-family switch ID on the Equipment card opens a dedicated chassis visualization at `/projects/[id]/switch/[equipmentId]`. Renders all RJ45 + SFP ports laid out on a real chassis (2 rows for 26P+4F / 40P+4F / 24X8F8V; 1 row for 9P+1F + 16F), each port colored by its assigned VLAN profile and stamped with its VLAN ID. Tap a port → popover with the global VLAN profile pool (Comms Dante, AES67, Management, VPN Transfer, etc.) + Trunk toggle + Unassign. Admin + crew can edit; manager view-only; user blocked. VLAN profiles live in a global `VlanProfile` pool seeded from the company-wide hex chart; per-switch state lives in `SwitchPort` rows lazily seeded on first open from the model's default convention (1–12 CommsDante1, 13–24 AES67_1, top trunks Management). See PD-031, PD-032.
+- **Switch Studio (v2.5)** — Tapping a NETGEAR M4250-family switch ID on the Equipment card opens a dedicated chassis visualization at `/projects/[id]/switch/[equipmentId]`. Renders all RJ45 + SFP ports laid out on a real chassis (2 rows for 26P+4F / 40P+4F / 24X8F8V; 1 row for 9P+1F + 16F), each port colored by its assigned VLAN profile and stamped with its VLAN ID. Tap a port → popover with the global VLAN profile pool (Comms Dante, AES67, Management, VPN Transfer, etc.) + Trunk toggle + Unassign. Admin + crew can edit; manager view-only; user blocked. VLAN profiles live in a global `VlanProfile` pool seeded from the company-wide hex chart; per-switch state lives in `SwitchPort` rows lazily seeded on first open from the model's default convention (1–12 CommsDante1, 13–24 AES67_1, top trunks Management). See PD-031, PD-032.
+- **Frame Studio (NEW in v2.6)** — Tapping a Riedel Artist frame's ID on the Equipment card opens `/projects/[id]/frame/[equipmentId]`. Renders the frame's editable bay layout per model (Artist 32 = 6 bays in a 2-column grid; MRF 64 = 10 bays; MFR 128 = 20 bays in a 5×4 grid; Artist 1024 = 10 bays in a 2×5 horizontal grid). Tap a bay → popover with that bay's allowed card types (per Riedel docs: regular data bays accept AIO/CAT5/AES/COAX/VoIP/GPI/MADI/AVB; Bay A is CPU-only; Bay B is CPU+GPI; Bay X/Y on 128 is GPI-only; 1024 bays 3+8 are unused/NIC; 1024 regular bays accept the operator's typical subset of unused/AES-67/DANTE/MADI). Per-frame state lives in `FrameSlot` rows lazily seeded on first open. Admin + crew can edit; manager view-only; user blocked. See PD-034, PD-035.
+- **Studio chrome unified across Panel + Switch + Frame Studio (v2.6 polish)** — All three studios now share the same chrome conventions: chassis-printed cyan model plate at top-right of the bezel (Panel Studio's pattern, applied to Switch + Frame); two-row identity strip above the chassis (equipment id white-bold on row 1, IP + meta in smaller text on row 2); identity strip aligned to chassis bezel's left edge; Close button stays pinned to top-right of the page. Popover convention: option lists drop the left-side swatch, picking an option auto-closes the popover, selected option highlights solid cyan. Rack Studio + Preview + Print IP rendering matches Equipment tab (no font-mono); rack slots for frames render the IP on its own row beneath the FRM id + model. See PD-036, PD-037.
 
 **What's not built:**
 
@@ -69,6 +71,7 @@ Nodal Control consolidates all of it:
 | Plan rack layouts before truck-pack | **Racks tab → RackStudio** (drag/drop on chassis) |
 | Show ops the rack at a glance | **Rack Preview** (operator-facing, both faces) |
 | Plan switch VLAN port assignments | **Switch Studio** (per-switch chassis + port-level VLAN picker) |
+| Plan Riedel Artist frame bay populations | **Frame Studio** (per-frame chassis + bay-level card-type picker) |
 
 ### 1.2 Target users
 
@@ -187,7 +190,8 @@ Every authenticated page is wrapped by `AppShell` (navbar + toast container). No
 | `/projects/[id]/panel/[equipmentId]` | Panel Studio — key editor for a specific panel; `?from=my-equipment` puts it in browse mode | Members per role rules |
 | `/projects/[id]/racks/[rackId]` | Standalone Rack Studio page (deep link). Same component as the inline expansion under `?tab=racks` but with its own page chrome (back button + project switcher in the header). | Members per role rules |
 | `/projects/[id]/racks/[rackId]/preview` | Operator-facing Rack Preview. Renders both Front + Rear chassis side-by-side on desktop or as a horizontal scroll-snap carousel with cyan dot indicators on mobile. AppShell suppresses navbar + bottom-nav on this route (same treatment as `/kiosk` and `/zones`). Labeled **Close** button (matches Rack Studio / Panel Studio / Switch Studio chrome) returns to `?tab=racks&expand=<rackId>`. | Members per role rules |
-| `/projects/[id]/switch/[equipmentId]` | **Switch Studio (v2.5)** — per-switch chassis with port-level VLAN profile assignment. Standard `Comms` page header + ProjectSwitcher up top (auto-hides on scroll-down on mobile via `AutoHideHeader`), then the switch identity strip (`name · model · IP (cyan link) · port count` + Close). The chassis below renders all RJ45 + SFP ports in a 1- or 2-row grid based on the model, each colored by its assigned VLAN profile and stamped with its VLAN ID; tapping a port opens a portaled popover with the profile picker + Trunk toggle. | Members per role rules; admin + crew edit, manager view-only, user **blocked at the proxy** (404) |
+| `/projects/[id]/switch/[equipmentId]` | **Switch Studio (v2.5)** — per-switch chassis with port-level VLAN profile assignment. Standard `Comms` page header + ProjectSwitcher up top (auto-hides on scroll-down on mobile via `AutoHideHeader`), then the chassis-group: Close button pinned to top-right, identity strip (white `SW N` on row 1, IP + port count on row 2) sitting flush above the chassis bezel which carries a cyan model plate at its top-right corner. Tapping a port opens a portaled popover with the profile picker (selected option highlights cyan) + Trunk toggle. | Members per role rules; admin + crew edit, manager view-only, user **blocked at the proxy** (404) |
+| `/projects/[id]/frame/[equipmentId]` | **Frame Studio (v2.6)** — per-frame chassis with bay-level card-type assignment for Riedel Artist frames (Artist 32 / MRF 64 / MFR 128 / Artist 1024). Same chrome as Switch Studio: `Comms` header + ProjectSwitcher in `AutoHideHeader`, Close top-right, identity strip pair (white `FRM N` · cyan **Node ID** on row 1 — matches Panel Studio's `PNL N · Jack Lord` pair; IP + bay count on row 2), chassis bezel with cyan model plate. Tapping a bay opens a portaled popover restricted to that bay's allowed cards (e.g. CPU-only on Bay A, GPI-only on Bay X/Y of the 128). Card labels follow Director conventions per model (long `AIO-108 G2`-style on the older 32/64/128, short `AES67` / `DANTE` / `MADI` / `NIC` on the 1024). | Members per role rules; admin + crew edit, manager view-only, user **blocked at the proxy** (404) |
 | `/projects/[id]/kiosk` | Self-serve "join the show" page for a roving tablet (admins/managers print the QR) | Open per project PIN |
 | `/radios` | Radio fleet for the active project — two tabs: **Radio Equipment** (per-radio rows with status dropdown) and **Radio Channels** (zones + tunings). Header exposes QR + Scanner icon buttons. | admin / manager / crew |
 | `/radios/scan` | Continuous barcode-scan loop powered by `@zxing/browser`; branches on radio status (unknown / auto-return / prompt). See §5.7. | admin / manager |
@@ -525,11 +529,95 @@ VLAN profile IDs are resolved at runtime by `vlanId` so renames of the global VL
 
 Belt-and-suspenders: the proxy blocks user role at the URL level, and the server action `updateSwitchPort` re-checks role before any write.
 
+### 5.11 Frame Studio (v2.6)
+
+Per-frame chassis visualization with bay-level card-type assignment for Riedel Artist frames. Lives at `/projects/[id]/frame/[equipmentId]`. Reached by tapping the frame ID text (`FRM 1`, `FRM 2`, …) on a frame's Equipment card — only frames whose `hardwareType` resolves to a registered Artist model get a clickable link (mirrors Switch Studio's policy).
+
+#### Frame models
+
+| Model | hardwareType | RU | Bays | Notes |
+|---|---|---|---|---|
+| Artist 32 | `ARTIST_32` | 2 | 4 data + Bay A + Bay B | Smallest frame; 2-column 3-row grid |
+| Artist MRF 64 | `ARTIST_MRF_64` | 3 | 8 data + Bay A + Bay B | 2-column 5-row grid |
+| Artist MFR 128 | `ARTIST_MRF_128` | 6 | 16 data + Bay A + Bay B + Bay X + Bay Y | 5-column 4-row grid (rear-view layout, front-view rendering) |
+| Artist 1024 | `ARTIST_1024` | 2 | 8 data (1,2,4,5,6,7,9,10) + 2 NIC bays (3, 8) | 5-column 2-row horizontal layout; uses short Director card names (no `-108 G2` suffix) |
+
+Frame model + bay-level allowed cards live in `src/lib/frame-models.ts`. RU size is shared with Rack Studio so a frame dragged onto an RU lands at the correct height (Artist 32 = 2U, MRF 64 = 3U, MFR 128 = 6U, Artist 1024 = 2U).
+
+#### Card-type catalogue
+
+| Token | Label (older frames) | Short label (Artist 1024) | Notes |
+|---|---|---|---|
+| `unused` | `<unused>` | `Empty` | Empty bay |
+| `aio` | `AIO-108 G2` | `AIO` | 8 analog 4-wires |
+| `cat5` | `CAT5-108 G2` | `CAT5` | 8 channels via Cat5 |
+| `aes` | `AES-108 G2` | `AES` | 8 AES/EBU 4-wires |
+| `coax` | `COAX-108 G2` | `COAX` | 8 channels via Coax |
+| `voip` | `VoIP-108 G2` | `VoIP` | 8 channels via Voice over IP |
+| `gpi` | `GPI-116 G2` | `GPI` | 16 relay outputs + 16 opto inputs |
+| `madi` | `MADI-108 G2` | `MADI` | 8 channels via MADI |
+| `avb` | `AVB-108 G2` | `AVB` | 8 channels via AVB |
+| `aes67` | `AES67-108 G2` | `AES67` | 8 channels via AES67 (typical on 1024) |
+| `dante` | `DANTE-108 G2` | `DANTE` | 8 channels via Dante (typical on 1024) |
+| `cpu_s_g2` | `CPU (S G2)` | n/a | Stand-alone matrix engine, Bay A only on the older frames |
+| `cpu_f_g2` | `CPU (F G2)` | n/a | Failover matrix engine, Bay A only |
+| `nic` | `NIC` | `NIC` | Network interface card; 1024 bays 3+8 only |
+
+Operator-stated allowed sets:
+- **Artist 32 / MRF 64 / MFR 128 — Bay 1..N (gray data bays):** full data set (AIO/CAT5/AES/COAX/VoIP/GPI/MADI/AVB)
+- **Bay A on every frame:** `CPU (S G2)` or `CPU (F G2)` only
+- **Bay B on every frame:** CPU (S/F G2) **or** `GPI`
+- **MFR 128 — Bay X + Bay Y:** `GPI` only
+- **Artist 1024 — bays 1/2/4/5/6/7/9/10:** `unused`/`AES67`/`DANTE`/`MADI` (operator's typical subset)
+- **Artist 1024 — bays 3 + 8:** `unused`/`NIC` (CPU cards don't fit this bay position on the 1024 chassis)
+
+#### Equipment card + Node ID
+
+The frame's Equipment card on the Comms Equipment tab surfaces:
+- `FRM N` (clickable link to Frame Studio when hardwareType matches a registered model)
+- Hardware type (`ARTIST_32` etc.) — chassis-printed cyan plate on the studio bezel
+- IP address — cyan link to the frame's management web UI
+- **Node ID** — Riedel-programmed hardware identifier (operator-typed free-form string; `FRM 1` is just our ordering label, the Node ID is what the frame uses to know which part of the Director config file applies to it)
+
+The Equipment Add/Edit form exposes a **Node ID** input only when category=`frames` (conditional-field convention from PD-022). Stored as `Equipment.frameNodeId String?`.
+
+#### Frame Studio identity strip
+
+Row 1 pairs the equipment id with the Node ID using Panel Studio's pair convention (PD-038):
+
+```
+FRM 1 · 17                                      [ Close ]
+10.249.96.40 · 12 bays
+```
+
+`FRM N` renders white-bold; `17` (the Node ID) renders cyan-bold — the operator's mental model is that the Node ID is "what the Director sees," same role as a member name on Panel Studio. If a frame has no Node ID set, the cyan piece omits cleanly (no dangling separator).
+
+#### Lazy seeding
+
+On first open of Frame Studio for a frame, the page server-checks `equipment.frameSlots.length`. If 0, iterate `FrameModel.bays` and insert one row per bay with the bay's `defaultCard` (`<unused>` for every bay except Artist 1024 bays 3+8 which default to `NIC`). Subsequent opens skip the seed.
+
+#### Role gating
+
+Same as Switch Studio:
+
+| Role | Frame Studio access |
+|---|---|
+| admin / global admin | Full edit |
+| crew | Full edit |
+| manager | View-only |
+| user | **Hard blocked** — proxy + server page both 404 |
+
+`updateFrameSlot` server action re-checks role + validates the picked card against the bay's `allowedCards` whitelist before any write — a crafted request that tries to put a CPU card in a data bay is rejected.
+
+#### Frames in Rack Studio
+
+Frames join switches + audio as rack-eligible equipment (v2.6 follow-up). The Rack Studio library surfaces unracked frames as tiles at the top of the **Frames** section; dragging onto an RU creates a slot linked to the frame with the correct ruSize pulled from `FrameModel.ruSize`. The slot card renders the IP on its OWN row beneath the FRM id + model (frames are typically 2U+ so the card has room; other categories keep the inline single-row layout). Same two-row treatment shows in Rack Preview + print.
+
 ---
 
 ## 6. Data Model Summary
 
-22 models total (VlanProfile + SwitchPort added in v2.5 for Switch Studio; RackLooseItem and RackDevice added in v2.4 alongside RackTemplate / RackSlot being promoted from "no UI" to in-use). See `uml-erd.md` for the diagram.
+23 models total (FrameSlot added in v2.6 for Frame Studio; VlanProfile + SwitchPort added in v2.5 for Switch Studio; RackLooseItem and RackDevice added in v2.4 alongside RackTemplate / RackSlot being promoted from "no UI" to in-use). See `uml-erd.md` for the diagram.
 
 ### Phase 1 models (built + in use)
 
@@ -563,10 +651,11 @@ Belt-and-suspenders: the proxy blocks user role at the URL level, and the server
 | `RackDevice` | **Used (v2.4)** — user-authored custom devices added via "+ Custom device". Project-scoped, reusable across racks. Built-in presets stay in code (`src/lib/rack-presets.ts`). |
 | `VlanProfile` | **Used (v2.5)** — global pool of VLAN profiles (Comms Dante 1/2, AES67 1/2, Management, VPN Transfer, Production, OOB, …). Seeded from the company-wide hex chart. Fields: `name`, `vlanId` (unique), `color` (hex), `profileType` (Data/AudioDante/AudioAES67/Management/Transfer), `description`, `sortOrder`. Shared by every project. |
 | `SwitchPort` | **Used (v2.5)** — per-`Equipment` port state for switches. One row per physical port. `(equipmentId, portIndex)` unique. Fields: `portIndex`, `portKind` ('rj45'\|'sfp'), `profileId` (FK to VlanProfile, nullable for unassigned), `isTrunk` (independent of profile). Lazy-seeded on first Switch Studio open from `SwitchModel.defaultFor()`. |
+| `FrameSlot` | **Used (v2.6)** — per-`Equipment` bay state for Riedel Artist frames (`category='frames'`). `(equipmentId, bayKey)` unique — `bayKey` is the chassis-printed label (`"1"`, `"2"`, …, `"A"`, `"B"`, `"X"`, `"Y"`). `cardType` is a string token from the in-code catalogue. Lazy-seeded on first Frame Studio open from `FrameModel.bays[].defaultCard`. |
 | `NfgReport` | "Not Functioning" reports for damaged gear |
 | `MultStrand` | Wiring-strand tracking (Phase 4) |
 
-`Equipment` was originally slated for Phase 2 but ended up being central to v2 — the Equipment tab, auto-generated names, deploy status tracking all live on this model. `Radio` followed the same path in v2.3. `RackTemplate` / `RackSlot` were schema-only until v2.4 — the Racks tab + drag/drop RackStudio promoted them into active surfaces. `VlanProfile` + `SwitchPort` were added fresh in v2.5 to back Switch Studio (migration `20260608000000_switch_studio` seeds the global VLAN pool from the operator's hex chart in one shot).
+`Equipment.frameNodeId String?` was added in v2.6 as a frame-only column holding the Riedel-programmed node identifier (operator-typed string, e.g. `"17"` or `"FRM-17"`; `Equipment.name` like `FRM 1` is just our ordering label). `Equipment` was originally slated for Phase 2 but ended up being central to v2 — the Equipment tab, auto-generated names, deploy status tracking all live on this model. `Radio` followed the same path in v2.3. `RackTemplate` / `RackSlot` were schema-only until v2.4 — the Racks tab + drag/drop RackStudio promoted them into active surfaces. `VlanProfile` + `SwitchPort` were added fresh in v2.5 to back Switch Studio (migration `20260608000000_switch_studio` seeds the global VLAN pool from the operator's hex chart in one shot). `FrameSlot` was added in v2.6 (migration `20260609000000_frame_studio`) — no seeded global pool since the card-type catalogue lives in code (`src/lib/frame-models.ts`).
 
 ### Radio status enum
 

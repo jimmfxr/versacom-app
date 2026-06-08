@@ -412,4 +412,110 @@ active: border-[#0178a3] + bg-[#0178a3] + text-white
 
 **Touch behavior:** `style={{ touchAction: 'manipulation' }}` on every Close button — kills the iOS 300ms double-tap delay so the button feels instantaneous. Same pattern used on the navbar Link migrations earlier in v2.4.
 
-**Tracked in:** Used consistently across `rack-studio.tsx`, `preview-view.tsx`, `panel-studio.tsx`, `switch-studio.tsx`.
+**Tracked in:** Used consistently across `rack-studio.tsx`, `preview-view.tsx`, `panel-studio.tsx`, `switch-studio.tsx`, and `frame-studio.tsx` (added v2.6).
+
+---
+
+## PD-034: Frame Studio — in-code card catalogue, per-Equipment FrameSlot, per-model bay allow-lists
+
+**Decision (v2.6):** Frame Studio (`/projects/[id]/frame/[equipmentId]`) backs frame state with one new model:
+
+- `FrameSlot` — **per-Equipment**, per-bay row. `(equipmentId, bayKey)` unique. Stores `cardType` (string token) + optional `notes`. Cascade-deletes with the parent Equipment.
+
+The card-type catalogue itself lives **in code** (`src/lib/frame-models.ts`) — no DB table for it. Same for the per-model bay layouts and allow-lists.
+
+**Why in-code (not a DB table like VlanProfile):** The Riedel card-type catalogue is essentially static — Riedel publishes the list, it doesn't change per-show or per-project. Same story for bay layouts (every Artist 32 has the same bays, every MFR 128 has the same 20 bays). A DB-backed catalogue would just mean a one-time seed migration with no operational value. In-code keeps the source of truth obvious + change-controllable via PRs (renaming a card type is a code change with full review, not a silent DB row update).
+
+**Why per-Equipment FrameSlot (matches SwitchPort):** The state that *does* vary per show + per frame is which card sits in each bay. That belongs on `Equipment` (via FK) — same pattern as `SwitchPort.equipmentId` from v2.5.
+
+**Lazy seeding:** First Frame Studio open for a frame seeds `FrameSlot` rows from `FrameModel.bays[].defaultCard`. Every bay gets a row; default is `<unused>` except Artist 1024 bays 3+8 which default to `NIC`. Subsequent opens skip.
+
+**Per-bay allow-list enforcement:** `updateFrameSlot` server action looks up the bay by `bayKey`, reads its `allowedCards`, and rejects any cardType not in the list. Prevents a crafted request from e.g. putting `CPU (S G2)` in a data bay or `AVB` in a CPU bay.
+
+**Equipment.frameNodeId:** Frame-only column added to `Equipment` (nullable string) holding the Riedel-programmed node identifier. `Equipment.name` (`FRM 1`, `FRM 2`, …) is just our ordering label — the Node ID is what the Director config file actually uses to address the frame.
+
+**Equipment-card link policy:** Only frames whose `hardwareType` resolves to a registered Artist model (`ARTIST_32` / `ARTIST_MRF_64` / `ARTIST_MRF_128` / `ARTIST_1024`) get a clickable `FRM N` text on their Equipment card. Mirrors Switch Studio's policy (PD-031).
+
+---
+
+## PD-035: Frame Studio — no per-card colors, allowed-card sets per bay class
+
+**Decision (v2.6):** Frame Studio bay cells render in a uniform neutral background (`bg-[#1f1f1f]`) regardless of which card type sits in them. Card type is shown as plain text (short label centered in the cell) — no fill color, no swatch.
+
+**Why no colors:** Operator decision — "they really don't need colors, it's a simple this choice that choice." The card type catalogue is small (14 tokens), distinct enough by label alone, and there's no upstream color chart for it the way there is for VLANs (which DO carry color in Switch Studio).
+
+**Red border accent on CPU + GPI bays:** The chassis-printed Riedel docs shade Bay A / Bay B (CPU + GPI) red, and Bay X / Y on the 128 (GPI) red, vs. gray for the data bays. We mirror that with a thin red border tint (`border-[#5a1818]`) on those cells so the operator can spot the chassis-printed grouping at a glance — no card-type semantics, just chassis-layout semantics.
+
+**Bay layout — per-model allow-list table** (lives in `src/lib/frame-models.ts`):
+
+| Model | Bay group | Allowed cards |
+|---|---|---|
+| Artist 32 / MRF 64 / MFR 128 | Numbered bays (gray) | `<unused>` / AIO / CAT5 / AES / COAX / VoIP / GPI / MADI / AVB |
+| Every frame | Bay A (red) | `<unused>` / CPU (S G2) / CPU (F G2) |
+| Every frame | Bay B (red) | `<unused>` / CPU (S G2) / CPU (F G2) / GPI |
+| MFR 128 only | Bay X / Bay Y (red) | `<unused>` / GPI |
+| Artist 1024 | Bays 1, 2, 4, 5, 6, 7, 9, 10 (gray) | `<unused>` / AES67 / DANTE / MADI |
+| Artist 1024 | Bays 3, 8 (red) | `<unused>` / NIC |
+
+**Why the 1024 subset:** Operator's typical 1024 population is AES67 / DANTE / MADI on the regular bays + NIC on bays 3+8 (CPU lives elsewhere on the 1024 chassis). Per the original spec — modelled as the constraint, not just typical use, so the picker doesn't expose options the operator would never pick.
+
+**Per-model card labels:** Older frames (32 / 64 / 128) use the long Director naming convention — `AIO-108 G2` / `DANTE-108 G2` / etc. The 1024 uses the short names without the `-108 G2` / `-116 G2` suffix — that's Riedel-Director-specific terminology for the older frames. `FrameModel.useShortCardLabels: true` on the 1024 entry; the picker reads this and switches to `CardTypeMeta.shortLabel` for that model.
+
+---
+
+## PD-036: Studio chrome unified — chassis-printed cyan model plate + two-row identity strip
+
+**Decision (v2.6):** Panel Studio, Switch Studio, and Frame Studio all share the same chassis-area chrome:
+
+**Chassis bezel:**
+- `relative mx-auto w-fit rounded-[14px] border border-white/[0.06] bg-[#2a2a2a] p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]` — flat `p-8` (no responsive padding) so the padding band has room for the absolute label
+- Top-right of the bezel padding band carries a cyan **model plate**: `pointer-events-none absolute right-4 top-3 text-sm font-bold uppercase tracking-[0.18em] tabular-nums leading-none text-[#22a7d3]` — reads like an engraved silkscreen on the physical hardware
+- `pointer-events-none` so it never intercepts cell clicks
+
+**Identity strip (above the chassis):**
+- Lives **inside** the same `mx-auto w-fit` container as the bezel — so its left edge aligns to the chassis bezel's left edge, not the page edge
+- Row 1: equipment id, `text-[18px] font-bold text-white lg:text-[22px] truncate`. Panel Studio pairs id (white) with member name (cyan); Frame Studio pairs `FRM N` (white) with Node ID (cyan); Switch Studio has no pair so the id alone fills row 1.
+- Row 2: IP (cyan link) · port/bay count · other meta. `text-[13px]` items, `text-xs text-[#3a3a3a]` separator dots (Panel Studio's signature dim dots).
+- Vertical positioning: chassis + identity strip live in a `flex flex-1 flex-col justify-center` column so they vertically center as a group on tall viewports.
+
+**Close button:** Pinned to top-right of the page (own row right after the AutoHideHeader) — does NOT move with the centered chassis group. Same labeled-Close style (PD-033).
+
+**Why uniform:** Operator: "i want it to look uniform." Three studios that all visualize a piece of hardware should share the same chrome — chassis bezel, model plate, identity strip — so the operator's mental model carries between them. Panel Studio's pattern (text sizes, tracking, dot colors, absolute model label) was the reference; Switch + Frame studio adopted it verbatim.
+
+**Why drop strip's `px-X` on desktop:** Panel Studio's identity strip wrapper had `px-4 sm:px-6 lg:px-8` inside a max-width-capped container. When the strip's max-width = chassisWidth and both are `mx-auto` centered, the strip's outer left edge ALREADY sits flush with the chassis bezel border — so the internal `lg:px-8` (32px) padded the identity TEXT 32px to the right of the bezel border. Removed the `px-X` classes when `!stackHeader` (desktop). Mobile keeps them (chassis is wider than viewport, strip needs page-edge breathing room).
+
+---
+
+## PD-037: Studio popover convention — drop swatch, auto-close on selection, cyan-selected highlight
+
+**Decision (v2.6):** Switch Studio's port-edit popover + Frame Studio's bay-edit popover follow the same option-list convention:
+
+1. **No left-side swatch on options.** Switch Studio originally rendered a colored VLAN-color dot on the left of each profile row; Frame Studio had a similar (purely decorative) bordered square. Both removed — VLAN id `v1331` in dim mono on the right + the profile name still disambiguates options without the colored dot.
+
+2. **Selecting an option auto-closes the popover.** Was previously persistent so the operator could iterate; operator wanted dropdown-style behavior (pick once, dismiss), matching FilterDropdown + Listbox everywhere else in the app.
+
+3. **Selected option highlights solid cyan.** `bg-[#0178a3] text-white` for the selected row — matches FilterDropdown's `data-selected` + the nav-link active state across the app. Previously used `bg-white/[0.06]` (subtle white tint) which was hard to spot.
+
+**Exception — Switch Studio's Trunk toggle KEEPS the popover open.** Trunk is a flag-style modifier, not a primary selection. If toggling Trunk auto-closed, the operator couldn't visually confirm the cell flipped to gray + T badge before dismiss. Profile picks (and Unassign) auto-close; Trunk does not.
+
+---
+
+## PD-038: Studio identity strip — `id · name` pair convention (id white, name cyan)
+
+**Decision (v2.6):** When a studio's identity strip has TWO id-class pieces to show on row 1, they follow this pattern:
+
+```
+ID (white bold)  ·  NAME (cyan bold)
+```
+
+Applied to:
+- **Panel Studio:** `PNL 1 · Jack Lord` — equipment ID white, assigned member cyan
+- **Frame Studio:** `FRM 1 · 17` — equipment ID white, Riedel Node ID cyan
+
+The cyan piece is the "what does this hardware actually mean in Director" name — for a panel that's the person who owns it; for a frame that's the Riedel-programmed node identifier (the Director config-side identifier).
+
+**Switch Studio has no pair** — there's no second name slot to render — so its row 1 is just `SW N` in white-bold occupying the slot Panel Studio reserves for the member name.
+
+**Why this color split:** Operator decision (after trying it the other way around). Hierarchy reads as "primary white = the Director-side identity" / "secondary white = the our-side ordering label." Aligns the visual emphasis with how the operator thinks about the hardware: the Director-side meaning is what matters operationally.
+
+**Implementation:** Separator dot between the two pieces is `text-sm text-gray-500` (Frame Studio) — larger and lighter than Panel Studio's `text-xs text-[#3a3a3a]` so the dot is visible between the two 18-22px bold pieces. Panel Studio's dim dot reads fine because its `PNL N` is shorter (3-4 chars) and the dot has more breathing room; Frame Studio's `FRM N · NodeID` can have a longer right-hand piece so a more visible dot helps the eye lock onto the pair structure.

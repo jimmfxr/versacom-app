@@ -1,6 +1,6 @@
 # Nodal Control — Use Cases by Role
 
-**Updated:** 2026-06-08
+**Updated:** 2026-06-08 (v2.6 — Frame Studio use cases added)
 
 What each role can actually do in the current build. Roles are per-project (`ProjectMember.role`), but a user with `admin` on **any** project is promoted to "global admin" for the whole app.
 
@@ -69,6 +69,12 @@ flowchart LR
         UC30[Toggle Trunk on a port]
     end
 
+    subgraph FrameStudio [Frame Studio v2.6]
+        UC31[View Riedel Artist frame chassis with bay labels]
+        UC32[Assign card type to a bay]
+        UC33[Set frame Node ID on Equipment]
+    end
+
     Admin --> UC1
     Admin --> UC2
     Admin --> UC3
@@ -96,6 +102,9 @@ flowchart LR
     Admin --> UC28
     Admin --> UC29
     Admin --> UC30
+    Admin --> UC31
+    Admin --> UC32
+    Admin --> UC33
 
     Manager --> UC3
     Manager --> UC4
@@ -112,6 +121,7 @@ flowchart LR
     Manager --> UC26
     Manager --> UC27
     Manager --> UC28
+    Manager --> UC31
 
     Crew --> UC7
     Crew --> UC8
@@ -126,6 +136,9 @@ flowchart LR
     Crew --> UC28
     Crew --> UC29
     Crew --> UC30
+    Crew --> UC31
+    Crew --> UC32
+    Crew --> UC33
 
     User --> UC16
     User --> UC17
@@ -165,6 +178,10 @@ Legend: ✅ can do · 👁 view only · ❌ cannot
 | **Open Switch Studio (v2.5)** | ✅ | 👁 view-only | ✅ | ❌ (proxy 404) |
 | **Assign VLAN profile to a switch port** | ✅ | ❌ | ✅ | ❌ |
 | **Toggle Trunk on a switch port** | ✅ | ❌ | ✅ | ❌ |
+| **Open Frame Studio (v2.6)** | ✅ | 👁 view-only | ✅ | ❌ (proxy 404) |
+| **Assign card type to a frame bay** | ✅ | ❌ | ✅ | ❌ |
+| **Set frame Node ID** (Equipment edit) | ✅ | ❌ | ✅ | ❌ |
+| **Drop a frame onto a rack slot** | ✅ | ✅ | ✅ | ❌ |
 
 ### Note on global admin
 

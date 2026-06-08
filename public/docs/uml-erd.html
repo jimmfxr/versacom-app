@@ -417,8 +417,32 @@ erDiagram
     <tr><td><code>RackSlot</code></td><td><code>(rackTemplateId, side, ruPosition)</code> (logical, enforced in code)</td><td>One slot per RU starting-position per side. Collision detection in the drag pipeline checks every RU the slot would span, not just <code>ruPosition</code>.</td></tr>
     <tr><td><code>VlanProfile</code></td><td><code>vlanId</code></td><td>No two profiles share a VLAN ID (1331, 1341, 4000…). Names can repeat but the numeric ID is unique.</td></tr>
     <tr><td><code>SwitchPort</code></td><td><code>(equipmentId, portIndex)</code></td><td>One row per physical port per switch — lazy-seeded on first Switch Studio open</td></tr>
+    <tr><td><code>FrameSlot</code></td><td><code>(equipmentId, bayKey)</code></td><td>One row per editable bay per Riedel Artist frame — lazy-seeded on first Frame Studio open. <code>bayKey</code> is the chassis-printed label ("1", …, "A", "B", "X", "Y").</td></tr>
   </tbody>
 </table>
+
+<h2>2d. Frame Studio subset (v2.6)</h2>
+<p>Frame Studio adds one new entity — <code>FrameSlot</code> — and one new column on <code>Equipment</code> (<code>frameNodeId</code>) to track Riedel Artist frame configuration. Unlike Switch Studio's VlanProfile, there's no global pool table for card types — the catalogue + per-model bay layouts + per-bay allow-lists all live in <code>src/lib/frame-models.ts</code> (see PD-034).</p>
+<div class="diagram">
+<pre class="mermaid">
+erDiagram
+    Project ||--o{ Equipment : owns
+    Equipment ||--o{ FrameSlot : "physical bay state"
+
+    Equipment {
+        string name "FRM 1 FRM 2"
+        string hardwareType "ARTIST_32 ARTIST_MRF_64 ARTIST_MRF_128 ARTIST_1024"
+        string ipAddress
+        string frameNodeId "Riedel-programmed Node ID"
+    }
+    FrameSlot {
+        string bayKey "chassis label 1 2 A B X Y"
+        string cardType "unused aio cat5 aes coax voip gpi madi avb aes67 dante cpu_s_g2 cpu_f_g2 nic"
+        string notes
+    }
+</pre>
+</div>
+<p class="note">Frame Studio has no global pool counterpart to VlanProfile — the card-type catalogue + per-model bay layouts + per-bay allow-lists all live in <code>src/lib/frame-models.ts</code>. FrameSlot is per-Equipment (per physical frame). Lazy seeding on first Frame Studio open populates rows from each bay's <code>defaultCard</code> (<code>unused</code> everywhere except Artist 1024 bays 3+8 which default to <code>nic</code>).</p>
 
 <script>
   mermaid.initialize({

@@ -1,6 +1,6 @@
 # Nodal Control — User Flow
 
-**Updated:** 2026-06-08
+**Updated:** 2026-06-08 (v2.6 — Frame Studio flow added)
 
 End-user navigation and action flows for the current app. Each role starts at a different landing and unlocks different paths.
 
@@ -69,6 +69,8 @@ flowchart LR
     EQ_TAB -->|click panel card| PS[/projects/ID/panel/EQID/]
     EQ_TAB -->|click switch ID e.g. SW 1<br/>NETGEAR M4250 models only| SWITCH_STUDIO[/projects/ID/switch/EQID/<br/>Switch Studio v2.5]
     SWITCH_STUDIO -->|Close button| EQ_TAB
+    EQ_TAB -->|click frame ID e.g. FRM 1<br/>Riedel Artist models only| FRAME_STUDIO[/projects/ID/frame/EQID/<br/>Frame Studio v2.6]
+    FRAME_STUDIO -->|Close button| EQ_TAB
     PL_TAB -->|tap location chip| LOC_RENAME[Rename location modal<br/>updates all rows in that loc]
     RACKS_TAB -->|click Edit on a rack| RACK_INLINE[Inline RackStudio<br/>?expand=rackId in URL]
     RACK_INLINE -->|eye icon| RACK_PREVIEW[/projects/ID/racks/RID/preview/<br/>operator-facing, both faces]
@@ -623,3 +625,96 @@ flowchart TD
 write. Manager hitting the endpoint directly returns
 `{ error: 'Read-only role' }`; user is already blocked at the
 proxy.
+
+---
+
+## 14. Frame Studio — assign card types to Riedel Artist bays (v2.6)
+
+Entry point lives on the Comms Equipment tab: the frame ID text
+(`FRM 1`, `FRM 2`, …) on each Riedel Artist card is a Link to
+`/projects/[id]/frame/[equipmentId]`. Only frames whose
+`hardwareType` resolves to a registered model (`ARTIST_32`,
+`ARTIST_MRF_64`, `ARTIST_MRF_128`, `ARTIST_1024`) get a clickable ID
+— mirrors Switch Studio's policy.
+
+```mermaid
+flowchart TD
+    EQ[Equipment tab on Comms] -->|tap frame ID FRM 1| GUARD{Role check}
+    GUARD -->|admin or crew or manager| LOAD[/projects/ID/frame/EQID/]
+    GUARD -->|user| BLOCK[Proxy 404 - never reaches page]
+
+    LOAD --> SEED{First open?}
+    SEED -->|yes - 0 FrameSlot rows| LAZY[Seed defaults<br/>every bay unused<br/>except 1024 bays 3 plus 8 NIC]
+    SEED -->|no| READ[Read existing FrameSlot rows]
+    LAZY --> READ
+
+    READ --> RENDER[Chassis grid - bays per model<br/>cell label - card shortLabel<br/>red border accent on CPU GPI bays]
+
+    RENDER --> EDIT{User role}
+    EDIT -->|admin or crew| TAP_BAY[Tap a bay]
+    EDIT -->|manager| RO[Cells render<br/>tap does nothing]
+
+    TAP_BAY --> POPOVER[Portaled popover anchored to cell<br/>allowedCards list per bay<br/>no left swatch<br/>selected option highlights cyan]
+    POPOVER --> PICK{Choose}
+    PICK -->|pick a card| PATCH[updateFrameSlot action<br/>server re-checks allowedCards]
+    PICK -->|tap outside| CLOSE_POP[Popover dismissed]
+
+    PATCH --> OPTIMISTIC[Cell label updates immediately]
+    OPTIMISTIC --> AUTOCLOSE[Popover auto-closes after pick]
+    AUTOCLOSE --> REFRESH[router.refresh - fresh state on success]
+
+    RENDER -.->|Close button top-right of page| EQ
+
+    classDef blocked fill:#ef4444,stroke:#ef4444,color:#fff
+    class BLOCK blocked
+```
+
+**Per-model bay layouts:**
+
+| Model | Layout | Bay set |
+|---|---|---|
+| Artist 32 | 2-col × 3-row | Bay 1..4 (gray) + Bay A + Bay B (red) |
+| Artist MRF 64 | 2-col × 5-row | Bay 1..8 (gray) + Bay A + Bay B (red) |
+| Artist MFR 128 | 5-col × 4-row | Bay 1..16 (gray) + Bay A + Bay B + Bay X + Bay Y (red) |
+| Artist 1024 | 5-col × 2-row (horizontal) | Bay 1, 2, 4, 5, 6, 7, 9, 10 (gray) + Bay 3, 8 (red, NIC bays) |
+
+**Per-bay allowed cards:**
+
+| Bay class | Allowed cards |
+|---|---|
+| Gray data bays (32 / 64 / 128) | `<unused>` / AIO / CAT5 / AES / COAX / VoIP / GPI / MADI / AVB |
+| Bay A (every frame) | `<unused>` / CPU (S G2) / CPU (F G2) |
+| Bay B (every frame) | `<unused>` / CPU (S G2) / CPU (F G2) / GPI |
+| Bay X + Bay Y (MFR 128) | `<unused>` / GPI |
+| Artist 1024 — bays 1/2/4/5/6/7/9/10 | `<unused>` / AES67 / DANTE / MADI |
+| Artist 1024 — bays 3 + 8 | `<unused>` / NIC |
+
+**Per-model card labels:** The older 32 / 64 / 128 use the long
+Director naming (`AIO-108 G2` / `DANTE-108 G2` / etc.). The 1024
+uses the short names (`AES67` / `DANTE` / `MADI` / `NIC`) per the
+operator's Director terminology. `FrameModel.useShortCardLabels` on
+the 1024 entry switches the picker to short labels for that model.
+
+**Identity strip pair pattern (PD-038):**
+
+```
+FRM 1 · 17                                      [ Close ]
+10.249.96.40 · 12 bays
+```
+
+`FRM N` white-bold + cyan-bold `Node ID` (the Riedel-programmed
+hardware identifier). If a frame has no Node ID set, the cyan piece
+omits cleanly.
+
+**Equipment-card linkage:** Once a frame is created on the Equipment
+tab, it automatically appears as a draggable tile in **Rack Studio's
+Frames** section — operator drops it onto an RU and the slot lands
+at the correct chassis height (`FrameModel.ruSize` shared with Rack
+Studio: Artist 32 = 2U, MRF 64 = 3U, MFR 128 = 6U, Artist 1024 = 2U).
+The slot card renders the frame's IP on its own row beneath the FRM
+id + model.
+
+**Server action gate:** `updateFrameSlot` re-checks role + validates
+the picked card against the bay's `allowedCards` whitelist before any
+write. A crafted request that tries to put a CPU card in a data bay
+is rejected with `{ error: 'Card type not allowed in this bay' }`.

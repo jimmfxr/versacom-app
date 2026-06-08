@@ -35,7 +35,7 @@
 
 <a class="back" href="index.html">‹ Docs</a>
 <h1><img src="/clair_logo_white.png" alt="Clair" class="logo" /> Nodal Control — User Flow</h1>
-<p class="note">Updated 2026-06-08 (v2.5 — Switch Studio + VLAN profiles). End-user navigation and action flows for the current app.</p>
+<p class="note">Updated 2026-06-08 (v2.6 — Frame Studio + studio chrome unification). End-user navigation and action flows for the current app.</p>
 
 <h2>1. Top-level entry + landing by role</h2>
 <div class="diagram">
@@ -401,6 +401,73 @@ flowchart TD
 </ul>
 
 <p class="note"><strong>Server action gate:</strong> <code>updateSwitchPort</code> re-checks role before any write. Manager hitting the endpoint directly returns <code>{ error: 'Read-only role' }</code>; user is already blocked at the proxy.</p>
+
+<h2>Frame Studio — assign card types to Riedel Artist bays (v2.6)</h2>
+<p>Entry point lives on the Comms Equipment tab: the frame ID text (<code>FRM 1</code>, <code>FRM 2</code>, …) on each Riedel Artist card is a Link to <code>/projects/[id]/frame/[equipmentId]</code>. Only frames whose <code>hardwareType</code> resolves to a registered model (<code>ARTIST_32</code>, <code>ARTIST_MRF_64</code>, <code>ARTIST_MRF_128</code>, <code>ARTIST_1024</code>) get a clickable ID — mirrors Switch Studio's policy.</p>
+<div class="diagram">
+<pre class="mermaid">
+flowchart TD
+    EQ[Equipment tab on Comms] -->|tap frame ID FRM 1| GUARD{Role check}
+    GUARD -->|admin or crew or manager| LOAD[/projects/ID/frame/EQID/]
+    GUARD -->|user| BLOCK[Proxy 404 - never reaches page]
+
+    LOAD --> SEED{First open?}
+    SEED -->|yes - 0 FrameSlot rows| LAZY[Seed defaults<br/>every bay unused<br/>except 1024 bays 3 and 8 NIC]
+    SEED -->|no| READ[Read existing FrameSlot rows]
+    LAZY --> READ
+
+    READ --> RENDER[Chassis grid - bays per model<br/>cell label is card shortLabel<br/>red border accent on CPU and GPI bays]
+
+    RENDER --> EDIT{User role}
+    EDIT -->|admin or crew| TAP_BAY[Tap a bay]
+    EDIT -->|manager| RO[Cells render<br/>tap does nothing]
+
+    TAP_BAY --> POPOVER[Portaled popover anchored to cell<br/>allowedCards list per bay<br/>no left swatch<br/>selected option highlights cyan]
+    POPOVER --> PICK{Choose}
+    PICK -->|pick a card| PATCH[updateFrameSlot action<br/>server re-checks allowedCards]
+    PICK -->|tap outside| CLOSE_POP[Popover dismissed]
+
+    PATCH --> OPTIMISTIC[Cell label updates immediately]
+    OPTIMISTIC --> AUTOCLOSE[Popover auto-closes after pick]
+    AUTOCLOSE --> REFRESH[router.refresh - fresh state on success]
+
+    RENDER -.->|Close button top-right of page| EQ
+</pre>
+</div>
+
+<p><strong>Per-model bay layouts:</strong></p>
+<table>
+  <thead><tr><th>Model</th><th>Layout</th><th>Bay set</th></tr></thead>
+  <tbody>
+    <tr><td>Artist 32</td><td>2-col × 3-row</td><td>Bay 1..4 (gray) + Bay A + Bay B (red)</td></tr>
+    <tr><td>Artist MRF 64</td><td>2-col × 5-row</td><td>Bay 1..8 (gray) + Bay A + Bay B (red)</td></tr>
+    <tr><td>Artist MFR 128</td><td>5-col × 4-row</td><td>Bay 1..16 (gray) + Bay A + Bay B + Bay X + Bay Y (red)</td></tr>
+    <tr><td>Artist 1024</td><td>5-col × 2-row (horizontal)</td><td>Bay 1, 2, 4, 5, 6, 7, 9, 10 (gray) + Bay 3, 8 (red, NIC bays)</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Per-bay allowed cards:</strong></p>
+<table>
+  <thead><tr><th>Bay class</th><th>Allowed cards</th></tr></thead>
+  <tbody>
+    <tr><td>Gray data bays (32 / 64 / 128)</td><td><code>&lt;unused&gt;</code> / AIO / CAT5 / AES / COAX / VoIP / GPI / MADI / AVB</td></tr>
+    <tr><td>Bay A (every frame)</td><td><code>&lt;unused&gt;</code> / CPU (S G2) / CPU (F G2)</td></tr>
+    <tr><td>Bay B (every frame)</td><td><code>&lt;unused&gt;</code> / CPU (S G2) / CPU (F G2) / GPI</td></tr>
+    <tr><td>Bay X + Bay Y (MFR 128)</td><td><code>&lt;unused&gt;</code> / GPI</td></tr>
+    <tr><td>Artist 1024 — bays 1/2/4/5/6/7/9/10</td><td><code>&lt;unused&gt;</code> / AES67 / DANTE / MADI</td></tr>
+    <tr><td>Artist 1024 — bays 3 + 8</td><td><code>&lt;unused&gt;</code> / NIC</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Identity strip pair pattern (PD-038):</strong></p>
+<pre style="background:#1a1a1a; padding: 12px 16px; border-radius: 6px; color:#eee;">FRM 1 · 17                                      [ Close ]
+10.249.96.40 · 12 bays</pre>
+
+<p><code>FRM N</code> white-bold + cyan-bold Node ID (the Riedel-programmed hardware identifier). If a frame has no Node ID set, the cyan piece omits cleanly.</p>
+
+<p><strong>Equipment-card linkage:</strong> Once a frame is created on the Equipment tab, it automatically appears as a draggable tile in <strong>Rack Studio's Frames</strong> section — operator drops it onto an RU and the slot lands at the correct chassis height (<code>FrameModel.ruSize</code> shared with Rack Studio: Artist 32 = 2U, MRF 64 = 3U, MFR 128 = 6U, Artist 1024 = 2U). The slot card renders the frame's IP on its own row beneath the FRM id + model.</p>
+
+<p class="note"><strong>Server action gate:</strong> <code>updateFrameSlot</code> re-checks role + validates the picked card against the bay's <code>allowedCards</code> whitelist before any write. A crafted request that tries to put a CPU card in a data bay is rejected with <code>{ error: 'Card type not allowed in this bay' }</code>.</p>
 
 <script>
   mermaid.initialize({

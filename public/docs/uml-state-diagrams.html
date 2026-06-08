@@ -35,7 +35,7 @@
 
 <a class="back" href="index.html">‹ Docs</a>
 <h1><img src="/clair_logo_white.png" alt="Clair" class="logo" /> Nodal Control — State Diagrams</h1>
-<p class="note">Updated 2026-06-08 (v2.5 — Switch Studio + VLAN profiles).</p>
+<p class="note">Updated 2026-06-08 (v2.6 — Frame Studio + studio chrome unification).</p>
 
 <h2>1. Panel Key (client-side visual state)</h2>
 <p>The state a key can be in while the crew is editing Panel Studio.</p>
@@ -390,6 +390,94 @@ stateDiagram-v2
     <tr><td><code>16F</code></td><td>(no RJ45)</td><td>16 SFP Mgmt trunk</td></tr>
   </tbody>
 </table>
+
+<h2>8. FrameSlot card-type state (Frame Studio, v2.6)</h2>
+<p>Each bay on a frame's chassis holds one of the card-type tokens listed in <code>src/lib/frame-models.ts</code>. Only the bay's <code>allowedCards</code> whitelist is reachable from the picker — the server action re-validates on every write (PD-035).</p>
+<div class="diagram">
+<pre class="mermaid">
+stateDiagram-v2
+    direction LR
+
+    [*] --> unseeded : Equipment created
+    unseeded --> seeded_default : First Frame Studio open seeds defaults
+    unseeded --> unused : Rare branch defaultCard is null
+
+    seeded_default --> populated : Operator picks a different card
+    populated --> populated : Operator picks another allowed card
+    populated --> unused : Operator picks Unused
+
+    unused --> populated : Operator picks any allowed card
+
+    note right of unseeded
+        No FrameSlot row exists yet.
+        Loader detects zero rows and seeds one row per bay.
+        Invisible to user.
+    end note
+
+    note right of seeded_default
+        cardType equals bay.defaultCard.
+        For most bays this is unused.
+        For Artist 1024 bays 3 plus 8 this is nic.
+    end note
+
+    note right of unused
+        cardType is unused.
+        Cell renders with em-dash centered gray text.
+    end note
+
+    note right of populated
+        cardType is one of bay.allowedCards.
+        Cell renders with short card label centered white text.
+    end note
+</pre>
+</div>
+
+<h3>Per-bay allowed-card classes</h3>
+<div class="diagram">
+<pre class="mermaid">
+stateDiagram-v2
+    direction TB
+
+    [*] --> data_bay : Numbered bays on 32 64 128
+    [*] --> bay_A : Bay A on every frame
+    [*] --> bay_B : Bay B on every frame
+    [*] --> bay_XY : Bay X or Y on MFR 128
+    [*] --> bay_1024_data : 1024 bays 1 2 4 5 6 7 9 10
+    [*] --> bay_1024_nic : 1024 bays 3 and 8
+
+    note right of data_bay
+        Accepts AIO CAT5 AES COAX VoIP GPI MADI AVB.
+        Plus unused.
+    end note
+
+    note right of bay_A
+        Accepts CPU S G2 or CPU F G2.
+        Plus unused. No other cards fit Bay A.
+    end note
+
+    note right of bay_B
+        Accepts CPU S G2 CPU F G2 or GPI.
+        Plus unused.
+    end note
+
+    note right of bay_XY
+        Accepts GPI only.
+        Plus unused.
+    end note
+
+    note right of bay_1024_data
+        Accepts AES67 DANTE or MADI.
+        Plus unused. Subset per operator typical use.
+    end note
+
+    note right of bay_1024_nic
+        Accepts NIC only.
+        Plus unused. CPU cards don't fit this bay
+        position on the 1024 chassis.
+    end note
+</pre>
+</div>
+<p class="note">Each bay's class is determined at model definition time (<code>src/lib/frame-models.ts</code>) — operator's allow-list per the Riedel Possible-Card-Types tables. The picker UI surfaces only the allowed tokens for the tapped bay, and the server re-validates so a crafted request from dev tools still bounces off the whitelist.</p>
 
 <script>
   mermaid.initialize({

@@ -38,7 +38,7 @@
 
 <a class="back" href="index.html">‹ Docs</a>
 <h1><img src="/clair_logo_white.png" alt="Clair" class="logo" /> Nodal Control — Use Cases by Role</h1>
-<p class="note">Updated 2026-06-08 (v2.5 — Switch Studio + VLAN profiles). Roles are per-project (<code>ProjectMember.role</code>); a user with <code>admin</code> on any project is promoted to "global admin" for the whole app.</p>
+<p class="note">Updated 2026-06-08 (v2.6 — Frame Studio + studio chrome unification). Roles are per-project (<code>ProjectMember.role</code>); a user with <code>admin</code> on any project is promoted to "global admin" for the whole app.</p>
 
 <h2>1. Use case diagram</h2>
 <div class="diagram">
@@ -175,6 +175,10 @@ flowchart LR
     <tr><td><strong>Open Switch Studio (v2.5)</strong></td><td class="yes">✅</td><td>👁 view-only</td><td class="yes">✅</td><td class="no">❌ (proxy 404)</td></tr>
     <tr><td><strong>Assign VLAN profile to a switch port</strong></td><td class="yes">✅</td><td class="no">❌</td><td class="yes">✅</td><td class="no">❌</td></tr>
     <tr><td><strong>Toggle Trunk on a switch port</strong></td><td class="yes">✅</td><td class="no">❌</td><td class="yes">✅</td><td class="no">❌</td></tr>
+    <tr><td><strong>Open Frame Studio (v2.6)</strong></td><td class="yes">✅</td><td>👁 view-only</td><td class="yes">✅</td><td class="no">❌ (proxy 404)</td></tr>
+    <tr><td><strong>Assign card type to a frame bay</strong></td><td class="yes">✅</td><td class="no">❌</td><td class="yes">✅</td><td class="no">❌</td></tr>
+    <tr><td><strong>Set frame Node ID (Equipment edit)</strong></td><td class="yes">✅</td><td class="no">❌</td><td class="yes">✅</td><td class="no">❌</td></tr>
+    <tr><td><strong>Drop a frame onto a rack slot</strong></td><td class="yes">✅</td><td class="yes">✅</td><td class="yes">✅</td><td class="no">❌</td></tr>
   </tbody>
 </table>
 
