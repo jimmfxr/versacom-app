@@ -154,38 +154,36 @@ export function SwitchStudio({
           identity group wraps to. IP renders in cyan (matches the
           Equipment card treatment); link target is bare http://IP
           which lands on the NETGEAR switch's web login. */}
-      <div className="flex items-baseline justify-between gap-3 pt-4 sm:pt-6">
-        <div className="min-w-0 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <span className="text-xl font-semibold text-white">{equipment.name}</span>
-          {/* Model moved onto the chassis bezel itself (cyan label in
-              the top-right of the chassis card). Keeping it here too
-              would just repeat the same string — but we still need
-              a separator dot before IP on desktop so the inline row
-              reads as 'SW 1 · 10.249.96.54 · 30 ports'. Hidden on
-              mobile (sm:inline only) so the wrap-break starts the
-              next line cleanly without a leading dot. */}
-          {equipment.ipAddress && (
-            <span className="hidden text-sm text-gray-600 sm:inline">·</span>
-          )}
-          {/* Forced wrap on mobile — empty full-width flex item
-              breaks the line before IP. sm:hidden removes it on
-              desktop so the row stays single. aria-hidden because
-              it's purely visual layout glue. */}
-          <span aria-hidden className="basis-full sm:hidden" />
-          {equipment.ipAddress && (
-            <>
-              <a
-                href={`http://${equipment.ipAddress}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="truncate text-sm text-[#22a7d3] hover:text-[#019bc7]"
-              >
-                {equipment.ipAddress}
-              </a>
-              <span className="text-sm text-gray-600">·</span>
-            </>
-          )}
-          <span className="text-sm text-gray-500">{equipment.rj45Count + equipment.sfpCount} ports</span>
+      {/* Switch identity strip — matches Panel Studio's two-row
+          pattern (panel-studio.tsx ~line 2128). Row 1 is the
+          equipment ID in cyan font-mono (the SW N identifier).
+          Row 2 is IP + port count in smaller text with the
+          Panel-Studio gray-600 ('#3a3a3a') separator dots. Close
+          button stays pinned to the top-right, aligned to row 1
+          via items-start on the outer flex. */}
+      <div className="flex items-start justify-between gap-3 pt-4 sm:pt-6">
+        <div className="min-w-0 flex-1">
+          <div className="text-[18px] font-bold text-[#22a7d3] font-mono lg:text-[22px]">
+            {equipment.name}
+          </div>
+          <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            {equipment.ipAddress && (
+              <>
+                <a
+                  href={`http://${equipment.ipAddress}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="truncate text-[13px] text-[#22a7d3] hover:text-[#019bc7]"
+                >
+                  {equipment.ipAddress}
+                </a>
+                <span className="text-xs text-[#3a3a3a]">·</span>
+              </>
+            )}
+            <span className="text-[13px] text-gray-500">
+              {equipment.rj45Count + equipment.sfpCount} ports
+            </span>
+          </div>
         </div>
         <button
           type="button"
