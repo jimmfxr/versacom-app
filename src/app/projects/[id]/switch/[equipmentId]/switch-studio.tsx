@@ -240,25 +240,29 @@ function Chassis({
 
   return (
     <div className="relative w-full">
-      {/* Two-layer wrapper:
-          - Outer .overflow-x-auto is the SCROLL container only.
-          - Inner .flex justify-center min-w-full handles centering
-            when the chassis fits, and grows to the chassis's width
-            when it doesn't. min-w-full forces the inner div to be
-            at least as wide as the outer — without it, justify-
-            center + overflow-x-auto on the SAME element makes iOS
-            Safari put the scroll origin at the centered position
-            and refuse to scroll back to the left edge.
-          - shrink-0 on the chassis itself stops the flex parent
-            from squeezing it during the layout pass. */}
+      {/* Mobile scroll behavior is the load-bearing part of this
+          wrapper. Earlier attempts used `flex justify-center` on the
+          scroller, which centered an overflowing chassis so half of
+          it sat in negative-x space — unreachable because `overflow-
+          x: auto` only scrolls positive-x. Operator could see ports
+          9-30 but not 1-8.
+
+          Fix: chassis becomes a `mx-auto w-fit` block child of the
+          scroller. `w-fit` = width: fit-content, so the chassis is
+          always exactly its content width. When it fits the
+          viewport, the auto-margins evenly distribute the extra
+          space and center it. When it doesn't fit, the auto-margins
+          collapse to 0, the chassis anchors to the LEFT edge of the
+          scroller, and overflow extends rightward — scroll reaches
+          everything. (mx-auto requires block display, which is why
+          inline-block is gone.) */}
       <div className="overflow-x-auto pb-2">
-        <div className="flex min-w-full justify-center">
-          <div
-            // Chassis bezel — matches Panel Studio's panel-chassis chrome
-            // (bg-[#2a2a2a] · border-white/[0.06] · rounded-[14px] ·
-            // padded) so the two studios read as siblings.
-            className="inline-block shrink-0 rounded-[14px] border border-white/[0.06] bg-[#2a2a2a] p-6 sm:p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
-          >
+        <div
+          // Chassis bezel — matches Panel Studio's panel-chassis chrome
+          // (bg-[#2a2a2a] · border-white/[0.06] · rounded-[14px] ·
+          // padded) so the two studios read as siblings.
+          className="mx-auto w-fit rounded-[14px] border border-white/[0.06] bg-[#2a2a2a] p-6 sm:p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+        >
           <div
             className="grid gap-2"
             style={{
@@ -291,7 +295,6 @@ function Chassis({
                 />
               )
             })}
-          </div>
           </div>
         </div>
       </div>
