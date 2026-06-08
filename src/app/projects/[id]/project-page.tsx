@@ -3790,6 +3790,13 @@ export function ProjectPage({
                   r.name.toLowerCase().includes(q) ||
                   (r.location ?? '').toLowerCase().includes(q),
                 )
+            // Currently-expanded rack — read once so the desktop tab
+            // toolbar can render its name / location / RU + eye + Close
+            // alongside the tab dropdown + search instead of taking a
+            // dedicated row below.
+            const expandedRack = expandedRackId != null
+              ? commsRacks.find((r) => r.id === expandedRackId) ?? null
+              : null
             return (
             <div className="flex min-h-0 flex-1 flex-col">
               {/* Desktop toolbar — tab dropdown + collapsible search on
@@ -3800,41 +3807,103 @@ export function ProjectPage({
                   the device library's top row alongside + Custom
                   device, so the library is now the canonical home for
                   rack-context controls.) */}
-              <div className="hidden items-center justify-end gap-2 pb-3 sm:flex">
-                {!searchOpen && desktopTabDropdown}
-                {searchOpen ? (
-                  <>
-                    <input
-                      type="text"
-                      autoFocus
-                      placeholder="Search racks…"
-                      value={rackSearch}
-                      onChange={(e) => setRackSearch(e.target.value)}
-                      className="w-[280px] rounded-lg border-2 border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
-                    />
+              <div className="hidden items-center gap-2 pb-3 sm:flex">
+                {/* When a rack is expanded, its name / location / RU
+                    take the FAR LEFT of this toolbar (instead of
+                    living in a dedicated row below — that row is
+                    sm:hidden when expanded). Clicking the name toggles
+                    the metadata edit form, same behavior the in-list
+                    row had. */}
+                {expandedRack && (
+                  <div className="min-w-0 flex flex-1 items-baseline gap-2">
+                    {(isProjectAdmin || isManager) ? (
+                      <button
+                        type="button"
+                        onClick={() => setRackMetaFormOpen((v) => !v)}
+                        aria-pressed={rackMetaFormOpen}
+                        className={`truncate text-sm font-semibold transition-colors ${
+                          rackMetaFormOpen ? 'text-[#22a7d3]' : 'text-white hover:text-[#22a7d3]'
+                        }`}
+                      >
+                        {expandedRack.name}
+                      </button>
+                    ) : (
+                      <span className="text-sm font-semibold text-white truncate">{expandedRack.name}</span>
+                    )}
+                    {expandedRack.location && (
+                      <>
+                        <span className="shrink-0 text-sm text-gray-600">·</span>
+                        <span className="truncate text-sm text-[#22a7d3]">{expandedRack.location}</span>
+                      </>
+                    )}
+                    <span className="shrink-0 text-sm text-gray-600">·</span>
+                    <span className="shrink-0 text-sm text-gray-500 font-mono tabular-nums">{expandedRack.totalRU}RU</span>
+                  </div>
+                )}
+
+                {/* Right group — eye icon + Close (when expanded)
+                    sit JUST LEFT of the tab dropdown + search per
+                    operator request. ml-auto pushes the group to the
+                    right when no expanded rack info is on the left
+                    (toolbar stays right-pinned in the collapsed case). */}
+                <div className={`flex items-center gap-2 ${expandedRack ? '' : 'ml-auto'}`}>
+                  {expandedRack && (
+                    <>
+                      <Link
+                        href={`/projects/${project.id}/racks/${expandedRack.id}/preview`}
+                        aria-label="Preview rack"
+                        title="Preview rack"
+                        className="flex h-9 shrink-0 items-center text-gray-400 transition-colors hover:text-white"
+                      >
+                        <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                        </svg>
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => changeExpandedRack(null)}
+                        className="shrink-0 rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+                      >
+                        Close
+                      </button>
+                    </>
+                  )}
+                  {!searchOpen && desktopTabDropdown}
+                  {searchOpen ? (
+                    <>
+                      <input
+                        type="text"
+                        autoFocus
+                        placeholder="Search racks…"
+                        value={rackSearch}
+                        onChange={(e) => setRackSearch(e.target.value)}
+                        className="w-[280px] rounded-lg border-2 border-white/10 bg-[#202020] px-3.5 py-2 text-sm text-gray-200 placeholder-gray-200 outline-none transition-colors hover:border-white/20 hover:bg-white/[0.04] focus:border-[#0178a3]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => { setSearchOpen(false); setRackSearch('') }}
+                        aria-label="Close search"
+                        className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
+                      >
+                        <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </>
+                  ) : (
                     <button
                       type="button"
-                      onClick={() => { setSearchOpen(false); setRackSearch('') }}
-                      aria-label="Close search"
+                      onClick={() => setSearchOpen(true)}
+                      aria-label="Search"
                       className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
                     >
                       <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.343-4.343m0 0A8 8 0 1 0 5.343 5.343a8 8 0 0 0 11.314 11.314Z" />
                       </svg>
                     </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setSearchOpen(true)}
-                    aria-label="Search"
-                    className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-[#2a2a2a] text-gray-200 transition-colors hover:border-white/20 hover:bg-[#313131] hover:text-white"
-                  >
-                    <svg className="size-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.343-4.343m0 0A8 8 0 1 0 5.343 5.343a8 8 0 0 0 11.314 11.314Z" />
-                    </svg>
-                  </button>
-                )}
+                  )}
+                </div>
               </div>
 
               {/* Mobile toolbar — handled by the SHARED mobile tab/search
@@ -4028,7 +4097,7 @@ export function ProjectPage({
                         </div>
                         </AutoHideHeader>
                       ) : (
-                        <div className={`flex flex-row items-center gap-4 transition-colors ${isExpanded ? 'pt-3 pb-3 sm:pt-0' : 'py-3 hover:bg-white/[0.04]'}`}>
+                        <div className={`flex flex-row items-center gap-4 transition-colors ${isExpanded ? 'pt-3 pb-3 sm:hidden' : 'py-3 hover:bg-white/[0.04]'}`}>
                           <div className="min-w-0 flex-1 flex items-baseline gap-2">
                             {/* Rack name is clickable when expanded
                                 + the operator can edit — toggles
