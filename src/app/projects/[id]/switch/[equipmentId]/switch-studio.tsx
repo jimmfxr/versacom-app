@@ -368,13 +368,22 @@ function PortCell({
         style={{
           backgroundColor: fillColor === 'transparent' ? undefined : fillColor,
         }}
-        className={`relative ${aspectClass} flex flex-col items-center justify-start gap-0.5 rounded-md border border-white/10 pt-1.5 text-xs font-bold transition-transform ${
+        className={`relative ${aspectClass} flex flex-col items-center justify-between rounded-md border border-white/10 py-1 text-xs font-bold transition-transform ${
           fillColor === 'transparent' ? 'bg-[#1a1a1a]' : ''
         } ${canEdit ? 'cursor-pointer active:scale-95' : 'cursor-default'} ${
           isOpen ? 'outline outline-2 outline-[#22a7d3]' : ''
         }`}
       >
-        <span className={`${portNumberColor} leading-none`}>{port.portIndex}</span>
+        {/* Port number — small at top, the chassis label. */}
+        <span className={`${portNumberColor} text-[10px] leading-none opacity-80`}>
+          {port.portIndex}
+        </span>
+        {/* VLAN ID — centered/lower, the dominant info per port.
+            Shows the underlying profile's vlanId for both trunk and
+            non-trunk ports; '—' for unassigned. */}
+        <span className={`${portNumberColor} text-[11px] leading-none`}>
+          {profile ? profile.vlanId : '—'}
+        </span>
         {port.isTrunk && (
           // White-circle "T" badge bottom-right, mirroring NETGEAR
           // ProAV Engage's trunk indicator. Scaled with the larger
