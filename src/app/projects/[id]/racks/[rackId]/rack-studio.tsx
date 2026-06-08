@@ -16,6 +16,7 @@ import {
   type PresetDept,
   type RackDevicePreset,
 } from '@/lib/rack-presets'
+import { getFrameModel } from '@/lib/frame-models'
 
 /**
  * Rack studio — the page-level UI for a single RackTemplate.
@@ -373,7 +374,18 @@ export function RackStudio({
     ...rackEquipment
       .filter((eq) => !rackedEquipmentIds.includes(eq.id))
       .map((eq) => {
+        // RU size resolution priority:
+        //   1. Frame model lookup (hardwareType keys like ARTIST_32
+        //      → FrameModel.ruSize) — frames use coded keys, NOT
+        //      preset names, so the preset .find() below would miss.
+        //   2. Library-preset .find() by hardwareType === preset.name
+        //      (current switches + audio pattern: '26P+4F' / 'Dark88'
+        //      etc. match preset.name exactly).
+        //   3. Fall back to 1U if neither lookup finds anything —
+        //      operator can adjust on the slot edit form.
+        const frameModel = eq.category === 'frames' ? getFrameModel(eq.hardwareType) : null
         const matchingPreset = presets.find((p) => p.name === eq.hardwareType)
+        const ruSize = frameModel?.ruSize ?? matchingPreset?.ruSize ?? 1
         const mappedCategory: PresetCategory =
           eq.category === 'switches' ? 'switches'
           : eq.category === 'audio' ? 'audio'
@@ -384,7 +396,7 @@ export function RackStudio({
         // segment independently.
         return {
           name: eq.name?.trim() || `Equipment ${eq.id}`,
-          ruSize: matchingPreset?.ruSize ?? 1,
+          ruSize,
           category: mappedCategory,
           equipmentId: eq.id,
           isEquipment: true as const,

@@ -86,9 +86,13 @@ export default async function RackStudioPage({
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
     }),
     // Rack-eligible Equipment for the slot-edit form's link picker.
-    // Filtered to categories that physically live in a rack.
+    // Filtered to categories that physically live in a rack. Frames
+    // (Riedel Artist family) joined the list in v2.6 — they're racked
+    // hardware just like switches and audio. RU size for a frame
+    // tile comes from the FrameModel.ruSize (Artist 32 = 2U, MRF 64
+    // = 3U, MFR 128 = 6U, Artist 1024 = 2U), resolved client-side.
     prisma.equipment.findMany({
-      where: { projectId, category: { in: ['switches', 'audio'] } },
+      where: { projectId, category: { in: ['switches', 'audio', 'frames'] } },
       select: {
         id: true,
         name: true,

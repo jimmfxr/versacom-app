@@ -213,6 +213,11 @@ export type FrameModel = {
    *  (column, row). */
   cols: number
   rows: number
+  /** Physical chassis height in rack units. Used by Rack Studio when
+   *  surfacing a frame as a library tile so the slot is sized
+   *  correctly on drop. Matches the Riedel-published spec sheets:
+   *  Artist 32 = 2U, MRF 64 = 3U, MFR 128 = 6U, Artist 1024 = 2U. */
+  ruSize: number
   /** All editable bays in this model. Iterated by the page loader for
    *  lazy-seed; iterated by the client for rendering. */
   bays: readonly FrameBay[]
@@ -267,6 +272,7 @@ export const FRAME_MODELS: Record<string, FrameModel> = {
     label: 'Artist 32',
     cols: 2,
     rows: 3,
+    ruSize: 2,
     bays: [
       // Left column (Bay 4 top → Bay 2 bottom; reads top-down on the
       // chassis).
@@ -292,6 +298,7 @@ export const FRAME_MODELS: Record<string, FrameModel> = {
     label: 'Artist MRF 64',
     cols: 2,
     rows: 5,
+    ruSize: 3,
     bays: [
       // Left column — bays 4..8 stacked bottom→top so 8 sits at the top
       // matching the chassis face.
@@ -327,6 +334,7 @@ export const FRAME_MODELS: Record<string, FrameModel> = {
     label: 'Artist MFR 128',
     cols: 5,
     rows: 4,
+    ruSize: 6,
     bays: (() => {
       // Numbered data bays 1..16 — same allowed-cards + default for
       // all of them. Build once + spread, avoids 16 near-identical
@@ -390,6 +398,7 @@ export const FRAME_MODELS: Record<string, FrameModel> = {
     label: 'Artist 1024',
     cols: 5,
     rows: 2,
+    ruSize: 2,
     bays: [
       // Row 1: bays 1, 2, 3, 4, 5.
       { key: '1', column: 1, row: 1, accent: 'gray', allowedCards: ['unused', 'aes67', 'dante', 'madi'], defaultCard: 'unused' },
