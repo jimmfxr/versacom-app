@@ -292,6 +292,7 @@ function Chassis({
               )
             })}
           </div>
+          </div>
         </div>
       </div>
     </div>
