@@ -139,67 +139,59 @@ export function SwitchStudio({
         </header>
       </AutoHideHeader>
 
-      {/* ─── Centered chassis group ───
-          Identity strip + chassis live inside a single flex-1
-          column that vertically centers the whole group on tall
-          viewports. Previously the identity strip pinned to the
-          top of the page and the chassis floated way below with a
-          big gap — operator wanted them tightly grouped (the id
-          should sit *right above* the chassis, not at the top of
-          the page).
+      {/* Close button — stays pinned to the top-right of the page
+          (where it was originally). Sits in its own row right after
+          the Comms header so the operator can dismiss the studio
+          without scrolling past the centered chassis group below. */}
+      <div className="flex justify-end pt-4 sm:pt-6">
+        <button
+          type="button"
+          onClick={() => router.push(`/projects/${project.id}?tab=equipment`)}
+          style={{ touchAction: 'manipulation' }}
+          className="shrink-0 inline-flex rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
+        >
+          Close
+        </button>
+      </div>
 
-          Layout per row:
-            Row 1: SW N (white bold, left)    [Close] (top-right)
-            Row 2: IP · port count (smaller, left)
-            Row 3: chassis (centered horizontally via mx-auto on
-                   the bezel itself)
-       */}
-      <div className="flex flex-1 flex-col justify-center gap-3 py-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            {/* SW N — primary identifier in white bold, matches
-                Panel Studio's member-name styling. text-[18px]
-                lg:text-[22px], no font-mono (panel studio reserves
-                font-mono + cyan for the PNL-N sub-identifier that
-                pairs with a member name; we have no such pairing). */}
-            <div className="text-[18px] font-bold text-white lg:text-[22px] truncate">
-              {equipment.name}
-            </div>
-            {/* Row 2 — IP + port count, smaller, Panel-Studio gray-600
-                ('#3a3a3a') separator dots. */}
-            <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              {equipment.ipAddress && (
-                <>
-                  <a
-                    href={`http://${equipment.ipAddress}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="truncate text-[13px] text-[#22a7d3] hover:text-[#019bc7]"
-                  >
-                    {equipment.ipAddress}
-                  </a>
-                  <span className="text-xs text-[#3a3a3a]">·</span>
-                </>
-              )}
-              <span className="text-[13px] text-gray-500">
-                {equipment.rj45Count + equipment.sfpCount} ports
-              </span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => router.push(`/projects/${project.id}?tab=equipment`)}
-            style={{ touchAction: 'manipulation' }}
-            className="shrink-0 inline-flex rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-200 transition-colors hover:border-white/20 hover:bg-white/[0.04] active:border-[#0178a3] active:bg-[#0178a3] active:text-white"
-          >
-            Close
-          </button>
-        </div>
+      {/* Vertically-centered chassis group. The identity strip is
+          rendered ABOVE the chassis bezel INSIDE the same w-fit
+          container (handled by Chassis component via the
+          identityStrip prop) so the strip's text aligns to the
+          bezel's LEFT EDGE — operator request. */}
+      <div className="flex flex-1 items-center justify-center py-4">
         <Chassis
           rj45Count={equipment.rj45Count}
           sfpCount={equipment.sfpCount}
           chassisRows={equipment.chassisRows}
           modelLabel={equipment.modelLabel}
+          identityStrip={
+            <div className="min-w-0">
+              {/* SW N — white bold, Panel-Studio member-name styling. */}
+              <div className="text-[18px] font-bold text-white lg:text-[22px] truncate">
+                {equipment.name}
+              </div>
+              {/* Row 2 — IP + port count, smaller, gray-600 dots. */}
+              <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                {equipment.ipAddress && (
+                  <>
+                    <a
+                      href={`http://${equipment.ipAddress}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="truncate text-[13px] text-[#22a7d3] hover:text-[#019bc7]"
+                    >
+                      {equipment.ipAddress}
+                    </a>
+                    <span className="text-xs text-[#3a3a3a]">·</span>
+                  </>
+                )}
+                <span className="text-[13px] text-gray-500">
+                  {equipment.rj45Count + equipment.sfpCount} ports
+                </span>
+              </div>
+            </div>
+          }
           ports={ports}
           profileById={profileById}
           managementColor={managementProfile?.color ?? '#808080'}
@@ -229,6 +221,7 @@ function Chassis({
   sfpCount,
   chassisRows,
   modelLabel,
+  identityStrip,
   ports,
   profileById,
   managementColor,
@@ -246,6 +239,12 @@ function Chassis({
    *  cyan at the top-right of the chassis bezel as a chassis-printed
    *  manufacturer plate. */
   modelLabel: string
+  /** Identity strip (id + IP/ports) rendered ABOVE the bezel inside
+   *  the same `w-fit mx-auto` container so the strip's text aligns
+   *  to the chassis bezel's LEFT EDGE (operator request — the id
+   *  shouldn't be at the page's left edge while the chassis is
+   *  centered, they should line up). */
+  identityStrip: React.ReactNode
   ports: Port[]
   profileById: Map<number, Profile>
   managementColor: string
@@ -278,13 +277,20 @@ function Chassis({
           everything. (mx-auto requires block display, which is why
           inline-block is gone.) */}
       <div className="overflow-x-auto pb-2">
-        <div
-          // Chassis bezel — matches Panel Studio's panel-chassis chrome
-          // (bg-[#2a2a2a] · border-white/[0.06] · rounded-[14px] ·
-          // p-8 · relative for the absolute model label) so the three
-          // studios read uniform.
-          className="relative mx-auto w-fit rounded-[14px] border border-white/[0.06] bg-[#2a2a2a] p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
-        >
+        {/* Shared mx-auto w-fit container — sizes to the bezel's
+            content width so the identity strip ABOVE the bezel
+            aligns to the bezel's LEFT EDGE instead of the page edge.
+            On mobile the container can exceed viewport width and
+            scrolls horizontally (overflow-x-auto on the parent). */}
+        <div className="mx-auto w-fit">
+          {identityStrip && <div className="mb-3">{identityStrip}</div>}
+          <div
+            // Chassis bezel — matches Panel Studio's panel-chassis chrome
+            // (bg-[#2a2a2a] · border-white/[0.06] · rounded-[14px] ·
+            // p-8 · relative for the absolute model label) so the three
+            // studios read uniform.
+            className="relative rounded-[14px] border border-white/[0.06] bg-[#2a2a2a] p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+          >
           {/* Chassis-printed model label — same treatment Panel
               Studio uses (absolute right-4 top-3, text-sm + wide
               tracking + tabular-nums = engraved-silkscreen plate
@@ -334,6 +340,7 @@ function Chassis({
               )
             })}
           </div>
+        </div>
         </div>
       </div>
     </div>
