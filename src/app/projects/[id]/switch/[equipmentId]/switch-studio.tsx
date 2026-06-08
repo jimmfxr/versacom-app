@@ -275,7 +275,16 @@ function Chassis({
           <div
             className="grid gap-2"
             style={{
-              gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+              // `auto` columns size to each cell's natural width
+              // (w-12 = 48px) instead of dividing viewport width
+              // evenly. Without this, repeat(N, 1fr) forced every
+              // column to share the viewport — on mobile the cells
+              // collapsed to ~25px each, port numbers got clipped,
+              // and there was nothing to scroll. With `auto`, the
+              // grid grows to its real content width (N*48 + gaps)
+              // and the parent overflow-x-auto + w-fit chassis
+              // bezel handle the horizontal scrolling cleanly.
+              gridTemplateColumns: `repeat(${columnCount}, auto)`,
               gridAutoRows: 'auto',
             }}
           >
