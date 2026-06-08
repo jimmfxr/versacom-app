@@ -234,19 +234,25 @@ function Chassis({
 
   return (
     <div className="relative w-full">
-      {/* Horizontal scroll container — flex justify-center centers
-          the chassis when it fits, falls back to natural left-
-          aligned scroll when the chassis is wider than the viewport
-          (e.g. a 40-port switch on mobile). The flex wrapper is
-          what actually centers — the chassis itself is inline-block
-          so mx-auto wouldn't work. */}
-      <div className="flex justify-center overflow-x-auto pb-2">
-        <div
-          // Chassis bezel — matches Panel Studio's panel-chassis chrome
-          // (bg-[#2a2a2a] · border-white/[0.06] · rounded-[14px] ·
-          // padded) so the two studios read as siblings.
-          className="inline-block shrink-0 rounded-[14px] border border-white/[0.06] bg-[#2a2a2a] p-6 sm:p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
-        >
+      {/* Two-layer wrapper:
+          - Outer .overflow-x-auto is the SCROLL container only.
+          - Inner .flex justify-center min-w-full handles centering
+            when the chassis fits, and grows to the chassis's width
+            when it doesn't. min-w-full forces the inner div to be
+            at least as wide as the outer — without it, justify-
+            center + overflow-x-auto on the SAME element makes iOS
+            Safari put the scroll origin at the centered position
+            and refuse to scroll back to the left edge.
+          - shrink-0 on the chassis itself stops the flex parent
+            from squeezing it during the layout pass. */}
+      <div className="overflow-x-auto pb-2">
+        <div className="flex min-w-full justify-center">
+          <div
+            // Chassis bezel — matches Panel Studio's panel-chassis chrome
+            // (bg-[#2a2a2a] · border-white/[0.06] · rounded-[14px] ·
+            // padded) so the two studios read as siblings.
+            className="inline-block shrink-0 rounded-[14px] border border-white/[0.06] bg-[#2a2a2a] p-6 sm:p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+          >
           <div
             className="grid gap-2"
             style={{
