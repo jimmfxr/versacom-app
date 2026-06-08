@@ -2735,7 +2735,7 @@ export function PanelStudio({
                   </div>
                 </aside>
               )}
-            <div className={`relative flex flex-col items-center flex-1 min-h-0 ${(pickerMode && canEditKeys) ? 'justify-center sm:justify-start' : 'justify-center'}`}>
+            <div className={`relative flex flex-col items-center flex-1 min-h-0 min-w-0 ${(pickerMode && canEditKeys) ? 'justify-center sm:justify-start' : 'justify-center'}`}>
 
               {/* The desktop inline-picker card that used to live
                   here has been replaced by the left sidebar above
