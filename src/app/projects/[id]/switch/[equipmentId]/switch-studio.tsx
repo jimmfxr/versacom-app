@@ -311,12 +311,13 @@ function PortCell({
     : textOnLight
       ? 'text-black'
       : 'text-white'
-  // SFP cells render slightly slimmer (5:6 aspect) so the chassis
-  // reads as two distinct port banks — RJ45 squares + SFP slim
-  // rectangles. Matches the physical M4250 face. Sizes bumped from
-  // size-9 to size-12 so the switch reads as a real chassis at
-  // arm's length rather than a tiny grid.
-  const aspectClass = port.portKind === 'sfp' ? 'h-12 w-10' : 'h-12 w-12'
+  // All ports share the same 48x48 (size-12) cell — operator wanted
+  // them uniform. SFP and RJ45 were previously differentiated by
+  // aspect (SFP slimmer w-10 vs RJ45 w-12) to mirror the physical
+  // chassis, but the size mismatch read as "broken" rather than
+  // "two port banks." Keeping uniform; the bank break is still
+  // implied by the index gap (1..rj45Count = RJ45 row, then SFP).
+  const aspectClass = 'h-12 w-12'
   // Anchor for the portaled popover. Measured on open via
   // getBoundingClientRect so the popover sits below the cell even
   // when the chassis is inside an overflow-x-auto scroll container
