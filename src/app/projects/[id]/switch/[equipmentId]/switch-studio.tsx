@@ -163,7 +163,14 @@ export function SwitchStudio({
           via items-start on the outer flex. */}
       <div className="flex items-start justify-between gap-3 pt-4 sm:pt-6">
         <div className="min-w-0 flex-1">
-          <div className="text-[18px] font-bold text-[#22a7d3] font-mono lg:text-[22px]">
+          {/* SW N is the primary identifier — rendered in white bold
+              like Panel Studio's member-name styling (text-[18px]
+              lg:text-[22px], no mono). Panel Studio uses cyan-mono
+              for PNL N because it pairs with a white member name on
+              the same row; Switch Studio has no second person to
+              render so the equipment name itself owns the primary
+              slot. */}
+          <div className="text-[18px] font-bold text-white lg:text-[22px] truncate">
             {equipment.name}
           </div>
           <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
