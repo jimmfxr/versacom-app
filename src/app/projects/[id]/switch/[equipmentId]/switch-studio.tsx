@@ -541,11 +541,16 @@ function PortEditPopover({
               onPatch({ profileId: null, isTrunk: false })
               onClose()
             }}
-            className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-white/[0.04] ${
-              port.profileId == null && !port.isTrunk ? 'bg-white/[0.06]' : ''
+            // Selected row fills solid cyan with white text — matches
+            // FilterDropdown's data-selected style + the nav-link
+            // active state across the app.
+            className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+              port.profileId == null && !port.isTrunk
+                ? 'bg-[#0178a3] text-white'
+                : 'text-gray-300 hover:bg-white/[0.04]'
             }`}
           >
-            <span className="flex-1 truncate text-gray-300">Unassigned</span>
+            <span className="flex-1 truncate">Unassigned</span>
           </button>
 
           {[...grouped.entries()].map(([type, list]) => (
@@ -568,13 +573,19 @@ function PortEditPopover({
                       onPatch({ profileId: p.id, isTrunk: false })
                       onClose()
                     }}
-                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-white/[0.04] ${
-                      selected ? 'bg-white/[0.06]' : ''
+                    // Cyan selected row (matches FilterDropdown +
+                    // nav-link active). On selection both the name
+                    // and the VLAN id flip to white-on-cyan for
+                    // legibility against the filled background.
+                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                      selected
+                        ? 'bg-[#0178a3] text-white'
+                        : 'text-gray-200 hover:bg-white/[0.04]'
                     }`}
                   >
                     <span className="min-w-0 flex-1 flex items-baseline gap-2">
-                      <span className="truncate text-white">{p.name}</span>
-                      <span className="shrink-0 text-[10px] font-mono text-gray-500">v{p.vlanId}</span>
+                      <span className={`truncate ${selected ? 'text-white' : 'text-white'}`}>{p.name}</span>
+                      <span className={`shrink-0 text-[10px] font-mono ${selected ? 'text-white/70' : 'text-gray-500'}`}>v{p.vlanId}</span>
                     </span>
                   </button>
                 )

@@ -167,14 +167,11 @@ const BAY_B_CARDS: readonly CardType[] = [
 /** Bay X + Bay Y on MFR 128 — GPI only. */
 const BAY_XY_CARDS: readonly CardType[] = ['unused', 'gpi'] as const
 
-/** Artist 1024 CPU bays (3 + 8) — CPU + NIC. Operator override on the
- *  original "NIC only" spec; lazy-seed defaults to NIC. */
-const ARTIST_1024_CPU_BAY_CARDS: readonly CardType[] = [
-  'unused',
-  'cpu_s_g2',
-  'cpu_f_g2',
-  'nic',
-] as const
+/** Artist 1024 bays 3 + 8 — operator confirmed only `unused` and
+ *  `nic` are valid for these slots; CPU cards don't fit this bay
+ *  position on the 1024 chassis (CPU is mounted elsewhere). Lazy-
+ *  seed defaults to NIC since that's the typical population. */
+const ARTIST_1024_CPU_BAY_CARDS: readonly CardType[] = ['unused', 'nic'] as const
 
 // ───────────────────────────────────────────────────────────────────
 // Frame model definitions
@@ -387,9 +384,9 @@ export const FRAME_MODELS: Record<string, FrameModel> = {
    *   Bay 1, 2, 4, 5, 6, 7, 9, 10 — operator's typical subset (unused,
    *     AES-67, DANTE, MADI). Modelled here as ['unused', 'aes67',
    *     'dante', 'madi'] per the original spec.
-   *   Bay 3, 8 — CPU bays (operator override on the original "NIC
-   *     only"). Allowed: CPU S G2 / CPU F G2 / NIC. Lazy-seed default
-   *     is NIC because that's the typical population for these bays.
+   *   Bay 3, 8 — NIC-only bays. Allowed: unused / NIC. CPU cards
+   *     don't fit this position on the 1024 chassis. Lazy-seed
+   *     default is NIC because that's the typical population.
    *
    * No Bay A / Bay B on the 1024 — the operator confirmed the photo
    * shows positions 1..10 only.

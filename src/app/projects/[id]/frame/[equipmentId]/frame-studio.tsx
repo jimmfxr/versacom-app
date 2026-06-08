@@ -309,7 +309,12 @@ function BayCell({
         disabled={!canEdit}
         aria-label={`Bay ${bay.key} — ${getCardLabel(slot.cardType)}`}
         title={`Bay ${bay.key} · ${getCardLabel(slot.cardType)}`}
-        className={`relative flex h-16 w-20 flex-col items-center justify-between rounded-md border ${accentBorder} ${baseBg} px-2 py-1.5 text-xs font-bold transition-transform ${
+        // Wider cells so each bay reads like a horizontal Riedel card
+        // module — h-14 (56px) × w-36 (144px) is roughly a 2.5:1
+        // landscape rectangle, matching how the physical bays look on
+        // the Artist chassis. Previous h-16 w-20 (4:5 portrait) read
+        // too much like NETGEAR Switch Studio's port-key cells.
+        className={`relative flex h-14 w-36 flex-col items-center justify-between rounded-md border ${accentBorder} ${baseBg} px-3 py-1.5 text-xs font-bold transition-transform ${
           canEdit ? 'cursor-pointer active:scale-95' : 'cursor-default'
         } ${isOpen ? 'outline outline-2 outline-[#22a7d3]' : ''}`}
       >
@@ -426,16 +431,19 @@ function BayEditPopover({
                   onPatch({ cardType: card })
                   onClose()
                 }}
-                className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-white/[0.04] ${
-                  selected ? 'bg-white/[0.06]' : ''
+                // Selected row fills solid cyan (#0178a3) with white
+                // text — matches FilterDropdown's data-selected style
+                // + the nav-link active state across the app. Hover
+                // gives a neutral light tint that doesn't compete.
+                className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                  selected
+                    ? 'bg-[#0178a3] text-white'
+                    : 'text-gray-200 hover:bg-white/[0.04]'
                 }`}
               >
-                <span className="min-w-0 flex-1 truncate text-white">
+                <span className="min-w-0 flex-1 truncate">
                   {getCardLabel(card as CardType)}
                 </span>
-                {selected && (
-                  <span className="shrink-0 text-[10px] font-mono text-[#22a7d3]">selected</span>
-                )}
               </button>
             )
           })}
