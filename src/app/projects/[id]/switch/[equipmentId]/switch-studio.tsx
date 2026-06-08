@@ -125,19 +125,22 @@ export function SwitchStudio({
         </div>
       </header>
 
-      {/* Switch identity strip — single row, name · model · ip · port
-          count on the FAR LEFT, Close button on the FAR RIGHT. Sits
-          directly under the page header border, before the chassis.
-          IP renders in cyan (same accent the equipment list / library
-          tile use elsewhere). */}
-      <div className="flex flex-row items-baseline justify-between gap-3 pt-4 sm:pt-6">
-        <div className="min-w-0 flex items-baseline gap-2 truncate">
+      {/* Switch identity strip.
+          Desktop (sm+): single row — name · model · ip · port count
+          on the FAR LEFT, Close button on the FAR RIGHT.
+          Mobile: each item on its own row (the line was overflowing
+          the viewport when crammed into one row). Close button stays
+          pinned to the top-right so it's reachable without scrolling
+          past the stacked identity rows. IP renders in cyan (same
+          accent the equipment list / library tile use). */}
+      <div className="flex flex-row items-start justify-between gap-3 pt-4 sm:items-baseline sm:pt-6">
+        <div className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-2">
           <span className="text-xl font-semibold text-white truncate">{equipment.name}</span>
-          <span className="shrink-0 text-sm text-gray-600">·</span>
-          <span className="shrink-0 text-sm text-gray-300">{equipment.modelLabel}</span>
+          <span className="text-sm text-gray-600">·</span>
+          <span className="text-sm text-gray-300">{equipment.modelLabel}</span>
           {equipment.ipAddress && (
             <>
-              <span className="shrink-0 text-sm text-gray-600">·</span>
+              <span className="text-sm text-gray-600">·</span>
               {/* IP renders as a clickable link to the switch's web
                   management UI — matches the Equipment card's IP link
                   treatment (target=_blank, cyan / brighter-cyan hover).
@@ -147,17 +150,14 @@ export function SwitchStudio({
                 href={`http://${equipment.ipAddress}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                // Same text treatment as the Equipment card's IP link
-                // (project-page.tsx ~line 4319) — text-sm, NO font-mono.
-                // Cyan / brighter-cyan hover unchanged.
-                className="shrink-0 truncate text-sm text-[#22a7d3] hover:text-[#019bc7]"
+                className="truncate text-sm text-[#22a7d3] hover:text-[#019bc7]"
               >
                 {equipment.ipAddress}
               </a>
             </>
           )}
-          <span className="shrink-0 text-sm text-gray-600">·</span>
-          <span className="shrink-0 text-sm text-gray-500">{equipment.rj45Count + equipment.sfpCount} ports</span>
+          <span className="text-sm text-gray-600">·</span>
+          <span className="text-sm text-gray-500">{equipment.rj45Count + equipment.sfpCount} ports</span>
         </div>
         <button
           type="button"
